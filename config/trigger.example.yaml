@@ -1,0 +1,160 @@
+# Claude Trigger Router 配置示例
+# 将此文件复制到 ~/.claude-trigger-router/config.yaml
+
+# API 密钥（可选，用于保护服务）
+# APIKEY: "your-secret-key"
+
+# 服务主机和端口
+HOST: "127.0.0.1"
+PORT: 3456
+
+# 日志配置
+LOG: true
+LOG_LEVEL: "debug"  # fatal, error, warn, info, debug, trace
+
+# API 超时时间（毫秒）
+API_TIMEOUT_MS: 600000
+
+# 代理 URL（可选）
+# PROXY_URL: "http://127.0.0.1:7890"
+
+# 模型提供商配置
+Providers:
+  - name: openrouter
+    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
+    api_key: "sk-xxx"
+    models:
+      - "anthropic/claude-sonnet-4"
+      - "anthropic/claude-opus-4"
+      - "openai/dall-e-3"
+    transformer:
+      use: ["openrouter"]
+
+  - name: deepseek
+    api_base_url: "https://api.deepseek.com/chat/completions"
+    api_key: "sk-xxx"
+    models:
+      - "deepseek-chat"
+      - "deepseek-reasoner"
+    transformer:
+      use: ["deepseek"]
+      "deepseek-chat":
+        use: ["tooluse"]
+
+  - name: ollama
+    api_base_url: "http://localhost:11434/v1/chat/completions"
+    api_key: "ollama"
+    models:
+      - "qwen2.5-coder:latest"
+
+# 基础路由配置
+Router:
+  default: "deepseek,deepseek-chat"
+  background: "ollama,qwen2.5-coder:latest"
+  think: "deepseek,deepseek-reasoner"
+  longContext: "openrouter,anthropic/claude-sonnet-4"
+  longContextThreshold: 60000
+  webSearch: "openrouter,anthropic/claude-sonnet-4"
+  image: "openrouter,anthropic/claude-sonnet-4"
+
+# 触发路由配置
+TriggerRouter:
+  # 是否启用触发路由
+  enabled: true
+
+  # 分析范围：last_message（仅最后一条消息）或 full_conversation（完整对话）
+  analysis_scope: "last_message"
+
+  # 是否启用 LLM 意图识别（需要额外的 API 调用）
+  llm_intent_recognition: false
+
+  # 意图识别使用的模型（当 llm_intent_recognition 为 true 时使用）
+  # intent_model: "deepseek,deepseek-chat"
+
+  # 触发规则列表
+  rules:
+    # 图片生成规则
+    - name: "image_generation"
+      priority: 100
+      enabled: true
+      description: "图片生成任务，路由到支持图片生成的模型"
+      patterns:
+        - type: exact
+          keywords:
+            - "生成图片"
+            - "画一张图"
+            - "画一个"
+            - "创建图片"
+            - "create image"
+            - "generate image"
+            - "draw a picture"
+        - type: regex
+          pattern: "(画|生成|创作|绘制).{0,10}(图|画|图像|插图)"
+      model: "openrouter,openai/dall-e-3"
+
+    # 架构设计规则
+    - name: "architecture"
+      priority: 90
+      enabled: true
+      description: "架构设计任务，路由到架构能力强的模型"
+      patterns:
+        - type: exact
+          keywords:
+            - "架构设计"
+            - "系统架构"
+            - "技术架构"
+            - "架构方案"
+            - "architecture"
+            - "design architecture"
+            - "system design"
+        - type: regex
+          pattern: "(架构|系统设计|技术方案)"
+      model: "openrouter,anthropic/claude-opus-4"
+
+    # 代码审查规则
+    - name: "code_review"
+      priority: 80
+      enabled: true
+      description: "代码审查任务"
+      patterns:
+        - type: exact
+          keywords:
+            - "代码审查"
+            - "code review"
+            - "review code"
+            - "检查代码"
+        - type: regex
+          pattern: "(代码|code).{0,5}(审查|review|检查|审核)"
+      model: "openrouter,anthropic/claude-sonnet-4"
+
+    # 复杂推理规则
+    - name: "complex_reasoning"
+      priority: 70
+      enabled: true
+      description: "复杂推理任务，路由到推理能力强的模型"
+      patterns:
+        - type: exact
+          keywords:
+            - "深入分析"
+            - "复杂推理"
+            - "逻辑推理"
+            - "数学推理"
+            - "reasoning"
+            - "deep analysis"
+        - type: regex
+          pattern: "(深入|复杂|详细).{0,5}(分析|推理|解析)"
+      model: "deepseek,deepseek-reasoner"
+
+    # 简单任务规则（优先级低）
+    - name: "simple_task"
+      priority: 10
+      enabled: true
+      description: "简单任务，路由到快速模型"
+      patterns:
+        - type: exact
+          keywords:
+            - "快速"
+            - "简单"
+            - "quick"
+            - "simple"
+      model: "ollama,qwen2.5-coder:latest"
