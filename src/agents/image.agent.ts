@@ -6,6 +6,7 @@
 
 import { IAgent, ITool } from "./type";
 import { LRUCache } from "lru-cache";
+import { logDebug } from "../utils/log";
 
 interface ImageCacheEntry {
   source: any;
@@ -136,7 +137,7 @@ export class ImageAgent implements IAgent {
         required: ["imageId", "task"],
       },
       handler: async (args, context) => {
-        console.log("args", JSON.stringify(args, null, 2));
+        logDebug("analyzeImage args:", JSON.stringify(args, null, 2));
         const imageMessages = [];
         let imageId;
 
@@ -198,7 +199,7 @@ Always ensure that your response reflects a clear, accurate interpretation of th
           });
 
         const response = agentResponse as any;
-        console.log(response?.content);
+        logDebug("analyzeImage response:", response?.content);
         if (!response || !response.content) {
           return "analyzeImage Error";
         }
