@@ -19,15 +19,19 @@
 npm install -g @peterwangze/claude-trigger-router
 ```
 
-### 2. 配置
+### 2. 初始化配置
 
-创建配置文件 `~/.claude-trigger-router/config.yaml`：
+```bash
+ctr init
+```
+
+此命令将示例配置文件复制到 `~/.claude-trigger-router/config.yaml`。
+
+### 3. 编辑配置
+
+打开 `~/.claude-trigger-router/config.yaml`，填入你的 API 密钥和模型信息：
 
 ```yaml
-# 基础配置
-HOST: "127.0.0.1"
-PORT: 3456
-
 # 模型提供商
 Providers:
   - name: openrouter
@@ -56,19 +60,21 @@ TriggerRouter:
       model: "openrouter,openai/dall-e-3"
 ```
 
-### 3. 启动服务
+### 4. 启动服务
 
 ```bash
-ctr start
+ctr start --daemon    # 后台运行（推荐）
+# 或
+ctr start             # 前台运行（便于查看日志/调试）
 ```
 
-### 4. 使用
+### 5. 使用
 
 ```bash
 # 使用路由器运行 Claude Code
 ctr code
 
-# 打开 Web UI
+# 打开 Web UI 管理配置
 ctr ui
 ```
 
