@@ -325,6 +325,66 @@ patterns:
   model: "openrouter,anthropic/claude-opus-4"
 ```
 
+## 🔧 故障排查
+
+### 查看日志
+
+日志文件位于 `~/.claude-trigger-router/logs/`，按天滚动保存。
+
+```bash
+# 实时查看最新日志（macOS/Linux）
+tail -f ~/.claude-trigger-router/logs/*.log
+
+# 查看触发路由命中记录
+grep "TriggerRouter" ~/.claude-trigger-router/logs/*.log
+```
+
+日志中触发路由成功时会出现：
+```
+[INFO] [TriggerRouter] Matched rule "image_generation" -> "openrouter,openai/dall-e-3"
+```
+
+### 常见问题
+
+**服务启动失败**
+
+```bash
+# 使用前台模式查看详细错误
+ctr start
+
+# 常见原因：
+# - 配置文件不存在 → 运行 ctr init
+# - 配置文件格式错误 → 检查 YAML 缩进
+# - API key 未填写 → 编辑 ~/.claude-trigger-router/config.yaml
+```
+
+**端口冲突**
+
+```bash
+# 指定其他端口启动
+ctr start --daemon --port 3457
+
+# 同时更新 Claude Code 接入地址
+export ANTHROPIC_BASE_URL=http://127.0.0.1:3457
+```
+
+**触发路由未生效**
+
+1. 确认 `TriggerRouter.enabled: true`
+2. 确认请求文本中包含规则定义的关键词
+3. 查看日志中是否有 `[TriggerRouter]` 相关输出
+4. 使用 `analysis_scope: "full_conversation"` 可扩大匹配范围
+
+**确认服务是否正常运行**
+
+```bash
+curl http://127.0.0.1:3456/api/config
+```
+
+返回配置内容则服务正常。
+
+---
+
 ## 🛠️ CLI 命令
 
 ```bash
