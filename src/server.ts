@@ -8,6 +8,7 @@ import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile } from "./utils";
 import { join } from "path";
 import fastifyStatic from "@fastify/static";
+import { log } from "./utils/log";
 
 /**
  * 创建服务器
@@ -40,7 +41,7 @@ export const createServer = (config: any): Server => {
     // 备份现有配置
     const backupPath = await backupConfigFile();
     if (backupPath) {
-      console.log(`Backed up existing configuration file to ${backupPath}`);
+      log(`Backed up existing configuration file to ${backupPath}`);
     }
 
     await writeConfigFile(newConfig);
