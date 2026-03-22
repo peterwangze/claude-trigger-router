@@ -394,7 +394,7 @@ ctr start --daemon        # 后台启动服务（daemon 模式）
 ctr start -d              # 同上，简写
 ctr stop                  # 停止后台服务
 ctr restart               # 重启后台服务
-ctr code                  # 运行 Claude Code（自动检查服务是否已启动）
+ctr code                  # 通过路由器运行 Claude Code（需先启动服务）
 ctr ui                    # 打开 Web UI
 ctr help                  # 显示帮助
 ```

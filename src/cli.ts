@@ -67,7 +67,7 @@ Commands:
   start       Start the router service (foreground by default)
   stop        Stop the router service (daemon mode)
   restart     Restart the router service (daemon mode)
-  code        Run Claude Code with the router
+  code        Run Claude Code via the router (requires service to be running first)
   ui          Open the web UI
   help        Show this help message
 
