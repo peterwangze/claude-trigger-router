@@ -20,6 +20,7 @@ import { contextAnalyzer } from './analyzer';
  */
 export class TriggerRouter {
   private config: ITriggerConfig | null = null;
+  private port: number = 3456;
 
   /**
    * 初始化触发路由器
@@ -28,6 +29,7 @@ export class TriggerRouter {
    */
   init(appConfig: IAppConfig): void {
     this.config = appConfig.TriggerRouter || this.getDefaultConfig();
+    this.port = appConfig.PORT || 3456;
   }
 
   /**
@@ -72,7 +74,7 @@ export class TriggerRouter {
       };
     }
 
-    return modelSelector.selectModel(req, this.config);
+    return modelSelector.selectModel(req, this.config, this.port);
   }
 
   /**

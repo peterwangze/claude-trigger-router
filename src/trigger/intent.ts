@@ -98,6 +98,7 @@ export class IntentDetector {
   async detectIntent(
     text: string,
     config: ITriggerConfig,
+    port: number = 3456,
     fetchFn?: typeof fetch
   ): Promise<IIntentResult> {
     // 如果没有启用 LLM 意图识别，返回默认结果
@@ -131,7 +132,7 @@ export class IntentDetector {
       const prompt = this.buildPrompt(text, config.rules);
 
       // 调用 LLM API
-      const response = await fetchImpl('http://127.0.0.1:3456/v1/messages', {
+      const response = await fetchImpl(`http://127.0.0.1:${port}/v1/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

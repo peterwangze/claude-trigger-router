@@ -161,6 +161,10 @@ async function run(options: RunOptions = {}) {
     });
   });
 
+  // 初始化触发路由器
+  triggerRouter.init(config);
+  console.log(`[TriggerRouter] Initialized, enabled: ${triggerRouter.isEnabled()}`);
+
   // 触发路由中间件（在原有路由之前）
   server.addHook("preHandler", async (req: any, reply: any) => {
     if (req.url.startsWith("/v1/messages")) {
