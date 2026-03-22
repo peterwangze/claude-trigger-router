@@ -158,13 +158,24 @@ patterns:
 ## 🛠️ CLI 命令
 
 ```bash
-ctr start       # 启动服务
-ctr stop        # 停止服务
-ctr restart     # 重启服务
-ctr code        # 运行 Claude Code
-ctr ui          # 打开 Web UI
-ctr help        # 显示帮助
+ctr init                  # 初始化配置文件（从示例模板复制）
+ctr start                 # 前台启动服务（调试用，Ctrl+C 退出）
+ctr start --daemon        # 后台启动服务（daemon 模式）
+ctr start -d              # 同上，简写
+ctr stop                  # 停止后台服务
+ctr restart               # 重启后台服务
+ctr code                  # 运行 Claude Code（自动检查服务是否已启动）
+ctr ui                    # 打开 Web UI
+ctr help                  # 显示帮助
 ```
+
+### 选项
+
+| 选项 | 简写 | 说明 |
+|------|------|------|
+| `--daemon` | `-d` | 以后台（daemon）方式运行，配合 `start`/`restart` 使用 |
+| `--port <port>` | `-p <port>` | 指定监听端口（默认读取配置文件，最终默认 3456） |
+| `--force` | — | 强制覆盖已有配置文件，配合 `init` 使用 |
 
 ## 📁 项目结构
 
