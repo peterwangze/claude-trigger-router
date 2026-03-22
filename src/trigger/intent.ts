@@ -6,6 +6,7 @@
 
 import { LRUCache } from 'lru-cache';
 import { ITriggerConfig, ITriggerRule, IIntentResult } from './types';
+import { logError, logWarn } from '../utils/log';
 
 /**
  * 意图识别缓存
@@ -111,7 +112,7 @@ export class IntentDetector {
 
     // 如果没有配置 intent_model，返回默认结果
     if (!config.intent_model) {
-      console.warn('[IntentDetector] LLM intent recognition enabled but no intent_model configured');
+      logWarn('[IntentDetector] LLM intent recognition enabled but no intent_model configured');
       return {
         intent: 'general',
         confidence: 0,
@@ -150,7 +151,7 @@ export class IntentDetector {
       });
 
       if (!response.ok) {
-        console.error('[IntentDetector] LLM request failed:', response.status);
+        logError('[IntentDetector] LLM request failed:', response.status);
         return { intent: 'general', confidence: 0 };
       }
 
@@ -162,7 +163,7 @@ export class IntentDetector {
       // 提取 JSON
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.warn('[IntentDetector] No JSON found in LLM response');
+        logWarn('[IntentDetector] No JSON found in LLM response');
         return { intent: 'general', confidence: 0 };
       }
 
@@ -173,7 +174,7 @@ export class IntentDetector {
 
       return result;
     } catch (error) {
-      console.error('[IntentDetector] Error detecting intent:', error);
+      logError('[IntentDetector] Error detecting intent:', error);
       return { intent: 'general', confidence: 0 };
     }
   }

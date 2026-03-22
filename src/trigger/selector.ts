@@ -8,6 +8,7 @@ import { ITriggerConfig, ITriggerRule, IAnalysisResult, IMatchResult } from './t
 import { patternMatcher } from './matcher';
 import { contextAnalyzer } from './analyzer';
 import { intentDetector } from './intent';
+import { logError } from '../utils/log';
 
 /**
  * 模型选择器类
@@ -133,7 +134,7 @@ export class ModelSelector {
           }
         }
       } catch (error) {
-        console.error('[ModelSelector] Intent detection error:', error);
+        logError('[ModelSelector] Intent detection error:', error);
       }
     }
 

@@ -18,7 +18,7 @@ import {
   savePid,
 } from "./utils/processCheck";
 import { CONFIG_FILE, HOME_DIR } from "./constants";
-import { configureLogging } from "./utils/log";
+import { configureLogging, log, logError, logWarn, logDebug } from "./utils/log";
 import { sessionUsageCache } from "./router/cache";
 import { SSEParserTransform } from "./utils/SSEParser.transform";
 import { SSESerializerTransform } from "./utils/SSESerializer.transform";
@@ -65,7 +65,7 @@ interface RunOptions {
 async function run(options: RunOptions = {}) {
   // 检查服务是否已在运行
   if (isServiceRunning()) {
-    console.log("✅ Service is already running in the background.");
+    log("✅ Service is already running in the background.");
     return;
   }
 
@@ -81,7 +81,7 @@ async function run(options: RunOptions = {}) {
 
   if (config.HOST && !config.APIKEY) {
     HOST = "127.0.0.1";
-    console.warn("⚠️ API key is not set. HOST is forced to 127.0.0.1.");
+    logWarn("⚠️ API key is not set. HOST is forced to 127.0.0.1.");
   }
 
   const port = config.PORT || 3456;
@@ -91,7 +91,7 @@ async function run(options: RunOptions = {}) {
 
   // 处理退出信号
   process.on("SIGINT", () => {
-    console.log("Received SIGINT, cleaning up...");
+    log("Received SIGINT, cleaning up...");
     cleanupPidFile();
     process.exit(0);
   });
@@ -163,7 +163,7 @@ async function run(options: RunOptions = {}) {
 
   // 初始化触发路由器
   triggerRouter.init(config);
-  console.log(`[TriggerRouter] Initialized, enabled: ${triggerRouter.isEnabled()}`);
+  log(`[TriggerRouter] Initialized, enabled: ${triggerRouter.isEnabled()}`);
 
   // 触发路由中间件（在原有路由之前）
   server.addHook("preHandler", async (req: any, reply: any) => {
@@ -175,7 +175,7 @@ async function run(options: RunOptions = {}) {
         req.body.model = triggerResult.model;
         req.triggerResult = triggerResult;
 
-        console.log(
+        log(
           `[TriggerRouter] Matched rule "${triggerResult.rule?.name}" -> "${triggerResult.model}"`
         );
       }
@@ -291,7 +291,7 @@ async function run(options: RunOptions = {}) {
                         req,
                         config,
                       });
-                    console.log("result", toolResult);
+                    logDebug("Tool result:", toolResult);
                     toolMessages.push({
                       tool_use_id: currentToolId,
                       type: "tool_result",
@@ -303,7 +303,7 @@ async function run(options: RunOptions = {}) {
                     currentToolArgs = "";
                     currentToolId = "";
                   } catch (e) {
-                    console.log(e);
+                    logError("Tool execution error:", e);
                   }
                   return undefined;
                 }
@@ -347,7 +347,7 @@ async function run(options: RunOptions = {}) {
                       }
 
                       if (!controller.desiredSize) {
-                        console.log("Stream backpressure detected");
+                        logWarn("Stream backpressure detected");
                         break;
                       }
 
@@ -357,7 +357,7 @@ async function run(options: RunOptions = {}) {
                         readError.name === "AbortError" ||
                         readError.code === "ERR_STREAM_PREMATURE_CLOSE"
                       ) {
-                        console.log(
+                        log(
                           "Stream reading aborted due to client disconnect"
                         );
                         abortController.abort();
@@ -370,13 +370,13 @@ async function run(options: RunOptions = {}) {
                 }
                 return data;
               } catch (error: any) {
-                console.error(
+                logError(
                   "Unexpected error in stream processing:",
                   error
                 );
 
                 if (error.code === "ERR_STREAM_PREMATURE_CLOSE") {
-                  console.log("Stream prematurely closed, aborting operations");
+                  log("Stream prematurely closed, aborting operations");
                   abortController.abort();
                   return undefined;
                 }
@@ -409,9 +409,9 @@ async function run(options: RunOptions = {}) {
               readError.name === "AbortError" ||
               readError.code === "ERR_STREAM_PREMATURE_CLOSE"
             ) {
-              console.log("Background read stream closed prematurely");
+              log("Background read stream closed prematurely");
             } else {
-              console.error("Error in background stream reading:", readError);
+              logError("Error in background stream reading:", readError);
             }
           } finally {
             reader.releaseLock();
@@ -429,7 +429,7 @@ async function run(options: RunOptions = {}) {
   });
 
   server.addHook("onSend", async (req: any, reply: any, payload: any) => {
-    console.log("主应用onSend");
+    logDebug("onSend hook triggered");
     event.emit("onSend", req, reply, payload);
     return payload;
   });

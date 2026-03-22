@@ -13,6 +13,7 @@ export * from './selector';
 import { ITriggerConfig, IAnalysisResult, IAppConfig } from './types';
 import { modelSelector } from './selector';
 import { contextAnalyzer } from './analyzer';
+import { log, logError } from '../utils/log';
 
 /**
  * 触发路由器类
@@ -148,13 +149,13 @@ export class TriggerRouter {
           // 记录触发结果到请求上下文
           req.triggerResult = result;
 
-          console.log(
+          log(
             `[TriggerRouter] Matched rule "${result.rule?.name}" -> model "${result.model}" ` +
             `(confidence: ${result.confidence}, time: ${result.analysisTime}ms)`
           );
         }
       } catch (error) {
-        console.error('[TriggerRouter] Error in trigger routing:', error);
+        logError('[TriggerRouter] Error in trigger routing:', error);
       }
     };
   }

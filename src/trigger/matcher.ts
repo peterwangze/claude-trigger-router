@@ -6,6 +6,7 @@
 
 import { ITriggerPattern, IMatchResult } from './types';
 import { LRUCache } from 'lru-cache';
+import { logError, logWarn } from '../utils/log';
 
 /**
  * 正则表达式缓存
@@ -91,7 +92,7 @@ export class PatternMatcher {
         };
       }
     } catch (error) {
-      console.error(`[PatternMatcher] Invalid regex pattern: ${pattern}`, error);
+      logError(`[PatternMatcher] Invalid regex pattern: ${pattern}`, error);
     }
 
     return { matched: false };
@@ -124,7 +125,7 @@ export class PatternMatcher {
         return this.matchRegex(text, pattern.pattern);
 
       default:
-        console.warn(`[PatternMatcher] Unknown pattern type: ${pattern.type}`);
+        logWarn(`[PatternMatcher] Unknown pattern type: ${pattern.type}`);
         return { matched: false };
     }
   }
