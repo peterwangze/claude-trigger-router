@@ -78,6 +78,60 @@ ctr code
 ctr ui
 ```
 
+## 📖 配置参数参考
+
+### 全局配置
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `HOST` | string | `"127.0.0.1"` | 监听地址。配置了 `APIKEY` 时可设为 `"0.0.0.0"` 对外暴露 |
+| `PORT` | number | `3456` | 监听端口 |
+| `APIKEY` | string | - | 服务认证密钥，设置后所有请求须携带此 key |
+| `PROXY_URL` | string | - | 代理地址，如 `"http://127.0.0.1:7890"` |
+| `LOG` | boolean | `true` | 是否启用日志 |
+| `LOG_LEVEL` | string | `"debug"` | 日志级别：`fatal` / `error` / `warn` / `info` / `debug` / `trace` |
+| `API_TIMEOUT_MS` | number | `600000` | API 请求超时时间（毫秒） |
+| `NON_INTERACTIVE_MODE` | boolean | `false` | 非交互模式，适合 CI/脚本环境 |
+| `CUSTOM_ROUTER_PATH` | string | - | 自定义路由器模块的绝对路径（见路由优先级说明） |
+
+### Router 基础路由配置
+
+| 配置项 | 类型 | 说明 |
+|--------|------|------|
+| `Router.default` | string | **必填**。默认模型，格式 `"provider,model"` |
+| `Router.background` | string | 后台任务模型（claude-3-5-haiku 请求使用） |
+| `Router.think` | string | 深度思考模型（请求含 `thinking` 参数时使用） |
+| `Router.longContext` | string | 长上下文模型（Token 超阈值时使用） |
+| `Router.longContextThreshold` | number | 长上下文切换阈值（默认 60000 tokens） |
+| `Router.webSearch` | string | 网络搜索模型（工具列表含 `web_search` 时使用） |
+| `Router.image` | string | 图像分析模型（请求包含图片内容时使用） |
+
+### Providers 提供商配置
+
+每个 Provider 对象包含以下字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | string | 提供商标识名，在路由配置中用作 `"name,model"` 的前缀 |
+| `api_base_url` | string | API 端点 URL |
+| `api_key` | string | 该提供商的 API 密钥 |
+| `models` | string[] | 该提供商支持的模型列表 |
+| `transformer` | object | 可选。请求/响应转换器配置 |
+
+### REST API 端点
+
+服务启动后提供以下管理接口：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/config` | 读取当前配置文件内容 |
+| `POST` | `/api/config` | 保存新配置（自动备份原配置） |
+| `GET` | `/api/transformers` | 查看已加载的 transformer 列表 |
+| `POST` | `/api/restart` | 触发服务热重启 |
+| `GET` | `/ui` | Web 管理界面 |
+
+---
+
 ## 📖 触发路由配置说明
 
 ### TriggerRouter 配置项
