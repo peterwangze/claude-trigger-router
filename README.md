@@ -124,10 +124,20 @@ patterns:
 
 ## 🔄 路由优先级
 
-1. **触发路由**: 根据关键词/正则匹配路由
-2. **自定义路由**: 如果配置了 `CUSTOM_ROUTER_PATH`
-3. **原有路由**: Token 数量、background、think、webSearch 等
-4. **默认路由**: `Router.default`
+一次请求经过以下链路依次决定最终使用的模型：
+
+| 优先级 | 条件 | 使用模型 | 配置项 |
+|--------|------|----------|--------|
+| 1 | 触发规则关键词/正则匹配成功 | 规则指定模型 | `TriggerRouter.rules[].model` |
+| 2 | Token 数超过阈值 | 长上下文模型 | `Router.longContext` |
+| 3 | System 提示含 `<CTR-SUBAGENT-MODEL>` 标签 | 子代理指定模型 | 动态注入 |
+| 4 | 请求模型为 `claude-3-5-haiku-*` | 后台任务模型 | `Router.background` |
+| 5 | 请求含 `thinking` 参数 | 深度思考模型 | `Router.think` |
+| 6 | 工具列表含 `web_search` 类型工具 | 网络搜索模型 | `Router.webSearch` |
+| 7 | 配置了自定义路由器路径 | 自定义路由器决定 | `CUSTOM_ROUTER_PATH` |
+| 8 | 以上均不满足 | 默认模型 | `Router.default` |
+
+> **注意**：触发路由（优先级 1）在所有原有路由逻辑之前执行。一旦触发匹配，后续路由逻辑均跳过。
 
 ## 📝 示例场景
 
