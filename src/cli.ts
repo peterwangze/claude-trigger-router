@@ -11,7 +11,7 @@ import { join, dirname } from "path";
 import open from "openurl";
 import { existsSync, readFileSync, copyFileSync, mkdirSync } from "fs";
 import { run } from "./index";
-import { isServiceRunning } from "./utils/processCheck";
+import { isServiceRunning, killProcess } from "./utils/processCheck";
 import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, DEFAULT_CONFIG } from "./constants";
 
 const args = process.argv.slice(2);
@@ -210,13 +210,7 @@ function stopService() {
 
   try {
     const pid = parseInt(readFileSync(require("path").join(CONFIG_DIR, "claude-trigger-router.pid"), "utf-8").trim(), 10);
-
-    if (process.platform === "win32") {
-      spawn("taskkill", ["/F", "/PID", String(pid)], { stdio: "ignore" });
-    } else {
-      process.kill(pid, "SIGTERM");
-    }
-
+    killProcess(pid);
     console.log("✅ Service stopped.");
   } catch (error: any) {
     console.error("❌ Failed to stop service:", error.message);
