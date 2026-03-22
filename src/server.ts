@@ -53,13 +53,21 @@ export const createServer = (config: any): Server => {
     reply.send({ success: true, message: "Service restart initiated" });
 
     // 延迟重启以允许响应发送
+    // 使用 __dirname 定位已编译的 cli.js（与 server.js 在同一目录）
+    // 调用 start 而非 restart，避免递归的 stop→start 循环
     setTimeout(() => {
       const { spawn } = require("child_process");
-      spawn(process.execPath, [process.argv[1], "restart"], {
+      const { join } = require("path");
+      const cliPath = join(__dirname, "cli.js");
+
+      spawn(process.execPath, [cliPath, "start", "--daemon"], {
         detached: true,
         stdio: "ignore",
-      });
-    }, 1000);
+      }).unref();
+
+      // 等待新进程启动后再退出当前进程
+      setTimeout(() => process.exit(0), 500);
+    }, 500);
   });
 
   // 静态文件服务
