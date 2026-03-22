@@ -6,6 +6,7 @@
 
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { PID_FILE } from "../constants";
+import { logError } from "./log";
 
 /**
  * 检查服务是否正在运行
@@ -47,7 +48,7 @@ export function cleanupPidFile(): void {
     try {
       unlinkSync(PID_FILE);
     } catch (error) {
-      console.error("Failed to cleanup PID file:", error);
+      logError("Failed to cleanup PID file:", error);
     }
   }
 }
