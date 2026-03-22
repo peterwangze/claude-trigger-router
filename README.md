@@ -164,7 +164,59 @@ export ANTHROPIC_BASE_URL=http://127.0.0.1:3456
 | `api_base_url` | string | API 端点 URL |
 | `api_key` | string | 该提供商的 API 密钥 |
 | `models` | string[] | 该提供商支持的模型列表 |
-| `transformer` | object | 可选。请求/响应转换器配置 |
+| `transformer` | object | 可选。请求/响应格式转换器配置（见下文） |
+
+#### Transformer 配置
+
+Transformer 负责在 Claude Code 使用的 Anthropic 格式与各 provider 实际 API 格式之间互相转换。不同的 provider 通常需要不同的 transformer 组合。
+
+**内置 transformer 列表：**
+
+| 名称 | 用途 |
+|------|------|
+| `openrouter` | 适配 OpenRouter API（添加必要请求头） |
+| `deepseek` | 适配 DeepSeek API（处理推理内容、token 限制） |
+| `gemini` | 适配 Google Gemini API（工具定义格式转换） |
+| `vertex` | 适配 Google Vertex AI |
+| `anthropic` | 标准 Anthropic 格式（通常不需要显式指定） |
+| `tooluse` | 处理工具调用格式（部分模型需要） |
+
+**配置格式：**
+
+```yaml
+transformer:
+  use: ["transformer名称"]         # 全局使用的 transformer
+  "model-name":                    # 针对特定模型覆盖
+    use: ["other-transformer"]
+```
+
+**常用 provider 推荐配置：**
+
+```yaml
+# OpenRouter（推荐，支持多种模型）
+- name: openrouter
+  api_base_url: "https://openrouter.ai/api/v1/chat/completions"
+  api_key: "sk-xxx"
+  models: ["anthropic/claude-sonnet-4", "openai/gpt-4o"]
+  transformer:
+    use: ["openrouter"]
+
+# DeepSeek
+- name: deepseek
+  api_base_url: "https://api.deepseek.com/chat/completions"
+  api_key: "sk-xxx"
+  models: ["deepseek-chat", "deepseek-reasoner"]
+  transformer:
+    use: ["deepseek"]
+    "deepseek-chat":
+      use: ["tooluse"]   # deepseek-chat 需要额外的工具调用处理
+
+# Ollama（本地模型，无需 transformer）
+- name: ollama
+  api_base_url: "http://localhost:11434/v1/chat/completions"
+  api_key: "ollama"
+  models: ["qwen2.5-coder:latest"]
+```
 
 ### REST API 端点
 
