@@ -88,13 +88,43 @@ ctr start             # 前台运行（便于查看日志/调试）
 
 ### 5. 使用
 
-```bash
-# 使用路由器运行 Claude Code
-ctr code
+#### 方式一：通过 `ctr code` 启动（推荐）
 
-# 打开 Web UI 管理配置
-ctr ui
+```bash
+ctr code
 ```
+
+`ctr code` 会自动设置 `ANTHROPIC_BASE_URL` 并启动 Claude Code CLI。
+
+#### 方式二：手动设置环境变量
+
+如果你使用 VS Code / Cursor 插件版 Claude Code，或者希望在自己的脚本中接入路由器，直接设置环境变量即可：
+
+```bash
+# macOS / Linux
+export ANTHROPIC_BASE_URL=http://127.0.0.1:3456
+claude
+
+# Windows PowerShell
+$env:ANTHROPIC_BASE_URL="http://127.0.0.1:3456"
+claude
+```
+
+#### 方式三：VS Code / Cursor 插件配置
+
+在 VS Code 设置中找到 Claude 扩展的 API Base URL 选项，填入：
+
+```
+http://127.0.0.1:3456
+```
+
+或者在项目根目录的 `.env` / shell profile 中持久化设置：
+
+```bash
+# ~/.bashrc 或 ~/.zshrc
+export ANTHROPIC_BASE_URL=http://127.0.0.1:3456
+```
+
 
 ## 📖 配置参数参考
 
