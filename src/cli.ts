@@ -179,7 +179,7 @@ async function main() {
 
     case "restart":
       stopService();
-      setTimeout(() => startService(), 1000);
+      setTimeout(() => startService(getPort()), 1000);
       break;
 
     case "code":
