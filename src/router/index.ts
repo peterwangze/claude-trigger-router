@@ -12,6 +12,7 @@ import {
 import { get_encoding } from "tiktoken";
 import { IAppConfig } from '../trigger/types';
 import { sessionUsageCache, Usage } from './cache';
+import { log, logError } from '../utils/log';
 
 const enc = get_encoding("cl100k_base");
 
@@ -107,7 +108,7 @@ const getUseModel = async (
     (lastUsageThreshold || tokenCountThreshold) &&
     config.Router.longContext
   ) {
-    console.log(
+    log(
       "Using long context model due to token count:",
       tokenCount,
       "threshold:",
@@ -138,13 +139,13 @@ const getUseModel = async (
     req.body.model?.startsWith("claude-3-5-haiku") &&
     config.Router.background
   ) {
-    console.log("Using background model for ", req.body.model);
+    log("Using background model for ", req.body.model);
     return config.Router.background;
   }
 
   // if exits thinking, use the think model
   if (req.body.thinking && config.Router.think) {
-    console.log("Using think model for ", req.body.thinking);
+    log("Using think model for ", req.body.thinking);
     return config.Router.think;
   }
 
@@ -195,7 +196,7 @@ export const router = async (req: any, _res: any, context: any) => {
           event
         });
       } catch (e: any) {
-        console.log("failed to load custom router", e.message);
+        logError("failed to load custom router", e.message);
       }
     }
 
@@ -207,7 +208,7 @@ export const router = async (req: any, _res: any, context: any) => {
     req.body.model = model;
     req.tokenCount = tokenCount;
   } catch (error: any) {
-    console.log("Error in router middleware:", error.message);
+    logError("Error in router middleware:", error.message);
     req.body.model = config.Router!.default;
   }
 
