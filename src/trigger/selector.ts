@@ -4,7 +4,7 @@
  * 模型选择器，负责根据触发规则选择合适的模型
  */
 
-import { ITriggerConfig, ITriggerRule, IAnalysisResult, IMatchResult } from './types';
+import { ITriggerConfig, ITriggerRule, IAnalysisResult, IMatchResult, IRequestContext } from './types';
 import { patternMatcher } from './matcher';
 import { contextAnalyzer } from './analyzer';
 import { intentDetector } from './intent';
@@ -76,7 +76,7 @@ export class ModelSelector {
    * @param config 触发配置
    * @returns 分析结果
    */
-  async selectModel(req: any, config: ITriggerConfig, port: number = 3456): Promise<IAnalysisResult> {
+  async selectModel(req: IRequestContext, config: ITriggerConfig, port: number = 3456): Promise<IAnalysisResult> {
     const startTime = Date.now();
 
     // 如果触发路由未启用，直接返回不匹配
@@ -155,7 +155,7 @@ export class ModelSelector {
    * @param config 触发配置
    * @returns 分析结果
    */
-  selectModelSync(req: any, config: ITriggerConfig): IAnalysisResult {
+  selectModelSync(req: IRequestContext, config: ITriggerConfig): IAnalysisResult {
     const startTime = Date.now();
 
     // 如果触发路由未启用，直接返回不匹配

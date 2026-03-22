@@ -10,7 +10,7 @@ export * from './analyzer';
 export * from './intent';
 export * from './selector';
 
-import { ITriggerConfig, IAnalysisResult, IAppConfig } from './types';
+import { ITriggerConfig, IAnalysisResult, IAppConfig, IRequestContext } from './types';
 import { modelSelector } from './selector';
 import { contextAnalyzer } from './analyzer';
 import { log, logError } from '../utils/log';
@@ -66,7 +66,7 @@ export class TriggerRouter {
    * @param req 请求对象
    * @returns 分析结果
    */
-  async route(req: any): Promise<IAnalysisResult> {
+  async route(req: IRequestContext): Promise<IAnalysisResult> {
     if (!this.config || !this.config.enabled) {
       return {
         matched: false,
@@ -95,7 +95,7 @@ export class TriggerRouter {
    * @param req 请求对象
    * @returns 分析结果
    */
-  routeSync(req: any): IAnalysisResult {
+  routeSync(req: IRequestContext): IAnalysisResult {
     if (!this.config || !this.config.enabled) {
       return {
         matched: false,

@@ -200,6 +200,9 @@ export interface IRequestContext {
   /** 请求 ID */
   id?: string;
 
+  /** 请求 URL */
+  url?: string;
+
   /** 请求体 */
   body: {
     model: string;

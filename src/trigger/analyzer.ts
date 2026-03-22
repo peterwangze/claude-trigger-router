@@ -5,7 +5,7 @@
  */
 
 import { MessageParam } from "@anthropic-ai/sdk/resources/messages";
-import { AnalysisScope, ITriggerConfig } from './types';
+import { AnalysisScope, ITriggerConfig, IRequestContext } from './types';
 
 /**
  * 上下文分析器类
@@ -98,7 +98,7 @@ export class ContextAnalyzer {
    * @param config 触发配置
    * @returns 待分析的文本内容
    */
-  analyze(req: any, config: ITriggerConfig): string {
+  analyze(req: IRequestContext, config: ITriggerConfig): string {
     const messages = req.body?.messages;
 
     if (!messages) {
