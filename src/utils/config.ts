@@ -16,6 +16,7 @@ import {
   DEFAULT_TRIGGER_CONFIG,
 } from '../constants';
 import { IAppConfig, ITriggerConfig } from '../trigger/types';
+import { logError, logWarn } from './log';
 
 /**
  * 确保配置目录存在
@@ -38,7 +39,7 @@ async function loadYamlConfig(path: string): Promise<Partial<IAppConfig> | null>
     const content = await readFile(path, 'utf-8');
     return yaml.load(content) as Partial<IAppConfig>;
   } catch (error) {
-    console.error(`Error loading YAML config from ${path}:`, error);
+    logError(`Error loading YAML config from ${path}:`, error);
     return null;
   }
 }
@@ -55,7 +56,7 @@ async function loadJsonConfig(path: string): Promise<Partial<IAppConfig> | null>
     const content = await readFile(path, 'utf-8');
     return JSON.parse(content);
   } catch (error) {
-    console.error(`Error loading JSON config from ${path}:`, error);
+    logError(`Error loading JSON config from ${path}:`, error);
     return null;
   }
 }
@@ -160,7 +161,7 @@ export async function initConfig(): Promise<IAppConfig> {
 
   // 如果没有配置文件，使用默认配置
   if (!config) {
-    console.warn('No config file found, using default config');
+    logWarn('No config file found, using default config');
     config = {};
   }
 
@@ -180,8 +181,8 @@ export async function initConfig(): Promise<IAppConfig> {
   // 验证配置
   const errors = validateConfig(mergedConfig);
   if (errors.length > 0) {
-    console.error('Config validation errors:');
-    errors.forEach((error) => console.error(`  - ${error}`));
+    logError('Config validation errors:');
+    errors.forEach((error) => logError(`  - ${error}`));
     throw new Error('Invalid configuration');
   }
 
@@ -238,7 +239,7 @@ export async function backupConfigFile(): Promise<string | null> {
     await writeFile(backupPath, content, 'utf-8');
     return backupPath;
   } catch (error) {
-    console.error('Error backing up config file:', error);
+    logError('Error backing up config file:', error);
     return null;
   }
 }
