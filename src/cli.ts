@@ -10,12 +10,41 @@ import { spawn } from "child_process";
 import { homedir } from "os";
 import { join } from "path";
 import open from "openurl";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { run } from "./index";
-import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON } from "./constants";
+import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, DEFAULT_CONFIG } from "./constants";
 
 const args = process.argv.slice(2);
 const command = args[0];
+
+/**
+ * 从命令行参数或配置文件中获取端口号
+ */
+function getPort(): number {
+  // 优先使用命令行参数
+  const portIndex = args.indexOf("--port") !== -1 ? args.indexOf("--port") : args.indexOf("-p");
+  if (portIndex !== -1 && args[portIndex + 1]) {
+    return parseInt(args[portIndex + 1], 10);
+  }
+
+  // 尝试从配置文件读取
+  try {
+    if (existsSync(CONFIG_FILE)) {
+      const yaml = require("js-yaml");
+      const content = readFileSync(CONFIG_FILE, "utf-8");
+      const config = yaml.load(content) as any;
+      if (config?.PORT) return config.PORT;
+    } else if (existsSync(CONFIG_FILE_JSON)) {
+      const content = readFileSync(CONFIG_FILE_JSON, "utf-8");
+      const config = JSON.parse(content);
+      if (config?.PORT) return config.PORT;
+    }
+  } catch {
+    // 配置读取失败，使用默认值
+  }
+
+  return DEFAULT_CONFIG.PORT;
+}
 
 /**
  * 打印帮助信息
@@ -91,9 +120,9 @@ function stopService() {
  * 运行 Claude Code
  */
 function runClaudeCode() {
-  const port = 3456;
+  const port = getPort();
 
-  console.log("🚀 Starting Claude Code with Trigger Router...");
+  console.log(`🚀 Starting Claude Code with Trigger Router (port: ${port})...`);
 
   // 设置环境变量
   process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`;
@@ -123,7 +152,7 @@ function runClaudeCode() {
  * 打开 Web UI
  */
 function openUI() {
-  const port = 3456;
+  const port = getPort();
   const url = `http://127.0.0.1:${port}/ui`;
 
   console.log(`🌐 Opening UI at ${url}`);
@@ -141,9 +170,7 @@ function openUI() {
 async function main() {
   switch (command) {
     case "start":
-      const portIndex = args.indexOf("--port") !== -1 ? args.indexOf("--port") : args.indexOf("-p");
-      const port = portIndex !== -1 ? parseInt(args[portIndex + 1], 10) : undefined;
-      await startService(port);
+      await startService(getPort());
       break;
 
     case "stop":

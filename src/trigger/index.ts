@@ -74,6 +74,16 @@ export class TriggerRouter {
       };
     }
 
+    // 跳过工具调用循环中的请求，避免无意义的触发分析
+    const messages = req.body?.messages;
+    if (messages && contextAnalyzer.hasToolResults(messages)) {
+      return {
+        matched: false,
+        confidence: 0,
+        analysisTime: 0,
+      };
+    }
+
     return modelSelector.selectModel(req, this.config, this.port);
   }
 
@@ -86,6 +96,16 @@ export class TriggerRouter {
    */
   routeSync(req: any): IAnalysisResult {
     if (!this.config || !this.config.enabled) {
+      return {
+        matched: false,
+        confidence: 0,
+        analysisTime: 0,
+      };
+    }
+
+    // 跳过工具调用循环中的请求
+    const messages = req.body?.messages;
+    if (messages && contextAnalyzer.hasToolResults(messages)) {
       return {
         matched: false,
         confidence: 0,
