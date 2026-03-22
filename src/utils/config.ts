@@ -161,7 +161,13 @@ export async function initConfig(): Promise<IAppConfig> {
 
   // 如果没有配置文件，使用默认配置
   if (!config) {
-    logWarn('No config file found, using default config');
+    const divider = '─'.repeat(60);
+    console.error(`\n${divider}`);
+    console.error('  ⚠️   No configuration file found');
+    console.error(divider);
+    console.error(`  Expected: ${CONFIG_FILE}`);
+    console.error(`  Run 'ctr init' to create a configuration file.`);
+    console.error(`${divider}\n`);
     config = {};
   }
 
@@ -181,8 +187,16 @@ export async function initConfig(): Promise<IAppConfig> {
   // 验证配置
   const errors = validateConfig(mergedConfig);
   if (errors.length > 0) {
-    logError('Config validation errors:');
-    errors.forEach((error) => logError(`  - ${error}`));
+    const divider = '─'.repeat(60);
+    console.error(`\n${divider}`);
+    console.error('  ❌  Configuration Error');
+    console.error(divider);
+    console.error('  The following issues were found in your config file:\n');
+    errors.forEach((err, i) => console.error(`  ${i + 1}. ${err}`));
+    console.error(`\n  Config file: ${CONFIG_FILE}`);
+    console.error(`  Run 'ctr init' to create a new config from the example.`);
+    console.error(`  Reference:   https://github.com/peterwangze/claude-trigger-router#configuration`);
+    console.error(`${divider}\n`);
     throw new Error('Invalid configuration');
   }
 
