@@ -95,7 +95,9 @@ For more information, visit: https://github.com/peterwangze/claude-trigger-route
  * 初始化配置文件
  */
 function initConfig() {
-  if (existsSync(CONFIG_FILE)) {
+  const force = args.includes("--force");
+
+  if (existsSync(CONFIG_FILE) && !force) {
     console.log(`⚠️  Config file already exists: ${CONFIG_FILE}`);
     console.log("    Use --force to overwrite.");
     return;
@@ -123,7 +125,8 @@ function initConfig() {
 
   try {
     copyFileSync(exampleFile, CONFIG_FILE);
-    console.log(`✅ Config file created: ${CONFIG_FILE}`);
+    const action = force ? "overwritten" : "created";
+    console.log(`✅ Config file ${action}: ${CONFIG_FILE}`);
     console.log("");
     console.log("Next steps:");
     console.log("  1. Edit the config file and fill in your API keys");
