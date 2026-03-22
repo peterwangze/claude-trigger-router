@@ -2,6 +2,24 @@
 
 > 基于 claude-code-router 的智能触发路由器，通过分析输入内容自动将请求分发到最适合处理该任务的模型。
 
+## 🏗️ 工作原理
+
+Claude Trigger Router 作为 **HTTP 代理**运行在本地，拦截 Claude Code 发往 Anthropic API 的所有请求，根据配置规则决定转发给哪个模型和提供商。
+
+```
+Claude Code
+    │  ANTHROPIC_BASE_URL=http://127.0.0.1:3456
+    ▼
+Claude Trigger Router  ← 你在这里配置规则
+    │
+    ├─ 关键词匹配 "生成图片" ──→ Provider A (支持图片的模型)
+    ├─ 关键词匹配 "架构设计" ──→ Provider B (能力强的大模型)
+    ├─ Token 数 > 60000     ──→ Provider C (长上下文模型)
+    └─ 其他请求             ──→ Provider D (默认模型)
+```
+
+Claude Code 本身完全不感知切换过程，仍然以为自己在与 Anthropic API 通信。
+
 ## ✨ 功能特性
 
 - **智能触发路由**: 分析用户输入，自动识别任务类型并路由到合适的模型
