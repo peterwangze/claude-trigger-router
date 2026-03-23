@@ -58,7 +58,14 @@ export const createServer = (config: any): Server => {
       const { join } = require("path");
       const cliPath = join(__dirname, "cli.js");
 
-      spawn(process.execPath, [cliPath, "start", "--daemon"], {
+      // 保持当前运行端口，避免重启后端口变回配置文件默认值
+      const currentPort = config.initialConfig?.PORT;
+      const restartArgs = [cliPath, "start", "--daemon"];
+      if (currentPort) {
+        restartArgs.push("--port", String(currentPort));
+      }
+
+      spawn(process.execPath, restartArgs, {
         detached: true,
         stdio: "ignore",
       }).unref();

@@ -105,6 +105,10 @@ async function run(options: RunOptions = {}) {
     ? parseInt(process.env.SERVICE_PORT)
     : port;
 
+  // 将实际运行端口写回 config，确保所有内部模块（TriggerRouter、ImageAgent 等）
+  // 自回调时使用同一端口，避免 --port 覆盖与配置文件 PORT 不一致导致的问题
+  config.PORT = servicePort;
+
   // 配置日志器
   const pad = (num: number) => (num > 9 ? "" : "0") + num;
   const generator = (time: Date | number, index: number | undefined) => {
@@ -318,7 +322,7 @@ async function run(options: RunOptions = {}) {
                     content: toolMessages,
                   });
                   const response = await fetch(
-                    `http://127.0.0.1:${config.PORT}/v1/messages`,
+                    `http://127.0.0.1:${servicePort}/v1/messages`,
                     {
                       method: "POST",
                       headers: {
