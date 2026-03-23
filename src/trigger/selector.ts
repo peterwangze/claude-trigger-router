@@ -77,7 +77,7 @@ export class ModelSelector {
    * @param config 触发配置
    * @returns 分析结果
    */
-  async selectModel(req: IRequestContext, config: ITriggerConfig, port: number = 3456, smartRouterConfig?: ISmartRouterConfig): Promise<IAnalysisResult> {
+  async selectModel(req: IRequestContext, config: ITriggerConfig, port: number = 3456, smartRouterConfig?: ISmartRouterConfig, apiKey?: string): Promise<IAnalysisResult> {
     const startTime = Date.now();
 
     // 如果触发路由未启用，直接返回不匹配
@@ -118,7 +118,7 @@ export class ModelSelector {
     // 第二步：SmartRouter 智能模型选择
     if (smartRouterConfig?.enabled && smartRouterConfig.candidates?.length >= 2) {
       try {
-        const smartResult = await smartRouterSelector.selectModel(text, smartRouterConfig, port);
+        const smartResult = await smartRouterSelector.selectModel(text, smartRouterConfig, port, undefined, apiKey);
         if (smartResult) {
           log(`[SmartRouter] Selected model "${smartResult.model}" (confidence: ${smartResult.confidence})`);
           return {
@@ -137,7 +137,7 @@ export class ModelSelector {
     // 第三步：如果启用了 LLM 意图识别，进行意图检测
     if (config.llm_intent_recognition && config.intent_model) {
       try {
-        const intentResult = await intentDetector.detectIntent(text, config, port);
+        const intentResult = await intentDetector.detectIntent(text, config, port, undefined, apiKey);
 
         if (intentResult.confidence > 0.5 && intentResult.intent !== 'general') {
           const matchedRule = intentDetector.findRuleByIntent(intentResult.intent, config.rules);

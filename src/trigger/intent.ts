@@ -100,7 +100,8 @@ export class IntentDetector {
     text: string,
     config: ITriggerConfig,
     port: number = 3456,
-    fetchFn?: typeof fetch
+    fetchFn?: typeof fetch,
+    apiKey?: string
   ): Promise<IIntentResult> {
     // 如果没有启用 LLM 意图识别，返回默认结果
     if (!config.llm_intent_recognition) {
@@ -137,6 +138,7 @@ export class IntentDetector {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(apiKey ? { 'x-api-key': apiKey } : {}),
         },
         body: JSON.stringify({
           model: config.intent_model,

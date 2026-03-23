@@ -105,7 +105,8 @@ export class SmartRouterSelector {
     text: string,
     config: ISmartRouterConfig,
     port: number = 3456,
-    fetchFn?: typeof fetch
+    fetchFn?: typeof fetch,
+    apiKey?: string
   ): Promise<ISmartRouterResult | null> {
     // 未启用或候选不足
     if (!config.enabled) {
@@ -129,7 +130,10 @@ export class SmartRouterSelector {
 
       const response = await fetchImpl(`http://127.0.0.1:${port}/v1/messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { 'x-api-key': apiKey } : {}),
+        },
         body: JSON.stringify({
           model: config.router_model,
           max_tokens: config.max_tokens ?? 256,

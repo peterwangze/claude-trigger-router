@@ -414,6 +414,10 @@ ctr start --daemon --port 3457
 export ANTHROPIC_BASE_URL=http://127.0.0.1:3457
 ```
 
+> **注意**：`--port` 参数仅对当次启动生效，不会修改配置文件。使用自定义端口启动后，后续执行 `ctr code`、`ctr ui`、`ctr restart` 等命令时，也需要同样传入 `--port 3457`，否则 CLI 会读取配置文件中的旧端口。
+>
+> 如需长期使用某个端口，建议直接修改 `~/.claude-trigger-router/config.yaml` 中的 `PORT` 字段，这样后续所有命令均无需额外传入 `--port`。
+
 **触发路由未生效**
 
 1. 确认 `TriggerRouter.enabled: true`

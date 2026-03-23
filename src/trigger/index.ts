@@ -24,6 +24,7 @@ export class TriggerRouter {
   private config: ITriggerConfig | null = null;
   private port: number = 3456;
   private smartRouterConfig: ISmartRouterConfig | undefined = undefined;
+  private apiKey?: string;
 
   /**
    * 初始化触发路由器
@@ -34,6 +35,7 @@ export class TriggerRouter {
     this.config = appConfig.TriggerRouter || this.getDefaultConfig();
     this.port = appConfig.PORT || 3456;
     this.smartRouterConfig = appConfig.SmartRouter;
+    this.apiKey = appConfig.APIKEY;
   }
 
   /**
@@ -88,7 +90,7 @@ export class TriggerRouter {
       };
     }
 
-    return modelSelector.selectModel(req, this.config, this.port, this.smartRouterConfig);
+    return modelSelector.selectModel(req, this.config, this.port, this.smartRouterConfig, this.apiKey);
   }
 
   /**

@@ -56,6 +56,10 @@ Router:
   longContextThreshold: 60000
   webSearch: "openrouter,anthropic/claude-sonnet-4"
   image: "openrouter,anthropic/claude-sonnet-4"
+  # 是否强制所有图片请求都走 Image Agent 模式（而非直接切模型）
+  # false（默认）：仅当图片出现在对话历史（非最后一条消息）时才启用 agent 模式
+  # true：无论图片出现在哪条消息，均强制使用 Image Agent 模式
+  # forceUseImageAgent: false
 
 # 触发路由配置
 TriggerRouter:
