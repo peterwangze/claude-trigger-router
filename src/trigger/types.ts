@@ -153,6 +153,9 @@ export interface IAppConfig {
   /** 触发路由配置 */
   TriggerRouter?: ITriggerConfig;
 
+  /** 智能路由配置 */
+  SmartRouter?: ISmartRouterConfig;
+
   /** 自定义路由器路径 */
   CUSTOM_ROUTER_PATH?: string;
 }
@@ -179,6 +182,44 @@ export interface IRouterConfig {
   longContextThreshold?: number;
   webSearch?: string;
   image?: string;
+}
+
+/**
+ * SmartRouter 候选模型
+ */
+export interface ISmartRouterCandidate {
+  /** 模型标识，格式：provider_name,model_name */
+  model: string;
+
+  /** 模型能力描述，用于告知 router_model 该模型擅长什么 */
+  description: string;
+}
+
+/**
+ * SmartRouter 配置
+ */
+export interface ISmartRouterConfig {
+  /** 是否启用 SmartRouter，默认 false */
+  enabled: boolean;
+
+  /** 用于选择模型的路由 LLM，格式：provider_name,model_name */
+  router_model: string;
+
+  /** 候选模型列表（至少 2 个） */
+  candidates: ISmartRouterCandidate[];
+
+  /** 缓存 TTL（毫秒），默认 600000（10 分钟） */
+  cache_ttl?: number;
+
+  /** router_model 最大 token 数，默认 256 */
+  max_tokens?: number;
+
+  /**
+   * SmartRouter 无结果时的回退策略
+   * - "default"：继续执行后续路由链（默认）
+   * - "skip"：跳过 SmartRouter，直接走后续路由链
+   */
+  fallback?: 'default' | 'skip';
 }
 
 /**
