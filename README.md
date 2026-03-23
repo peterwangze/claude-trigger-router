@@ -153,7 +153,14 @@ export ANTHROPIC_BASE_URL=http://127.0.0.1:3456
 | `Router.longContext` | string | 长上下文模型（Token 超阈值时使用） |
 | `Router.longContextThreshold` | number | 长上下文切换阈值（默认 60000 tokens） |
 | `Router.webSearch` | string | 网络搜索模型（工具列表含 `web_search` 时使用） |
-| `Router.image` | string | 图像分析模型（请求包含图片内容时使用） |
+| `Router.image` | string | 图像分析模型（见下方图像路由说明） |
+
+> **图像路由说明：** 图像请求的处理路径取决于消息位置和 `forceUseImageAgent` 配置：
+>
+> - **直接切模型**（默认）：当最后一条用户消息中直接包含图片，且 `forceUseImageAgent` 未开启时，直接将请求模型切换为 `Router.image`，无额外工具注入。
+> - **Image Agent 模式**：当图片出现在对话历史（非最后一条），或 `forceUseImageAgent: true` 时，启动 image agent：注入 `analyzeImage` 工具和对应系统提示；原始图片内容被替换为文本占位符 `[Image #N]`，图片数据缓存于内存；LLM 通过调用 `analyzeImage(imageId, task)` 触发服务内部回环请求，由 `Router.image` 模型完成实际图像分析。
+>
+> `forceUseImageAgent`（全局配置项，默认 false）设为 true 时，无论图片出现在哪条消息，均强制走 Image Agent 模式。
 
 ### Providers 提供商配置
 
