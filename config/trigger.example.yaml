@@ -188,7 +188,7 @@ SmartRouter:
   # router_model 响应最大 token 数
   max_tokens: 256
 
-  # SmartRouter 无法选择时的回退策略
+  # SmartRouter 无法选择时的回退策略（预留字段，当前两值效果相同）
   # "default"：继续后续路由链（推荐）
-  # "skip"：跳过，等同于 SmartRouter 未启用
+  # "skip"：预留，当前与 default 效果一致
   fallback: "default"
