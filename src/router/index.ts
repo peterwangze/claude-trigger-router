@@ -187,8 +187,8 @@ export const router = async (req: any, _res: any, context: any) => {
 
     let model;
 
-    // 自定义路由器
-    if (config.CUSTOM_ROUTER_PATH) {
+    // 自定义路由器（触发路由已命中时跳过，避免覆盖更高优先级的选择）
+    if (config.CUSTOM_ROUTER_PATH && !req.body.model.includes(",")) {
       try {
         const customRouter = require(config.CUSTOM_ROUTER_PATH);
         req.tokenCount = tokenCount;
@@ -205,7 +205,8 @@ export const router = async (req: any, _res: any, context: any) => {
       model = await getUseModel(req, tokenCount, config, lastMessageUsage);
     }
 
-    req.body.model = model;
+    // 如果触发路由已命中（模型含逗号），保留其选择
+    req.body.model = model ?? req.body.model;
     req.tokenCount = tokenCount;
   } catch (error: any) {
     logError("Error in router middleware:", error.message);
