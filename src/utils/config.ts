@@ -14,6 +14,7 @@ import {
   CONFIG_FILE_JSON,
   DEFAULT_CONFIG,
   DEFAULT_TRIGGER_CONFIG,
+  DEFAULT_SMART_ROUTER_CONFIG,
 } from '../constants';
 import { IAppConfig, ITriggerConfig } from '../trigger/types';
 import { logError, logWarn } from './log';
@@ -139,6 +140,25 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
     }
   }
 
+  // 验证 SmartRouter 配置
+  if (config.SmartRouter?.enabled) {
+    if (!config.SmartRouter.router_model) {
+      errors.push('SmartRouter.router_model is required when SmartRouter is enabled');
+    }
+    if (!config.SmartRouter.candidates || config.SmartRouter.candidates.length < 2) {
+      errors.push('SmartRouter.candidates must have at least 2 entries when SmartRouter is enabled');
+    } else {
+      config.SmartRouter.candidates.forEach((candidate, index) => {
+        if (!candidate.model) {
+          errors.push(`SmartRouter.candidates[${index}].model is required`);
+        }
+        if (!candidate.description) {
+          errors.push(`SmartRouter.candidates[${index}].description is required`);
+        }
+      });
+    }
+  }
+
   return errors;
 }
 
@@ -180,6 +200,7 @@ export async function initConfig(): Promise<IAppConfig> {
       },
       Providers: [],
       TriggerRouter: DEFAULT_TRIGGER_CONFIG,
+      SmartRouter: DEFAULT_SMART_ROUTER_CONFIG,
     },
     config
   );
