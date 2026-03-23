@@ -158,3 +158,37 @@ TriggerRouter:
             - "quick"
             - "simple"
       model: "ollama,qwen2.5-coder:latest"
+
+# 智能路由配置（SmartRouter）
+# 当关键词/正则规则均未命中时，由 router_model 从候选列表中智能选择最优模型
+SmartRouter:
+  # 是否启用智能路由，默认 false
+  enabled: false
+
+  # 用于做路由决策的 LLM（轻量快速模型即可）
+  router_model: "deepseek,deepseek-chat"
+
+  # 候选模型列表（至少 2 个，需配合 Providers 中的模型）
+  candidates:
+    - model: "deepseek,deepseek-chat"
+      description: "通用编程、代码生成、调试、日常问答任务"
+
+    - model: "deepseek,deepseek-reasoner"
+      description: "数学推理、逻辑推理、复杂分析、科学问题"
+
+    - model: "openrouter,anthropic/claude-opus-4"
+      description: "系统架构设计、技术文档撰写、长篇创意写作"
+
+    - model: "openrouter,anthropic/claude-sonnet-4"
+      description: "代码审查、技术讨论、多轮对话、长上下文任务"
+
+  # 结果缓存时间（毫秒），相同请求在缓存期内直接返回
+  cache_ttl: 600000
+
+  # router_model 响应最大 token 数
+  max_tokens: 256
+
+  # SmartRouter 无法选择时的回退策略
+  # "default"：继续后续路由链（推荐）
+  # "skip"：跳过，等同于 SmartRouter 未启用
+  fallback: "default"
