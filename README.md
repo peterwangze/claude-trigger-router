@@ -14,6 +14,7 @@ Claude Trigger Router  ← 你在这里配置规则
     │
     ├─ 关键词匹配 "生成图片" ──→ Provider A (支持图片的模型)
     ├─ 关键词匹配 "架构设计" ──→ Provider B (能力强的大模型)
+    ├─ SmartRouter (LLM 智能选择) ──→ 候选模型列表中最优模型
     ├─ Token 数 > 60000     ──→ Provider C (长上下文模型)
     └─ 其他请求             ──→ Provider D (默认模型)
 ```
@@ -276,6 +277,43 @@ patterns:
     pattern: "(画|生成).{0,10}图"
 ```
 
+### SmartRouter 智能路由配置
+
+SmartRouter 是关键词/正则匹配之后的第二道路由层。当规则匹配未命中时，由 `router_model` 分析请求并从 `candidates` 列表中选择最优模型。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `enabled` | boolean | false | 是否启用 SmartRouter |
+| `router_model` | string | - | **必填**（启用时）。用于路由决策的 LLM，格式 `"provider,model"` |
+| `candidates` | array | [] | **必填**（启用时）。候选模型列表，至少 2 个 |
+| `cache_ttl` | number | 600000 | 结果缓存时间（毫秒） |
+| `max_tokens` | number | 256 | router_model 响应最大 token 数 |
+| `fallback` | string | "default" | 无结果时回退策略：`default`（继续路由链）或 `skip` |
+
+**候选模型配置：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `model` | string | 模型标识，格式 `"provider,model"` |
+| `description` | string | 模型能力描述（供 router_model 参考） |
+
+**示例：**
+
+```yaml
+SmartRouter:
+  enabled: true
+  router_model: "deepseek,deepseek-chat"
+  candidates:
+    - model: "deepseek,deepseek-chat"
+      description: "通用编程、代码生成、调试"
+    - model: "deepseek,deepseek-reasoner"
+      description: "数学推理、逻辑推理、复杂分析"
+    - model: "openrouter,anthropic/claude-opus-4"
+      description: "架构设计、长篇文档撰写"
+  cache_ttl: 600000
+  fallback: "default"
+```
+
 ## 🔄 路由优先级
 
 一次请求经过以下链路依次决定最终使用的模型：
@@ -283,15 +321,16 @@ patterns:
 | 优先级 | 条件 | 使用模型 | 配置项 |
 |--------|------|----------|--------|
 | 1 | 触发规则关键词/正则匹配成功 | 规则指定模型 | `TriggerRouter.rules[].model` |
-| 2 | Token 数超过阈值 | 长上下文模型 | `Router.longContext` |
-| 3 | System 提示含 `<CTR-SUBAGENT-MODEL>` 标签 | 子代理指定模型 | 动态注入 |
-| 4 | 请求模型为 `claude-3-5-haiku-*` | 后台任务模型 | `Router.background` |
-| 5 | 请求含 `thinking` 参数 | 深度思考模型 | `Router.think` |
-| 6 | 工具列表含 `web_search` 类型工具 | 网络搜索模型 | `Router.webSearch` |
-| 7 | 配置了自定义路由器路径 | 自定义路由器决定 | `CUSTOM_ROUTER_PATH` |
-| 8 | 以上均不满足 | 默认模型 | `Router.default` |
+| 2 | SmartRouter 启用且 LLM 返回有效选择 | SmartRouter 选中模型 | `SmartRouter.candidates[].model` |
+| 3 | Token 数超过阈值 | 长上下文模型 | `Router.longContext` |
+| 4 | System 提示含 `<CTR-SUBAGENT-MODEL>` 标签 | 子代理指定模型 | 动态注入 |
+| 5 | 请求模型为 `claude-3-5-haiku-*` | 后台任务模型 | `Router.background` |
+| 6 | 请求含 `thinking` 参数 | 深度思考模型 | `Router.think` |
+| 7 | 工具列表含 `web_search` 类型工具 | 网络搜索模型 | `Router.webSearch` |
+| 8 | 配置了自定义路由器路径 | 自定义路由器决定 | `CUSTOM_ROUTER_PATH` |
+| 9 | 以上均不满足 | 默认模型 | `Router.default` |
 
-> **注意**：触发路由（优先级 1）在所有原有路由逻辑之前执行。一旦触发匹配，后续路由逻辑均跳过。
+> **注意**：触发路由（优先级 1-2）在所有原有路由逻辑之前执行。一旦匹配成功，后续路由逻辑均跳过。
 
 ## 📝 示例场景
 
