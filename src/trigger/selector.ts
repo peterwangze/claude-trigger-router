@@ -4,11 +4,12 @@
  * 模型选择器，负责根据触发规则选择合适的模型
  */
 
-import { ITriggerConfig, ITriggerRule, IAnalysisResult, IMatchResult, IRequestContext } from './types';
+import { ITriggerConfig, ITriggerRule, IAnalysisResult, IMatchResult, IRequestContext, ISmartRouterConfig } from './types';
 import { patternMatcher } from './matcher';
 import { contextAnalyzer } from './analyzer';
 import { intentDetector } from './intent';
-import { logError } from '../utils/log';
+import { smartRouterSelector } from './smart-router';
+import { log, logError } from '../utils/log';
 
 /**
  * 模型选择器类
@@ -76,7 +77,7 @@ export class ModelSelector {
    * @param config 触发配置
    * @returns 分析结果
    */
-  async selectModel(req: IRequestContext, config: ITriggerConfig, port: number = 3456): Promise<IAnalysisResult> {
+  async selectModel(req: IRequestContext, config: ITriggerConfig, port: number = 3456, smartRouterConfig?: ISmartRouterConfig): Promise<IAnalysisResult> {
     const startTime = Date.now();
 
     // 如果触发路由未启用，直接返回不匹配
@@ -114,7 +115,26 @@ export class ModelSelector {
       };
     }
 
-    // 第二步：如果启用了 LLM 意图识别，进行意图检测
+    // 第二步：SmartRouter 智能模型选择
+    if (smartRouterConfig?.enabled && smartRouterConfig.candidates?.length >= 2) {
+      try {
+        const smartResult = await smartRouterSelector.selectModel(text, smartRouterConfig, port);
+        if (smartResult) {
+          log(`[SmartRouter] Selected model "${smartResult.model}" (confidence: ${smartResult.confidence})`);
+          return {
+            matched: true,
+            model: smartResult.model,
+            confidence: smartResult.confidence,
+            analysisTime: Date.now() - startTime,
+            analyzedText: text,
+          };
+        }
+      } catch (error) {
+        logError('[ModelSelector] SmartRouter error:', error);
+      }
+    }
+
+    // 第三步：如果启用了 LLM 意图识别，进行意图检测
     if (config.llm_intent_recognition && config.intent_model) {
       try {
         const intentResult = await intentDetector.detectIntent(text, config, port);
