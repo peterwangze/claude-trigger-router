@@ -9,6 +9,7 @@ export * from './matcher';
 export * from './analyzer';
 export * from './intent';
 export * from './selector';
+export * from './smart-router';
 
 import { ITriggerConfig, IAnalysisResult, IAppConfig, IRequestContext, ISmartRouterConfig } from './types';
 import { modelSelector } from './selector';
