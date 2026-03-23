@@ -68,7 +68,7 @@ Commands:
   stop        Stop the router service (daemon mode)
   restart     Restart the router service (daemon mode)
   code        Run Claude Code via the router (requires service to be running first)
-  ui          Open the web UI
+  ui          Open the management API info page (Web UI not yet available)
   help        Show this help message
 
 Options:
@@ -79,9 +79,9 @@ Examples:
   ctr init              # Initialize config file
   ctr start             # Start in foreground (for debugging)
   ctr start --daemon    # Start in background
-  ctr code              # Run Claude Code (auto-starts service if needed)
+  ctr code              # Run Claude Code (requires service running)
   ctr stop              # Stop background service
-  ctr ui                # Open the web UI
+  ctr ui                # Show management API info (Web UI coming soon)
 
 Configuration:
   Config file: ${CONFIG_FILE} or ${CONFIG_FILE_JSON}

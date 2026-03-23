@@ -229,7 +229,7 @@ transformer:
 | `POST` | `/api/config` | 保存新配置（自动备份原配置） |
 | `GET` | `/api/transformers` | 查看已加载的 transformer 列表 |
 | `POST` | `/api/restart` | 触发服务热重启 |
-| `GET` | `/ui` | Web 管理界面 |
+| `GET` | `/ui` | 管理 API 说明页（Web UI 开发中，暂未开放） |
 
 ---
 
@@ -434,7 +434,7 @@ ctr start -d              # 同上，简写
 ctr stop                  # 停止后台服务
 ctr restart               # 重启后台服务
 ctr code                  # 通过路由器运行 Claude Code（需先启动服务）
-ctr ui                    # 打开 Web UI
+ctr ui                    # 打开管理 API 说明页（Web UI 开发中）
 ctr help                  # 显示帮助
 ```
 

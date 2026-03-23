@@ -6,8 +6,6 @@
 
 import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile } from "./utils";
-import { join } from "path";
-import fastifyStatic from "@fastify/static";
 import { log } from "./utils/log";
 
 /**
@@ -70,16 +68,23 @@ export const createServer = (config: any): Server => {
     }, 500);
   });
 
-  // 静态文件服务
-  server.app.register(fastifyStatic, {
-    root: join(__dirname, "..", "dist"),
-    prefix: "/ui/",
-    maxAge: "1h",
-  });
-
-  // 重定向 /ui 到 /ui/
+  // Web UI 入口（功能尚未开放，返回占位页面）
   server.app.get("/ui", async (_: any, reply: any) => {
-    return reply.redirect("/ui/");
+    reply.header("Content-Type", "text/html; charset=utf-8");
+    return reply.send(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Claude Trigger Router</title></head>` +
+      `<body style="font-family:sans-serif;padding:2rem">` +
+      `<h2>Claude Trigger Router</h2>` +
+      `<p>Web UI 功能尚在开发中，暂未开放。</p>` +
+      `<p>你可以通过以下 API 端点管理服务：</p>` +
+      `<ul>` +
+      `<li><code>GET /api/config</code> — 读取当前配置</li>` +
+      `<li><code>POST /api/config</code> — 保存配置</li>` +
+      `<li><code>GET /api/transformers</code> — 查看已加载 transformer</li>` +
+      `<li><code>POST /api/restart</code> — 重启服务</li>` +
+      `</ul>` +
+      `</body></html>`
+    );
   });
 
   return server;
