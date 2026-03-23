@@ -84,7 +84,7 @@ async function run(options: RunOptions = {}) {
     logWarn("⚠️ API key is not set. HOST is forced to 127.0.0.1.");
   }
 
-  const port = config.PORT || 3456;
+  const port = options.port ?? config.PORT ?? 3456;
 
   // 保存 PID
   savePid(process.pid);
