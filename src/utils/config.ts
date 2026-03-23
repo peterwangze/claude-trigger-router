@@ -233,26 +233,32 @@ export async function readConfigFile(): Promise<IAppConfig> {
 
 /**
  * 写入配置文件
+ * 写回策略：优先保持原有格式（YAML 或 JSON）。
+ * 若 YAML 文件存在，写入 YAML；若仅存在 JSON 文件，写入 JSON；否则默认写 YAML。
  */
 export async function writeConfigFile(config: IAppConfig): Promise<void> {
   await initDir();
 
-  // 根据文件扩展名选择格式
-  const isYaml = CONFIG_FILE.endsWith('.yaml') || CONFIG_FILE.endsWith('.yml');
+  // 检测原始配置文件格式：仅存在 JSON 且不存在 YAML 时，写回 JSON
+  const hasYaml = existsSync(CONFIG_FILE);
+  const hasJson = existsSync(CONFIG_FILE_JSON);
+  const useJson = !hasYaml && hasJson;
+
+  const targetFile = useJson ? CONFIG_FILE_JSON : CONFIG_FILE;
 
   let content: string;
 
-  if (isYaml) {
+  if (useJson) {
+    content = JSON.stringify(config, null, 2);
+  } else {
     content = yaml.dump(config, {
       indent: 2,
       lineWidth: -1,
       noRefs: true,
     });
-  } else {
-    content = JSON.stringify(config, null, 2);
   }
 
-  await writeFile(CONFIG_FILE, content, 'utf-8');
+  await writeFile(targetFile, content, 'utf-8');
 }
 
 /**
