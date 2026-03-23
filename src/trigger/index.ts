@@ -10,7 +10,7 @@ export * from './analyzer';
 export * from './intent';
 export * from './selector';
 
-import { ITriggerConfig, IAnalysisResult, IAppConfig, IRequestContext } from './types';
+import { ITriggerConfig, IAnalysisResult, IAppConfig, IRequestContext, ISmartRouterConfig } from './types';
 import { modelSelector } from './selector';
 import { contextAnalyzer } from './analyzer';
 import { log, logError } from '../utils/log';
@@ -22,6 +22,7 @@ import { log, logError } from '../utils/log';
 export class TriggerRouter {
   private config: ITriggerConfig | null = null;
   private port: number = 3456;
+  private smartRouterConfig: ISmartRouterConfig | undefined = undefined;
 
   /**
    * 初始化触发路由器
@@ -31,6 +32,7 @@ export class TriggerRouter {
   init(appConfig: IAppConfig): void {
     this.config = appConfig.TriggerRouter || this.getDefaultConfig();
     this.port = appConfig.PORT || 3456;
+    this.smartRouterConfig = appConfig.SmartRouter;
   }
 
   /**
@@ -85,7 +87,7 @@ export class TriggerRouter {
       };
     }
 
-    return modelSelector.selectModel(req, this.config, this.port);
+    return modelSelector.selectModel(req, this.config, this.port, this.smartRouterConfig);
   }
 
   /**
@@ -150,7 +152,7 @@ export class TriggerRouter {
           req.triggerResult = result;
 
           log(
-            `[TriggerRouter] Matched rule "${result.rule?.name}" -> model "${result.model}" ` +
+            `[TriggerRouter] ${result.rule ? `Matched rule "${result.rule.name}"` : 'SmartRouter selected'} -> model "${result.model}" ` +
             `(confidence: ${result.confidence}, time: ${result.analysisTime}ms)`
           );
         }
