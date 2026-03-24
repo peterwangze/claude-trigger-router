@@ -50,35 +50,57 @@ export function killProcess(pid: number): void {
  * 检查服务是否正在运行
  */
 export function isServiceRunning(): boolean {
-  if (!existsSync(PID_FILE)) {
-    return false;
-  }
-
-  try {
-    const pid = parseInt(readFileSync(PID_FILE, "utf-8").trim(), 10);
-
-    if (isNaN(pid) || pid <= 0) {
-      cleanupPidFile();
-      return false;
-    }
-
-    if (isProcessAlive(pid)) {
-      return true;
-    }
-
-    // 进程不存在，清理 PID 文件
+  const info = readServiceInfo();
+  if (!info || isNaN(info.pid) || info.pid <= 0) {
     cleanupPidFile();
     return false;
-  } catch {
-    return false;
   }
+
+  if (isProcessAlive(info.pid)) {
+    return true;
+  }
+
+  // 进程不存在，清理 PID 文件
+  cleanupPidFile();
+  return false;
 }
 
 /**
- * 保存 PID
+ * PID 文件中的服务元数据
  */
-export function savePid(pid: number): void {
-  writeFileSync(PID_FILE, pid.toString(), "utf-8");
+export interface IServiceInfo {
+  pid: number;
+  port: number;
+  startTime: string;
+}
+
+/**
+ * 保存 PID 及服务元数据
+ */
+export function savePid(pid: number, port?: number): void {
+  const info: IServiceInfo = {
+    pid,
+    port: port ?? 3456,
+    startTime: new Date().toISOString(),
+  };
+  writeFileSync(PID_FILE, JSON.stringify(info, null, 2), "utf-8");
+}
+
+/**
+ * 读取服务元数据，兼容旧版纯数字格式
+ */
+export function readServiceInfo(): IServiceInfo | null {
+  if (!existsSync(PID_FILE)) return null;
+  try {
+    const content = readFileSync(PID_FILE, "utf-8").trim();
+    // 兼容旧格式（纯数字 PID）
+    if (/^\d+$/.test(content)) {
+      return { pid: parseInt(content, 10), port: 3456, startTime: '' };
+    }
+    return JSON.parse(content) as IServiceInfo;
+  } catch {
+    return null;
+  }
 }
 
 /**

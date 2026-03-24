@@ -10,9 +10,9 @@ import { spawn } from "child_process";
 import { join, dirname } from "path";
 import open from "openurl";
 import { existsSync, readFileSync, copyFileSync, mkdirSync } from "fs";
-import { run } from "./index";
-import { isServiceRunning, killProcess } from "./utils/processCheck";
-import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, DEFAULT_CONFIG } from "./constants";
+import { run, initializeClaudeConfig } from "./index";
+import { isServiceRunning, killProcess, readServiceInfo } from "./utils/processCheck";
+import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from "./constants";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -27,11 +27,15 @@ function getPort(): number {
     return parseInt(args[portIndex + 1], 10);
   }
 
-  // 尝试从配置文件读取
+  // 尝试从配置文件读取（顺序：config.yaml → config.yml → config.json）
   try {
+    const yaml = require("js-yaml");
     if (existsSync(CONFIG_FILE)) {
-      const yaml = require("js-yaml");
       const content = readFileSync(CONFIG_FILE, "utf-8");
+      const config = yaml.load(content) as any;
+      if (config?.PORT) return config.PORT;
+    } else if (existsSync(CONFIG_FILE_YML)) {
+      const content = readFileSync(CONFIG_FILE_YML, "utf-8");
       const config = yaml.load(content) as any;
       if (config?.PORT) return config.PORT;
     } else if (existsSync(CONFIG_FILE_JSON)) {
@@ -67,6 +71,7 @@ Claude Trigger Router - 智能触发路由器
   start       启动路由服务（默认前台运行）
   stop        停止后台服务
   restart     重启后台服务
+  status      查看服务运行状态（PID、端口、启动时间）
   code        通过路由器运行 Claude Code（需先启动服务）
   ui          打开管理 API 说明页（Web UI 开发中）
   help        显示此帮助信息
@@ -80,6 +85,7 @@ Claude Trigger Router - 智能触发路由器
   ctr init                 # 初始化配置文件
   ctr start                # 前台启动（推荐首次使用，便于查看日志）
   ctr start --daemon       # 后台启动
+  ctr status               # 查看服务状态
   ctr code                 # 启动 Claude Code（需先运行 ctr start）
   ctr stop                 # 停止后台服务
   ctr restart --daemon     # 重启后台服务
@@ -100,9 +106,10 @@ Claude Trigger Router - 智能触发路由器
 function initConfig() {
   const force = args.includes("--force");
 
-  if (existsSync(CONFIG_FILE) && !force) {
-    console.log(`⚠️  Config file already exists: ${CONFIG_FILE}`);
-    console.log("    Use --force to overwrite.");
+  const existingConfig = [CONFIG_FILE, CONFIG_FILE_YML, CONFIG_FILE_JSON].find(existsSync);
+  if (existingConfig && !force) {
+    console.log(`⚠️  配置文件已存在：${existingConfig}`);
+    console.log("    如需覆盖，请使用 --force 参数。");
     return;
   }
 
@@ -120,25 +127,25 @@ function initConfig() {
   const exampleFile = examplePaths.find((p) => existsSync(p));
 
   if (!exampleFile) {
-    console.error("❌ Could not find example config file.");
-    console.log(`   Please create ${CONFIG_FILE} manually.`);
-    console.log("   Reference: https://github.com/peterwangze/claude-trigger-router#configuration");
+    console.error("❌ 找不到示例配置文件。");
+    console.log(`   请手动创建 ${CONFIG_FILE}`);
+    console.log("   参考文档：https://github.com/peterwangze/claude-trigger-router#configuration");
     process.exit(1);
   }
 
   try {
     copyFileSync(exampleFile, CONFIG_FILE);
-    const action = force ? "overwritten" : "created";
-    console.log(`✅ Config file ${action}: ${CONFIG_FILE}`);
+    const action = force ? "已覆盖" : "已创建";
+    console.log(`✅ 配置文件${action}：${CONFIG_FILE}`);
     console.log("");
-    console.log("Next steps:");
-    console.log("  1. Edit the config file and fill in your API keys");
-    console.log("  2. Configure your model providers under 'Providers'");
-    console.log("  3. Set 'Router.default' to your default model");
-    console.log("  4. Customize trigger rules under 'TriggerRouter.rules'");
-    console.log(`  5. Run: ctr start --daemon`);
+    console.log("下一步：");
+    console.log("  1. 编辑配置文件，填入你的 API 密钥");
+    console.log("  2. 在 'Providers' 下配置你的模型提供商");
+    console.log("  3. 将 'Router.default' 设置为你的默认模型");
+    console.log("  4. 在 'TriggerRouter.rules' 下自定义触发规则");
+    console.log(`  5. 运行：ctr start`);
   } catch (error: any) {
-    console.error("❌ Failed to create config file:", error.message);
+    console.error("❌ 创建配置文件失败:", error.message);
     process.exit(1);
   }
 }
@@ -206,20 +213,38 @@ function startDaemon(port?: number) {
 }
 
 /**
+ * 显示服务状态
+ */
+function showStatus() {
+  const info = readServiceInfo();
+  if (!info || !isServiceRunning()) {
+    console.log("⏹  服务未运行");
+    return;
+  }
+  const startTime = info.startTime ? new Date(info.startTime).toLocaleString() : "未知";
+  console.log("✅ 服务运行中");
+  console.log(`   PID：${info.pid}`);
+  console.log(`   端口：${info.port}`);
+  console.log(`   启动时间：${startTime}`);
+  console.log(`   接入地址：http://127.0.0.1:${info.port}`);
+}
+
+/**
  * 停止服务
  */
 function stopService() {
-  if (!isServiceRunning()) {
-    console.log("⚠️  No running service found.");
+  const info = readServiceInfo();
+  if (!info || !isServiceRunning()) {
+    console.log("⚠️  未发现运行中的服务。");
     return;
   }
 
   try {
-    const pid = parseInt(readFileSync(require("path").join(CONFIG_DIR, "claude-trigger-router.pid"), "utf-8").trim(), 10);
-    killProcess(pid);
-    console.log("✅ Service stopped.");
+    console.log(`🛑 正在停止服务（PID: ${info.pid}，端口: ${info.port}）...`);
+    killProcess(info.pid);
+    console.log("✅ 服务已停止。");
   } catch (error: any) {
-    console.error("❌ Failed to stop service:", error.message);
+    console.error("❌ 停止服务失败:", error.message);
   }
 }
 
@@ -256,6 +281,10 @@ async function waitForService(port: number, timeoutMs = 5000): Promise<boolean> 
  */
 async function runClaudeCode() {
   const port = getPort();
+
+  // 确保 ~/.claude.json 存在（跳过 Claude Code 首次引导流程）
+  // 仅在此处执行，避免在 ctr start 时产生不必要的全局副作用
+  await initializeClaudeConfig();
 
   // 检查服务是否在运行
   const running = isServiceRunning();
@@ -340,6 +369,10 @@ async function main() {
 
     case "stop":
       stopService();
+      break;
+
+    case "status":
+      showStatus();
       break;
 
     case "restart":

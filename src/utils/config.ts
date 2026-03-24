@@ -110,6 +110,29 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>)
 }
 
 /**
+ * 校验 "provider,model" 格式的模型引用是否在 Providers 列表中存在
+ * 返回错误描述，合法则返回 null
+ */
+function validateModelRef(
+  ref: string,
+  providers: IAppConfig['Providers'],
+  fieldName: string
+): string | null {
+  if (!ref || !ref.includes(',')) {
+    return `${fieldName} 格式不正确，应为 "provider,model"，当前值："${ref}"`;
+  }
+  const [providerName, modelName] = ref.split(',');
+  const provider = providers.find(p => p.name === providerName);
+  if (!provider) {
+    return `${fieldName} 引用了不存在的提供商 "${providerName}"，请检查 Providers 配置`;
+  }
+  if (!provider.models.includes(modelName)) {
+    return `${fieldName} 引用的模型 "${modelName}" 不在提供商 "${providerName}" 的 models 列表中`;
+  }
+  return null;
+}
+
+/**
  * 验证配置
  */
 function validateConfig(config: Partial<IAppConfig>): string[] {
@@ -137,6 +160,28 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
     errors.push('Router.default is required');
   }
 
+  // Provider/model 交叉引用校验（仅在 Providers 列表有效时执行）
+  const validProviders = config.Providers?.filter(p => p.name && p.models?.length) ?? [];
+  if (validProviders.length > 0) {
+    const router = config.Router;
+    if (router) {
+      const routerModelFields: Array<[string | undefined, string]> = [
+        [router.default,         'Router.default'],
+        [router.background,      'Router.background'],
+        [router.think,           'Router.think'],
+        [router.longContext,     'Router.longContext'],
+        [router.webSearch,       'Router.webSearch'],
+        [router.image,           'Router.image'],
+      ];
+      for (const [ref, field] of routerModelFields) {
+        if (ref) {
+          const err = validateModelRef(ref, validProviders, field);
+          if (err) errors.push(err);
+        }
+      }
+    }
+  }
+
   // 验证触发路由配置
   if (config.TriggerRouter) {
     if (config.TriggerRouter.llm_intent_recognition && !config.TriggerRouter.intent_model) {
@@ -150,6 +195,9 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
         }
         if (!rule.model) {
           errors.push(`TriggerRouter.rules[${index}].model is required`);
+        } else if (validProviders.length > 0) {
+          const err = validateModelRef(rule.model, validProviders, `TriggerRouter.rules[${index}].model`);
+          if (err) errors.push(err);
         }
         if (!rule.patterns || rule.patterns.length === 0) {
           errors.push(`TriggerRouter.rules[${index}].patterns must be a non-empty array`);
@@ -162,6 +210,9 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
   if (config.SmartRouter?.enabled) {
     if (!config.SmartRouter.router_model) {
       errors.push('SmartRouter.router_model is required when SmartRouter is enabled');
+    } else if (validProviders.length > 0) {
+      const err = validateModelRef(config.SmartRouter.router_model, validProviders, 'SmartRouter.router_model');
+      if (err) errors.push(err);
     }
     if (!config.SmartRouter.candidates || config.SmartRouter.candidates.length < 2) {
       errors.push('SmartRouter.candidates must have at least 2 entries when SmartRouter is enabled');
@@ -169,6 +220,9 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
       config.SmartRouter.candidates.forEach((candidate, index) => {
         if (!candidate.model) {
           errors.push(`SmartRouter.candidates[${index}].model is required`);
+        } else if (validProviders.length > 0) {
+          const err = validateModelRef(candidate.model, validProviders, `SmartRouter.candidates[${index}].model`);
+          if (err) errors.push(err);
         }
         if (!candidate.description) {
           errors.push(`SmartRouter.candidates[${index}].description is required`);

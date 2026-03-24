@@ -72,7 +72,6 @@ async function run(options: RunOptions = {}) {
     return;
   }
 
-  await initializeClaudeConfig();
   await initDir();
 
   const config = await initConfig();
@@ -89,8 +88,8 @@ async function run(options: RunOptions = {}) {
 
   const port = options.port ?? config.PORT ?? 3456;
 
-  // 保存 PID
-  savePid(process.pid);
+  // 保存 PID 及元数据（端口、启动时间），供 ctr status 等命令使用
+  savePid(process.pid, port);
 
   // 处理退出信号
   process.on("SIGINT", () => {
@@ -444,4 +443,4 @@ async function run(options: RunOptions = {}) {
   server.start();
 }
 
-export { run };
+export { run, initializeClaudeConfig };
