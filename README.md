@@ -30,6 +30,19 @@ Claude Code 本身完全不感知切换过程，仍然以为自己在与 Anthrop
 - **配置灵活**: 支持 YAML/JSON 配置文件（读取优先 YAML；通过 API 保存时按原格式写回，默认写 YAML）
 - **向后兼容**: 完全兼容 claude-code-router 的配置格式
 
+## 📋 环境要求
+
+| 依赖 | 版本要求 | 说明 |
+|------|----------|------|
+| Node.js | **18+** | 运行本工具的前提 |
+| Claude Code CLI | 最新版 | 路由器代理的目标程序 |
+
+安装 Claude Code CLI（如尚未安装）：
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
 ## 🚀 快速开始
 
 ### 1. 安装
@@ -81,10 +94,16 @@ TriggerRouter:
 
 ### 4. 启动服务
 
+**首次使用建议先用前台模式**，便于确认配置正确、查看实时日志：
+
 ```bash
-ctr start --daemon    # 后台运行（推荐）
-# 或
-ctr start             # 前台运行（便于查看日志/调试）
+ctr start             # 前台运行（推荐首次使用，Ctrl+C 退出）
+```
+
+配置确认无误后，改用后台模式：
+
+```bash
+ctr start --daemon    # 后台运行（日常使用）
 ```
 
 ### 5. 使用
@@ -377,17 +396,30 @@ SmartRouter:
 
 日志文件位于 `~/.claude-trigger-router/logs/`，按天滚动保存。
 
+**macOS / Linux：**
 ```bash
-# 实时查看最新日志（macOS/Linux）
+# 实时查看最新日志
 tail -f ~/.claude-trigger-router/logs/*.log
 
 # 查看触发路由命中记录
 grep "TriggerRouter" ~/.claude-trigger-router/logs/*.log
 ```
 
+**Windows（PowerShell）：**
+```powershell
+# 查看最新日志文件
+Get-Content "$env:USERPROFILE\.claude-trigger-router\logs\*.log" -Tail 50
+
+# 实时追踪日志（类似 tail -f）
+Get-Content "$env:USERPROFILE\.claude-trigger-router\logs\*.log" -Wait -Tail 20
+
+# 查看触发路由命中记录
+Select-String "TriggerRouter" "$env:USERPROFILE\.claude-trigger-router\logs\*.log"
+```
+
 日志中触发路由成功时会出现：
 ```
-[INFO] [TriggerRouter] Matched rule "image_generation" -> "openrouter,openai/dall-e-3"
+[INFO] [TriggerRouter] Matched rule "image_generation" -> "openrouter/openai/dall-e-3"
 ```
 
 ### 常见问题
@@ -400,18 +432,27 @@ ctr start
 
 # 常见原因：
 # - 配置文件不存在 → 运行 ctr init
-# - 配置文件格式错误 → 检查 YAML 缩进
+# - 配置文件 YAML 格式错误 → 检查缩进（必须用空格，不能用 Tab）
 # - API key 未填写 → 编辑 ~/.claude-trigger-router/config.yaml
 ```
 
 **端口冲突**
 
+macOS / Linux：
 ```bash
-# 指定其他端口启动
 ctr start --daemon --port 3457
-
-# 同时更新 Claude Code 接入地址
 export ANTHROPIC_BASE_URL=http://127.0.0.1:3457
+```
+
+Windows（PowerShell）：
+```powershell
+ctr start --daemon --port 3457
+$env:ANTHROPIC_BASE_URL="http://127.0.0.1:3457"
+```
+
+查看端口占用（Windows）：
+```powershell
+netstat -ano | findstr :3456
 ```
 
 > **注意**：`--port` 参数仅对当次启动生效，不会修改配置文件。使用自定义端口启动后，后续执行 `ctr code`、`ctr ui`、`ctr restart` 等命令时，也需要同样传入 `--port 3457`，否则 CLI 会读取配置文件中的旧端口。
@@ -427,8 +468,14 @@ export ANTHROPIC_BASE_URL=http://127.0.0.1:3457
 
 **确认服务是否正常运行**
 
+macOS / Linux：
 ```bash
 curl http://127.0.0.1:3456/api/config
+```
+
+Windows（PowerShell）：
+```powershell
+Invoke-RestMethod http://127.0.0.1:3456/api/config
 ```
 
 返回配置内容则服务正常。

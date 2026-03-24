@@ -23,6 +23,11 @@ export const CONFIG_FILE = join(CONFIG_DIR, 'config.yaml');
 export const CONFIG_FILE_JSON = join(CONFIG_DIR, 'config.json');
 
 /**
+ * .yml 配置文件路径（兼容）
+ */
+export const CONFIG_FILE_YML = join(CONFIG_DIR, 'config.yml');
+
+/**
  * 日志目录
  */
 export const HOME_DIR = join(CONFIG_DIR, 'logs');

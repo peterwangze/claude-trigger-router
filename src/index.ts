@@ -39,6 +39,9 @@ async function initializeClaudeConfig() {
   const homeDir = homedir();
   const configPath = join(homeDir, ".claude.json");
   if (!existsSync(configPath)) {
+    // 自动创建 ~/.claude.json，标记 onboarding 已完成，避免 Claude Code 重复走引导流程
+    // 仅在文件不存在时创建，不会覆盖用户已有的配置
+    log(`Creating ${configPath} for Claude Code compatibility (onboarding bypass)`);
     const userID = Array.from(
       { length: 64 },
       () => Math.random().toString(16)[2]

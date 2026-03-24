@@ -58,36 +58,39 @@ function isDaemonMode(): boolean {
  */
 function printHelp() {
   console.log(`
-Claude Trigger Router - Intelligent trigger-based router for Claude Code
+Claude Trigger Router - 智能触发路由器
 
-Usage: ctr <command> [options]
+用法：ctr <命令> [选项]
 
-Commands:
-  init        Initialize the configuration file
-  start       Start the router service (foreground by default)
-  stop        Stop the router service (daemon mode)
-  restart     Restart the router service (daemon mode)
-  code        Run Claude Code via the router (requires service to be running first)
-  ui          Open the management API info page (Web UI not yet available)
-  help        Show this help message
+命令：
+  init        初始化配置文件（从示例模板复制）
+  start       启动路由服务（默认前台运行）
+  stop        停止后台服务
+  restart     重启后台服务
+  code        通过路由器运行 Claude Code（需先启动服务）
+  ui          打开管理 API 说明页（Web UI 开发中）
+  help        显示此帮助信息
 
-Options:
-  --port, -p    Specify the port (default: 3456)
-  --daemon, -d  Run the service in background (used with start/restart)
+选项：
+  --port, -p    指定监听端口（默认：3456）
+  --daemon, -d  以后台方式运行（配合 start/restart 使用）
+  --force       强制覆盖已有配置（配合 init 使用）
 
-Examples:
-  ctr init              # Initialize config file
-  ctr start             # Start in foreground (for debugging)
-  ctr start --daemon    # Start in background
-  ctr code              # Run Claude Code (requires service running)
-  ctr stop              # Stop background service
-  ctr ui                # Show management API info (Web UI coming soon)
+使用示例：
+  ctr init                 # 初始化配置文件
+  ctr start                # 前台启动（推荐首次使用，便于查看日志）
+  ctr start --daemon       # 后台启动
+  ctr code                 # 启动 Claude Code（需先运行 ctr start）
+  ctr stop                 # 停止后台服务
+  ctr restart --daemon     # 重启后台服务
 
-Configuration:
-  Config file: ${CONFIG_FILE} or ${CONFIG_FILE_JSON}
-  Config dir:  ${CONFIG_DIR}
+配置文件：
+  ${CONFIG_FILE}
+  ${CONFIG_FILE_JSON}
 
-For more information, visit: https://github.com/peterwangze/claude-trigger-router
+配置目录：${CONFIG_DIR}
+
+更多信息：https://github.com/peterwangze/claude-trigger-router
 `);
 }
 
@@ -278,9 +281,11 @@ async function runClaudeCode() {
 
   console.log(`🚀 Starting Claude Code with Trigger Router (port: ${port})...`);
 
-  // 启动 Claude Code
+  // 启动 Claude Code（Windows 上 npm 全局命令为 .cmd shim，需要 shell: true）
+  const isWindows = process.platform === "win32";
   const claude = spawn("claude", [], {
     stdio: "inherit",
+    shell: isWindows,
     env: {
       ...process.env,
       ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`,
@@ -288,10 +293,11 @@ async function runClaudeCode() {
   });
 
   claude.on("error", (error) => {
-    console.error("❌ Failed to start Claude Code:", error.message);
-    console.log(
-      "   Make sure Claude Code is installed: npm install -g @anthropic-ai/claude-code"
-    );
+    console.error("❌ 启动 Claude Code 失败:", error.message);
+    console.log("   请确认 Claude Code 已全局安装：npm install -g @anthropic-ai/claude-code");
+    if (isWindows) {
+      console.log("   Windows 用户请确认在 PowerShell 或 CMD 中运行，而非 Git Bash");
+    }
   });
 
   claude.on("exit", (code) => {

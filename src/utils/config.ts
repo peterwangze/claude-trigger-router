@@ -12,6 +12,7 @@ import {
   CONFIG_DIR,
   CONFIG_FILE,
   CONFIG_FILE_JSON,
+  CONFIG_FILE_YML,
   DEFAULT_CONFIG,
   DEFAULT_TRIGGER_CONFIG,
   DEFAULT_SMART_ROUTER_CONFIG,
@@ -30,6 +31,7 @@ export async function initDir(): Promise<void> {
 
 /**
  * 尝试加载 YAML 配置文件
+ * 返回 null 表示文件不存在；解析失败时抛出错误（区分两种情况）
  */
 async function loadYamlConfig(path: string): Promise<Partial<IAppConfig> | null> {
   if (!existsSync(path)) {
@@ -39,14 +41,23 @@ async function loadYamlConfig(path: string): Promise<Partial<IAppConfig> | null>
   try {
     const content = await readFile(path, 'utf-8');
     return yaml.load(content) as Partial<IAppConfig>;
-  } catch (error) {
-    logError(`Error loading YAML config from ${path}:`, error);
-    return null;
+  } catch (error: any) {
+    const divider = '─'.repeat(60);
+    console.error(`\n${divider}`);
+    console.error('  ❌  配置文件解析失败（YAML 格式错误）');
+    console.error(divider);
+    console.error(`  文件：${path}`);
+    console.error(`  错误：${error.message || error}`);
+    console.error(`  提示：请检查 YAML 缩进是否使用空格（不能用 Tab）`);
+    console.error(`        可用在线工具验证：https://yaml.lint.me`);
+    console.error(`${divider}\n`);
+    throw new Error(`YAML parse error in ${path}: ${error.message}`);
   }
 }
 
 /**
  * 尝试加载 JSON 配置文件
+ * 返回 null 表示文件不存在；解析失败时抛出错误（区分两种情况）
  */
 async function loadJsonConfig(path: string): Promise<Partial<IAppConfig> | null> {
   if (!existsSync(path)) {
@@ -56,9 +67,16 @@ async function loadJsonConfig(path: string): Promise<Partial<IAppConfig> | null>
   try {
     const content = await readFile(path, 'utf-8');
     return JSON.parse(content);
-  } catch (error) {
-    logError(`Error loading JSON config from ${path}:`, error);
-    return null;
+  } catch (error: any) {
+    const divider = '─'.repeat(60);
+    console.error(`\n${divider}`);
+    console.error('  ❌  配置文件解析失败（JSON 格式错误）');
+    console.error(divider);
+    console.error(`  文件：${path}`);
+    console.error(`  错误：${error.message || error}`);
+    console.error(`  提示：请检查 JSON 格式，例如是否有多余逗号或缺少引号`);
+    console.error(`${divider}\n`);
+    throw new Error(`JSON parse error in ${path}: ${error.message}`);
   }
 }
 
@@ -168,11 +186,16 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
 export async function initConfig(): Promise<IAppConfig> {
   await initDir();
 
-  // 尝试加载配置文件（优先 YAML）
+  // 尝试加载配置文件（优先顺序：config.yaml → config.yml → config.json）
   let config: Partial<IAppConfig> | null = null;
 
-  // 尝试 YAML 配置
+  // 尝试 .yaml 配置
   config = await loadYamlConfig(CONFIG_FILE);
+
+  // 尝试 .yml 配置
+  if (!config) {
+    config = await loadYamlConfig(CONFIG_FILE_YML);
+  }
 
   // 如果没有 YAML 配置，尝试 JSON 配置
   if (!config) {
@@ -239,12 +262,14 @@ export async function readConfigFile(): Promise<IAppConfig> {
 export async function writeConfigFile(config: IAppConfig): Promise<void> {
   await initDir();
 
-  // 检测原始配置文件格式：仅存在 JSON 且不存在 YAML 时，写回 JSON
+  // 检测原始配置文件格式：仅存在 JSON 且不存在 YAML/YML 时，写回 JSON
   const hasYaml = existsSync(CONFIG_FILE);
+  const hasYml = existsSync(CONFIG_FILE_YML);
   const hasJson = existsSync(CONFIG_FILE_JSON);
-  const useJson = !hasYaml && hasJson;
+  const useJson = !hasYaml && !hasYml && hasJson;
 
-  const targetFile = useJson ? CONFIG_FILE_JSON : CONFIG_FILE;
+  // 写回同名文件：yaml → config.yaml，yml → config.yml，json → config.json，默认 yaml
+  const targetFile = useJson ? CONFIG_FILE_JSON : (hasYml && !hasYaml ? CONFIG_FILE_YML : CONFIG_FILE);
 
   let content: string;
 
@@ -266,6 +291,7 @@ export async function writeConfigFile(config: IAppConfig): Promise<void> {
  */
 export async function backupConfigFile(): Promise<string | null> {
   const configPath = existsSync(CONFIG_FILE) ? CONFIG_FILE :
+                     existsSync(CONFIG_FILE_YML) ? CONFIG_FILE_YML :
                      existsSync(CONFIG_FILE_JSON) ? CONFIG_FILE_JSON : null;
 
   if (!configPath || !existsSync(configPath)) {
