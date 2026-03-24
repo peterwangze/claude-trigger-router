@@ -1,4 +1,4 @@
-# Claude Trigger Router 实施计划
+# [已归档] Claude Trigger Router 实施计划
 
 > **⚠️ 归档说明（2026-03-24）**
 >

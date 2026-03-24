@@ -158,6 +158,9 @@ export interface IAppConfig {
 
   /** 自定义路由器路径 */
   CUSTOM_ROUTER_PATH?: string;
+
+  /** 强制所有图片请求走 Image Agent 模式（默认 false） */
+  forceUseImageAgent?: boolean;
 }
 
 /**
