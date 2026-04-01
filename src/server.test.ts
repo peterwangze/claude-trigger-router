@@ -45,6 +45,7 @@ vi.mock('@musistudio/llms', () => {
 });
 
 import { createServer } from './server';
+import { normalizeAndValidateConfig } from './utils/config';
 
 describe('createServer /api/config', () => {
 
@@ -127,5 +128,108 @@ describe('createServer /api/config', () => {
       })
     );
     expect(result).toEqual({ success: true, message: 'Config saved successfully' });
+  });
+
+  it('does not persist TriggerRouter when user did not configure it', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const requestBody = {
+      Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+      Providers: [
+        {
+          name: 'openrouter',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4'],
+        },
+      ],
+    };
+
+    await handler({ body: requestBody }, reply);
+
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        TriggerRouter: expect.anything(),
+      })
+    );
+  });
+
+  it('rejects invalid TriggerRouter intent_model reference before writing', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const requestBody = {
+      Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+      Providers: [
+        {
+          name: 'openrouter',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4'],
+        },
+      ],
+      TriggerRouter: {
+        enabled: true,
+        analysis_scope: 'last_message',
+        llm_intent_recognition: true,
+        intent_model: 'openrouter,anthropic/claude-opus-4',
+        rules: [
+          {
+            name: 'architecture',
+            priority: 10,
+            enabled: true,
+            patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+            model: 'openrouter,anthropic/claude-sonnet-4',
+          },
+        ],
+      },
+    };
+
+    const result = await handler({ body: requestBody }, reply);
+
+    expect(reply.code).toHaveBeenCalledWith(400);
+    expect(result.success).toBe(false);
+    expect(result.errors).toContain(
+      'TriggerRouter.intent_model 引用的模型 "anthropic/claude-opus-4" 不在提供商 "openrouter" 的 models 列表中'
+    );
+    expect(mockWriteConfigFile).not.toHaveBeenCalled();
+  });
+
+  it('does not persist default TriggerRouter after a GET-to-POST round trip', async () => {
+    const loadedConfig = normalizeAndValidateConfig({
+      Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+      Providers: [
+        {
+          name: 'openrouter',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4'],
+        },
+      ],
+    }).config;
+    mockReadConfigFile.mockResolvedValue(loadedConfig);
+
+    const server = createServer({});
+    const getHandler = server.app.routes.get('GET /api/config');
+    const postHandler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const fetchedConfig = await getHandler({}, {});
+    await postHandler({ body: fetchedConfig }, reply);
+
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        TriggerRouter: expect.anything(),
+      })
+    );
   });
 });

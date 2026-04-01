@@ -186,6 +186,9 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
   if (config.TriggerRouter) {
     if (config.TriggerRouter.llm_intent_recognition && !config.TriggerRouter.intent_model) {
       errors.push('TriggerRouter.intent_model is required when llm_intent_recognition is enabled');
+    } else if (config.TriggerRouter.intent_model && validProviders.length > 0) {
+      const err = validateModelRef(config.TriggerRouter.intent_model, validProviders, 'TriggerRouter.intent_model');
+      if (err) errors.push(err);
     }
 
     if (config.TriggerRouter.rules) {
@@ -245,11 +248,14 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
         default: '',
       },
       Providers: [],
-      TriggerRouter: DEFAULT_TRIGGER_CONFIG,
       SmartRouter: DEFAULT_SMART_ROUTER_CONFIG,
     },
     config
   ) as IAppConfig;
+
+  if (config.TriggerRouter) {
+    normalizedConfig.TriggerRouter = deepMerge(DEFAULT_TRIGGER_CONFIG, config.TriggerRouter) as IAppConfig['TriggerRouter'];
+  }
 
   return {
     config: normalizedConfig,
