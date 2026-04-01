@@ -234,6 +234,29 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
   return errors;
 }
 
+export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
+  config: IAppConfig;
+  errors: string[];
+} {
+  const normalizedConfig = deepMerge(
+    {
+      ...DEFAULT_CONFIG,
+      Router: {
+        default: '',
+      },
+      Providers: [],
+      TriggerRouter: DEFAULT_TRIGGER_CONFIG,
+      SmartRouter: DEFAULT_SMART_ROUTER_CONFIG,
+    },
+    config
+  ) as IAppConfig;
+
+  return {
+    config: normalizedConfig,
+    errors: validateConfig(normalizedConfig),
+  };
+}
+
 /**
  * 初始化并加载配置
  */
@@ -268,29 +291,15 @@ export async function initConfig(): Promise<IAppConfig> {
     config = {};
   }
 
-  // 合并默认配置
-  const mergedConfig = deepMerge(
-    {
-      ...DEFAULT_CONFIG,
-      Router: {
-        default: '',
-      },
-      Providers: [],
-      TriggerRouter: DEFAULT_TRIGGER_CONFIG,
-      SmartRouter: DEFAULT_SMART_ROUTER_CONFIG,
-    },
-    config
-  );
+  const result = normalizeAndValidateConfig(config);
 
-  // 验证配置
-  const errors = validateConfig(mergedConfig);
-  if (errors.length > 0) {
+  if (result.errors.length > 0) {
     const divider = '─'.repeat(60);
     console.error(`\n${divider}`);
     console.error('  ❌  Configuration Error');
     console.error(divider);
     console.error('  The following issues were found in your config file:\n');
-    errors.forEach((err, i) => console.error(`  ${i + 1}. ${err}`));
+    result.errors.forEach((err, i) => console.error(`  ${i + 1}. ${err}`));
     console.error(`\n  Config file: ${CONFIG_FILE}`);
     console.error(`  Run 'ctr init' to create a new config from the example.`);
     console.error(`  Reference:   https://github.com/peterwangze/claude-trigger-router#configuration`);
@@ -298,7 +307,7 @@ export async function initConfig(): Promise<IAppConfig> {
     throw new Error('Invalid configuration');
   }
 
-  return mergedConfig as IAppConfig;
+  return result.config;
 }
 
 /**

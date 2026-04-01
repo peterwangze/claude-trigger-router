@@ -13,6 +13,7 @@ import { existsSync, readFileSync, copyFileSync, mkdirSync } from "fs";
 import { run, initializeClaudeConfig } from "./index";
 import { isServiceRunning, killProcess, readServiceInfo } from "./utils/processCheck";
 import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from "./constants";
+import { waitForService } from "./service-health";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -257,54 +258,30 @@ function restartService() {
 }
 
 /**
- * 检查服务是否在监听
- * 通过发送 HTTP 请求到 /api/config 端点来判断
- */
-async function waitForService(port: number, timeoutMs = 5000): Promise<boolean> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${port}/api/config`, {
-        signal: AbortSignal.timeout(500),
-      });
-      if (res.ok || res.status < 500) return true;
-    } catch {
-      // 服务尚未就绪，继续等待
-    }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  return false;
-}
-
-/**
  * 运行 Claude Code
  */
-async function runClaudeCode() {
+export async function runClaudeCode() {
   const port = getPort();
 
   // 确保 ~/.claude.json 存在（跳过 Claude Code 首次引导流程）
   // 仅在此处执行，避免在 ctr start 时产生不必要的全局副作用
   await initializeClaudeConfig();
 
-  // 检查服务是否在运行
+  // 先看本地元数据，再用健康检查确认当前端口上确实是本服务
   const running = isServiceRunning();
+  console.log(`🔍 Checking if service is available on port ${port}...`);
+  const reachable = await waitForService(port, 2000);
 
-  if (!running) {
-    // 尝试 HTTP 连通性检查（兼容非 PID 方式启动的服务）
-    console.log(`🔍 Checking if service is available on port ${port}...`);
-    const reachable = await waitForService(port, 2000);
-
-    if (!reachable) {
-      console.log(`⚠️  Trigger Router service is not running on port ${port}.`);
-      console.log("");
-      console.log("Options:");
-      console.log("  1. Start service first:  ctr start --daemon");
-      console.log("  2. Or start interactively in another terminal:  ctr start");
-      console.log("");
-      const proceed = process.env.CTR_AUTO_START === "1";
-      if (!proceed) {
-        process.exit(1);
-      }
+  if (!reachable) {
+    console.log(`⚠️  Trigger Router service is not running on port ${port}.`);
+    console.log("");
+    console.log("Options:");
+    console.log("  1. Start service first:  ctr start --daemon");
+    console.log("  2. Or start interactively in another terminal:  ctr start");
+    console.log("");
+    const proceed = process.env.CTR_AUTO_START === "1";
+    if (!proceed) {
+      process.exit(1);
     }
   }
 
@@ -402,7 +379,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error("Error:", error);
-  process.exit(1);
-});
+if (process.env.CTR_SKIP_MAIN !== "1") {
+  main().catch((error) => {
+    console.error("Error:", error);
+    process.exit(1);
+  });
+}
