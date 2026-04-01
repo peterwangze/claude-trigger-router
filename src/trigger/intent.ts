@@ -101,7 +101,8 @@ export class IntentDetector {
     config: ITriggerConfig,
     port: number = 3456,
     fetchFn?: typeof fetch,
-    apiKey?: string
+    apiKey?: string,
+    timeoutMs?: number
   ): Promise<IIntentResult> {
     // 如果没有启用 LLM 意图识别，返回默认结果
     if (!config.llm_intent_recognition) {
@@ -150,6 +151,7 @@ export class IntentDetector {
             },
           ],
         }),
+        ...(timeoutMs && timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
       });
 
       if (!response.ok) {

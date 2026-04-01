@@ -106,7 +106,8 @@ export class SmartRouterSelector {
     config: ISmartRouterConfig,
     port: number = 3456,
     fetchFn?: typeof fetch,
-    apiKey?: string
+    apiKey?: string,
+    timeoutMs?: number
   ): Promise<ISmartRouterResult | null> {
     // 未启用或候选不足
     if (!config.enabled) {
@@ -139,6 +140,7 @@ export class SmartRouterSelector {
           max_tokens: config.max_tokens ?? 256,
           messages: [{ role: 'user', content: prompt }],
         }),
+        ...(timeoutMs && timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
       });
 
       if (!response.ok) {

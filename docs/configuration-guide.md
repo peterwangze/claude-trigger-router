@@ -380,7 +380,7 @@ ctr start --daemon
 - `API_TIMEOUT_MS`
 - `NON_INTERACTIVE_MODE`
 
-原因不是字段名有问题，而是当前代码里缺少清晰、稳定、容易验证的主线接线证据。想先稳定使用的话，可以先不配。
+其中 `API_TIMEOUT_MS` 目前只影响 TriggerRouter 内部回环 LLM 调用（SmartRouter / intent detection），不影响 `ctr code` 探活或普通 provider 转发；另外两个字段仍缺少清晰、稳定、容易验证的主线接线证据。想先稳定使用的话，可以先不配。
 
 ## 推荐阅读顺序
 

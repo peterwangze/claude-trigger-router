@@ -136,6 +136,31 @@ describe('IntentDetector', () => {
       expect(result.confidence).toBe(0.95);
     });
 
+    it('should pass AbortSignal timeout to internal intent fetch when configured', async () => {
+      const config: ITriggerConfig = {
+        enabled: true,
+        analysis_scope: 'last_message',
+        llm_intent_recognition: true,
+        intent_model: 'test,model',
+        rules: [
+          { name: 'image_generation', priority: 10, enabled: true, patterns: [], model: 'x', description: 'Image gen' },
+        ],
+      };
+      let receivedSignal: AbortSignal | undefined;
+      const mockFetch = async (_url: string, init?: RequestInit) => {
+        receivedSignal = init?.signal as AbortSignal | undefined;
+        return {
+          ok: true,
+          json: async () => ({
+            content: [{ text: '{"intent":"image_generation","confidence":0.95}' }],
+          }),
+        };
+      };
+
+      await detector.detectIntent('生成一张图', config, 3456, mockFetch as any, undefined, 1234);
+      expect(receivedSignal).toBeDefined();
+    });
+
     it('should handle LLM response without valid JSON', async () => {
       const config: ITriggerConfig = {
         enabled: true,

@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TriggerRouter } from '../trigger/index';
+import { modelSelector } from '../trigger/selector';
 import { IAppConfig } from '../trigger/types';
 
 describe('TriggerRouter', () => {
@@ -128,6 +129,29 @@ describe('TriggerRouter', () => {
       };
       const result = await router.route(req);
       expect(result.matched).toBe(false);
+    });
+
+    it('should pass API timeout from app config into model selector', async () => {
+      const config = createAppConfig({ API_TIMEOUT_MS: 4321 });
+      router.init(config);
+      const req = { body: { messages: [{ role: 'user', content: '帮我选一个模型' }] } };
+      const selectSpy = vi.spyOn(modelSelector, 'selectModel').mockResolvedValue({
+        matched: false,
+        confidence: 0,
+        analysisTime: 0,
+      });
+
+      await router.route(req as any);
+
+      expect(selectSpy).toHaveBeenCalledWith(
+        req,
+        config.TriggerRouter,
+        3456,
+        config.SmartRouter,
+        config.APIKEY,
+        4321
+      );
+      selectSpy.mockRestore();
     });
   });
 

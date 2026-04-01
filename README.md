@@ -299,7 +299,7 @@ ctr code
 
 | 配置项 | 当前建议 |
 |--------|----------|
-| `API_TIMEOUT_MS` | 当前仓库里缺少清晰、稳定的运行时接线证据，先不要把它当主承诺功能依赖 |
+| `API_TIMEOUT_MS` | 当前仅接线到 TriggerRouter 内部回环 LLM 调用（SmartRouter / intent detection），不影响 `ctr code` 探活或普通 provider 转发 |
 | `PROXY_URL` | 当前仓库里缺少明确的生效入口，建议视为预留字段 |
 | `NON_INTERACTIVE_MODE` | 当前未看到与 `ctr code` 或 Claude Code 行为的稳定映射，建议视为预留字段 |
 

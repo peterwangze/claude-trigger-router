@@ -1,6 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ModelSelector } from '../trigger/selector';
-import { ITriggerConfig, ITriggerRule } from '../trigger/types';
+import { smartRouterSelector } from '../trigger/smart-router';
+import { intentDetector } from '../trigger/intent';
+import { ITriggerConfig, ITriggerRule, ISmartRouterConfig } from '../trigger/types';
 
 describe('ModelSelector', () => {
   let selector: ModelSelector;
@@ -214,6 +216,61 @@ describe('ModelSelector', () => {
       const result = await selector.selectModel(req, config);
       expect(result.matched).toBe(false);
       expect(result.analyzedText).toBe('');
+    });
+
+    it('should pass API timeout to SmartRouter internal loopback call', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '帮我选一个模型' }],
+        },
+      };
+      const smartRouterConfig: ISmartRouterConfig = {
+        enabled: true,
+        router_model: 'test,router',
+        candidates: [
+          { model: 'provider,model-a', description: 'A' },
+          { model: 'provider,model-b', description: 'B' },
+        ],
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.9,
+      });
+
+      await selector.selectModel(req as any, config, 3456, smartRouterConfig, undefined, 4321);
+      expect(smartSpy).toHaveBeenCalledWith('帮我选一个模型', smartRouterConfig, 3456, undefined, undefined, 4321);
+      smartSpy.mockRestore();
+    });
+
+    it('should pass API timeout to intent detector loopback call', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '帮我分析意图' }],
+        },
+      };
+      const intentConfig: ITriggerConfig = {
+        enabled: true,
+        analysis_scope: 'last_message',
+        llm_intent_recognition: true,
+        intent_model: 'test,intent-model',
+        rules: [
+          {
+            name: 'analysis',
+            priority: 10,
+            enabled: true,
+            patterns: [{ type: 'exact', keywords: ['不会命中'] }],
+            model: 'provider,model-a',
+          },
+        ],
+      };
+      const intentSpy = vi.spyOn(intentDetector, 'detectIntent').mockResolvedValue({
+        intent: 'general',
+        confidence: 0,
+      });
+
+      await selector.selectModel(req as any, intentConfig, 3456, undefined, undefined, 4321);
+      expect(intentSpy).toHaveBeenCalledWith('帮我分析意图', intentConfig, 3456, undefined, undefined, 4321);
+      intentSpy.mockRestore();
     });
   });
 
