@@ -66,6 +66,54 @@ describe('SmartRouterSelector', () => {
     expect(result!.confidence).toBe(0.9);
   });
 
+  it('should pass AbortSignal timeout to internal smart router fetch when configured', async () => {
+    let receivedSignal: AbortSignal | undefined;
+    const mockFetch = async (_url: string, init?: RequestInit) => {
+      receivedSignal = init?.signal as AbortSignal | undefined;
+      return {
+        ok: true,
+        json: async () => ({
+          content: [
+            {
+              text: JSON.stringify({
+                model: 'provider,model-a',
+                confidence: 0.9,
+                reasoning: 'Code task detected',
+              }),
+            },
+          ],
+        }),
+      };
+    };
+
+    await selector.selectModel('写一段代码', baseConfig, 3456, mockFetch as any, undefined, 1234);
+    expect(receivedSignal).toBeDefined();
+  });
+
+  it('should omit AbortSignal timeout when timeout is not configured', async () => {
+    let receivedSignal: AbortSignal | undefined;
+    const mockFetch = async (_url: string, init?: RequestInit) => {
+      receivedSignal = init?.signal as AbortSignal | undefined;
+      return {
+        ok: true,
+        json: async () => ({
+          content: [
+            {
+              text: JSON.stringify({
+                model: 'provider,model-a',
+                confidence: 0.9,
+                reasoning: 'Code task detected',
+              }),
+            },
+          ],
+        }),
+      };
+    };
+
+    await selector.selectModel('写一段代码', baseConfig, 3456, mockFetch as any);
+    expect(receivedSignal).toBeUndefined();
+  });
+
   it('should return null when LLM returns unknown model', async () => {
     const mockFetch = async () => ({
       ok: true,

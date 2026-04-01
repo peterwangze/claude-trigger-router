@@ -5,8 +5,9 @@
  */
 
 import Server from "@musistudio/llms";
-import { readConfigFile, writeConfigFile, backupConfigFile } from "./utils";
+import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig } from "./utils";
 import { log } from "./utils/log";
+import { SERVICE_NAME } from "./service-health";
 
 /**
  * 创建服务器
@@ -17,6 +18,14 @@ export const createServer = (config: any): Server => {
   // 读取配置 API
   server.app.get("/api/config", async (req: any, reply: any) => {
     return await readConfigFile();
+  });
+
+  server.app.get("/api/health", async () => {
+    return {
+      service: SERVICE_NAME,
+      ready: true,
+      port: config.initialConfig?.PORT,
+    };
   });
 
   // 获取转换器列表
@@ -34,7 +43,16 @@ export const createServer = (config: any): Server => {
 
   // 保存配置 API
   server.app.post("/api/config", async (req: any, reply: any) => {
-    const newConfig = req.body;
+    const result = normalizeAndValidateConfig(req.body ?? {});
+
+    if (result.errors.length > 0) {
+      reply.code(400);
+      return {
+        success: false,
+        message: "Invalid configuration",
+        errors: result.errors,
+      };
+    }
 
     // 备份现有配置
     const backupPath = await backupConfigFile();
@@ -42,7 +60,7 @@ export const createServer = (config: any): Server => {
       log(`Backed up existing configuration file to ${backupPath}`);
     }
 
-    await writeConfigFile(newConfig);
+    await writeConfigFile(result.config);
     return { success: true, message: "Config saved successfully" };
   });
 
