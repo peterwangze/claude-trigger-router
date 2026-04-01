@@ -8,3 +8,4 @@ logs/
 *.tsbuildinfo
 coverage/
 .nyc_output/
+.worktrees/
