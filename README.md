@@ -201,7 +201,7 @@ Transformer 负责在 Claude Code 使用的 Anthropic 格式与各 provider 实�
 
 | 名称 | 用途 |
 |------|------|
-| `openrouter` | 适配 OpenRouter API（添加必要请求头） |
+| `openrouter` | 适配 OpenRouter 及所有 **OpenAI 兼容接口**（OneAPI、NewAPI、SiliconFlow 等）。负责清理 GPT 不支持的 Anthropic 字段，并将 OpenAI 响应格式转换回 Anthropic 格式 |
 | `deepseek` | 适配 DeepSeek API（处理推理内容、token 限制） |
 | `gemini` | 适配 Google Gemini API（工具定义格式转换） |
 | `vertex` | 适配 Google Vertex AI |
@@ -237,6 +237,18 @@ transformer:
     use: ["deepseek"]
     "deepseek-chat":
       use: ["tooluse"]   # deepseek-chat 需要额外的工具调用处理
+
+# ✅ OpenAI 兼容中转服务（OneAPI / NewAPI / SiliconFlow / 阿里 DashScope 等）
+# 任何提供 /v1/chat/completions 接口的服务均可按此格式配置
+- name: oneapi
+  api_base_url: "https://your-oneapi.example.com/v1/chat/completions"
+  api_key: "sk-xxx"
+  models:
+    - "gpt-4o"
+    - "gpt-4o-mini"
+    - "o1-mini"
+  transformer:
+    use: ["openrouter"]   # openrouter transformer 同样适用于所有 OpenAI 兼容接口
 
 # Ollama（本地模型，无需 transformer）
 - name: ollama

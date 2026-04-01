@@ -41,6 +41,21 @@ Providers:
       "deepseek-chat":
         use: ["tooluse"]
 
+  # OpenAI 兼容中转服务（OneAPI / NewAPI / SiliconFlow / 阿里 DashScope 等）
+  # 任何提供 OpenAI 兼容接口（/v1/chat/completions）的服务均可按此格式配置
+  # transformer.use: ["openrouter"] 负责：
+  #   - 入方向：清除 GPT 不支持的 Anthropic 字段（cache_control 等）
+  #   - 出方向：将 OpenAI 响应格式（含流式 SSE）转换回 Anthropic 格式
+  - name: oneapi
+    api_base_url: "https://your-oneapi.example.com/v1/chat/completions"
+    api_key: "sk-xxx"
+    models:
+      - "gpt-4o"
+      - "gpt-4o-mini"
+      - "o1-mini"
+    transformer:
+      use: ["openrouter"]
+
   - name: ollama
     api_base_url: "http://localhost:11434/v1/chat/completions"
     api_key: "ollama"
