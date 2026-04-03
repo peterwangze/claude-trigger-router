@@ -22,6 +22,25 @@ export interface IProviderPreset {
   };
 }
 
+/** setup 期间生成的 Provider 草稿 */
+export interface ISetupProviderDraft {
+  name: string;
+  api_key: string;
+  models: string[];
+  api_base_url?: string;
+  transformer?: {
+    use: string[];
+  };
+}
+
+/** setup 期间生成的配置草稿 */
+export interface ISetupConfigDraft {
+  Providers: ISetupProviderDraft[];
+  Router: {
+    default?: string;
+  };
+}
+
 /**
  * 最小 Provider 输入
  */

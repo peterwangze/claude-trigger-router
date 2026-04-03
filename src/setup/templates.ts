@@ -4,8 +4,7 @@
  * 提供配置模板和预设
  */
 
-import { IAppConfig, IProvider } from '../trigger/types';
-import { IProviderPreset, IMinimalConfigInput, ProviderPresetKey } from './types';
+import { IProviderPreset, IMinimalConfigInput, ISetupConfigDraft, ISetupProviderDraft, ProviderPresetKey } from './types';
 
 /**
  * Provider 预设配置表
@@ -40,7 +39,19 @@ const PROVIDER_PRESETS: Record<ProviderPresetKey, IProviderPreset> = {
  * @returns 预设配置，不存在则返回 undefined
  */
 export function getProviderPreset(key: ProviderPresetKey): IProviderPreset | undefined {
-  return PROVIDER_PRESETS[key];
+  const preset = PROVIDER_PRESETS[key];
+  if (!preset) {
+    return undefined;
+  }
+
+  return {
+    api_base_url: preset.api_base_url,
+    transformer: preset.transformer
+      ? {
+          use: [...preset.transformer.use],
+        }
+      : undefined,
+  };
 }
 
 /**
@@ -48,37 +59,42 @@ export function getProviderPreset(key: ProviderPresetKey): IProviderPreset | und
  * @param input 最小配置输入
  * @returns 完整的应用配置
  */
-export function buildMinimalConfig(input: IMinimalConfigInput): IAppConfig {
-  const providers: IProvider[] = input.providers.map((p) => {
-    // 获取预设配置（如果指定）
+export function buildMinimalConfig(input: IMinimalConfigInput): ISetupConfigDraft {
+  const providers: ISetupProviderDraft[] = input.providers.map((p) => {
     const preset = p.preset ? getProviderPreset(p.preset) : undefined;
-
-    // 构建完整 provider 配置
-    const provider: IProvider = {
+    const provider: ISetupProviderDraft = {
       name: p.name,
       api_key: p.api_key,
-      models: p.models,
-      // api_base_url 优先级：显式指定 > preset > undefined
-      api_base_url: p.api_base_url ?? preset?.api_base_url ?? '',
-      // transformer 从 preset 继承
-      transformer: preset?.transformer,
+      models: [...p.models],
     };
+
+    const explicitApiBaseUrl = p.api_base_url?.trim();
+    const presetApiBaseUrl = preset?.api_base_url?.trim();
+    const apiBaseUrl = explicitApiBaseUrl || presetApiBaseUrl;
+    if (apiBaseUrl) {
+      provider.api_base_url = apiBaseUrl;
+    }
+
+    if (preset?.transformer) {
+      provider.transformer = {
+        use: [...preset.transformer.use],
+      };
+    }
 
     return provider;
   });
 
-  // 构建 Router.default
-  let defaultModel = input.defaultModel;
-  if (!defaultModel && providers.length > 0) {
-    // 默认使用第一个 provider 的第一个模型
+  let defaultModel = input.defaultModel?.trim();
+  if (input.defaultModel === undefined && providers.length > 0) {
     const firstProvider = providers[0];
-    defaultModel = `${firstProvider.name},${firstProvider.models[0]}`;
+    const firstModel = firstProvider.models[0];
+    if (firstModel) {
+      defaultModel = `${firstProvider.name},${firstModel}`;
+    }
   }
 
   return {
     Providers: providers,
-    Router: {
-      default: defaultModel ?? '',
-    },
+    Router: defaultModel ? { default: defaultModel } : {},
   };
 }

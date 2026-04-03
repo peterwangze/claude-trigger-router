@@ -107,6 +107,36 @@ describe('setup templates', () => {
       );
     });
 
+    it('should omit api_base_url when explicit value is an empty string', () => {
+      const config = buildMinimalConfig({
+        providers: [
+          {
+            name: 'custom-provider',
+            api_base_url: '',
+            api_key: 'sk-custom',
+            models: ['custom-model'],
+          },
+        ],
+      });
+
+      expect(config.Providers[0].api_base_url).toBeUndefined();
+    });
+
+    it('should not infer Router.default when explicit defaultModel is an empty string', () => {
+      const config = buildMinimalConfig({
+        providers: [
+          {
+            name: 'openrouter',
+            api_key: 'sk-test',
+            models: ['anthropic/claude-sonnet-4'],
+          },
+        ],
+        defaultModel: '',
+      });
+
+      expect(config.Router.default).toBeUndefined();
+    });
+
     it('should generate correct Router.default with provider and first model', () => {
       const input = {
         providers: [
@@ -154,6 +184,62 @@ describe('setup templates', () => {
       expect(config.Providers[0].api_base_url).toBe(
         'https://my-custom-url.com/v1/chat/completions'
       );
+    });
+
+    it('should not inject empty api_base_url for custom preset without explicit URL', () => {
+      const input = {
+        providers: [
+          {
+            name: 'my-custom',
+            preset: 'custom',
+            api_key: 'sk-custom',
+            models: ['custom-model'],
+          },
+        ],
+      };
+      const config = buildMinimalConfig(input);
+      expect(config.Providers[0].api_base_url).toBeUndefined();
+    });
+
+    it('should omit Router.default when first provider has no models', () => {
+      const input = {
+        providers: [
+          {
+            name: 'empty-provider',
+            api_key: 'sk-empty',
+            models: [],
+          },
+        ],
+      };
+      const config = buildMinimalConfig(input);
+      expect(config.Router.default).toBeUndefined();
+    });
+
+    it('should clone provider arrays and preset transformer to avoid shared references', () => {
+      const models = ['deepseek-chat'];
+      const config = buildMinimalConfig({
+        providers: [
+          {
+            name: 'deepseek',
+            preset: 'deepseek',
+            api_key: 'sk-ds',
+            models,
+          },
+        ],
+      });
+
+      models.push('deepseek-reasoner');
+      config.Providers[0].transformer.use.push('mutated');
+
+      expect(config.Providers[0].models).toEqual(['deepseek-chat']);
+      expect(getProviderPreset('deepseek')?.transformer?.use).toEqual(['deepseek']);
+    });
+
+    it('should return a cloned preset instead of leaking shared preset references', () => {
+      const preset = getProviderPreset('deepseek');
+      preset?.transformer?.use.push('mutated');
+
+      expect(getProviderPreset('deepseek')?.transformer?.use).toEqual(['deepseek']);
     });
   });
 });
