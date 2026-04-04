@@ -5,6 +5,7 @@
  */
 
 import { MessageParam } from "@anthropic-ai/sdk/resources/messages";
+import { IGovernanceConfig, IGovernanceTrace } from '../governance/types';
 
 /**
  * 触发模式类型
@@ -156,6 +157,9 @@ export interface IAppConfig {
   /** 智能路由配置 */
   SmartRouter?: ISmartRouterConfig;
 
+  /** 治理层配置 */
+  Governance?: IGovernanceConfig;
+
   /** 自定义路由器路径 */
   CUSTOM_ROUTER_PATH?: string;
 
@@ -243,6 +247,9 @@ export interface IRequestContext {
 
   /** 请求 ID */
   id?: string;
+
+  /** 治理追踪信息 */
+  governanceTrace?: IGovernanceTrace;
 
   /** 请求 URL */
   url?: string;

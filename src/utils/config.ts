@@ -14,6 +14,7 @@ import {
   CONFIG_FILE_JSON,
   CONFIG_FILE_YML,
   DEFAULT_CONFIG,
+  DEFAULT_GOVERNANCE_CONFIG,
   DEFAULT_TRIGGER_CONFIG,
   DEFAULT_SMART_ROUTER_CONFIG,
 } from '../constants';
@@ -234,6 +235,79 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
     }
   }
 
+  // 验证 Governance 配置
+  if (config.Governance?.enabled) {
+    const sticky = config.Governance.sticky;
+    if (sticky?.enabled) {
+      if ((sticky.session_ttl_ms ?? 0) <= 0) {
+        errors.push('Governance.sticky.session_ttl_ms must be greater than 0 when sticky routing is enabled');
+      }
+      const threshold = sticky.fingerprint_similarity_threshold;
+      if (threshold !== undefined && (threshold < 0 || threshold > 1)) {
+        errors.push('Governance.sticky.fingerprint_similarity_threshold must be between 0 and 1');
+      }
+      if (sticky.alignment?.enabled) {
+        if (!sticky.alignment.summarizer_model) {
+          errors.push('Governance.sticky.alignment.summarizer_model is required when alignment is enabled');
+        } else if (validProviders.length > 0) {
+          const err = validateModelRef(
+            sticky.alignment.summarizer_model,
+            validProviders,
+            'Governance.sticky.alignment.summarizer_model'
+          );
+          if (err) errors.push(err);
+        }
+        if ((sticky.alignment.max_summary_tokens ?? 0) <= 0) {
+          errors.push('Governance.sticky.alignment.max_summary_tokens must be greater than 0 when alignment is enabled');
+        }
+      }
+    }
+
+    const cascade = config.Governance.cascade;
+    if (cascade?.enabled) {
+      if ((cascade.max_attempts ?? 0) < 1) {
+        errors.push('Governance.cascade.max_attempts must be at least 1 when cascade is enabled');
+      }
+      cascade.levels?.forEach((level, index) => {
+        if (!level.from) {
+          errors.push(`Governance.cascade.levels[${index}].from is required`);
+        } else if (validProviders.length > 0) {
+          const err = validateModelRef(level.from, validProviders, `Governance.cascade.levels[${index}].from`);
+          if (err) errors.push(err);
+        }
+        if (!level.to) {
+          errors.push(`Governance.cascade.levels[${index}].to is required`);
+        } else if (validProviders.length > 0) {
+          const err = validateModelRef(level.to, validProviders, `Governance.cascade.levels[${index}].to`);
+          if (err) errors.push(err);
+        }
+      });
+    }
+
+    const semantic = config.Governance.semantic;
+    if (semantic?.enabled) {
+      const threshold = semantic.threshold;
+      if (threshold !== undefined && (threshold < 0 || threshold > 1)) {
+        errors.push('Governance.semantic.threshold must be between 0 and 1');
+      }
+      if (semantic.mode && !['embedding', 'classifier'].includes(semantic.mode)) {
+        errors.push('Governance.semantic.mode must be either "embedding" or "classifier"');
+      }
+    }
+
+    const shadow = config.Governance.shadow;
+    if (shadow?.enabled) {
+      const sampleRate = shadow.sample_rate;
+      if (sampleRate !== undefined && (sampleRate < 0 || sampleRate > 1)) {
+        errors.push('Governance.shadow.sample_rate must be between 0 and 1');
+      }
+      if (shadow.verifier_model && validProviders.length > 0) {
+        const err = validateModelRef(shadow.verifier_model, validProviders, 'Governance.shadow.verifier_model');
+        if (err) errors.push(err);
+      }
+    }
+  }
+
   return errors;
 }
 
@@ -255,6 +329,10 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
 
   if (config.TriggerRouter) {
     normalizedConfig.TriggerRouter = deepMerge(DEFAULT_TRIGGER_CONFIG, config.TriggerRouter) as IAppConfig['TriggerRouter'];
+  }
+
+  if (config.Governance) {
+    normalizedConfig.Governance = deepMerge(DEFAULT_GOVERNANCE_CONFIG, config.Governance) as IAppConfig['Governance'];
   }
 
   return {

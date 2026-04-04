@@ -29,6 +29,7 @@ import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
 import { triggerRouter } from "./trigger";
 import { createStream } from 'rotating-file-stream';
+import { appendTraceReason, createGovernanceTrace, finalizeTrace } from "./governance";
 
 const event = new EventEmitter();
 
@@ -174,12 +175,20 @@ async function run(options: RunOptions = {}) {
   // 触发路由中间件（在原有路由之前）
   server.addHook("preHandler", async (req: any, reply: any) => {
     if (req.url.startsWith("/v1/messages")) {
+      req.governanceTrace = createGovernanceTrace({
+        requestId: req.id,
+        sessionKey: req.sessionId,
+        initialModel: req.body?.model,
+      });
+      appendTraceReason(req.governanceTrace, "request_received");
+
       // 执行触发路由
       const triggerResult = await triggerRouter.route(req);
 
       if (triggerResult.matched && triggerResult.model) {
         req.body.model = triggerResult.model;
         req.triggerResult = triggerResult;
+        req.governanceTrace.finalModel = triggerResult.model;
 
         log(
           `[TriggerRouter] Matched rule "${triggerResult.rule?.name}" -> "${triggerResult.model}"`
@@ -435,6 +444,13 @@ async function run(options: RunOptions = {}) {
   });
 
   server.addHook("onSend", async (req: any, reply: any, payload: any) => {
+    if (req.governanceTrace) {
+      req.governanceTrace = finalizeTrace(req.governanceTrace, {
+        finalModel: req.body?.model ?? req.governanceTrace.finalModel,
+      });
+      logDebug("[GovernanceTrace]", JSON.stringify(req.governanceTrace));
+    }
+
     logDebug("onSend hook triggered");
     event.emit("onSend", req, reply, payload);
     return payload;

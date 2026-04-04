@@ -12,6 +12,7 @@ export * from './selector';
 export * from './smart-router';
 
 import { ITriggerConfig, IAnalysisResult, IAppConfig, IRequestContext, ISmartRouterConfig } from './types';
+import { appendTraceReason } from '../governance/trace';
 import { modelSelector } from './selector';
 import { contextAnalyzer } from './analyzer';
 import { log, logError } from '../utils/log';
@@ -92,7 +93,19 @@ export class TriggerRouter {
       };
     }
 
-    return modelSelector.selectModel(req, this.config, this.port, this.smartRouterConfig, this.apiKey, this.apiTimeoutMs);
+    const result = await modelSelector.selectModel(req, this.config, this.port, this.smartRouterConfig, this.apiKey, this.apiTimeoutMs);
+
+    if (req.governanceTrace) {
+      if (result.matched && result.rule?.name) {
+        appendTraceReason(req.governanceTrace, `trigger_rule:${result.rule.name}`);
+      } else if (result.matched && result.model) {
+        appendTraceReason(req.governanceTrace, 'smart_router');
+      } else {
+        appendTraceReason(req.governanceTrace, 'trigger_router:no_match');
+      }
+    }
+
+    return result;
   }
 
   /**

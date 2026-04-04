@@ -73,6 +73,52 @@ export const DEFAULT_SMART_ROUTER_CONFIG = {
 };
 
 /**
+ * 默认 Governance 配置
+ * 注意：总开关默认关闭，子能力默认均为保守配置
+ */
+export const DEFAULT_GOVERNANCE_CONFIG = {
+  enabled: false,
+  sticky: {
+    enabled: false,
+    session_ttl_ms: 3600000,
+    fingerprint_similarity_threshold: 0.82,
+    break_on_explicit_route: true,
+    alignment: {
+      enabled: false,
+      summarizer_model: '',
+      max_summary_tokens: 256,
+    },
+  },
+  cascade: {
+    enabled: false,
+    max_attempts: 2,
+    triggers: {
+      compile_failure: true,
+      test_failure: true,
+      placeholder_patterns: ['TODO', '...rest of code', 'placeholder'],
+    },
+    levels: [],
+  },
+  semantic: {
+    enabled: false,
+    mode: 'embedding' as const,
+    threshold: 0.85,
+    prototypes: {},
+  },
+  shadow: {
+    enabled: false,
+    mode: 'async_audit' as const,
+    sample_rate: 0.2,
+    verifier_model: '',
+    checks: {
+      placeholder_patterns: true,
+      length_anomaly: true,
+      missing_code_block: true,
+    },
+  },
+};
+
+/**
  * 支持的配置文件扩展名
  */
 export const SUPPORTED_CONFIG_EXTENSIONS = ['.yaml', '.yml', '.json'];

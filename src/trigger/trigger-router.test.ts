@@ -153,6 +153,27 @@ describe('TriggerRouter', () => {
       );
       selectSpy.mockRestore();
     });
+
+    it('should append governance trace reason when a rule matches', async () => {
+      router.init(createAppConfig());
+      const req = {
+        governanceTrace: {
+          requestId: 'req-1',
+          routeReason: [],
+          stickyHit: false,
+          alignmentUsed: false,
+          cascadeTriggered: false,
+          shadowChecked: false,
+          startedAt: Date.now(),
+        },
+        body: { messages: [{ role: 'user', content: '请帮我生成图片' }] },
+      };
+
+      const result = await router.route(req as any);
+
+      expect(result.matched).toBe(true);
+      expect(req.governanceTrace.routeReason).toContain('trigger_rule:image_generation');
+    });
   });
 
   // ============ routeSync ============
