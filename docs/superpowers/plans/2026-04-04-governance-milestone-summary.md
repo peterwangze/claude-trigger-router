@@ -43,6 +43,7 @@
 - 新增 cascade failure evidence detection
 - 新增 cascade escalation decision
 - 新增非流式响应自动重投
+- 新增流式响应 `stream_guard` 升级策略
 
 关键模块：
 
@@ -53,6 +54,7 @@
 
 - 新增 semantic prototype router
 - 新增 semantic classifier router
+- 新增 embedding-based semantic router
 - 将主链顺序推进到：
   - TriggerRouter
   - Sticky Routing
@@ -82,15 +84,30 @@
 - `docs/configuration-guide.md` 已加入治理增强模板
 - `config/trigger.example.yaml` 已加入 Governance 示例配置
 
-### 7. 集成测试与主链抽象
+### 7. Trace 调试能力
+
+- 新增 governance trace store
+- 新增 trace 调试 API
+- 新增简易 `/ui` governance trace 调试页
+
+关键模块：
+
+- `src/governance/trace.ts`
+- `src/server.ts`
+
+### 8. 集成测试与主链抽象
 
 - 新增 `response-governance` helper
+- 新增 `stream-response-governance` helper
 - 为 `semantic + cascade + shadow sync_guard` 增加组合测试
+- 为 `streaming + tool call + governance` 增加组合测试
 
 关键模块：
 
 - `src/governance/response-governance.ts`
 - `src/governance/response-governance.test.ts`
+- `src/governance/stream-response-governance.ts`
+- `src/governance/stream-response-governance.test.ts`
 
 ## 当前主链状态
 
@@ -134,8 +151,8 @@ npm run build
 
 验证结果：
 
-- 28 个测试文件通过
-- 261 个测试通过
+- 29 个测试文件通过
+- 264 个测试通过
 - 构建成功
 
 ## 当前边界
@@ -144,10 +161,11 @@ npm run build
 
 - Sticky 依赖当前 `sessionId` 和简化后的任务指纹
 - Context Alignment 仍依赖回环 LLM 生成摘要
-- Cascade Retry 目前仅对非流式响应自动重投
-- Cascade / sync_guard 目前仅对非流式响应自动重投
-- Semantic Router 当前支持 prototype 与 classifier，但还没有真正 embedding 引擎
-- Shadow Supervisor 当前支持规则审计与 verifier model，但尚未暴露更细粒度策略控制
+- Context Alignment 仍依赖回环 LLM 生成摘要
+- Cascade 非流式重投已稳定，但流式 `stream_guard` 当前采用 buffer-and-retry 方式，会增加延迟
+- Semantic Router 当前支持 prototype、classifier 和本地 embedding 风格匹配，但还没有外部 embedding 服务接入
+- Shadow Supervisor 当前支持规则审计、verifier model 与 `sync_guard`，但仍缺少更细粒度策略控制
+- Governance trace 已可通过 API 和 `/ui` 调试页查看，但仍未形成正式指标面板
 
 这些都属于当前里程碑的可接受边界，不影响作为治理底座版本交付。
 
@@ -155,20 +173,20 @@ npm run build
 
 ### 方向 A：能力深化
 
-- 给 Semantic Router 增加 classifier / embedding 插件式实现
-- 给 Shadow Supervisor 增加 verifier model 模式
-- 给 Cascade Gate 增加流式响应升级策略
+- 给 Semantic Router 增加真正的外部 embedding/provider 接入
+- 给 Shadow Supervisor 增加更细粒度 verifier / guard 策略
+- 优化流式 `stream_guard` 的延迟和重投策略
 
 ### 方向 B：工程产品化
 
-- 暴露治理 trace 调试接口或可视化页面
+- 增强治理 trace 调试接口和 `/ui`
 - 增加治理指标统计与可观测面板
 - 补充 release note 和对外发布说明
 
 ### 方向 C：稳定性继续增强
 
 - 增加更多 `index.ts` 主链集成测试
-- 增加 streaming + tool call + governance 组合场景测试
+- 增加更多 streaming + tool call + governance 组合场景测试
 - 继续扩展配置迁移与兼容性测试
 
 ## 结论

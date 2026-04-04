@@ -39,11 +39,13 @@
 
 - 检测失败证据：空输出、过短输出、编译失败、测试失败、占位符
 - 非流式响应支持自动升级重投
+- 流式响应支持 `stream_guard` buffer-and-retry 升级策略
 
 ### Semantic Router
 
 - 支持 prototype 模式
 - 支持 classifier 模式
+- 支持 embedding-based 本地相似度模式
 - classifier 失败时自动回退到 prototype 匹配
 
 ### Shadow Supervisor
@@ -55,7 +57,16 @@
 ### 集成测试能力
 
 - 抽取 `response-governance` helper
+- 抽取 `stream-response-governance` helper
 - 覆盖 `semantic + cascade + shadow sync_guard` 组合场景
+- 覆盖 `streaming + tool call + governance` 组合场景
+
+### Trace 调试能力
+
+- 支持 governance trace 内存存储
+- 支持 `GET /api/governance/traces`
+- 支持按 `requestId` / `sessionKey` / `limit` 过滤
+- 支持简易 `/ui` governance trace 调试页
 
 ## 关键实现文件
 
@@ -67,6 +78,7 @@
 - `src/governance/semantic-router.ts`
 - `src/governance/shadow-supervisor.ts`
 - `src/governance/response-governance.ts`
+- `src/governance/stream-response-governance.ts`
 - `src/index.ts`
 - `src/trigger/selector.ts`
 - `src/utils/config.ts`
@@ -89,18 +101,18 @@ npm run build
 
 结果：
 
-- 28 个测试文件通过
-- 261 个测试通过
+- 29 个测试文件通过
+- 264 个测试通过
 - 构建通过
 
 ## 当前边界
 
 当前版本的治理能力已经可用，但仍有边界：
 
-- `cascade` / `sync_guard` 目前只对非流式响应自动重投
-- Semantic Router 还未接入真正 embedding 引擎
-- Shadow Supervisor 的 verifier 仍是最小可用模式，未支持更复杂策略
-- Governance trace 目前主要用于日志和测试，尚未形成可视化面板
+- `stream_guard` 当前采用 buffer-and-retry 方式，流式场景会增加额外等待
+- Semantic Router 已支持本地 embedding 风格匹配，但还未接入真正外部 embedding 引擎
+- Shadow Supervisor 的 verifier / sync_guard 仍是最小可用模式，未支持更复杂策略编排
+- Governance trace 已支持 API 和简易 `/ui` 页面，但仍未形成正式指标面板
 
 ## 升级建议
 
@@ -116,10 +128,10 @@ npm run build
 
 建议的后续优先级：
 
-1. 支持流式响应下的 cascade / sync_guard 策略
-2. 为 Semantic Router 增加真正 embedding 模式
+1. 优化流式 `stream_guard` 的延迟与重投策略
+2. 为 Semantic Router 增加真正外部 embedding/provider 接入
 3. 为 Shadow Supervisor 增加更细粒度 verifier 策略与采样控制
-4. 暴露治理 trace 和指标观测能力
+4. 增强 trace `/ui` 与指标观测能力
 
 ## 关联文档
 
