@@ -41,4 +41,62 @@ describe('SemanticRouter', () => {
 
     expect(result).toBeNull();
   });
+
+  it('uses classifier mode when configured', async () => {
+    const fetchFn = async () => ({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            text: JSON.stringify({
+              intent: 'architecture',
+              confidence: 0.9,
+              evidence: ['重构'],
+            }),
+          },
+        ],
+      }),
+    }) as any;
+
+    const result = await router.analyzeWithClassifier(
+      '请帮我重构系统结构',
+      {
+        enabled: true,
+        mode: 'classifier',
+        classifier_model: 'glm,glm-5-air',
+        threshold: 0.5,
+        prototypes: {
+          architecture: '重构 系统 结构 模块 拆分 架构 设计',
+        },
+      },
+      3456,
+      fetchFn
+    );
+
+    expect(result?.intent).toBe('architecture');
+    expect(result?.confidence).toBe(0.9);
+  });
+
+  it('falls back to prototype matching when classifier call fails', async () => {
+    const fetchFn = async () => {
+      throw new Error('network error');
+    };
+
+    const result = await router.analyzeWithClassifier(
+      '请帮我做架构设计和模块拆分',
+      {
+        enabled: true,
+        mode: 'classifier',
+        classifier_model: 'glm,glm-5-air',
+        threshold: 0.4,
+        prototypes: {
+          architectural_change: '架构设计 模块拆分 系统设计',
+        },
+      },
+      3456,
+      fetchFn as any
+    );
+
+    expect(result?.intent).toBe('architectural_change');
+  });
 });

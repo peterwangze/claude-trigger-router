@@ -68,6 +68,9 @@ export interface ISemanticRouterConfig {
   /** 语义路由模式 */
   mode?: TSemanticRouterMode;
 
+  /** classifier 模式下使用的模型 */
+  classifier_model?: string;
+
   /** 语义命中阈值 */
   threshold?: number;
 

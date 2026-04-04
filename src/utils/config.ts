@@ -293,6 +293,14 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
       if (semantic.mode && !['embedding', 'classifier'].includes(semantic.mode)) {
         errors.push('Governance.semantic.mode must be either "embedding" or "classifier"');
       }
+      if (semantic.mode === 'classifier') {
+        if (!semantic.classifier_model) {
+          errors.push('Governance.semantic.classifier_model is required when semantic mode is "classifier"');
+        } else if (validProviders.length > 0) {
+          const err = validateModelRef(semantic.classifier_model, validProviders, 'Governance.semantic.classifier_model');
+          if (err) errors.push(err);
+        }
+      }
     }
 
     const shadow = config.Governance.shadow;

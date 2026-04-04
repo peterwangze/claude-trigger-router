@@ -104,6 +104,48 @@ describe('normalizeAndValidateConfig governance', () => {
     );
   });
 
+  it('accepts Governance semantic classifier model when configured', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Governance: {
+        enabled: true,
+        semantic: {
+          enabled: true,
+          mode: 'classifier',
+          classifier_model: 'glm,glm-5-air',
+          threshold: 0.5,
+          prototypes: {
+            architecture: '重构 系统 结构 模块 拆分 架构 设计',
+          },
+        },
+      },
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.Governance?.semantic?.classifier_model).toBe('glm,glm-5-air');
+  });
+
+  it('requires Governance semantic classifier model when classifier mode is enabled', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Governance: {
+        enabled: true,
+        semantic: {
+          enabled: true,
+          mode: 'classifier',
+          threshold: 0.5,
+          prototypes: {
+            architecture: '重构 系统 结构 模块 拆分 架构 设计',
+          },
+        },
+      },
+    });
+
+    expect(result.errors).toContain(
+      'Governance.semantic.classifier_model is required when semantic mode is "classifier"'
+    );
+  });
+
   it('validates Governance cascade level model references', () => {
     const result = normalizeAndValidateConfig({
       ...baseConfig,

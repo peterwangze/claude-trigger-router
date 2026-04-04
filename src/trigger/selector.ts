@@ -154,7 +154,16 @@ export class ModelSelector {
 
     // 第三步：Semantic Router 语义意图匹配
     if (governanceConfig?.enabled && governanceConfig.semantic?.enabled) {
-      const semanticResult = semanticRouter.analyze(text, governanceConfig.semantic);
+      const semanticResult = governanceConfig.semantic.mode === 'classifier'
+        ? await semanticRouter.analyzeWithClassifier(
+            text,
+            governanceConfig.semantic,
+            port,
+            undefined,
+            apiKey,
+            timeoutMs
+          )
+        : semanticRouter.analyze(text, governanceConfig.semantic);
       if (semanticResult) {
         const matchedRule = config.rules.find(
           (rule) => rule.enabled !== false && rule.name.toLowerCase() === semanticResult.intent.toLowerCase()

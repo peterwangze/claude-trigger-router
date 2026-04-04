@@ -4,6 +4,7 @@ import { smartRouterSelector } from '../trigger/smart-router';
 import { intentDetector } from '../trigger/intent';
 import { ITriggerConfig, ITriggerRule, ISmartRouterConfig } from '../trigger/types';
 import { sessionStateStore } from '../governance/session-store';
+import { semanticRouter } from '../governance/semantic-router';
 
 describe('ModelSelector', () => {
   let selector: ModelSelector;
@@ -438,6 +439,65 @@ describe('ModelSelector', () => {
       expect(result.model).toBe('provider,model-a');
       expect(result.routeSource).toBe('smart_router');
       expect(smartSpy).toHaveBeenCalledOnce();
+      smartSpy.mockRestore();
+    });
+
+    it('should support semantic classifier mode before SmartRouter', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '请帮我重构系统结构并拆分核心模块' }],
+        },
+        governanceTrace: {
+          requestId: 'req-semantic-classifier',
+          routeReason: [],
+          stickyHit: false,
+          alignmentUsed: false,
+          cascadeTriggered: false,
+          shadowChecked: false,
+          startedAt: Date.now(),
+        },
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.9,
+      });
+      const semanticSpy = vi.spyOn(semanticRouter, 'analyzeWithClassifier').mockResolvedValue({
+        intent: 'architecture',
+        confidence: 0.9,
+        evidence: ['重构'],
+      });
+
+      const result = await selector.selectModel(
+        req as any,
+        config,
+        3456,
+        {
+          enabled: true,
+          router_model: 'test,router',
+          candidates: [
+            { model: 'provider,model-a', description: 'A' },
+            { model: 'provider,model-b', description: 'B' },
+          ],
+        },
+        {
+          enabled: true,
+          semantic: {
+            enabled: true,
+            mode: 'classifier',
+            classifier_model: 'glm,glm-5-air',
+            threshold: 0.5,
+            prototypes: {
+              architecture: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          },
+        } as any
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.rule?.name).toBe('architecture');
+      expect(result.routeSource).toBe('intent');
+      expect(smartSpy).not.toHaveBeenCalled();
+      semanticSpy.mockRestore();
       smartSpy.mockRestore();
     });
   });
