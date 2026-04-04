@@ -26,8 +26,26 @@ class GovernanceTraceStore {
     return this.cache.get(requestId);
   }
 
-  list(): IGovernanceTrace[] {
-    return Array.from(this.cache.values()).sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
+  list(filters?: {
+    requestId?: string;
+    sessionKey?: string;
+    limit?: number;
+  }): IGovernanceTrace[] {
+    let traces = Array.from(this.cache.values()).sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
+
+    if (filters?.requestId) {
+      traces = traces.filter((trace) => trace.requestId === filters.requestId);
+    }
+
+    if (filters?.sessionKey) {
+      traces = traces.filter((trace) => trace.sessionKey === filters.sessionKey);
+    }
+
+    if (filters?.limit !== undefined && Number.isFinite(filters.limit) && filters.limit > 0) {
+      traces = traces.slice(0, filters.limit);
+    }
+
+    return traces;
   }
 
   clear(): void {

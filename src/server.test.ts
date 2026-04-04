@@ -78,6 +78,7 @@ describe('createServer /api/config', () => {
   it('exposes governance trace list and detail endpoints', async () => {
     governanceTraceStore.add({
       requestId: 'trace-1',
+      sessionKey: 'session-a',
       routeReason: ['trigger_rule:architecture'],
       stickyHit: false,
       alignmentUsed: false,
@@ -88,6 +89,19 @@ describe('createServer /api/config', () => {
       completedAt: 2,
       latencyMs: 1,
     });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      sessionKey: 'session-b',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 3,
+      completedAt: 4,
+      latencyMs: 1,
+    });
 
     const server = createServer({});
     const listHandler = server.app.routes.get('GET /api/governance/traces');
@@ -96,12 +110,21 @@ describe('createServer /api/config', () => {
       code: vi.fn().mockReturnThis(),
     };
 
-    const listResult = await listHandler({}, {});
+    const listResult = await listHandler({ query: {} }, {});
+    const filteredBySession = await listHandler({ query: { sessionKey: 'session-a' } }, {});
+    const limited = await listHandler({ query: { limit: '1' } }, {});
+    const filteredByRequest = await listHandler({ query: { requestId: 'trace-2' } }, {});
     const detailResult = await detailHandler({ params: { requestId: 'trace-1' } }, reply);
     const missingResult = await detailHandler({ params: { requestId: 'missing' } }, reply);
 
-    expect(listResult.traces).toHaveLength(1);
-    expect(listResult.traces[0].requestId).toBe('trace-1');
+    expect(listResult.traces).toHaveLength(2);
+    expect(listResult.traces[0].requestId).toBe('trace-2');
+    expect(filteredBySession.traces).toHaveLength(1);
+    expect(filteredBySession.traces[0].requestId).toBe('trace-1');
+    expect(limited.traces).toHaveLength(1);
+    expect(limited.traces[0].requestId).toBe('trace-2');
+    expect(filteredByRequest.traces).toHaveLength(1);
+    expect(filteredByRequest.traces[0].requestId).toBe('trace-2');
     expect(detailResult.requestId).toBe('trace-1');
     expect(reply.code).toHaveBeenCalledWith(404);
     expect(missingResult).toEqual({

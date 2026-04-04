@@ -29,9 +29,14 @@ export const createServer = (config: any): Server => {
     };
   });
 
-  server.app.get("/api/governance/traces", async () => {
+  server.app.get("/api/governance/traces", async (req: any) => {
+    const limit = req.query?.limit ? Number(req.query.limit) : undefined;
     return {
-      traces: governanceTraceStore.list(),
+      traces: governanceTraceStore.list({
+        requestId: req.query?.requestId,
+        sessionKey: req.query?.sessionKey,
+        limit: Number.isFinite(limit) ? limit : undefined,
+      }),
     };
   });
 
