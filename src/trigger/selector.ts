@@ -12,6 +12,7 @@ import { smartRouterSelector } from './smart-router';
 import { log, logError } from '../utils/log';
 import { IGovernanceConfig } from '../governance/types';
 import { createTaskFingerprint, sessionStateStore } from '../governance/session-store';
+import { semanticRouter } from '../governance/semantic-router';
 
 /**
  * 模型选择器类
@@ -151,7 +152,33 @@ export class ModelSelector {
       }
     }
 
-    // 第三步：SmartRouter 智能模型选择
+    // 第三步：Semantic Router 语义意图匹配
+    if (governanceConfig?.enabled && governanceConfig.semantic?.enabled) {
+      const semanticResult = semanticRouter.analyze(text, governanceConfig.semantic);
+      if (semanticResult) {
+        const matchedRule = config.rules.find(
+          (rule) => rule.enabled !== false && rule.name.toLowerCase() === semanticResult.intent.toLowerCase()
+        );
+
+        if (matchedRule) {
+          log(`[SemanticRouter] Matched intent "${semanticResult.intent}" -> "${matchedRule.model}"`);
+          if (req.governanceTrace) {
+            req.governanceTrace.semanticIntent = semanticResult.intent;
+          }
+          return {
+            matched: true,
+            rule: matchedRule,
+            model: matchedRule.model,
+            confidence: semanticResult.confidence,
+            analysisTime: Date.now() - startTime,
+            analyzedText: text,
+            routeSource: 'intent',
+          };
+        }
+      }
+    }
+
+    // 第四步：SmartRouter 智能模型选择
     if (smartRouterConfig?.enabled && smartRouterConfig.candidates?.length >= 2) {
       try {
         const smartResult = await smartRouterSelector.selectModel(text, smartRouterConfig, port, undefined, apiKey, timeoutMs);
@@ -171,7 +198,7 @@ export class ModelSelector {
       }
     }
 
-    // 第四步：如果启用了 LLM 意图识别，进行意图检测
+    // 第五步：如果启用了 LLM 意图识别，进行意图检测
     if (config.llm_intent_recognition && config.intent_model) {
       try {
         const intentResult = await intentDetector.detectIntent(text, config, port, undefined, apiKey, timeoutMs);

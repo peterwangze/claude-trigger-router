@@ -306,6 +306,58 @@ describe('ModelSelector', () => {
       expect(result.model).toBe('provider,sticky-model');
       expect(result.routeSource).toBe('sticky');
     });
+
+    it('should match semantic intent before SmartRouter when semantic routing is enabled', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '请帮我重构系统结构并拆分核心模块' }],
+        },
+        governanceTrace: {
+          requestId: 'req-semantic',
+          routeReason: [],
+          stickyHit: false,
+          alignmentUsed: false,
+          cascadeTriggered: false,
+          shadowChecked: false,
+          startedAt: Date.now(),
+        },
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.9,
+      });
+
+      const result = await selector.selectModel(
+        req as any,
+        config,
+        3456,
+        {
+          enabled: true,
+          router_model: 'test,router',
+          candidates: [
+            { model: 'provider,model-a', description: 'A' },
+            { model: 'provider,model-b', description: 'B' },
+          ],
+        },
+        {
+          enabled: true,
+          semantic: {
+            enabled: true,
+            threshold: 0.2,
+            prototypes: {
+              architecture: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          },
+        } as any
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.rule?.name).toBe('architecture');
+      expect(result.routeSource).toBe('intent');
+      expect(req.governanceTrace.semanticIntent).toBe('architecture');
+      expect(smartSpy).not.toHaveBeenCalled();
+      smartSpy.mockRestore();
+    });
   });
 
   // ============ selectModelSync ============
