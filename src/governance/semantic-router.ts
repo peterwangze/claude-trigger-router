@@ -35,6 +35,39 @@ function tokenize(text: string): string[] {
   return Array.from(new Set([...parts, ...chars]));
 }
 
+function buildVector(tokens: string[]): Map<string, number> {
+  const vector = new Map<string, number>();
+  for (const token of tokens) {
+    vector.set(token, (vector.get(token) ?? 0) + 1);
+  }
+  return vector;
+}
+
+function cosineSimilarity(left: Map<string, number>, right: Map<string, number>): number {
+  let dot = 0;
+  let leftNorm = 0;
+  let rightNorm = 0;
+
+  for (const value of left.values()) {
+    leftNorm += value * value;
+  }
+
+  for (const value of right.values()) {
+    rightNorm += value * value;
+  }
+
+  for (const [token, leftValue] of left.entries()) {
+    const rightValue = right.get(token) ?? 0;
+    dot += leftValue * rightValue;
+  }
+
+  if (leftNorm === 0 || rightNorm === 0) {
+    return 0;
+  }
+
+  return dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
+}
+
 export class SemanticRouter {
   private buildClassifierPrompt(text: string, prototypes: Record<string, string>): string {
     const intents = Object.entries(prototypes)
@@ -60,7 +93,7 @@ Return JSON only:
 }`;
   }
 
-  private analyzePrototype(text: string, config?: ISemanticRouterConfig): ISemanticIntentResult | null {
+  private analyzeEmbedding(text: string, config?: ISemanticRouterConfig): ISemanticIntentResult | null {
     if (!config?.enabled || !config.prototypes || Object.keys(config.prototypes).length === 0) {
       return null;
     }
@@ -69,6 +102,7 @@ Return JSON only:
     if (inputTokens.length === 0) {
       return null;
     }
+    const inputVector = buildVector(inputTokens);
 
     const threshold = config.threshold ?? 0.85;
     let best: ISemanticIntentResult | null = null;
@@ -77,8 +111,9 @@ Return JSON only:
       const prototypeTokens = tokenize(prototype);
       if (prototypeTokens.length === 0) continue;
 
+      const prototypeVector = buildVector(prototypeTokens);
       const matched = prototypeTokens.filter((token) => inputTokens.includes(token));
-      const confidence = matched.length / prototypeTokens.length;
+      const confidence = cosineSimilarity(inputVector, prototypeVector);
 
       if (!best || confidence > best.confidence) {
         best = {
@@ -98,7 +133,7 @@ Return JSON only:
   }
 
   analyze(text: string, config?: ISemanticRouterConfig): ISemanticIntentResult | null {
-    return this.analyzePrototype(text, config);
+    return this.analyzeEmbedding(text, config);
   }
 
   async analyzeWithClassifier(
@@ -110,7 +145,7 @@ Return JSON only:
     timeoutMs?: number
   ): Promise<ISemanticIntentResult | null> {
     if (!config?.enabled || config.mode !== 'classifier' || !config.prototypes || Object.keys(config.prototypes).length === 0) {
-      return this.analyzePrototype(text, config);
+      return this.analyzeEmbedding(text, config);
     }
 
     try {
@@ -136,7 +171,7 @@ Return JSON only:
 
       if (!response.ok) {
         logWarn('[SemanticRouter] Classifier request failed:', response.status);
-        return this.analyzePrototype(text, config);
+        return this.analyzeEmbedding(text, config);
       }
 
       const data = await response.json() as any;
@@ -144,7 +179,7 @@ Return JSON only:
       const match = content.match(/\{[\s\S]*\}/);
       if (!match) {
         logWarn('[SemanticRouter] No JSON found in classifier response');
-        return this.analyzePrototype(text, config);
+        return this.analyzeEmbedding(text, config);
       }
 
       const parsed = JSON.parse(match[0]) as ISemanticIntentResult;
@@ -160,7 +195,7 @@ Return JSON only:
       };
     } catch (error) {
       logError('[SemanticRouter] Classifier mode failed:', error);
-      return this.analyzePrototype(text, config);
+      return this.analyzeEmbedding(text, config);
     }
   }
 }

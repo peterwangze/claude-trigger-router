@@ -18,7 +18,8 @@ describe('SemanticRouter', () => {
   it('matches the best prototype when threshold is met', () => {
     const result = router.analyze('请帮我做架构设计和模块拆分', {
       enabled: true,
-      threshold: 0.4,
+      mode: 'embedding',
+      threshold: 0.35,
       prototypes: {
         architectural_change: '架构设计 模块拆分 系统设计',
         documentation: '文档 撰写 说明 总结',
@@ -33,6 +34,7 @@ describe('SemanticRouter', () => {
   it('returns null when no prototype reaches threshold', () => {
     const result = router.analyze('今天天气怎么样', {
       enabled: true,
+      mode: 'embedding',
       threshold: 0.6,
       prototypes: {
         architectural_change: '架构设计 模块拆分 系统设计',
@@ -40,6 +42,21 @@ describe('SemanticRouter', () => {
     });
 
     expect(result).toBeNull();
+  });
+
+  it('prefers the closest prototype in embedding mode', () => {
+    const result = router.analyze('请帮我代码审查并评估风险', {
+      enabled: true,
+      mode: 'embedding',
+      threshold: 0.25,
+      prototypes: {
+        architecture: '重构 系统 结构 模块 拆分 架构 设计',
+        code_review: '代码 审查 风险 评审 review',
+      },
+    });
+
+    expect(result?.intent).toBe('code_review');
+    expect(result?.confidence).toBeGreaterThan(0.25);
   });
 
   it('uses classifier mode when configured', async () => {
