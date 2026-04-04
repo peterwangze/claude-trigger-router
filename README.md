@@ -143,6 +143,17 @@ ctr code
 
 更完整的可复制模板见 `docs/configuration-guide.md`。
 
+### 4. 规则 + 治理增强混合
+
+适合你已经不只想“分流”，而是想让路由层具备会话连续性、失败升级和输出审计能力：
+
+- 先由 TriggerRouter 处理高置信度任务
+- Sticky Routing 尽量复用同会话最近稳定模型
+- Semantic Router 在规则没命中时补足意图识别
+- SmartRouter 继续作为候选模型兜底选择
+- Cascade Gate 在低质量输出或失败证据出现时自动升级
+- Shadow Supervisor 对可疑输出做异步审计与留痕
+
 ## 配置结构
 
 ### 1. Providers
@@ -248,21 +259,35 @@ SmartRouter:
 | `max_tokens` | 路由模型最大输出 token |
 | `fallback` | 预留字段，当前不建议依赖差异化行为 |
 
+### 5. Governance
+
+`Governance` 负责把这套路由器从“请求分流”增强到“模型治理”。它不会替代 `TriggerRouter` 或 `SmartRouter`，而是在其前后补充会话连续性、失败升级和输出审计能力。
+
+| 配置项 | 说明 |
+|--------|------|
+| `Governance.sticky` | 会话粘性路由；优先复用最近稳定模型 |
+| `Governance.sticky.alignment` | 模型切换时自动生成技术交接摘要并注入 system |
+| `Governance.cascade` | 失败证据检测与自动升级重投 |
+| `Governance.semantic` | 语义原型匹配；在规则没命中时补充意图识别 |
+| `Governance.shadow` | 对可疑输出做异步审计和 trace 留痕 |
+
 ## 路由优先级
 
 一次请求会按大致如下顺序确定最终模型：
 
 1. `TriggerRouter.rules[].model`
-2. `SmartRouter.candidates[].model`
-3. `Router.longContext`
-4. 子代理模型标签
-5. `Router.background`
-6. `Router.think`
-7. `Router.webSearch`
-8. `CUSTOM_ROUTER_PATH`
-9. `Router.default`
+2. `Governance.sticky`
+3. `Governance.semantic`
+4. `SmartRouter.candidates[].model`
+5. `Router.longContext`
+6. 子代理模型标签
+7. `Router.background`
+8. `Router.think`
+9. `Router.webSearch`
+10. `CUSTOM_ROUTER_PATH`
+11. `Router.default`
 
-这意味着：如果 TriggerRouter 已经命中，后面的路由层不会再介入。
+这意味着：如果 TriggerRouter 已经命中，后面的 Sticky / Semantic / SmartRouter 不会再介入；而 Governance 里的 `cascade` 与 `shadow` 属于执行后治理，会在响应阶段介入。
 
 ## CLI 与管理 API
 
@@ -319,6 +344,14 @@ ctr code
 - `TriggerRouter.rules`
 - `SmartRouter`
 
+如果你要开始使用治理增强，再逐步打开：
+
+- `Governance.sticky`
+- `Governance.sticky.alignment`
+- `Governance.cascade`
+- `Governance.semantic`
+- `Governance.shadow`
+
 ## 故障排查
 
 ### `ctr code` 提示服务未运行
@@ -362,6 +395,15 @@ ctr start --daemon
 - `router_model` 是否有效
 - `candidates` 是否至少有 2 个，并且都在 `Providers` 中声明
 - 是否已经被更高优先级的 TriggerRouter 提前命中
+
+### Governance 没生效
+
+依次检查：
+
+- `Governance.enabled` 是否为 `true`
+- 对应子模块如 `sticky / semantic / cascade / shadow` 是否已单独启用
+- `sticky.alignment.summarizer_model`、`cascade.levels[].from/to` 等模型引用是否都存在于 `Providers`
+- 当前请求是否真的满足该治理能力的触发条件
 
 ## 配置指南
 

@@ -170,6 +170,36 @@ ctr code
 - SmartRouter 处理剩余大多数任务
 - Router.default 作为最终兜底
 
+## 什么时候打开 Governance
+
+如果你已经不满足于“把请求分给不同模型”，而是希望系统自己处理一部分连续性、失败升级和质量审计问题，就该开始用 `Governance`。
+
+推荐顺序不是一次性全开，而是分阶段打开：
+
+### 1. Sticky Routing
+
+- 同一任务经常跨多轮继续
+- 不希望模型在会话中来回切换
+
+### 2. Context Alignment
+
+- 必须切换模型，但希望新模型知道“之前做到哪一步了”
+
+### 3. Cascade Gate
+
+- 模型有时会输出占位符、空结果或失败日志
+- 希望系统自己升级一次更强模型重试
+
+### 4. Semantic Router
+
+- 规则越来越多
+- 用户表达不总能精确命中关键词
+
+### 5. Shadow Supervisor
+
+- 担心模型偷懒或产出低质量结果
+- 希望系统至少先把可疑结果记下来
+
 ## 三套可直接复制的模板
 
 ### 模板 1：最小单模型
@@ -308,6 +338,52 @@ SmartRouter:
   fallback: "default"
 ```
 
+### 模板 4：规则 + 智能 + 治理增强
+
+适合已经准备长期使用，并且希望系统具备会话连续性、失败升级与质量审计能力。
+
+```yaml
+Governance:
+  enabled: true
+
+  sticky:
+    enabled: true
+    session_ttl_ms: 3600000
+    alignment:
+      enabled: true
+      summarizer_model: "openrouter,anthropic/claude-sonnet-4"
+      max_summary_tokens: 256
+
+  cascade:
+    enabled: true
+    max_attempts: 2
+    triggers:
+      compile_failure: true
+      test_failure: true
+      placeholder_patterns:
+        - "TODO"
+        - "...rest of code"
+    levels:
+      - from: "openrouter,anthropic/claude-sonnet-4"
+        to: "openrouter,anthropic/claude-opus-4"
+        reasoning: "high"
+
+  semantic:
+    enabled: true
+    threshold: 0.2
+    prototypes:
+      architecture: "重构 系统 结构 模块 拆分 架构 设计"
+      code_review: "代码 审查 风险 评审 review"
+
+  shadow:
+    enabled: true
+    mode: "async_audit"
+    checks:
+      placeholder_patterns: true
+      length_anomaly: true
+      missing_code_block: true
+```
+
 ## 常见错误与排查
 
 ### 1. 配置格式错
@@ -380,6 +456,16 @@ ctr start --daemon
 - `candidates` 是否至少 2 个
 - 请求是否已经被 TriggerRouter 提前命中
 
+### 6. Governance 没生效
+
+优先检查：
+
+- `Governance.enabled` 是否为 `true`
+- 子模块 `sticky / semantic / cascade / shadow` 是否分别启用
+- `sticky.alignment.summarizer_model` 是否能在 `Providers` 中找到
+- `cascade.levels[].from/to` 是否正确引用模型
+- 是否真的满足触发条件，例如 Sticky 需要相同 `sessionId` + 相同任务指纹，Cascade 需要失败证据
+
 ## 不建议现在依赖的字段
 
 当前仓库里，这几个字段都不适合作为新手主线配置：
@@ -389,6 +475,16 @@ ctr start --daemon
 - `NON_INTERACTIVE_MODE`
 
 其中 `API_TIMEOUT_MS` 目前只影响 TriggerRouter 内部回环 LLM 调用（SmartRouter / intent detection），不影响 `ctr code` 探活或普通 provider 转发；另外两个字段仍缺少清晰、稳定、容易验证的主线接线证据。想先稳定使用的话，可以先不配。
+
+## Governance 配置建议
+
+如果你准备启用 Governance，建议按这个顺序渐进打开：
+
+1. 先开 `sticky`
+2. 再开 `sticky.alignment`
+3. 再开 `cascade`
+4. 然后开 `semantic`
+5. 最后开 `shadow`
 
 ## 推荐阅读顺序
 
