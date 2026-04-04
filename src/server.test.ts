@@ -45,6 +45,7 @@ vi.mock('@musistudio/llms', () => {
 });
 
 import { createServer } from './server';
+import { governanceTraceStore } from './governance';
 import { normalizeAndValidateConfig } from './utils/config';
 
 describe('createServer /api/config', () => {
@@ -68,9 +69,45 @@ describe('createServer /api/config', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    governanceTraceStore.clear();
     mockBackupConfigFile.mockResolvedValue(null);
     mockWriteConfigFile.mockResolvedValue(undefined);
     mockReadConfigFile.mockResolvedValue({});
+  });
+
+  it('exposes governance trace list and detail endpoints', async () => {
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['trigger_rule:architecture'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1,
+      completedAt: 2,
+      latencyMs: 1,
+    });
+
+    const server = createServer({});
+    const listHandler = server.app.routes.get('GET /api/governance/traces');
+    const detailHandler = server.app.routes.get('GET /api/governance/traces/:requestId');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const listResult = await listHandler({}, {});
+    const detailResult = await detailHandler({ params: { requestId: 'trace-1' } }, reply);
+    const missingResult = await detailHandler({ params: { requestId: 'missing' } }, reply);
+
+    expect(listResult.traces).toHaveLength(1);
+    expect(listResult.traces[0].requestId).toBe('trace-1');
+    expect(detailResult.requestId).toBe('trace-1');
+    expect(reply.code).toHaveBeenCalledWith(404);
+    expect(missingResult).toEqual({
+      success: false,
+      message: 'Governance trace not found',
+    });
   });
 
   it('rejects invalid config before writing', async () => {

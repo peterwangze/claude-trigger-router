@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { appendTraceReason, createGovernanceTrace, finalizeTrace } from './trace';
+import { appendTraceReason, createGovernanceTrace, finalizeTrace, governanceTraceStore, recordGovernanceTrace } from './trace';
 
 describe('governance trace', () => {
+  it('stores finalized traces in the trace store', () => {
+    governanceTraceStore.clear();
+    const trace = createGovernanceTrace({
+      requestId: 'req-store',
+      startedAt: 100,
+    });
+    const finalized = finalizeTrace(trace, { completedAt: 120 });
+    recordGovernanceTrace(finalized);
+
+    expect(governanceTraceStore.list()).toHaveLength(1);
+    expect(governanceTraceStore.get('req-store')?.latencyMs).toBe(20);
+  });
+
   it('creates a trace with sane defaults', () => {
     const trace = createGovernanceTrace({
       requestId: 'req-1',

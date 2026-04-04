@@ -5,7 +5,7 @@
  */
 
 import { IAppConfig, IRequestContext } from '../trigger/types';
-import { appendTraceReason, finalizeTrace } from './trace';
+import { appendTraceReason, finalizeTrace, recordGovernanceTrace } from './trace';
 import { createTaskFingerprint, sessionStateStore } from './session-store';
 import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetry } from './cascade-gate';
 import { shadowSupervisor } from './shadow-supervisor';
@@ -144,6 +144,7 @@ export async function applyResponseGovernance({
     req.governanceTrace = finalizeTrace(req.governanceTrace, {
       finalModel: req.body?.model ?? req.governanceTrace.finalModel,
     });
+    recordGovernanceTrace(req.governanceTrace);
   }
 
   return nextPayload;

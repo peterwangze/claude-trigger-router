@@ -7,7 +7,7 @@
 import { IAppConfig, IRequestContext } from '../trigger/types';
 import { sessionUsageCache } from '../router/cache';
 import { SSEParserTransform } from '../utils/SSEParser.transform';
-import { appendTraceReason, finalizeTrace } from './trace';
+import { appendTraceReason, finalizeTrace, recordGovernanceTrace } from './trace';
 import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetryStream } from './cascade-gate';
 
 interface ICollectedSSE {
@@ -141,6 +141,7 @@ export function governStreamingResponse(
           req.governanceTrace = finalizeTrace(req.governanceTrace, {
             finalModel: req.body?.model ?? req.governanceTrace.finalModel,
           });
+          recordGovernanceTrace(req.governanceTrace);
         }
       } catch (error) {
         controller.error(error);

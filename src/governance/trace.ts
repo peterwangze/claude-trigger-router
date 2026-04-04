@@ -5,7 +5,37 @@
  */
 
 import { randomUUID } from 'crypto';
+import { LRUCache } from 'lru-cache';
 import { IGovernanceTrace } from './types';
+
+class GovernanceTraceStore {
+  private cache: LRUCache<string, IGovernanceTrace>;
+
+  constructor() {
+    this.cache = new LRUCache<string, IGovernanceTrace>({
+      max: 500,
+      ttl: 1000 * 60 * 60,
+    });
+  }
+
+  add(trace: IGovernanceTrace): void {
+    this.cache.set(trace.requestId, { ...trace, routeReason: [...trace.routeReason] });
+  }
+
+  get(requestId: string): IGovernanceTrace | undefined {
+    return this.cache.get(requestId);
+  }
+
+  list(): IGovernanceTrace[] {
+    return Array.from(this.cache.values()).sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+export const governanceTraceStore = new GovernanceTraceStore();
 
 export function createGovernanceTrace(
   input: Partial<IGovernanceTrace> = {}
@@ -50,4 +80,9 @@ export function finalizeTrace(
     completedAt,
     latencyMs: overrides.latencyMs ?? Math.max(0, completedAt - trace.startedAt),
   };
+}
+
+export function recordGovernanceTrace(trace: IGovernanceTrace): IGovernanceTrace {
+  governanceTraceStore.add(trace);
+  return trace;
 }

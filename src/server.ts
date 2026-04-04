@@ -8,6 +8,7 @@ import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig } from "./utils";
 import { log } from "./utils/log";
 import { SERVICE_NAME } from "./service-health";
+import { governanceTraceStore } from "./governance";
 
 /**
  * 创建服务器
@@ -26,6 +27,25 @@ export const createServer = (config: any): Server => {
       ready: true,
       port: config.initialConfig?.PORT,
     };
+  });
+
+  server.app.get("/api/governance/traces", async () => {
+    return {
+      traces: governanceTraceStore.list(),
+    };
+  });
+
+  server.app.get("/api/governance/traces/:requestId", async (req: any, reply: any) => {
+    const trace = governanceTraceStore.get(req.params.requestId);
+    if (!trace) {
+      reply.code(404);
+      return {
+        success: false,
+        message: "Governance trace not found",
+      };
+    }
+
+    return trace;
   });
 
   // 获取转换器列表
