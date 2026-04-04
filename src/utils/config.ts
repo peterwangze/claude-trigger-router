@@ -309,6 +309,9 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
       if (sampleRate !== undefined && (sampleRate < 0 || sampleRate > 1)) {
         errors.push('Governance.shadow.sample_rate must be between 0 and 1');
       }
+      if (shadow.mode && !['async_audit', 'sync_guard'].includes(shadow.mode)) {
+        errors.push('Governance.shadow.mode must be either "async_audit" or "sync_guard"');
+      }
       if (shadow.verifier_model && validProviders.length > 0) {
         const err = validateModelRef(shadow.verifier_model, validProviders, 'Governance.shadow.verifier_model');
         if (err) errors.push(err);

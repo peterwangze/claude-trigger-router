@@ -37,6 +37,19 @@ describe('ShadowSupervisor', () => {
     expect(result.findings).toContain('missing_code_block');
   });
 
+  it('maps audit findings into cascade-compatible failure evidence', () => {
+    const evidences = supervisor.toFailureEvidence({
+      triggered: true,
+      riskLevel: 'high',
+      findings: ['empty_output', 'missing_code_block'],
+    });
+
+    expect(evidences).toEqual([
+      { type: 'empty_response', detail: 'Shadow supervisor detected empty output' },
+      { type: 'quality_risk', detail: 'Shadow supervisor detected missing_code_block' },
+    ]);
+  });
+
   it('uses verifier model result when configured', async () => {
     const fetchFn = async () => ({
       ok: true,

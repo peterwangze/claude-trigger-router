@@ -7,7 +7,7 @@
 import { ICascadeGateConfig } from './types';
 
 export interface IFailureEvidence {
-  type: 'compile_failure' | 'test_failure' | 'placeholder_pattern' | 'empty_response' | 'short_response';
+  type: 'compile_failure' | 'test_failure' | 'placeholder_pattern' | 'empty_response' | 'short_response' | 'quality_risk';
   detail: string;
 }
 

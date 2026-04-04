@@ -87,6 +87,23 @@ describe('normalizeAndValidateConfig governance', () => {
     );
   });
 
+  it('validates Governance shadow mode values', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Governance: {
+        enabled: true,
+        shadow: {
+          enabled: true,
+          mode: 'invalid-mode' as any,
+        },
+      },
+    });
+
+    expect(result.errors).toContain(
+      'Governance.shadow.mode must be either "async_audit" or "sync_guard"'
+    );
+  });
+
   it('validates Governance semantic threshold bounds', () => {
     const result = normalizeAndValidateConfig({
       ...baseConfig,

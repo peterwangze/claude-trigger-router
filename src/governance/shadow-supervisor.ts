@@ -5,6 +5,7 @@
  */
 
 import { IShadowSupervisorConfig } from './types';
+import { IFailureEvidence } from './cascade-gate';
 import { logError, logWarn } from '../utils/log';
 
 export interface IShadowAuditResult {
@@ -89,6 +90,25 @@ export class ShadowSupervisor {
       riskLevel,
       findings,
     };
+  }
+
+  toFailureEvidence(audit: IShadowAuditResult): IFailureEvidence[] {
+    if (!audit.triggered) {
+      return [];
+    }
+
+    return audit.findings.map((finding) => {
+      switch (finding) {
+        case 'empty_output':
+          return { type: 'empty_response', detail: 'Shadow supervisor detected empty output' };
+        case 'length_anomaly':
+          return { type: 'short_response', detail: 'Shadow supervisor detected length anomaly' };
+        case 'placeholder_pattern':
+          return { type: 'placeholder_pattern', detail: 'Shadow supervisor detected placeholder pattern' };
+        default:
+          return { type: 'quality_risk', detail: `Shadow supervisor detected ${finding}` };
+      }
+    });
   }
 
   async inspectWithVerifier(

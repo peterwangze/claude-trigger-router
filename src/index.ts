@@ -556,6 +556,38 @@ async function run(options: RunOptions = {}) {
         req.governanceTrace.shadowChecked = true;
         req.governanceTrace.verificationResult = `${audit.riskLevel}:${audit.findings.join(',')}`;
         appendTraceReason(req.governanceTrace, 'shadow_supervisor');
+
+        if (
+          config.Governance.shadow.mode === 'sync_guard' &&
+          config.Governance.cascade?.enabled &&
+          audit.riskLevel !== 'low'
+        ) {
+          const guardAttempt = Number(req.body?.metadata?.ctr_cascade_attempt ?? 0);
+          const guardDecision = decideCascadeEscalation(
+            req.body?.model,
+            shadowSupervisor.toFailureEvidence(audit),
+            config.Governance.cascade,
+            guardAttempt
+          );
+
+          if (guardDecision.shouldEscalate && guardDecision.nextModel) {
+            const guardedPayload = await executeCascadeRetry(
+              req.body,
+              guardDecision.nextModel,
+              servicePort,
+              config.APIKEY,
+              config.API_TIMEOUT_MS
+            );
+
+            if (guardedPayload) {
+              req.body.model = guardDecision.nextModel;
+              req.governanceTrace.verificationResult =
+                `${audit.riskLevel}:${audit.findings.join(',')}|guard_retry:${guardDecision.nextModel}`;
+              appendTraceReason(req.governanceTrace, 'shadow_sync_guard');
+              payload = guardedPayload;
+            }
+          }
+        }
       }
     }
 
