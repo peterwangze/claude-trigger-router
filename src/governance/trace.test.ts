@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
@@ -101,6 +101,41 @@ describe('governance trace', () => {
 
       expect(reloadedStore.get('req-persist')?.routeReason).toEqual(['sticky_routing']);
       expect(reloadedStore.list()).toHaveLength(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('archives overflow traces and retains only the configured number of archive files', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctr-governance-archive-'));
+    const persistFile = join(dir, 'governance-traces.json');
+    const archiveDir = join(dir, 'archives');
+
+    try {
+      const store = new GovernanceTraceStore({
+        persistFile,
+        archiveDir,
+        persistEnabled: true,
+        activePersistLimit: 2,
+        retainArchiveFiles: 2,
+      });
+
+      for (let index = 0; index < 6; index += 1) {
+        store.add(createGovernanceTrace({
+          requestId: `req-archive-${index}`,
+          routeReason: ['smart_router'],
+          startedAt: 100 + index,
+        }));
+      }
+
+      const active = JSON.parse(readFileSync(persistFile, 'utf-8'));
+      const archives = readdirSync(archiveDir).filter((file) => file.endsWith('.json'));
+
+      expect(active).toHaveLength(2);
+      expect(active[0].requestId).toBe('req-archive-5');
+      expect(active[1].requestId).toBe('req-archive-4');
+      expect(archives.length).toBeLessThanOrEqual(2);
+      expect(store.list()).toHaveLength(2);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

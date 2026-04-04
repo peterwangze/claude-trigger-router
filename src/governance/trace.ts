@@ -5,10 +5,10 @@
  */
 
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
 import { LRUCache } from 'lru-cache';
-import { dirname } from 'path';
-import { GOVERNANCE_TRACE_FILE } from '../constants';
+import { dirname, join } from 'path';
+import { GOVERNANCE_TRACE_ARCHIVE_DIR, GOVERNANCE_TRACE_FILE } from '../constants';
 import { IGovernanceTrace } from './types';
 
 export interface IGovernanceTraceStoreOptions {
@@ -16,12 +16,18 @@ export interface IGovernanceTraceStoreOptions {
   ttlMs?: number;
   persistFile?: string;
   persistEnabled?: boolean;
+  activePersistLimit?: number;
+  archiveDir?: string;
+  retainArchiveFiles?: number;
 }
 
 export class GovernanceTraceStore {
   private cache: LRUCache<string, IGovernanceTrace>;
   private persistFile?: string;
   private persistEnabled: boolean;
+  private activePersistLimit: number;
+  private archiveDir?: string;
+  private retainArchiveFiles: number;
 
   constructor(options: IGovernanceTraceStoreOptions = {}) {
     const max = options.max ?? 500;
@@ -32,6 +38,9 @@ export class GovernanceTraceStore {
     });
     this.persistFile = options.persistFile ?? GOVERNANCE_TRACE_FILE;
     this.persistEnabled = options.persistEnabled ?? process.env.NODE_ENV !== 'test';
+    this.activePersistLimit = options.activePersistLimit ?? 200;
+    this.archiveDir = options.archiveDir ?? GOVERNANCE_TRACE_ARCHIVE_DIR;
+    this.retainArchiveFiles = options.retainArchiveFiles ?? 5;
     this.loadFromDisk();
   }
 
@@ -95,14 +104,38 @@ export class GovernanceTraceStore {
   }
 
   private loadFromDisk(): void {
-    if (!this.persistEnabled || !this.persistFile || !existsSync(this.persistFile)) {
+    if (!this.persistEnabled || !this.persistFile) {
       return;
     }
 
     try {
-      const content = readFileSync(this.persistFile, 'utf-8');
-      const traces = JSON.parse(content) as IGovernanceTrace[];
-      for (const trace of traces) {
+      const traces: IGovernanceTrace[] = [];
+
+      if (existsSync(this.persistFile)) {
+        const content = readFileSync(this.persistFile, 'utf-8');
+        traces.push(...(JSON.parse(content) as IGovernanceTrace[]));
+      }
+
+      if (this.archiveDir && existsSync(this.archiveDir)) {
+        const archiveFiles = readdirSync(this.archiveDir)
+          .filter((file) => file.endsWith('.json'))
+          .sort()
+          .reverse();
+
+        for (const file of archiveFiles) {
+          const content = readFileSync(join(this.archiveDir, file), 'utf-8');
+          traces.push(...(JSON.parse(content) as IGovernanceTrace[]));
+        }
+      }
+
+      const deduped = new Map<string, IGovernanceTrace>();
+      for (const trace of traces.sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0))) {
+        if (!deduped.has(trace.requestId)) {
+          deduped.set(trace.requestId, trace);
+        }
+      }
+
+      for (const trace of Array.from(deduped.values()).slice(0, this.cache.max)) {
         this.cache.set(trace.requestId, { ...trace, routeReason: [...(trace.routeReason ?? [])] });
       }
     } catch {
@@ -118,9 +151,46 @@ export class GovernanceTraceStore {
     try {
       mkdirSync(dirname(this.persistFile), { recursive: true });
       const traces = Array.from(this.cache.values()).sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
-      writeFileSync(this.persistFile, JSON.stringify(traces, null, 2), 'utf-8');
+      const activeTraces = traces.slice(0, this.activePersistLimit);
+      const archivedTraces = traces.slice(this.activePersistLimit);
+
+      if (archivedTraces.length > 0 && this.archiveDir) {
+        this.writeArchive(archivedTraces);
+        this.pruneArchives();
+        this.cache.clear();
+        for (const trace of activeTraces) {
+          this.cache.set(trace.requestId, { ...trace, routeReason: [...trace.routeReason] });
+        }
+      }
+
+      writeFileSync(this.persistFile, JSON.stringify(activeTraces, null, 2), 'utf-8');
     } catch {
       // Keep runtime resilient even if local persistence fails.
+    }
+  }
+
+  private writeArchive(traces: IGovernanceTrace[]): void {
+    if (!this.archiveDir || traces.length === 0) {
+      return;
+    }
+
+    mkdirSync(this.archiveDir, { recursive: true });
+    const filename = `governance-traces-${Date.now()}.json`;
+    writeFileSync(join(this.archiveDir, filename), JSON.stringify(traces, null, 2), 'utf-8');
+  }
+
+  private pruneArchives(): void {
+    if (!this.archiveDir || !existsSync(this.archiveDir)) {
+      return;
+    }
+
+    const archiveFiles = readdirSync(this.archiveDir)
+      .filter((file) => file.endsWith('.json'))
+      .sort()
+      .reverse();
+
+    for (const file of archiveFiles.slice(this.retainArchiveFiles)) {
+      rmSync(join(this.archiveDir, file), { force: true });
     }
   }
 }

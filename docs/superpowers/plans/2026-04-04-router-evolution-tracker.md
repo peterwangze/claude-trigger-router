@@ -139,6 +139,8 @@
 - `/ui` 新增 anomaly alerts 面板，可直接高亮当前窗口中的治理风险信号
 - 新增 `GET /api/governance/metrics/export`，支持导出治理指标快照
 - 当前导出支持 `json` 与 `csv`，便于对接外部看板和离线分析
+- governance trace 持久化新增滚动归档与保留策略，主文件只保留近期窗口
+- 历史 trace 会归档到 `~/.claude-trigger-router/governance-trace-archives/`，并按保留数量自动清理旧归档
 
 ## 下次更新时应补充的内容
 
