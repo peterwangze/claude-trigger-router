@@ -29,7 +29,7 @@ import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
 import { triggerRouter } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, contextAlignmentService, createGovernanceTrace, createTaskFingerprint, finalizeTrace, sessionStateStore } from "./governance";
+import { appendTraceReason, contextAlignmentService, createGovernanceTrace, createTaskFingerprint, decideCascadeEscalation, detectFailureEvidence, finalizeTrace, sessionStateStore } from "./governance";
 
 const event = new EventEmitter();
 
@@ -485,6 +485,24 @@ async function run(options: RunOptions = {}) {
   });
 
   server.addHook("onSend", async (req: any, reply: any, payload: any) => {
+    if (config.Governance?.enabled && config.Governance.cascade?.enabled && req.governanceTrace) {
+      const evidences = detectFailureEvidence(payload, config.Governance.cascade);
+      if (evidences.length > 0) {
+        const decision = decideCascadeEscalation(
+          req.body?.model,
+          evidences,
+          config.Governance.cascade,
+          0
+        );
+        req.governanceTrace.cascadeEvidence = evidences.map((item) => item.type);
+        if (decision.shouldEscalate) {
+          req.governanceTrace.cascadeTriggered = true;
+          req.governanceTrace.cascadeNextModel = decision.nextModel;
+          appendTraceReason(req.governanceTrace, 'cascade_gate');
+        }
+      }
+    }
+
     if (config.Governance?.enabled && config.Governance.sticky?.enabled && req.sessionId && req.body?.model) {
       const fingerprint = createTaskFingerprint(req.triggerResult?.analyzedText);
       if (fingerprint) {

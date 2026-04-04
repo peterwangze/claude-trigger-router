@@ -118,6 +118,8 @@ export interface IGovernanceTrace {
   alignmentUsed: boolean;
   semanticIntent?: string;
   cascadeTriggered: boolean;
+  cascadeEvidence?: string[];
+  cascadeNextModel?: string;
   shadowChecked: boolean;
   verificationResult?: string;
   latencyMs?: number;

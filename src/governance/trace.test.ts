@@ -14,6 +14,7 @@ describe('governance trace', () => {
     expect(trace.routeReason).toEqual([]);
     expect(trace.stickyHit).toBe(false);
     expect(trace.cascadeTriggered).toBe(false);
+    expect(trace.cascadeEvidence).toEqual([]);
     expect(trace.shadowChecked).toBe(false);
     expect(trace.startedAt).toBe(100);
   });

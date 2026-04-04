@@ -20,6 +20,8 @@ export function createGovernanceTrace(
     alignmentUsed: input.alignmentUsed ?? false,
     semanticIntent: input.semanticIntent,
     cascadeTriggered: input.cascadeTriggered ?? false,
+    cascadeEvidence: input.cascadeEvidence ? [...input.cascadeEvidence] : [],
+    cascadeNextModel: input.cascadeNextModel,
     shadowChecked: input.shadowChecked ?? false,
     verificationResult: input.verificationResult,
     latencyMs: input.latencyMs,
