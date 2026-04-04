@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decideCascadeEscalation, detectFailureEvidence } from './cascade-gate';
+import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetry } from './cascade-gate';
 
 describe('detectFailureEvidence', () => {
   const config = {
@@ -62,5 +62,35 @@ describe('decideCascadeEscalation', () => {
     );
 
     expect(decision.shouldEscalate).toBe(false);
+  });
+});
+
+describe('executeCascadeRetry', () => {
+  it('replays the request with the next model and incremented attempt', async () => {
+    let capturedBody: any;
+    const fetchFn = async (_url: string, init?: any) => {
+      capturedBody = JSON.parse(init.body);
+      return {
+        ok: true,
+        json: async () => ({ content: [{ text: 'rescued response' }] }),
+      } as any;
+    };
+
+    const result = await executeCascadeRetry(
+      {
+        model: 'provider,model-a',
+        messages: [{ role: 'user', content: 'fix this' }],
+        metadata: { ctr_cascade_attempt: 0 },
+      },
+      'provider,model-b',
+      3456,
+      undefined,
+      undefined,
+      fetchFn as any
+    );
+
+    expect(capturedBody.model).toBe('provider,model-b');
+    expect(capturedBody.metadata.ctr_cascade_attempt).toBe(1);
+    expect(result).toEqual({ content: [{ text: 'rescued response' }] });
   });
 });

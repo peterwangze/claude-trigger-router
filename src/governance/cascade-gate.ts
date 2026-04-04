@@ -17,6 +17,46 @@ export interface ICascadeDecision {
   reasoning?: string;
 }
 
+export async function executeCascadeRetry(
+  requestBody: any,
+  nextModel: string,
+  port: number,
+  apiKey?: string,
+  timeoutMs?: number,
+  fetchFn?: typeof fetch
+): Promise<any | null> {
+  const fetchImpl = fetchFn || fetch;
+  const currentAttempt = Number(requestBody?.metadata?.ctr_cascade_attempt ?? 0);
+  const retryBody = {
+    ...requestBody,
+    model: nextModel,
+    metadata: {
+      ...(requestBody?.metadata ?? {}),
+      ctr_cascade_attempt: currentAttempt + 1,
+    },
+  };
+
+  try {
+    const response = await fetchImpl(`http://127.0.0.1:${port}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      },
+      body: JSON.stringify(retryBody),
+      ...(timeoutMs && timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 function extractTextPayload(payload: any): string {
   if (!payload) return '';
   if (typeof payload === 'string') return payload;
