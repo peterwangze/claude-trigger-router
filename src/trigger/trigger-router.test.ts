@@ -2,12 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TriggerRouter } from '../trigger/index';
 import { modelSelector } from '../trigger/selector';
 import { IAppConfig } from '../trigger/types';
+import { sessionStateStore } from '../governance/session-store';
 
 describe('TriggerRouter', () => {
   let router: TriggerRouter;
 
   beforeEach(() => {
     router = new TriggerRouter();
+    sessionStateStore.clear();
   });
 
   const createAppConfig = (overrides?: Partial<IAppConfig>): IAppConfig => ({
@@ -148,6 +150,7 @@ describe('TriggerRouter', () => {
         config.TriggerRouter,
         3456,
         config.SmartRouter,
+        config.Governance,
         config.APIKEY,
         4321
       );

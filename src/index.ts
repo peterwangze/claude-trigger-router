@@ -29,7 +29,7 @@ import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
 import { triggerRouter } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, createGovernanceTrace, finalizeTrace } from "./governance";
+import { appendTraceReason, createGovernanceTrace, createTaskFingerprint, finalizeTrace, sessionStateStore } from "./governance";
 
 const event = new EventEmitter();
 
@@ -175,6 +175,13 @@ async function run(options: RunOptions = {}) {
   // 触发路由中间件（在原有路由之前）
   server.addHook("preHandler", async (req: any, reply: any) => {
     if (req.url.startsWith("/v1/messages")) {
+      if (req.body.metadata?.user_id) {
+        const parts = req.body.metadata.user_id.split("_session_");
+        if (parts.length > 1) {
+          req.sessionId = parts[1];
+        }
+      }
+
       req.governanceTrace = createGovernanceTrace({
         requestId: req.id,
         sessionKey: req.sessionId,
@@ -184,10 +191,10 @@ async function run(options: RunOptions = {}) {
 
       // 执行触发路由
       const triggerResult = await triggerRouter.route(req);
+      req.triggerResult = triggerResult;
 
       if (triggerResult.matched && triggerResult.model) {
         req.body.model = triggerResult.model;
-        req.triggerResult = triggerResult;
         req.governanceTrace.finalModel = triggerResult.model;
 
         log(
@@ -444,6 +451,17 @@ async function run(options: RunOptions = {}) {
   });
 
   server.addHook("onSend", async (req: any, reply: any, payload: any) => {
+    if (config.Governance?.enabled && config.Governance.sticky?.enabled && req.sessionId && req.body?.model) {
+      const fingerprint = createTaskFingerprint(req.triggerResult?.analyzedText);
+      if (fingerprint) {
+        sessionStateStore.put(req.sessionId, {
+          preferredModel: req.body.model,
+          lastSuccessfulModel: req.body.model,
+          lastTaskFingerprint: fingerprint,
+        });
+      }
+    }
+
     if (req.governanceTrace) {
       req.governanceTrace = finalizeTrace(req.governanceTrace, {
         finalModel: req.body?.model ?? req.governanceTrace.finalModel,

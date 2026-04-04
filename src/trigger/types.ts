@@ -98,6 +98,9 @@ export interface IAnalysisResult {
 
   /** 分析的文本内容 */
   analyzedText?: string;
+
+  /** 路由来源 */
+  routeSource?: 'trigger_rule' | 'sticky' | 'smart_router' | 'intent';
 }
 
 /**

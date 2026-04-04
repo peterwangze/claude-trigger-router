@@ -10,6 +10,8 @@ import { contextAnalyzer } from './analyzer';
 import { intentDetector } from './intent';
 import { smartRouterSelector } from './smart-router';
 import { log, logError } from '../utils/log';
+import { IGovernanceConfig } from '../governance/types';
+import { createTaskFingerprint, sessionStateStore } from '../governance/session-store';
 
 /**
  * 模型选择器类
@@ -77,7 +79,15 @@ export class ModelSelector {
    * @param config 触发配置
    * @returns 分析结果
    */
-  async selectModel(req: IRequestContext, config: ITriggerConfig, port: number = 3456, smartRouterConfig?: ISmartRouterConfig, apiKey?: string, timeoutMs?: number): Promise<IAnalysisResult> {
+  async selectModel(
+    req: IRequestContext,
+    config: ITriggerConfig,
+    port: number = 3456,
+    smartRouterConfig?: ISmartRouterConfig,
+    governanceConfig?: IGovernanceConfig,
+    apiKey?: string,
+    timeoutMs?: number
+  ): Promise<IAnalysisResult> {
     const startTime = Date.now();
 
     // 如果触发路由未启用，直接返回不匹配
@@ -112,10 +122,36 @@ export class ModelSelector {
         confidence: 1.0, // 关键词匹配置信度为 1
         analysisTime: Date.now() - startTime,
         analyzedText: text,
+        routeSource: 'trigger_rule',
       };
     }
 
-    // 第二步：SmartRouter 智能模型选择
+    // 第二步：Sticky routing，优先复用同会话同任务的最近稳定模型
+    if (governanceConfig?.enabled && governanceConfig.sticky?.enabled && req.sessionId) {
+      const fingerprint = createTaskFingerprint(text);
+      const sessionState = sessionStateStore.get(req.sessionId);
+
+      if (
+        fingerprint &&
+        sessionState?.lastTaskFingerprint === fingerprint &&
+        (sessionState.preferredModel || sessionState.lastSuccessfulModel)
+      ) {
+        const stickyModel = sessionState.preferredModel || sessionState.lastSuccessfulModel;
+        if (stickyModel) {
+          log(`[StickyRouting] Reusing model "${stickyModel}" for session "${req.sessionId}"`);
+          return {
+            matched: true,
+            model: stickyModel,
+            confidence: 0.95,
+            analysisTime: Date.now() - startTime,
+            analyzedText: text,
+            routeSource: 'sticky',
+          };
+        }
+      }
+    }
+
+    // 第三步：SmartRouter 智能模型选择
     if (smartRouterConfig?.enabled && smartRouterConfig.candidates?.length >= 2) {
       try {
         const smartResult = await smartRouterSelector.selectModel(text, smartRouterConfig, port, undefined, apiKey, timeoutMs);
@@ -127,6 +163,7 @@ export class ModelSelector {
             confidence: smartResult.confidence,
             analysisTime: Date.now() - startTime,
             analyzedText: text,
+            routeSource: 'smart_router',
           };
         }
       } catch (error) {
@@ -134,7 +171,7 @@ export class ModelSelector {
       }
     }
 
-    // 第三步：如果启用了 LLM 意图识别，进行意图检测
+    // 第四步：如果启用了 LLM 意图识别，进行意图检测
     if (config.llm_intent_recognition && config.intent_model) {
       try {
         const intentResult = await intentDetector.detectIntent(text, config, port, undefined, apiKey, timeoutMs);
@@ -150,6 +187,7 @@ export class ModelSelector {
               confidence: intentResult.confidence,
               analysisTime: Date.now() - startTime,
               analyzedText: text,
+              routeSource: 'intent',
             };
           }
         }

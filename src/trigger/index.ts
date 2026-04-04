@@ -16,6 +16,7 @@ import { appendTraceReason } from '../governance/trace';
 import { modelSelector } from './selector';
 import { contextAnalyzer } from './analyzer';
 import { log, logError } from '../utils/log';
+import { IGovernanceConfig } from '../governance/types';
 
 /**
  * 触发路由器类
@@ -25,6 +26,7 @@ export class TriggerRouter {
   private config: ITriggerConfig | null = null;
   private port: number = 3456;
   private smartRouterConfig: ISmartRouterConfig | undefined = undefined;
+  private governanceConfig: IGovernanceConfig | undefined = undefined;
   private apiKey?: string;
   private apiTimeoutMs?: number;
 
@@ -37,6 +39,7 @@ export class TriggerRouter {
     this.config = appConfig.TriggerRouter || this.getDefaultConfig();
     this.port = appConfig.PORT || 3456;
     this.smartRouterConfig = appConfig.SmartRouter;
+    this.governanceConfig = appConfig.Governance;
     this.apiKey = appConfig.APIKEY;
     this.apiTimeoutMs = appConfig.API_TIMEOUT_MS;
   }
@@ -93,13 +96,26 @@ export class TriggerRouter {
       };
     }
 
-    const result = await modelSelector.selectModel(req, this.config, this.port, this.smartRouterConfig, this.apiKey, this.apiTimeoutMs);
+    const result = await modelSelector.selectModel(
+      req,
+      this.config,
+      this.port,
+      this.smartRouterConfig,
+      this.governanceConfig,
+      this.apiKey,
+      this.apiTimeoutMs
+    );
 
     if (req.governanceTrace) {
-      if (result.matched && result.rule?.name) {
+      if (result.routeSource === 'trigger_rule' && result.rule?.name) {
         appendTraceReason(req.governanceTrace, `trigger_rule:${result.rule.name}`);
-      } else if (result.matched && result.model) {
+      } else if (result.routeSource === 'sticky') {
+        req.governanceTrace.stickyHit = true;
+        appendTraceReason(req.governanceTrace, 'sticky_routing');
+      } else if (result.routeSource === 'smart_router') {
         appendTraceReason(req.governanceTrace, 'smart_router');
+      } else if (result.routeSource === 'intent') {
+        appendTraceReason(req.governanceTrace, 'intent_detection');
       } else {
         appendTraceReason(req.governanceTrace, 'trigger_router:no_match');
       }
@@ -170,7 +186,7 @@ export class TriggerRouter {
           req.triggerResult = result;
 
           log(
-            `[TriggerRouter] ${result.rule ? `Matched rule "${result.rule.name}"` : 'SmartRouter selected'} -> model "${result.model}" ` +
+            `[TriggerRouter] ${result.routeSource === 'sticky' ? 'Sticky routing selected' : result.rule ? `Matched rule "${result.rule.name}"` : 'SmartRouter selected'} -> model "${result.model}" ` +
             `(confidence: ${result.confidence}, time: ${result.analysisTime}ms)`
           );
         }

@@ -125,3 +125,11 @@ export interface IGovernanceTrace {
   startedAt: number;
   completedAt?: number;
 }
+
+export interface ISessionState {
+  sessionKey: string;
+  preferredModel?: string;
+  lastSuccessfulModel?: string;
+  lastTaskFingerprint?: string;
+  updatedAt: number;
+}

@@ -3,12 +3,14 @@ import { ModelSelector } from '../trigger/selector';
 import { smartRouterSelector } from '../trigger/smart-router';
 import { intentDetector } from '../trigger/intent';
 import { ITriggerConfig, ITriggerRule, ISmartRouterConfig } from '../trigger/types';
+import { sessionStateStore } from '../governance/session-store';
 
 describe('ModelSelector', () => {
   let selector: ModelSelector;
 
   beforeEach(() => {
     selector = new ModelSelector();
+    sessionStateStore.clear();
   });
 
   // ============ sortRulesByPriority ============
@@ -237,7 +239,7 @@ describe('ModelSelector', () => {
         confidence: 0.9,
       });
 
-      await selector.selectModel(req as any, config, 3456, smartRouterConfig, undefined, 4321);
+      await selector.selectModel(req as any, config, 3456, smartRouterConfig, undefined, undefined, 4321);
       expect(smartSpy).toHaveBeenCalledWith('帮我选一个模型', smartRouterConfig, 3456, undefined, undefined, 4321);
       smartSpy.mockRestore();
     });
@@ -268,9 +270,41 @@ describe('ModelSelector', () => {
         confidence: 0,
       });
 
-      await selector.selectModel(req as any, intentConfig, 3456, undefined, undefined, 4321);
+      await selector.selectModel(req as any, intentConfig, 3456, undefined, undefined, undefined, 4321);
       expect(intentSpy).toHaveBeenCalledWith('帮我分析意图', intentConfig, 3456, undefined, undefined, 4321);
       intentSpy.mockRestore();
+    });
+
+    it('should reuse sticky session model when governance sticky is enabled', async () => {
+      sessionStateStore.put('sticky-session', {
+        preferredModel: 'provider,sticky-model',
+        lastSuccessfulModel: 'provider,sticky-model',
+        lastTaskFingerprint: '请帮我修复登录逻辑',
+      });
+
+      const req = {
+        sessionId: 'sticky-session',
+        body: {
+          messages: [{ role: 'user', content: '请帮我修复登录逻辑' }],
+        },
+      };
+
+      const result = await selector.selectModel(
+        req as any,
+        config,
+        3456,
+        undefined,
+        {
+          enabled: true,
+          sticky: {
+            enabled: true,
+          },
+        } as any
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('provider,sticky-model');
+      expect(result.routeSource).toBe('sticky');
     });
   });
 
