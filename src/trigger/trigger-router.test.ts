@@ -177,6 +177,40 @@ describe('TriggerRouter', () => {
       expect(result.matched).toBe(true);
       expect(req.governanceTrace.routeReason).toContain('trigger_rule:image_generation');
     });
+
+    it('should keep route source for sticky results', async () => {
+      const config = createAppConfig({
+        Governance: {
+          enabled: true,
+          sticky: { enabled: true },
+        } as any,
+      });
+      router.init(config);
+      sessionStateStore.put('sticky-session', {
+        preferredModel: 'provider,sticky-model',
+        lastSuccessfulModel: 'provider,sticky-model',
+        lastTaskFingerprint: '请帮我修复登录逻辑',
+      });
+      const req = {
+        sessionId: 'sticky-session',
+        governanceTrace: {
+          requestId: 'req-2',
+          routeReason: [],
+          stickyHit: false,
+          alignmentUsed: false,
+          cascadeTriggered: false,
+          shadowChecked: false,
+          startedAt: Date.now(),
+        },
+        body: { messages: [{ role: 'user', content: '请帮我修复登录逻辑' }] },
+      };
+
+      const result = await router.route(req as any);
+
+      expect(result.routeSource).toBe('sticky');
+      expect(req.governanceTrace.routeReason).toContain('sticky_routing');
+      expect(req.governanceTrace.stickyHit).toBe(true);
+    });
   });
 
   // ============ routeSync ============

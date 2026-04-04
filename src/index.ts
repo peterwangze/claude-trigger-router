@@ -29,7 +29,7 @@ import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
 import { triggerRouter } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, createGovernanceTrace, createTaskFingerprint, finalizeTrace, sessionStateStore } from "./governance";
+import { appendTraceReason, contextAlignmentService, createGovernanceTrace, createTaskFingerprint, finalizeTrace, sessionStateStore } from "./governance";
 
 const event = new EventEmitter();
 
@@ -194,6 +194,40 @@ async function run(options: RunOptions = {}) {
       req.triggerResult = triggerResult;
 
       if (triggerResult.matched && triggerResult.model) {
+        const previousSessionState = req.sessionId ? sessionStateStore.get(req.sessionId) : undefined;
+        const previousModel = previousSessionState?.lastSuccessfulModel;
+        const alignmentConfig = config.Governance?.sticky?.alignment;
+
+        if (
+          config.Governance?.enabled &&
+          alignmentConfig?.enabled &&
+          previousModel &&
+          previousModel !== triggerResult.model &&
+          triggerResult.analyzedText
+        ) {
+          const summary = await contextAlignmentService.summarizeTransition(
+            triggerResult.analyzedText,
+            previousModel,
+            triggerResult.model,
+            alignmentConfig,
+            servicePort,
+            undefined,
+            config.APIKEY,
+            config.API_TIMEOUT_MS
+          );
+
+          if (summary) {
+            req.body.system = contextAlignmentService.injectAlignmentContext(
+              req.body.system,
+              summary,
+              previousModel,
+              triggerResult.model
+            );
+            req.governanceTrace.alignmentUsed = true;
+            appendTraceReason(req.governanceTrace, 'context_alignment');
+          }
+        }
+
         req.body.model = triggerResult.model;
         req.governanceTrace.finalModel = triggerResult.model;
 
