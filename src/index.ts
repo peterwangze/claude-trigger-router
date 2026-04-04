@@ -29,7 +29,7 @@ import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
 import { triggerRouter } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace } from "./governance";
+import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, governStreamingResponse, sessionStateStore } from "./governance";
 
 const event = new EventEmitter();
 
@@ -294,9 +294,7 @@ async function run(options: RunOptions = {}) {
 
           const sseSerializer = new SSESerializerTransform();
 
-          return done(
-            null,
-            rewriteStream(eventStream, async (data: any, controller: any) => {
+          const agentStream = rewriteStream(eventStream, async (data: any, controller: any) => {
               try {
                 // 工具调用开始
                 if (
@@ -439,42 +437,15 @@ async function run(options: RunOptions = {}) {
 
                 throw error;
               }
-            }).pipeThrough(sseSerializer as any)
+            }).pipeThrough(sseSerializer as any);
+
+          return done(
+            null,
+            governStreamingResponse(agentStream, req, config, servicePort)
           );
         }
 
-        const [originalStream, clonedStream] = payload.tee();
-        const read = async (stream: ReadableStream) => {
-          const reader = stream.getReader();
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              const dataStr = new TextDecoder().decode(value);
-              if (!dataStr.startsWith("event: message_delta")) {
-                continue;
-              }
-              const str = dataStr.slice(27);
-              try {
-                const message = JSON.parse(str);
-                sessionUsageCache.put(req.sessionId, message.usage);
-              } catch {}
-            }
-          } catch (readError: any) {
-            if (
-              readError.name === "AbortError" ||
-              readError.code === "ERR_STREAM_PREMATURE_CLOSE"
-            ) {
-              log("Background read stream closed prematurely");
-            } else {
-              logError("Error in background stream reading:", readError);
-            }
-          } finally {
-            reader.releaseLock();
-          }
-        };
-        read(clonedStream);
-        return done(null, originalStream);
+        return done(null, governStreamingResponse(payload, req, config, servicePort));
       }
       sessionUsageCache.put(req.sessionId, payload.usage);
     }
@@ -485,6 +456,10 @@ async function run(options: RunOptions = {}) {
   });
 
   server.addHook("onSend", async (req: any, reply: any, payload: any) => {
+    if (payload instanceof ReadableStream) {
+      return payload;
+    }
+
     payload = await applyResponseGovernance({
       req,
       payload,

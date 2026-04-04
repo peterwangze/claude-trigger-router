@@ -92,6 +92,7 @@ export const DEFAULT_GOVERNANCE_CONFIG = {
   cascade: {
     enabled: false,
     max_attempts: 2,
+    stream_guard: false,
     triggers: {
       compile_failure: true,
       test_failure: true,

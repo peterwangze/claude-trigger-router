@@ -6,3 +6,4 @@ export * from './cascade-gate';
 export * from './semantic-router';
 export * from './shadow-supervisor';
 export * from './response-governance';
+export * from './stream-response-governance';

@@ -54,6 +54,9 @@ export interface ICascadeGateConfig {
   /** 最大升级尝试次数 */
   max_attempts?: number;
 
+  /** 是否对流式响应启用 buffer-and-retry 守卫 */
+  stream_guard?: boolean;
+
   /** 升级触发器 */
   triggers?: ICascadeTriggerConfig;
 
