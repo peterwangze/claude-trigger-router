@@ -29,7 +29,7 @@ import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
 import { triggerRouter } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, contextAlignmentService, createGovernanceTrace, createTaskFingerprint, decideCascadeEscalation, detectFailureEvidence, executeCascadeRetry, finalizeTrace, sessionStateStore } from "./governance";
+import { appendTraceReason, contextAlignmentService, createGovernanceTrace, createTaskFingerprint, decideCascadeEscalation, detectFailureEvidence, executeCascadeRetry, finalizeTrace, sessionStateStore, shadowSupervisor } from "./governance";
 
 const event = new EventEmitter();
 
@@ -533,6 +533,20 @@ async function run(options: RunOptions = {}) {
           lastSuccessfulModel: req.body.model,
           lastTaskFingerprint: fingerprint,
         });
+      }
+    }
+
+    if (
+      config.Governance?.enabled &&
+      config.Governance.shadow?.enabled &&
+      req.governanceTrace &&
+      !(payload instanceof ReadableStream)
+    ) {
+      const audit = shadowSupervisor.inspect(payload, config.Governance.shadow);
+      if (audit.triggered) {
+        req.governanceTrace.shadowChecked = true;
+        req.governanceTrace.verificationResult = `${audit.riskLevel}:${audit.findings.join(',')}`;
+        appendTraceReason(req.governanceTrace, 'shadow_supervisor');
       }
     }
 
