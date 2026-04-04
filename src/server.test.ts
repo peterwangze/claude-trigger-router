@@ -232,4 +232,94 @@ describe('createServer /api/config', () => {
       })
     );
   });
+
+  it('does not persist Governance when user did not configure it', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const requestBody = {
+      Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+      Providers: [
+        {
+          name: 'openrouter',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4'],
+        },
+      ],
+    };
+
+    await handler({ body: requestBody }, reply);
+
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        Governance: expect.anything(),
+      })
+    );
+  });
+
+  it('persists configured Governance blocks after normalization', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const requestBody = {
+      Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+      Providers: [
+        {
+          name: 'openrouter',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4', 'anthropic/claude-opus-4'],
+        },
+      ],
+      Governance: {
+        enabled: true,
+        sticky: {
+          enabled: true,
+          alignment: {
+            enabled: true,
+            summarizer_model: 'openrouter,anthropic/claude-sonnet-4',
+          },
+        },
+        cascade: {
+          enabled: true,
+          levels: [
+            {
+              from: 'openrouter,anthropic/claude-sonnet-4',
+              to: 'openrouter,anthropic/claude-opus-4',
+            },
+          ],
+        },
+      },
+    };
+
+    await handler({ body: requestBody }, reply);
+
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Governance: expect.objectContaining({
+          enabled: true,
+          sticky: expect.objectContaining({
+            enabled: true,
+            session_ttl_ms: 3600000,
+            alignment: expect.objectContaining({
+              enabled: true,
+              summarizer_model: 'openrouter,anthropic/claude-sonnet-4',
+              max_summary_tokens: 256,
+            }),
+          }),
+          cascade: expect.objectContaining({
+            enabled: true,
+            max_attempts: 2,
+          }),
+        }),
+      })
+    );
+  });
 });
