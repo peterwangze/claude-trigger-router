@@ -133,6 +133,23 @@ describe('createServer /api/config', () => {
     });
   });
 
+  it('renders a governance trace debug page at /ui', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('GET /ui');
+    const reply = {
+      header: vi.fn().mockReturnThis(),
+      send: vi.fn((html: string) => html),
+    };
+
+    const html = await handler({}, reply);
+
+    expect(reply.header).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
+    expect(html).toContain('Governance Trace');
+    expect(html).toContain('/api/governance/traces');
+    expect(html).toContain('refreshBtn');
+    expect(html).toContain('traceDetail');
+  });
+
   it('rejects invalid config before writing', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('POST /api/config');
