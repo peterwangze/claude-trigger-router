@@ -185,7 +185,7 @@ export const createServer = (config: any): Server => {
       `</style></head>` +
       `<body>` +
       `<h2>Claude Trigger Router</h2>` +
-      `<p class="muted">简易 Governance Trace 调试页。可查看最近治理链路，按 requestId / sessionKey / routeReason 过滤，并按 cascade / shadow 状态筛选。</p>` +
+      `<p class="muted">简易 Governance Trace 调试页。可查看最近治理链路，按 requestId / sessionKey / routeReason 过滤，并按 cascade / shadow 状态筛选；治理 trace 现已支持本地持久化，重启后可继续查看近期窗口。</p>` +
       `<div class="panel">` +
       `<div class="row">` +
       `<input id="requestId" placeholder="requestId">` +

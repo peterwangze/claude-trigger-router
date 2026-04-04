@@ -5,21 +5,39 @@
  */
 
 import { randomUUID } from 'crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { LRUCache } from 'lru-cache';
+import { dirname } from 'path';
+import { GOVERNANCE_TRACE_FILE } from '../constants';
 import { IGovernanceTrace } from './types';
 
-class GovernanceTraceStore {
-  private cache: LRUCache<string, IGovernanceTrace>;
+export interface IGovernanceTraceStoreOptions {
+  max?: number;
+  ttlMs?: number;
+  persistFile?: string;
+  persistEnabled?: boolean;
+}
 
-  constructor() {
+export class GovernanceTraceStore {
+  private cache: LRUCache<string, IGovernanceTrace>;
+  private persistFile?: string;
+  private persistEnabled: boolean;
+
+  constructor(options: IGovernanceTraceStoreOptions = {}) {
+    const max = options.max ?? 500;
+    const ttlMs = options.ttlMs ?? 1000 * 60 * 60;
     this.cache = new LRUCache<string, IGovernanceTrace>({
-      max: 500,
-      ttl: 1000 * 60 * 60,
+      max,
+      ttl: ttlMs,
     });
+    this.persistFile = options.persistFile ?? GOVERNANCE_TRACE_FILE;
+    this.persistEnabled = options.persistEnabled ?? process.env.NODE_ENV !== 'test';
+    this.loadFromDisk();
   }
 
   add(trace: IGovernanceTrace): void {
     this.cache.set(trace.requestId, { ...trace, routeReason: [...trace.routeReason] });
+    this.persistToDisk();
   }
 
   get(requestId: string): IGovernanceTrace | undefined {
@@ -65,6 +83,45 @@ class GovernanceTraceStore {
 
   clear(): void {
     this.cache.clear();
+    this.persistToDisk();
+  }
+
+  hydrate(traces: IGovernanceTrace[]): void {
+    this.cache.clear();
+    for (const trace of traces) {
+      this.cache.set(trace.requestId, { ...trace, routeReason: [...trace.routeReason] });
+    }
+    this.persistToDisk();
+  }
+
+  private loadFromDisk(): void {
+    if (!this.persistEnabled || !this.persistFile || !existsSync(this.persistFile)) {
+      return;
+    }
+
+    try {
+      const content = readFileSync(this.persistFile, 'utf-8');
+      const traces = JSON.parse(content) as IGovernanceTrace[];
+      for (const trace of traces) {
+        this.cache.set(trace.requestId, { ...trace, routeReason: [...(trace.routeReason ?? [])] });
+      }
+    } catch {
+      // Ignore persistence corruption and continue with in-memory mode.
+    }
+  }
+
+  private persistToDisk(): void {
+    if (!this.persistEnabled || !this.persistFile) {
+      return;
+    }
+
+    try {
+      mkdirSync(dirname(this.persistFile), { recursive: true });
+      const traces = Array.from(this.cache.values()).sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
+      writeFileSync(this.persistFile, JSON.stringify(traces, null, 2), 'utf-8');
+    } catch {
+      // Keep runtime resilient even if local persistence fails.
+    }
   }
 }
 

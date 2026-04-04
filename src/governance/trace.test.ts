@@ -1,5 +1,15 @@
+import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { describe, expect, it } from 'vitest';
-import { appendTraceReason, createGovernanceTrace, finalizeTrace, governanceTraceStore, recordGovernanceTrace } from './trace';
+import {
+  appendTraceReason,
+  createGovernanceTrace,
+  finalizeTrace,
+  GovernanceTraceStore,
+  governanceTraceStore,
+  recordGovernanceTrace,
+} from './trace';
 
 describe('governance trace', () => {
   it('stores finalized traces in the trace store', () => {
@@ -61,5 +71,38 @@ describe('governance trace', () => {
     expect(finalized.completedAt).toBe(180);
     expect(finalized.latencyMs).toBe(80);
     expect(finalized.routeReason).toEqual(['trigger_rule:image_generation']);
+  });
+
+  it('persists traces to disk and reloads them on restart', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctr-governance-trace-'));
+    const persistFile = join(dir, 'governance-traces.json');
+
+    try {
+      const store = new GovernanceTraceStore({
+        persistFile,
+        persistEnabled: true,
+      });
+
+      store.add(createGovernanceTrace({
+        requestId: 'req-persist',
+        routeReason: ['sticky_routing'],
+        startedAt: 100,
+        latencyMs: 12,
+      }));
+
+      const persisted = JSON.parse(readFileSync(persistFile, 'utf-8'));
+      expect(persisted).toHaveLength(1);
+      expect(persisted[0].requestId).toBe('req-persist');
+
+      const reloadedStore = new GovernanceTraceStore({
+        persistFile,
+        persistEnabled: true,
+      });
+
+      expect(reloadedStore.get('req-persist')?.routeReason).toEqual(['sticky_routing']);
+      expect(reloadedStore.list()).toHaveLength(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -38,6 +38,11 @@ export const HOME_DIR = join(CONFIG_DIR, 'logs');
 export const PID_FILE = join(CONFIG_DIR, 'claude-trigger-router.pid');
 
 /**
+ * Governance trace 持久化文件
+ */
+export const GOVERNANCE_TRACE_FILE = join(CONFIG_DIR, 'governance-traces.json');
+
+/**
  * 默认配置
  */
 export const DEFAULT_CONFIG = {

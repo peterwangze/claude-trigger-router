@@ -133,6 +133,8 @@
 - 已补充时间窗聚合与服务端 API 覆盖测试，当前阶段具备轻量趋势观测能力
 - `/ui` 新增 route reason / final model / semantic intent Top 5 排行
 - `/ui` 新增 bucket 详细趋势表，可直接对比 sticky / cascade / shadow / alignment 命中率
+- governance trace 已支持落盘到本地 `~/.claude-trigger-router/governance-traces.json`
+- 重启服务后会自动加载近期治理 trace，时间窗观测不再只依赖单次进程生命周期
 
 ## 下次更新时应补充的内容
 
