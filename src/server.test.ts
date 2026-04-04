@@ -157,6 +157,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/governance/traces');
     expect(html).toContain('refreshBtn');
     expect(html).toContain('traceDetail');
+    expect(html).toContain('routeReason');
+    expect(html).toContain('cascadeTriggered');
+    expect(html).toContain('shadowChecked');
   });
 
   it('rejects invalid config before writing', async () => {

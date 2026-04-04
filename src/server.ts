@@ -137,7 +137,7 @@ export const createServer = (config: any): Server => {
       `.panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem}` +
       `.muted{color:#6b7280}` +
       `.row{display:flex;gap:1rem;flex-wrap:wrap;align-items:center}` +
-      `input,button{font:inherit;padding:.55rem .75rem;border-radius:8px;border:1px solid #d1d5db}` +
+      `input,select,button{font:inherit;padding:.55rem .75rem;border-radius:8px;border:1px solid #d1d5db}` +
       `button{background:#111827;color:#fff;border-color:#111827;cursor:pointer}` +
       `table{width:100%;border-collapse:collapse;margin-top:1rem}` +
       `th,td{text-align:left;padding:.65rem .5rem;border-bottom:1px solid #e5e7eb;vertical-align:top}` +
@@ -147,11 +147,14 @@ export const createServer = (config: any): Server => {
       `</style></head>` +
       `<body>` +
       `<h2>Claude Trigger Router</h2>` +
-      `<p class="muted">简易 Governance Trace 调试页。可查看最近治理链路、按 requestId / sessionKey 过滤，并查看单条 trace 详情。</p>` +
+      `<p class="muted">简易 Governance Trace 调试页。可查看最近治理链路，按 requestId / sessionKey / routeReason 过滤，并按 cascade / shadow 状态筛选。</p>` +
       `<div class="panel">` +
       `<div class="row">` +
       `<input id="requestId" placeholder="requestId">` +
       `<input id="sessionKey" placeholder="sessionKey">` +
+      `<input id="routeReason" placeholder="routeReason">` +
+      `<select id="cascadeTriggered"><option value="">cascadeTriggered</option><option value="true">cascade=true</option><option value="false">cascade=false</option></select>` +
+      `<select id="shadowChecked"><option value="">shadowChecked</option><option value="true">shadow=true</option><option value="false">shadow=false</option></select>` +
       `<input id="limit" placeholder="limit" value="20">` +
       `<button id="refreshBtn">刷新</button>` +
       `</div>` +
@@ -182,10 +185,16 @@ export const createServer = (config: any): Server => {
       `async function loadTraces(){` +
       `  const requestId=document.getElementById('requestId').value.trim();` +
       `  const sessionKey=document.getElementById('sessionKey').value.trim();` +
+      `  const routeReason=document.getElementById('routeReason').value.trim();` +
+      `  const cascadeTriggered=document.getElementById('cascadeTriggered').value;` +
+      `  const shadowChecked=document.getElementById('shadowChecked').value;` +
       `  const limit=document.getElementById('limit').value.trim();` +
       `  const params=new URLSearchParams();` +
       `  if(requestId) params.set('requestId',requestId);` +
       `  if(sessionKey) params.set('sessionKey',sessionKey);` +
+      `  if(routeReason) params.set('routeReason',routeReason);` +
+      `  if(cascadeTriggered) params.set('cascadeTriggered',cascadeTriggered);` +
+      `  if(shadowChecked) params.set('shadowChecked',shadowChecked);` +
       `  if(limit) params.set('limit',limit);` +
       `  tbody.innerHTML='<tr><td colspan="6" class="muted">加载中...</td></tr>';` +
       `  const res=await fetch('/api/governance/traces'+(params.toString()?('?'+params.toString()):''));` +
