@@ -82,9 +82,9 @@ describe('createServer /api/config', () => {
       routeReason: ['trigger_rule:architecture'],
       stickyHit: false,
       alignmentUsed: false,
-      cascadeTriggered: false,
+      cascadeTriggered: true,
       cascadeEvidence: [],
-      shadowChecked: false,
+      shadowChecked: true,
       startedAt: 1,
       completedAt: 2,
       latencyMs: 1,
@@ -114,6 +114,9 @@ describe('createServer /api/config', () => {
     const filteredBySession = await listHandler({ query: { sessionKey: 'session-a' } }, {});
     const limited = await listHandler({ query: { limit: '1' } }, {});
     const filteredByRequest = await listHandler({ query: { requestId: 'trace-2' } }, {});
+    const filteredByReason = await listHandler({ query: { routeReason: 'trigger_rule:architecture' } }, {});
+    const filteredByCascade = await listHandler({ query: { cascadeTriggered: 'true' } }, {});
+    const filteredByShadow = await listHandler({ query: { shadowChecked: 'true' } }, {});
     const detailResult = await detailHandler({ params: { requestId: 'trace-1' } }, reply);
     const missingResult = await detailHandler({ params: { requestId: 'missing' } }, reply);
 
@@ -125,6 +128,12 @@ describe('createServer /api/config', () => {
     expect(limited.traces[0].requestId).toBe('trace-2');
     expect(filteredByRequest.traces).toHaveLength(1);
     expect(filteredByRequest.traces[0].requestId).toBe('trace-2');
+    expect(filteredByReason.traces).toHaveLength(1);
+    expect(filteredByReason.traces[0].requestId).toBe('trace-1');
+    expect(filteredByCascade.traces).toHaveLength(1);
+    expect(filteredByCascade.traces[0].requestId).toBe('trace-1');
+    expect(filteredByShadow.traces).toHaveLength(1);
+    expect(filteredByShadow.traces[0].requestId).toBe('trace-1');
     expect(detailResult.requestId).toBe('trace-1');
     expect(reply.code).toHaveBeenCalledWith(404);
     expect(missingResult).toEqual({

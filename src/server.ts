@@ -31,10 +31,19 @@ export const createServer = (config: any): Server => {
 
   server.app.get("/api/governance/traces", async (req: any) => {
     const limit = req.query?.limit ? Number(req.query.limit) : undefined;
+    const cascadeTriggered = req.query?.cascadeTriggered === undefined
+      ? undefined
+      : String(req.query.cascadeTriggered).toLowerCase() === 'true';
+    const shadowChecked = req.query?.shadowChecked === undefined
+      ? undefined
+      : String(req.query.shadowChecked).toLowerCase() === 'true';
     return {
       traces: governanceTraceStore.list({
         requestId: req.query?.requestId,
         sessionKey: req.query?.sessionKey,
+        routeReason: req.query?.routeReason,
+        cascadeTriggered,
+        shadowChecked,
         limit: Number.isFinite(limit) ? limit : undefined,
       }),
     };

@@ -29,6 +29,9 @@ class GovernanceTraceStore {
   list(filters?: {
     requestId?: string;
     sessionKey?: string;
+    routeReason?: string;
+    cascadeTriggered?: boolean;
+    shadowChecked?: boolean;
     limit?: number;
   }): IGovernanceTrace[] {
     let traces = Array.from(this.cache.values()).sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
@@ -39,6 +42,18 @@ class GovernanceTraceStore {
 
     if (filters?.sessionKey) {
       traces = traces.filter((trace) => trace.sessionKey === filters.sessionKey);
+    }
+
+    if (filters?.routeReason) {
+      traces = traces.filter((trace) => trace.routeReason.includes(filters.routeReason!));
+    }
+
+    if (filters?.cascadeTriggered !== undefined) {
+      traces = traces.filter((trace) => trace.cascadeTriggered === filters.cascadeTriggered);
+    }
+
+    if (filters?.shadowChecked !== undefined) {
+      traces = traces.filter((trace) => trace.shadowChecked === filters.shadowChecked);
     }
 
     if (filters?.limit !== undefined && Number.isFinite(filters.limit) && filters.limit > 0) {
