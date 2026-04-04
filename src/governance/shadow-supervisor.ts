@@ -5,12 +5,34 @@
  */
 
 import { IShadowSupervisorConfig } from './types';
+import { logError, logWarn } from '../utils/log';
 
 export interface IShadowAuditResult {
   triggered: boolean;
   riskLevel?: 'low' | 'medium' | 'high';
   findings: string[];
 }
+
+const SHADOW_VERIFIER_PROMPT = `You are a response quality auditor.
+Inspect the assistant output and decide whether it is low quality, incomplete, placeholder-heavy, or suspiciously weak.
+
+Response:
+"""
+{response}
+"""
+
+Return JSON only:
+{
+  "triggered": true,
+  "riskLevel": "low|medium|high",
+  "findings": ["short_reason"]
+}
+
+If no issue is found, return:
+{
+  "triggered": false,
+  "findings": []
+}`;
 
 function extractText(payload: any): string {
   if (!payload) return '';
@@ -21,6 +43,10 @@ function extractText(payload: any): string {
 }
 
 export class ShadowSupervisor {
+  private buildVerifierPrompt(text: string): string {
+    return SHADOW_VERIFIER_PROMPT.replace('{response}', text);
+  }
+
   inspect(payload: any, config?: IShadowSupervisorConfig): IShadowAuditResult {
     if (!config?.enabled) {
       return { triggered: false, findings: [] };
@@ -63,6 +89,65 @@ export class ShadowSupervisor {
       riskLevel,
       findings,
     };
+  }
+
+  async inspectWithVerifier(
+    payload: any,
+    config: IShadowSupervisorConfig,
+    port: number = 3456,
+    fetchFn?: typeof fetch,
+    apiKey?: string,
+    timeoutMs?: number
+  ): Promise<IShadowAuditResult> {
+    const text = extractText(payload).trim();
+    if (!config.enabled || !config.verifier_model || !text) {
+      return this.inspect(payload, config);
+    }
+
+    try {
+      const fetchImpl = fetchFn || fetch;
+      const response = await fetchImpl(`http://127.0.0.1:${port}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { 'x-api-key': apiKey } : {}),
+        },
+        body: JSON.stringify({
+          model: config.verifier_model,
+          max_tokens: 128,
+          messages: [
+            {
+              role: 'user',
+              content: this.buildVerifierPrompt(text),
+            },
+          ],
+        }),
+        ...(timeoutMs && timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
+      });
+
+      if (!response.ok) {
+        logWarn('[ShadowSupervisor] Verifier request failed:', response.status);
+        return this.inspect(payload, config);
+      }
+
+      const data = await response.json() as any;
+      const content = data.content?.[0]?.text || '';
+      const match = content.match(/\{[\s\S]*\}/);
+      if (!match) {
+        logWarn('[ShadowSupervisor] No JSON found in verifier response');
+        return this.inspect(payload, config);
+      }
+
+      const parsed = JSON.parse(match[0]) as IShadowAuditResult;
+      return {
+        triggered: Boolean(parsed.triggered),
+        riskLevel: parsed.riskLevel,
+        findings: Array.isArray(parsed.findings) ? parsed.findings : [],
+      };
+    } catch (error) {
+      logError('[ShadowSupervisor] Verifier audit failed:', error);
+      return this.inspect(payload, config);
+    }
   }
 }
 

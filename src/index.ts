@@ -542,7 +542,16 @@ async function run(options: RunOptions = {}) {
       req.governanceTrace &&
       !(payload instanceof ReadableStream)
     ) {
-      const audit = shadowSupervisor.inspect(payload, config.Governance.shadow);
+      const audit = config.Governance.shadow.verifier_model
+        ? await shadowSupervisor.inspectWithVerifier(
+            payload,
+            config.Governance.shadow,
+            servicePort,
+            undefined,
+            config.APIKEY,
+            config.API_TIMEOUT_MS
+          )
+        : shadowSupervisor.inspect(payload, config.Governance.shadow);
       if (audit.triggered) {
         req.governanceTrace.shadowChecked = true;
         req.governanceTrace.verificationResult = `${audit.riskLevel}:${audit.findings.join(',')}`;
