@@ -130,5 +130,61 @@ describe('summarizeGovernanceMetrics', () => {
     expect(report.buckets[2].metrics.totalTraces).toBe(1);
     expect(report.buckets[2].metrics.cascadeTriggeredRate).toBe(1);
     expect(report.buckets[3].metrics.totalTraces).toBe(1);
+    expect(report.topRouteReasons).toEqual([
+      { key: 'smart_router', count: 2, rate: 0.6667 },
+      { key: 'sticky', count: 1, rate: 0.3333 },
+    ]);
+  });
+
+  it('builds ranked distributions for models and intents', () => {
+    governanceTraceStore.clear();
+
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      finalModel: 'model-z',
+      routeReason: ['semantic:intent:ops'],
+      stickyHit: false,
+      alignmentUsed: false,
+      semanticIntent: 'ops',
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 10,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      finalModel: 'model-a',
+      routeReason: ['semantic:intent:ops'],
+      stickyHit: false,
+      alignmentUsed: false,
+      semanticIntent: 'ops',
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 11,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-3',
+      finalModel: 'model-a',
+      routeReason: ['semantic:intent:delivery'],
+      stickyHit: false,
+      alignmentUsed: false,
+      semanticIntent: 'delivery',
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 12,
+    });
+
+    const report = getGovernanceMetricsReport();
+
+    expect(report.topFinalModels).toEqual([
+      { key: 'model-a', count: 2, rate: 0.6667 },
+      { key: 'model-z', count: 1, rate: 0.3333 },
+    ]);
+    expect(report.topSemanticIntents).toEqual([
+      { key: 'ops', count: 2, rate: 0.6667 },
+      { key: 'delivery', count: 1, rate: 0.3333 },
+    ]);
   });
 });

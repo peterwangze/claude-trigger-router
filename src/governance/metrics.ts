@@ -23,6 +23,12 @@ export interface IGovernanceMetricsBucket {
   metrics: IGovernanceMetrics;
 }
 
+export interface IGovernanceDistributionEntry {
+  key: string;
+  count: number;
+  rate: number;
+}
+
 export interface IGovernanceMetrics {
   totalTraces: number;
   stickyHitCount: number;
@@ -47,6 +53,9 @@ export interface IGovernanceMetricsReport {
   windowEnd?: number;
   metrics: IGovernanceMetrics;
   buckets: IGovernanceMetricsBucket[];
+  topRouteReasons: IGovernanceDistributionEntry[];
+  topFinalModels: IGovernanceDistributionEntry[];
+  topSemanticIntents: IGovernanceDistributionEntry[];
 }
 
 function rate(count: number, total: number): number {
@@ -72,6 +81,26 @@ function increment(distribution: Record<string, number>, key?: string): void {
   }
 
   distribution[key] = (distribution[key] ?? 0) + 1;
+}
+
+function buildTopEntries(
+  distribution: Record<string, number>,
+  total: number,
+  limit = 5
+): IGovernanceDistributionEntry[] {
+  return Object.entries(distribution)
+    .sort((left, right) => {
+      if (right[1] !== left[1]) {
+        return right[1] - left[1];
+      }
+      return left[0].localeCompare(right[0]);
+    })
+    .slice(0, limit)
+    .map(([key, count]) => ({
+      key,
+      count,
+      rate: rate(count, total),
+    }));
 }
 
 export function summarizeGovernanceMetrics(traces: IGovernanceTrace[]): IGovernanceMetrics {
@@ -197,14 +226,18 @@ export function getGovernanceMetricsReport(
     ? windowed.traces.slice(0, options.limit)
     : windowed.traces;
   const bucketCount = options.bucketCount && options.bucketCount > 0 ? options.bucketCount : 6;
+  const metrics = summarizeGovernanceMetrics(limitedTraces);
 
   return {
     windowMs: options.windowMs,
     bucketCount,
     windowStart: windowed.windowStart,
     windowEnd: windowed.windowEnd,
-    metrics: summarizeGovernanceMetrics(limitedTraces),
+    metrics,
     buckets: buildBuckets(limitedTraces, windowed.windowStart, windowed.windowEnd, bucketCount),
+    topRouteReasons: buildTopEntries(metrics.routeReasonDistribution, limitedTraces.length),
+    topFinalModels: buildTopEntries(metrics.finalModelDistribution, limitedTraces.length),
+    topSemanticIntents: buildTopEntries(metrics.semanticIntentDistribution, limitedTraces.length),
   };
 }
 

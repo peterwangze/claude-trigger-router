@@ -131,6 +131,8 @@
 - 指标接口已支持按最近时间窗输出 buckets，用于观察 sticky / cascade 趋势变化
 - `/ui` 新增时间窗选择器与 bucket 卡片摘要，支持快速查看最近 15m / 1h / 6h / 24h
 - 已补充时间窗聚合与服务端 API 覆盖测试，当前阶段具备轻量趋势观测能力
+- `/ui` 新增 route reason / final model / semantic intent Top 5 排行
+- `/ui` 新增 bucket 详细趋势表，可直接对比 sticky / cascade / shadow / alignment 命中率
 
 ## 下次更新时应补充的内容
 

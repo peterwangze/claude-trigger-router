@@ -168,6 +168,12 @@ export const createServer = (config: any): Server => {
       `.stat strong{display:block;font-size:1.1rem;margin-top:.25rem}` +
       `.subpanel{margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb}` +
       `.bucket-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-top:.75rem}` +
+      `.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:1rem}` +
+      `.mini-list{list-style:none;padding:0;margin:.75rem 0 0}` +
+      `.mini-list li{display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px dashed #e5e7eb}` +
+      `.mini-list li:last-child{border-bottom:none}` +
+      `.trend-table{width:100%;margin-top:.75rem}` +
+      `.trend-table th,.trend-table td{padding:.45rem;border-bottom:1px solid #e5e7eb;font-size:.92rem}` +
       `.row{display:flex;gap:1rem;flex-wrap:wrap;align-items:center}` +
       `input,select,button{font:inherit;padding:.55rem .75rem;border-radius:8px;border:1px solid #d1d5db}` +
       `button{background:#111827;color:#fff;border-color:#111827;cursor:pointer}` +
@@ -211,6 +217,27 @@ export const createServer = (config: any): Server => {
       `<div class="stat"><span class="muted">Loading buckets</span><strong>-</strong></div>` +
       `</div>` +
       `</div>` +
+      `<div class="detail-grid">` +
+      `<div class="panel" style="margin-bottom:0">` +
+      `<div class="row"><strong>Route ranking</strong><span class="muted">近期命中原因 Top 5</span></div>` +
+      `<ul id="routeRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+      `</div>` +
+      `<div class="panel" style="margin-bottom:0">` +
+      `<div class="row"><strong>Model ranking</strong><span class="muted">近期最终模型 Top 5</span></div>` +
+      `<ul id="modelRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+      `</div>` +
+      `<div class="panel" style="margin-bottom:0">` +
+      `<div class="row"><strong>Intent ranking</strong><span class="muted">近期语义意图 Top 5</span></div>` +
+      `<ul id="intentRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+      `</div>` +
+      `<div class="panel" style="margin-bottom:0">` +
+      `<div class="row"><strong>Trend detail</strong><span class="muted">每个 bucket 的详细命中率</span></div>` +
+      `<table id="trendTable" class="trend-table">` +
+      `<thead><tr><th>Bucket</th><th>Traces</th><th>Sticky</th><th>Cascade</th><th>Shadow</th><th>Alignment</th></tr></thead>` +
+      `<tbody><tr><td colspan="6" class="muted">Loading...</td></tr></tbody>` +
+      `</table>` +
+      `</div>` +
+      `</div>` +
       `<table id="traceTable">` +
       `<thead><tr><th>Request</th><th>Session</th><th>Final Model</th><th>Reasons</th><th>Latency</th><th>Inspect</th></tr></thead>` +
       `<tbody><tr><td colspan="6" class="muted">加载中...</td></tr></tbody>` +
@@ -236,6 +263,10 @@ export const createServer = (config: any): Server => {
       `const metricsGrid=document.getElementById('metricsGrid');` +
       `const bucketGrid=document.getElementById('bucketGrid');` +
       `const bucketHint=document.getElementById('bucketHint');` +
+      `const routeRanking=document.getElementById('routeRanking');` +
+      `const modelRanking=document.getElementById('modelRanking');` +
+      `const intentRanking=document.getElementById('intentRanking');` +
+      `const trendTableBody=document.querySelector('#trendTable tbody');` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
       `function fmt(v){return Number(v || 0).toFixed(2);}` +
@@ -250,6 +281,10 @@ export const createServer = (config: any): Server => {
       "    ['Avg latency', fmt(metrics.averageLatencyMs)+' ms']" +
       `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
       `}` +
+      `function renderRanking(target,entries,emptyLabel){` +
+      `  if(!entries || !entries.length){ target.innerHTML='<li><span class="muted">'+esc(emptyLabel)+'</span><strong>0</strong></li>'; return; }` +
+      `  target.innerHTML=entries.map(item=>'<li><span><code>'+esc(item.key)+'</code></span><strong>'+esc(item.count)+' · '+esc(pct(item.rate))+'</strong></li>').join('');` +
+      `}` +
       `function renderBuckets(report){` +
       `  const buckets=report.buckets || [];` +
       `  const windowMs=Number(report.windowMs || 0);` +
@@ -262,6 +297,18 @@ export const createServer = (config: any): Server => {
       + "'<div class=\"muted\">sticky '+esc(pct(bucket.metrics.stickyHitRate))+' / cascade '+esc(pct(bucket.metrics.cascadeTriggeredRate))+'</div>'+"
       + "'</div>'"
       + `).join('');` +
+      `}` +
+      `function renderTrendTable(report){` +
+      `  const buckets=report.buckets || [];` +
+      `  if(!buckets.length){ trendTableBody.innerHTML='<tr><td colspan="6" class="muted">No trend data</td></tr>'; return; }` +
+      `  trendTableBody.innerHTML=buckets.map(bucket=>'<tr>' +` +
+      `    '<td>'+esc(shortTime(bucket.bucketStart))+' - '+esc(shortTime(bucket.bucketEnd))+'</td>' +` +
+      `    '<td>'+esc(bucket.metrics.totalTraces)+'</td>' +` +
+      `    '<td>'+esc(pct(bucket.metrics.stickyHitRate))+'</td>' +` +
+      `    '<td>'+esc(pct(bucket.metrics.cascadeTriggeredRate))+'</td>' +` +
+      `    '<td>'+esc(pct(bucket.metrics.shadowCheckedRate))+'</td>' +` +
+      `    '<td>'+esc(pct(bucket.metrics.alignmentUsedRate))+'</td>' +` +
+      `  '</tr>').join('');` +
       `}` +
       `async function loadTraces(){` +
       `  const requestId=document.getElementById('requestId').value.trim();` +
@@ -290,6 +337,10 @@ export const createServer = (config: any): Server => {
       `  const metricsData=await metricsRes.json();` +
       `  renderMetrics(metricsData.metrics || {});` +
       `  renderBuckets(metricsData || {});` +
+      `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +
+      `  renderRanking(modelRanking,metricsData.topFinalModels || [],'No models');` +
+      `  renderRanking(intentRanking,metricsData.topSemanticIntents || [],'No intents');` +
+      `  renderTrendTable(metricsData || {});` +
       `  const traces=data.traces || [];` +
       `  if(!traces.length){ tbody.innerHTML='<tr><td colspan="6" class="muted">暂无 trace</td></tr>'; return; }` +
       `  tbody.innerHTML=traces.map(t=>` +

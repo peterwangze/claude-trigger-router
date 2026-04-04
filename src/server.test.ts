@@ -197,6 +197,11 @@ describe('createServer /api/config', () => {
       'model-b': 1,
     });
     expect(allMetrics.bucketCount).toBe(6);
+    expect(allMetrics.topRouteReasons).toEqual([
+      { key: 'semantic:intent:code_review', count: 1, rate: 0.5 },
+      { key: 'smart_router', count: 1, rate: 0.5 },
+      { key: 'sticky', count: 1, rate: 0.5 },
+    ]);
     expect(sessionMetrics.metrics.totalTraces).toBe(1);
     expect(sessionMetrics.metrics.alignmentUsedRate).toBe(1);
     expect(sessionMetrics.metrics.semanticIntentDistribution).toEqual({
@@ -260,6 +265,11 @@ describe('createServer /api/config', () => {
     expect(result.buckets[0].metrics.totalTraces).toBe(1);
     expect(result.buckets[2].metrics.cascadeTriggeredRate).toBe(1);
     expect(result.buckets[3].metrics.alignmentUsedRate).toBe(1);
+    expect(result.topRouteReasons[0]).toEqual({
+      key: 'semantic:intent:delivery',
+      count: 1,
+      rate: 0.3333,
+    });
   });
 
   it('renders a governance trace debug page at /ui', async () => {
@@ -278,6 +288,10 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/governance/metrics');
     expect(html).toContain('metricsGrid');
     expect(html).toContain('bucketGrid');
+    expect(html).toContain('routeRanking');
+    expect(html).toContain('modelRanking');
+    expect(html).toContain('intentRanking');
+    expect(html).toContain('trendTable');
     expect(html).toContain('windowMs');
     expect(html).toContain('refreshBtn');
     expect(html).toContain('traceDetail');

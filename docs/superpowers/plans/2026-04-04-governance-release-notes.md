@@ -70,6 +70,7 @@
 - 支持简易 `/ui` governance trace 调试页
 - `/ui` 新增近期 sticky / cascade / shadow / alignment 指标摘要卡片
 - metrics 支持时间窗聚合与 bucket 趋势摘要
+- `/ui` 新增 route / model / intent 排行与 bucket 详细趋势表
 
 ## 关键实现文件
 
@@ -118,6 +119,7 @@ npm run build
 - Governance metrics 当前基于内存 trace 聚合，重启后不会保留历史窗口
 - `/ui` 已具备轻量指标面板，但仍未形成正式持久化观测系统
 - 当前趋势观测为轻量 bucket 聚合，尚未支持同比、环比和异常告警
+- 当前排行与趋势仍基于内存 trace 计算，适合调试和轻量观测，不适合作为长期 BI 数据源
 
 ## 升级建议
 
