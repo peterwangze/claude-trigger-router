@@ -33,7 +33,7 @@ Claude Code 本身不需要改造，仍然像平常一样工作。
 - `TriggerRouter`：按关键词 / 正则 / 优先级把请求路由到指定模型
 - `SmartRouter`：当规则没命中时，用一个路由模型从候选模型中做智能选择
 - `Router`：提供 `default`、`think`、`longContext`、`webSearch`、`background` 等基础分流能力
-- CLI：提供 `ctr init/start/stop/restart/status/code`，方便初始化、启动和接入 Claude Code
+- CLI：提供 `ctr setup/init/start/stop/restart/status/code`，方便初始化、启动和接入 Claude Code
 - 管理 API：支持读取配置、保存配置、查看 transformer、重启服务
 
 ## 环境要求
@@ -57,17 +57,25 @@ npm install -g @anthropic-ai/claude-code
 npm install -g @peterwangze/claude-trigger-router
 ```
 
-### 2. 初始化配置
+### 2. 运行首次使用向导
+
+```bash
+ctr setup
+```
+
+`ctr setup` 会检查当前配置、识别可迁移的旧 `ccr` 配置，在需要时询问 provider / API Key / 默认模型，并在配置可用后自动拉起服务再进入 Claude Code。
+
+如果你更喜欢先复制模板再手动编辑，也可以改用：
 
 ```bash
 ctr init
 ```
 
-这会把示例配置复制到 `~/.claude-trigger-router/config.yaml`。
+它会把示例配置复制到 `~/.claude-trigger-router/config.yaml`。
 
 ### 3. 先跑最小可用配置
 
-把 `~/.claude-trigger-router/config.yaml` 改成这样：
+如果你选择的是 `ctr init` 手动路径，可以把 `~/.claude-trigger-router/config.yaml` 改成这样：
 
 ```yaml
 Providers:
@@ -261,6 +269,7 @@ SmartRouter:
 ### CLI
 
 ```bash
+ctr setup
 ctr init
 ctr start
 ctr start --daemon

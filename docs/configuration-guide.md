@@ -6,7 +6,15 @@
 
 ## 5 分钟上手
 
-### 第一步：初始化配置
+### 第一步：运行首次使用向导
+
+```bash
+ctr setup
+```
+
+`ctr setup` 会检查当前配置、识别可迁移的旧 `ccr` 配置，并在需要时询问 provider、API Key 和默认模型。配置可用后，它会自动准备服务并进入 Claude Code。
+
+如果你更想先复制模板再手动编辑，也可以改用：
 
 ```bash
 ctr init
@@ -18,7 +26,7 @@ ctr init
 
 ### 第二步：填一个可用 provider
 
-下面是最小可用示例：
+如果你走的是 `ctr init` 手动路径，下面是最小可用示例：
 
 ```yaml
 Providers:

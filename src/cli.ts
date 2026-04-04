@@ -14,18 +14,35 @@ import { run, initializeClaudeConfig } from "./index";
 import { isServiceRunning, killProcess, readServiceInfo } from "./utils/processCheck";
 import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from "./constants";
 import { waitForService } from "./service-health";
+import { runSetupCli } from "./setup";
 
-const args = process.argv.slice(2);
-const command = args[0];
+function getArgs(): string[] {
+  return process.argv.slice(2);
+}
+
+function getCommand(): string | undefined {
+  return getArgs()[0];
+}
+
+function hasArg(flag: string, shortFlag?: string): boolean {
+  const args = getArgs();
+  return args.includes(flag) || (shortFlag ? args.includes(shortFlag) : false);
+}
+
+function getArgValue(flag: string, shortFlag?: string): string | undefined {
+  const args = getArgs();
+  const index = args.indexOf(flag) !== -1 ? args.indexOf(flag) : shortFlag ? args.indexOf(shortFlag) : -1;
+  return index !== -1 ? args[index + 1] : undefined;
+}
 
 /**
  * 从命令行参数或配置文件中获取端口号
  */
 function getPort(): number {
   // 优先使用命令行参数
-  const portIndex = args.indexOf("--port") !== -1 ? args.indexOf("--port") : args.indexOf("-p");
-  if (portIndex !== -1 && args[portIndex + 1]) {
-    return parseInt(args[portIndex + 1], 10);
+  const portValue = getArgValue("--port", "-p");
+  if (portValue) {
+    return parseInt(portValue, 10);
   }
 
   // 尝试从配置文件读取（顺序：config.yaml → config.yml → config.json）
@@ -55,19 +72,20 @@ function getPort(): number {
  * 检查命令行参数中是否包含 daemon 标志
  */
 function isDaemonMode(): boolean {
-  return args.includes("--daemon") || args.includes("-d");
+  return hasArg("--daemon", "-d");
 }
 
 /**
  * 打印帮助信息
  */
-function printHelp() {
+export function printHelp() {
   console.log(`
 Claude Trigger Router - 智能触发路由器
 
 用法：ctr <命令> [选项]
 
 命令：
+  setup       首次使用向导（推荐新手）
   init        初始化配置文件（从示例模板复制）
   start       启动路由服务（默认前台运行）
   stop        停止后台服务
@@ -83,6 +101,7 @@ Claude Trigger Router - 智能触发路由器
   --force       强制覆盖已有配置（配合 init 使用）
 
 使用示例：
+  ctr setup                # 首次使用向导（推荐）
   ctr init                 # 初始化配置文件
   ctr start                # 前台启动（推荐首次使用，便于查看日志）
   ctr start --daemon       # 后台启动
@@ -105,7 +124,7 @@ Claude Trigger Router - 智能触发路由器
  * 初始化配置文件
  */
 function initConfig() {
-  const force = args.includes("--force");
+  const force = hasArg("--force");
 
   const existingConfig = [CONFIG_FILE, CONFIG_FILE_YML, CONFIG_FILE_JSON].find(existsSync);
   if (existingConfig && !force) {
@@ -330,8 +349,14 @@ function openUI() {
 /**
  * 主函数
  */
-async function main() {
+export async function main() {
+  const command = getCommand();
+
   switch (command) {
+    case "setup":
+      await runSetupCli();
+      break;
+
     case "init":
       initConfig();
       break;

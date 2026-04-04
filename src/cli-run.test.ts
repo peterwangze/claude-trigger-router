@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockSpawn = vi.fn(() => ({
   on: vi.fn(),
@@ -6,9 +6,11 @@ const mockSpawn = vi.fn(() => ({
 const mockInitializeClaudeConfig = vi.fn();
 const mockIsServiceRunning = vi.fn();
 const mockWaitForService = vi.fn();
+const mockRunSetupCli = vi.fn();
 const mockProcessExit = vi.fn(() => {
   throw new Error('process.exit called');
 });
+const originalArgv = process.argv.slice();
 
 vi.mock('child_process', () => ({
   spawn: mockSpawn,
@@ -34,14 +36,50 @@ vi.mock('./service-health', async (importOriginal) => {
   };
 });
 
+vi.mock('./setup', () => ({
+  runSetupCli: mockRunSetupCli,
+}));
+
 describe('runClaudeCode', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
     process.env.CTR_SKIP_MAIN = '1';
+    process.argv = [...originalArgv];
     mockInitializeClaudeConfig.mockResolvedValue(undefined);
     mockSpawn.mockReturnValue({ on: vi.fn() });
     mockIsServiceRunning.mockReturnValue(true);
+    mockRunSetupCli.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    process.argv = [...originalArgv];
+  });
+
+  it('prints setup in help and lists ctr setup first in examples', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const { printHelp } = await import('./cli');
+
+    printHelp();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('setup       首次使用向导（推荐新手）');
+    expect(output).toContain('  ctr setup                # 首次使用向导（推荐）');
+    expect(output.indexOf('  ctr setup                # 首次使用向导（推荐）')).toBeLessThan(
+      output.indexOf('  ctr init                 # 初始化配置文件')
+    );
+
+    logSpy.mockRestore();
+  });
+
+  it('dispatches setup command to setup module entry', async () => {
+    process.argv = ['node', 'cli.ts', 'setup'];
+
+    const { main } = await import('./cli');
+    await main();
+
+    expect(mockRunSetupCli).toHaveBeenCalledTimes(1);
+    expect(mockRunSetupCli).toHaveBeenCalledWith();
   });
 
   it('still requires health check even when PID metadata says running', async () => {
