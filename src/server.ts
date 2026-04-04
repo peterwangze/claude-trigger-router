@@ -8,7 +8,7 @@ import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig } from "./utils";
 import { log } from "./utils/log";
 import { SERVICE_NAME } from "./service-health";
-import { governanceTraceStore, getGovernanceMetrics } from "./governance";
+import { governanceTraceStore, getGovernanceMetricsReport } from "./governance";
 
 /**
  * 创建服务器
@@ -51,6 +51,9 @@ export const createServer = (config: any): Server => {
 
   server.app.get("/api/governance/metrics", async (req: any) => {
     const limit = req.query?.limit ? Number(req.query.limit) : undefined;
+    const windowMs = req.query?.windowMs ? Number(req.query.windowMs) : undefined;
+    const bucketCount = req.query?.bucketCount ? Number(req.query.bucketCount) : undefined;
+    const now = req.query?.now ? Number(req.query.now) : undefined;
     const cascadeTriggered = req.query?.cascadeTriggered === undefined
       ? undefined
       : String(req.query.cascadeTriggered).toLowerCase() === 'true';
@@ -59,13 +62,16 @@ export const createServer = (config: any): Server => {
       : String(req.query.shadowChecked).toLowerCase() === 'true';
 
     return {
-      metrics: getGovernanceMetrics({
+      ...getGovernanceMetricsReport({
         requestId: req.query?.requestId,
         sessionKey: req.query?.sessionKey,
         routeReason: req.query?.routeReason,
         cascadeTriggered,
         shadowChecked,
         limit: Number.isFinite(limit) ? limit : undefined,
+        windowMs: Number.isFinite(windowMs) ? windowMs : undefined,
+        bucketCount: Number.isFinite(bucketCount) ? bucketCount : undefined,
+        now: Number.isFinite(now) ? now : undefined,
       }),
     };
   });
@@ -160,6 +166,8 @@ export const createServer = (config: any): Server => {
       `.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
       `.stat{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:.85rem}` +
       `.stat strong{display:block;font-size:1.1rem;margin-top:.25rem}` +
+      `.subpanel{margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb}` +
+      `.bucket-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-top:.75rem}` +
       `.row{display:flex;gap:1rem;flex-wrap:wrap;align-items:center}` +
       `input,select,button{font:inherit;padding:.55rem .75rem;border-radius:8px;border:1px solid #d1d5db}` +
       `button{background:#111827;color:#fff;border-color:#111827;cursor:pointer}` +
@@ -179,10 +187,16 @@ export const createServer = (config: any): Server => {
       `<input id="routeReason" placeholder="routeReason">` +
       `<select id="cascadeTriggered"><option value="">cascadeTriggered</option><option value="true">cascade=true</option><option value="false">cascade=false</option></select>` +
       `<select id="shadowChecked"><option value="">shadowChecked</option><option value="true">shadow=true</option><option value="false">shadow=false</option></select>` +
+      `<select id="windowMs">` +
+      `<option value="900000">15m window</option>` +
+      `<option value="3600000" selected>1h window</option>` +
+      `<option value="21600000">6h window</option>` +
+      `<option value="86400000">24h window</option>` +
+      `</select>` +
       `<input id="limit" placeholder="limit" value="20">` +
       `<button id="refreshBtn">刷新</button>` +
       `</div>` +
-      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/governance/traces</code> 与 <code>/api/governance/traces/:requestId</code></div>` +
+      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code> 与 <code>/api/governance/metrics</code></div>` +
       `<div id="metricsGrid" class="stats">` +
       `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
       `<div class="stat"><span class="muted">Sticky hit rate</span><strong>-</strong></div>` +
@@ -190,6 +204,12 @@ export const createServer = (config: any): Server => {
       `<div class="stat"><span class="muted">Shadow rate</span><strong>-</strong></div>` +
       `<div class="stat"><span class="muted">Alignment rate</span><strong>-</strong></div>` +
       `<div class="stat"><span class="muted">Avg latency</span><strong>-</strong></div>` +
+      `</div>` +
+      `<div class="subpanel">` +
+      `<div class="row"><strong>Window buckets</strong><span id="bucketHint" class="muted">按时间窗查看近期治理趋势</span></div>` +
+      `<div id="bucketGrid" class="bucket-grid">` +
+      `<div class="stat"><span class="muted">Loading buckets</span><strong>-</strong></div>` +
+      `</div>` +
       `</div>` +
       `<table id="traceTable">` +
       `<thead><tr><th>Request</th><th>Session</th><th>Final Model</th><th>Reasons</th><th>Latency</th><th>Inspect</th></tr></thead>` +
@@ -214,9 +234,12 @@ export const createServer = (config: any): Server => {
       `const detail=document.getElementById('traceDetail');` +
       `const detailHint=document.getElementById('detailHint');` +
       `const metricsGrid=document.getElementById('metricsGrid');` +
+      `const bucketGrid=document.getElementById('bucketGrid');` +
+      `const bucketHint=document.getElementById('bucketHint');` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
       `function fmt(v){return Number(v || 0).toFixed(2);}` +
+      `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
       `function renderMetrics(metrics){` +
       `  metricsGrid.innerHTML=[` +
       "    ['Recent traces', metrics.totalTraces ?? 0]," +
@@ -227,12 +250,26 @@ export const createServer = (config: any): Server => {
       "    ['Avg latency', fmt(metrics.averageLatencyMs)+' ms']" +
       `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
       `}` +
+      `function renderBuckets(report){` +
+      `  const buckets=report.buckets || [];` +
+      `  const windowMs=Number(report.windowMs || 0);` +
+      `  bucketHint.textContent=windowMs ? ('最近 '+Math.round(windowMs / 60000)+' 分钟，共 '+(report.bucketCount || buckets.length || 0)+' 桶') : '当前未启用时间窗';` +
+      `  if(!buckets.length){ bucketGrid.innerHTML='<div class="stat"><span class="muted">No bucket data</span><strong>0</strong></div>'; return; }` +
+      `  bucketGrid.innerHTML=buckets.map(bucket=>` +
+      "    '<div class=\"stat\">'+"
+      + "'<span class=\"muted\">'+esc(shortTime(bucket.bucketStart))+' - '+esc(shortTime(bucket.bucketEnd))+'</span>'+"
+      + "'<strong>'+esc(bucket.metrics.totalTraces)+'</strong>'+"
+      + "'<div class=\"muted\">sticky '+esc(pct(bucket.metrics.stickyHitRate))+' / cascade '+esc(pct(bucket.metrics.cascadeTriggeredRate))+'</div>'+"
+      + "'</div>'"
+      + `).join('');` +
+      `}` +
       `async function loadTraces(){` +
       `  const requestId=document.getElementById('requestId').value.trim();` +
       `  const sessionKey=document.getElementById('sessionKey').value.trim();` +
       `  const routeReason=document.getElementById('routeReason').value.trim();` +
       `  const cascadeTriggered=document.getElementById('cascadeTriggered').value;` +
       `  const shadowChecked=document.getElementById('shadowChecked').value;` +
+      `  const windowMs=document.getElementById('windowMs').value;` +
       `  const limit=document.getElementById('limit').value.trim();` +
       `  const params=new URLSearchParams();` +
       `  if(requestId) params.set('requestId',requestId);` +
@@ -240,6 +277,8 @@ export const createServer = (config: any): Server => {
       `  if(routeReason) params.set('routeReason',routeReason);` +
       `  if(cascadeTriggered) params.set('cascadeTriggered',cascadeTriggered);` +
       `  if(shadowChecked) params.set('shadowChecked',shadowChecked);` +
+      `  if(windowMs) params.set('windowMs',windowMs);` +
+      `  params.set('bucketCount','6');` +
       `  if(limit) params.set('limit',limit);` +
       `  tbody.innerHTML='<tr><td colspan="6" class="muted">加载中...</td></tr>';` +
       `  const query=params.toString()?('?'+params.toString()):'';` +
@@ -250,6 +289,7 @@ export const createServer = (config: any): Server => {
       `  const data=await traceRes.json();` +
       `  const metricsData=await metricsRes.json();` +
       `  renderMetrics(metricsData.metrics || {});` +
+      `  renderBuckets(metricsData || {});` +
       `  const traces=data.traces || [];` +
       `  if(!traces.length){ tbody.innerHTML='<tr><td colspan="6" class="muted">暂无 trace</td></tr>'; return; }` +
       `  tbody.innerHTML=traces.map(t=>` +

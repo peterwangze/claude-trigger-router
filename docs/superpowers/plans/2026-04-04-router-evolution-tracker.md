@@ -47,7 +47,7 @@
 | Semantic Router | 用语义补齐关键词规则 | not_started | 定义核心意图与阈值 | 非关键词表达也能稳定命中 |
 | Shadow Supervisor | 对低质量输出进行监督 | not_started | 先落地异步审计模式 | 可记录并识别偷懒/占位符输出 |
 | 文档与配置模板 | 给出可复制启用方案 | done | 转入 release notes 与阶段总结维护 | README/配置指南/示例配置一致 |
-| 指标观测 | 将 trace 升级为可聚合观测面板 | in_progress | 增加更长时间窗和导出能力 | 可查看近期 sticky / cascade / shadow / alignment 指标 |
+| 指标观测 | 将 trace 升级为可聚合观测面板 | in_progress | 增加持久化与导出能力 | 可查看近期 sticky / cascade / shadow / alignment 指标及时间窗分桶趋势 |
 
 ## 里程碑跟踪
 
@@ -62,6 +62,7 @@
 | M6: Shadow Supervisor 完成 | done | 2026-04-04 | 已支持 verifier 与 sync_guard |
 | M7: 全链路验证与文档收口 | done | 2026-04-04 | 已补齐文档、测试、配置模板 |
 | M8: 治理指标观测增强 | in_progress | 2026-04-04 | 已新增 metrics API 与 UI 摘要卡片 |
+| M9: 时间窗趋势观测 | in_progress | 2026-04-05 | 已支持按时间窗聚合与 bucket 趋势查看 |
 
 ## 当前决策记录
 
@@ -123,6 +124,13 @@
 - 新增 `GET /api/governance/metrics`，支持聚合近期 sticky / cascade / shadow / alignment 指标
 - `/ui` 新增治理指标摘要卡片，用于快速观察近期治理命中情况
 - 已补充聚合指标与调试页相关测试，当前阶段可作为轻量观测面板使用
+
+### 2026-04-05
+
+- `GET /api/governance/metrics` 新增 `windowMs` 与 `bucketCount` 参数
+- 指标接口已支持按最近时间窗输出 buckets，用于观察 sticky / cascade 趋势变化
+- `/ui` 新增时间窗选择器与 bucket 卡片摘要，支持快速查看最近 15m / 1h / 6h / 24h
+- 已补充时间窗聚合与服务端 API 覆盖测试，当前阶段具备轻量趋势观测能力
 
 ## 下次更新时应补充的内容
 

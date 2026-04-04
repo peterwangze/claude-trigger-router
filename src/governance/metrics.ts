@@ -10,6 +10,19 @@ export interface IGovernanceMetricsFilters {
   limit?: number;
 }
 
+export interface IGovernanceMetricsWindowOptions extends IGovernanceMetricsFilters {
+  windowMs?: number;
+  bucketCount?: number;
+  now?: number;
+}
+
+export interface IGovernanceMetricsBucket {
+  bucketStart: number;
+  bucketEnd: number;
+  label: string;
+  metrics: IGovernanceMetrics;
+}
+
 export interface IGovernanceMetrics {
   totalTraces: number;
   stickyHitCount: number;
@@ -25,6 +38,15 @@ export interface IGovernanceMetrics {
   routeReasonDistribution: Record<string, number>;
   finalModelDistribution: Record<string, number>;
   semanticIntentDistribution: Record<string, number>;
+}
+
+export interface IGovernanceMetricsReport {
+  windowMs?: number;
+  bucketCount: number;
+  windowStart?: number;
+  windowEnd?: number;
+  metrics: IGovernanceMetrics;
+  buckets: IGovernanceMetricsBucket[];
 }
 
 function rate(count: number, total: number): number {
@@ -94,8 +116,100 @@ export function summarizeGovernanceMetrics(traces: IGovernanceTrace[]): IGoverna
   };
 }
 
+function buildBucketLabel(bucketStart: number, bucketEnd: number): string {
+  return `${new Date(bucketStart).toISOString()}~${new Date(bucketEnd).toISOString()}`;
+}
+
+function filterTracesByWindow(
+  traces: IGovernanceTrace[],
+  options: IGovernanceMetricsWindowOptions
+): { traces: IGovernanceTrace[]; windowStart?: number; windowEnd?: number } {
+  if (!options.windowMs || options.windowMs <= 0) {
+    return {
+      traces,
+      windowStart: traces.length ? Math.min(...traces.map((trace) => trace.startedAt)) : undefined,
+      windowEnd: traces.length ? Math.max(...traces.map((trace) => trace.startedAt)) : undefined,
+    };
+  }
+
+  const now = options.now ?? Date.now();
+  const windowStart = now - options.windowMs;
+  return {
+    traces: traces.filter((trace) => trace.startedAt >= windowStart && trace.startedAt <= now),
+    windowStart,
+    windowEnd: now,
+  };
+}
+
+function buildBuckets(
+  traces: IGovernanceTrace[],
+  windowStart: number | undefined,
+  windowEnd: number | undefined,
+  bucketCount: number
+): IGovernanceMetricsBucket[] {
+  if (
+    windowStart === undefined ||
+    windowEnd === undefined ||
+    bucketCount <= 0 ||
+    windowEnd <= windowStart
+  ) {
+    return [];
+  }
+
+  const bucketSize = Math.max(1, Math.ceil((windowEnd - windowStart) / bucketCount));
+  const buckets: IGovernanceMetricsBucket[] = [];
+
+  for (let index = 0; index < bucketCount; index += 1) {
+    const bucketStart = windowStart + (index * bucketSize);
+    const bucketEnd = index === bucketCount - 1
+      ? windowEnd
+      : Math.min(windowEnd, bucketStart + bucketSize);
+    const bucketTraces = traces.filter((trace) => {
+      if (index === bucketCount - 1) {
+        return trace.startedAt >= bucketStart && trace.startedAt <= bucketEnd;
+      }
+      return trace.startedAt >= bucketStart && trace.startedAt < bucketEnd;
+    });
+
+    buckets.push({
+      bucketStart,
+      bucketEnd,
+      label: buildBucketLabel(bucketStart, bucketEnd),
+      metrics: summarizeGovernanceMetrics(bucketTraces),
+    });
+  }
+
+  return buckets;
+}
+
+export function getGovernanceMetricsReport(
+  options: IGovernanceMetricsWindowOptions = {}
+): IGovernanceMetricsReport {
+  const baseTraces = governanceTraceStore.list({
+    requestId: options.requestId,
+    sessionKey: options.sessionKey,
+    routeReason: options.routeReason,
+    cascadeTriggered: options.cascadeTriggered,
+    shadowChecked: options.shadowChecked,
+  });
+  const windowed = filterTracesByWindow(baseTraces, options);
+  const limitedTraces = options.limit && options.limit > 0
+    ? windowed.traces.slice(0, options.limit)
+    : windowed.traces;
+  const bucketCount = options.bucketCount && options.bucketCount > 0 ? options.bucketCount : 6;
+
+  return {
+    windowMs: options.windowMs,
+    bucketCount,
+    windowStart: windowed.windowStart,
+    windowEnd: windowed.windowEnd,
+    metrics: summarizeGovernanceMetrics(limitedTraces),
+    buckets: buildBuckets(limitedTraces, windowed.windowStart, windowed.windowEnd, bucketCount),
+  };
+}
+
 export function getGovernanceMetrics(
-  filters?: IGovernanceMetricsFilters
+  options: IGovernanceMetricsWindowOptions = {}
 ): IGovernanceMetrics {
-  return summarizeGovernanceMetrics(governanceTraceStore.list(filters));
+  return getGovernanceMetricsReport(options).metrics;
 }

@@ -156,7 +156,7 @@ describe('createServer /api/config', () => {
       shadowChecked: true,
       latencyMs: 120,
       estimatedCost: 0.2,
-      startedAt: 1,
+      startedAt: Date.now() - 1000,
       completedAt: 2,
     });
     governanceTraceStore.add({
@@ -171,7 +171,7 @@ describe('createServer /api/config', () => {
       shadowChecked: false,
       latencyMs: 60,
       estimatedCost: 0.1,
-      startedAt: 3,
+      startedAt: Date.now() - 500,
       completedAt: 4,
     });
 
@@ -196,6 +196,7 @@ describe('createServer /api/config', () => {
       'model-a': 1,
       'model-b': 1,
     });
+    expect(allMetrics.bucketCount).toBe(6);
     expect(sessionMetrics.metrics.totalTraces).toBe(1);
     expect(sessionMetrics.metrics.alignmentUsedRate).toBe(1);
     expect(sessionMetrics.metrics.semanticIntentDistribution).toEqual({
@@ -203,6 +204,62 @@ describe('createServer /api/config', () => {
     });
     expect(cascadeMetrics.metrics.totalTraces).toBe(1);
     expect(cascadeMetrics.metrics.cascadeTriggeredRate).toBe(1);
+  });
+
+  it('supports windowed governance metrics buckets', async () => {
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['sticky'],
+      stickyHit: true,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1_000,
+      latencyMs: 20,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      startedAt: 5_000,
+      latencyMs: 30,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-3',
+      routeReason: ['semantic:intent:delivery'],
+      stickyHit: false,
+      alignmentUsed: true,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 9_000,
+      latencyMs: 40,
+    });
+
+    const server = createServer({});
+    const metricsHandler = server.app.routes.get('GET /api/governance/metrics');
+    const result = await metricsHandler({
+      query: {
+        windowMs: '8000',
+        bucketCount: '4',
+        now: '9000',
+      },
+    }, {});
+
+    expect(result.windowMs).toBe(8000);
+    expect(result.bucketCount).toBe(4);
+    expect(result.windowStart).toBe(1000);
+    expect(result.windowEnd).toBe(9000);
+    expect(result.metrics.totalTraces).toBe(3);
+    expect(result.buckets).toHaveLength(4);
+    expect(result.buckets[0].metrics.totalTraces).toBe(1);
+    expect(result.buckets[2].metrics.cascadeTriggeredRate).toBe(1);
+    expect(result.buckets[3].metrics.alignmentUsedRate).toBe(1);
   });
 
   it('renders a governance trace debug page at /ui', async () => {
@@ -220,6 +277,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/governance/traces');
     expect(html).toContain('/api/governance/metrics');
     expect(html).toContain('metricsGrid');
+    expect(html).toContain('bucketGrid');
+    expect(html).toContain('windowMs');
     expect(html).toContain('refreshBtn');
     expect(html).toContain('traceDetail');
     expect(html).toContain('routeReason');

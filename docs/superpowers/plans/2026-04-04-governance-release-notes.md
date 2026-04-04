@@ -69,6 +69,7 @@
 - 支持按 `requestId` / `sessionKey` / `limit` 过滤
 - 支持简易 `/ui` governance trace 调试页
 - `/ui` 新增近期 sticky / cascade / shadow / alignment 指标摘要卡片
+- metrics 支持时间窗聚合与 bucket 趋势摘要
 
 ## 关键实现文件
 
@@ -116,6 +117,7 @@ npm run build
 - Shadow Supervisor 的 verifier / sync_guard 仍是最小可用模式，未支持更复杂策略编排
 - Governance metrics 当前基于内存 trace 聚合，重启后不会保留历史窗口
 - `/ui` 已具备轻量指标面板，但仍未形成正式持久化观测系统
+- 当前趋势观测为轻量 bucket 聚合，尚未支持同比、环比和异常告警
 
 ## 升级建议
 
@@ -134,7 +136,7 @@ npm run build
 1. 优化流式 `stream_guard` 的延迟与重投策略
 2. 为 Semantic Router 增加真正外部 embedding/provider 接入
 3. 为 Shadow Supervisor 增加更细粒度 verifier 策略与采样控制
-4. 为 metrics 增加持久化时间窗、导出和告警能力
+4. 为 metrics 增加持久化时间窗、导出、异常检测和告警能力
 
 ## 关联文档
 

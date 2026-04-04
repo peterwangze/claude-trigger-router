@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { summarizeGovernanceMetrics } from './metrics';
+import { getGovernanceMetricsReport, summarizeGovernanceMetrics } from './metrics';
+import { governanceTraceStore } from './trace';
 
 describe('summarizeGovernanceMetrics', () => {
   it('aggregates rates, distributions, and averages from traces', () => {
@@ -74,5 +75,60 @@ describe('summarizeGovernanceMetrics', () => {
       finalModelDistribution: {},
       semanticIntentDistribution: {},
     });
+  });
+
+  it('builds time-window buckets for recent traces', () => {
+    governanceTraceStore.clear();
+
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['sticky'],
+      stickyHit: true,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1_000,
+      latencyMs: 10,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: true,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      startedAt: 4_000,
+      latencyMs: 20,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-3',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 8_000,
+      latencyMs: 30,
+    });
+
+    const report = getGovernanceMetricsReport({
+      windowMs: 8_000,
+      bucketCount: 4,
+      now: 8_000,
+    });
+
+    expect(report.windowStart).toBe(0);
+    expect(report.windowEnd).toBe(8_000);
+    expect(report.metrics.totalTraces).toBe(3);
+    expect(report.buckets).toHaveLength(4);
+    expect(report.buckets[0].metrics.totalTraces).toBe(1);
+    expect(report.buckets[0].metrics.stickyHitRate).toBe(1);
+    expect(report.buckets[1].metrics.totalTraces).toBe(0);
+    expect(report.buckets[2].metrics.totalTraces).toBe(1);
+    expect(report.buckets[2].metrics.cascadeTriggeredRate).toBe(1);
+    expect(report.buckets[3].metrics.totalTraces).toBe(1);
   });
 });
