@@ -65,8 +65,10 @@
 
 - 支持 governance trace 内存存储
 - 支持 `GET /api/governance/traces`
+- 支持 `GET /api/governance/metrics`
 - 支持按 `requestId` / `sessionKey` / `limit` 过滤
 - 支持简易 `/ui` governance trace 调试页
+- `/ui` 新增近期 sticky / cascade / shadow / alignment 指标摘要卡片
 
 ## 关键实现文件
 
@@ -112,7 +114,8 @@ npm run build
 - `stream_guard` 当前采用 buffer-and-retry 方式，流式场景会增加额外等待
 - Semantic Router 已支持本地 embedding 风格匹配，但还未接入真正外部 embedding 引擎
 - Shadow Supervisor 的 verifier / sync_guard 仍是最小可用模式，未支持更复杂策略编排
-- Governance trace 已支持 API 和简易 `/ui` 页面，但仍未形成正式指标面板
+- Governance metrics 当前基于内存 trace 聚合，重启后不会保留历史窗口
+- `/ui` 已具备轻量指标面板，但仍未形成正式持久化观测系统
 
 ## 升级建议
 
@@ -131,7 +134,7 @@ npm run build
 1. 优化流式 `stream_guard` 的延迟与重投策略
 2. 为 Semantic Router 增加真正外部 embedding/provider 接入
 3. 为 Shadow Supervisor 增加更细粒度 verifier 策略与采样控制
-4. 增强 trace `/ui` 与指标观测能力
+4. 为 metrics 增加持久化时间窗、导出和告警能力
 
 ## 关联文档
 

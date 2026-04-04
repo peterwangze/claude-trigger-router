@@ -142,6 +142,69 @@ describe('createServer /api/config', () => {
     });
   });
 
+  it('exposes governance metrics endpoint with matching filters', async () => {
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      sessionKey: 'session-a',
+      finalModel: 'model-a',
+      routeReason: ['sticky', 'semantic:intent:code_review'],
+      stickyHit: true,
+      alignmentUsed: true,
+      semanticIntent: 'code_review',
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      latencyMs: 120,
+      estimatedCost: 0.2,
+      startedAt: 1,
+      completedAt: 2,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      sessionKey: 'session-b',
+      finalModel: 'model-b',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      latencyMs: 60,
+      estimatedCost: 0.1,
+      startedAt: 3,
+      completedAt: 4,
+    });
+
+    const server = createServer({});
+    const metricsHandler = server.app.routes.get('GET /api/governance/metrics');
+
+    const allMetrics = await metricsHandler({ query: {} }, {});
+    const sessionMetrics = await metricsHandler({ query: { sessionKey: 'session-a' } }, {});
+    const cascadeMetrics = await metricsHandler({ query: { cascadeTriggered: 'true' } }, {});
+
+    expect(allMetrics.metrics.totalTraces).toBe(2);
+    expect(allMetrics.metrics.stickyHitRate).toBe(0.5);
+    expect(allMetrics.metrics.cascadeTriggeredRate).toBe(0.5);
+    expect(allMetrics.metrics.shadowCheckedRate).toBe(0.5);
+    expect(allMetrics.metrics.averageLatencyMs).toBe(90);
+    expect(allMetrics.metrics.routeReasonDistribution).toEqual({
+      sticky: 1,
+      'semantic:intent:code_review': 1,
+      smart_router: 1,
+    });
+    expect(allMetrics.metrics.finalModelDistribution).toEqual({
+      'model-a': 1,
+      'model-b': 1,
+    });
+    expect(sessionMetrics.metrics.totalTraces).toBe(1);
+    expect(sessionMetrics.metrics.alignmentUsedRate).toBe(1);
+    expect(sessionMetrics.metrics.semanticIntentDistribution).toEqual({
+      code_review: 1,
+    });
+    expect(cascadeMetrics.metrics.totalTraces).toBe(1);
+    expect(cascadeMetrics.metrics.cascadeTriggeredRate).toBe(1);
+  });
+
   it('renders a governance trace debug page at /ui', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('GET /ui');
@@ -155,6 +218,8 @@ describe('createServer /api/config', () => {
     expect(reply.header).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
     expect(html).toContain('Governance Trace');
     expect(html).toContain('/api/governance/traces');
+    expect(html).toContain('/api/governance/metrics');
+    expect(html).toContain('metricsGrid');
     expect(html).toContain('refreshBtn');
     expect(html).toContain('traceDetail');
     expect(html).toContain('routeReason');

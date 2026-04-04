@@ -8,7 +8,7 @@ import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig } from "./utils";
 import { log } from "./utils/log";
 import { SERVICE_NAME } from "./service-health";
-import { governanceTraceStore } from "./governance";
+import { governanceTraceStore, getGovernanceMetrics } from "./governance";
 
 /**
  * 创建服务器
@@ -39,6 +39,27 @@ export const createServer = (config: any): Server => {
       : String(req.query.shadowChecked).toLowerCase() === 'true';
     return {
       traces: governanceTraceStore.list({
+        requestId: req.query?.requestId,
+        sessionKey: req.query?.sessionKey,
+        routeReason: req.query?.routeReason,
+        cascadeTriggered,
+        shadowChecked,
+        limit: Number.isFinite(limit) ? limit : undefined,
+      }),
+    };
+  });
+
+  server.app.get("/api/governance/metrics", async (req: any) => {
+    const limit = req.query?.limit ? Number(req.query.limit) : undefined;
+    const cascadeTriggered = req.query?.cascadeTriggered === undefined
+      ? undefined
+      : String(req.query.cascadeTriggered).toLowerCase() === 'true';
+    const shadowChecked = req.query?.shadowChecked === undefined
+      ? undefined
+      : String(req.query.shadowChecked).toLowerCase() === 'true';
+
+    return {
+      metrics: getGovernanceMetrics({
         requestId: req.query?.requestId,
         sessionKey: req.query?.sessionKey,
         routeReason: req.query?.routeReason,
@@ -136,6 +157,9 @@ export const createServer = (config: any): Server => {
       `body{font-family:ui-sans-serif,system-ui,sans-serif;padding:2rem;max-width:1100px;margin:0 auto;background:#f7f7f5;color:#1f2328}` +
       `.panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem}` +
       `.muted{color:#6b7280}` +
+      `.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
+      `.stat{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:.85rem}` +
+      `.stat strong{display:block;font-size:1.1rem;margin-top:.25rem}` +
       `.row{display:flex;gap:1rem;flex-wrap:wrap;align-items:center}` +
       `input,select,button{font:inherit;padding:.55rem .75rem;border-radius:8px;border:1px solid #d1d5db}` +
       `button{background:#111827;color:#fff;border-color:#111827;cursor:pointer}` +
@@ -159,6 +183,14 @@ export const createServer = (config: any): Server => {
       `<button id="refreshBtn">刷新</button>` +
       `</div>` +
       `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/governance/traces</code> 与 <code>/api/governance/traces/:requestId</code></div>` +
+      `<div id="metricsGrid" class="stats">` +
+      `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
+      `<div class="stat"><span class="muted">Sticky hit rate</span><strong>-</strong></div>` +
+      `<div class="stat"><span class="muted">Cascade rate</span><strong>-</strong></div>` +
+      `<div class="stat"><span class="muted">Shadow rate</span><strong>-</strong></div>` +
+      `<div class="stat"><span class="muted">Alignment rate</span><strong>-</strong></div>` +
+      `<div class="stat"><span class="muted">Avg latency</span><strong>-</strong></div>` +
+      `</div>` +
       `<table id="traceTable">` +
       `<thead><tr><th>Request</th><th>Session</th><th>Final Model</th><th>Reasons</th><th>Latency</th><th>Inspect</th></tr></thead>` +
       `<tbody><tr><td colspan="6" class="muted">加载中...</td></tr></tbody>` +
@@ -181,7 +213,20 @@ export const createServer = (config: any): Server => {
       `const tbody=document.querySelector('#traceTable tbody');` +
       `const detail=document.getElementById('traceDetail');` +
       `const detailHint=document.getElementById('detailHint');` +
+      `const metricsGrid=document.getElementById('metricsGrid');` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
+      `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
+      `function fmt(v){return Number(v || 0).toFixed(2);}` +
+      `function renderMetrics(metrics){` +
+      `  metricsGrid.innerHTML=[` +
+      "    ['Recent traces', metrics.totalTraces ?? 0]," +
+      "    ['Sticky hit rate', pct(metrics.stickyHitRate)]," +
+      "    ['Cascade rate', pct(metrics.cascadeTriggeredRate)]," +
+      "    ['Shadow rate', pct(metrics.shadowCheckedRate)]," +
+      "    ['Alignment rate', pct(metrics.alignmentUsedRate)]," +
+      "    ['Avg latency', fmt(metrics.averageLatencyMs)+' ms']" +
+      `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
+      `}` +
       `async function loadTraces(){` +
       `  const requestId=document.getElementById('requestId').value.trim();` +
       `  const sessionKey=document.getElementById('sessionKey').value.trim();` +
@@ -197,8 +242,14 @@ export const createServer = (config: any): Server => {
       `  if(shadowChecked) params.set('shadowChecked',shadowChecked);` +
       `  if(limit) params.set('limit',limit);` +
       `  tbody.innerHTML='<tr><td colspan="6" class="muted">加载中...</td></tr>';` +
-      `  const res=await fetch('/api/governance/traces'+(params.toString()?('?'+params.toString()):''));` +
-      `  const data=await res.json();` +
+      `  const query=params.toString()?('?'+params.toString()):'';` +
+      `  const [traceRes,metricsRes]=await Promise.all([` +
+      `    fetch('/api/governance/traces'+query),` +
+      `    fetch('/api/governance/metrics'+query)` +
+      `  ]);` +
+      `  const data=await traceRes.json();` +
+      `  const metricsData=await metricsRes.json();` +
+      `  renderMetrics(metricsData.metrics || {});` +
       `  const traces=data.traces || [];` +
       `  if(!traces.length){ tbody.innerHTML='<tr><td colspan="6" class="muted">暂无 trace</td></tr>'; return; }` +
       `  tbody.innerHTML=traces.map(t=>` +

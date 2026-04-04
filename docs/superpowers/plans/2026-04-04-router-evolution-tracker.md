@@ -13,7 +13,7 @@
 ## 更新时间
 
 - 建档日期：2026-04-04
-- 当前状态：规划已落地，实施未开始
+- 当前状态：治理主链已落地，进入指标观测增强阶段
 
 ## 状态图例
 
@@ -46,20 +46,22 @@
 | Cascade Gate | 失败后自动升级推理强度 | not_started | 先实现失败证据识别 | 出现明确失败证据时可自动升级 |
 | Semantic Router | 用语义补齐关键词规则 | not_started | 定义核心意图与阈值 | 非关键词表达也能稳定命中 |
 | Shadow Supervisor | 对低质量输出进行监督 | not_started | 先落地异步审计模式 | 可记录并识别偷懒/占位符输出 |
-| 文档与配置模板 | 给出可复制启用方案 | in_progress | 本轮文档已完成初稿 | README/配置指南/示例配置一致 |
+| 文档与配置模板 | 给出可复制启用方案 | done | 转入 release notes 与阶段总结维护 | README/配置指南/示例配置一致 |
+| 指标观测 | 将 trace 升级为可聚合观测面板 | in_progress | 增加更长时间窗和导出能力 | 可查看近期 sticky / cascade / shadow / alignment 指标 |
 
 ## 里程碑跟踪
 
 | 里程碑 | 状态 | 目标时间 | 备注 |
 |--------|------|----------|------|
 | M0: 治理规划与文档完成 | done | 2026-04-04 | 已产出演进计划、设计、实施计划、跟踪文档 |
-| M1: Governance 配置与 trace 完成 | not_started | 待排期 | 后续所有能力的基础 |
-| M2: Sticky + Session Store 完成 | not_started | 待排期 | 先解决跨轮稳定性 |
-| M3: Context Alignment 完成 | not_started | 待排期 | 与 Sticky 联动 |
-| M4: Cascade Gate 完成 | not_started | 待排期 | 先支持最小失败证据闭环 |
-| M5: Semantic Router 完成 | not_started | 待排期 | 与现有 SmartRouter 形成分层 |
-| M6: Shadow Supervisor 完成 | not_started | 待排期 | 第一版先做异步审计 |
-| M7: 全链路验证与文档收口 | not_started | 待排期 | 形成对外可启用方案 |
+| M1: Governance 配置与 trace 完成 | done | 2026-04-04 | 已完成配置骨架、trace 存储与调试 API |
+| M2: Sticky + Session Store 完成 | done | 2026-04-04 | 已支持会话粘性与状态持久窗口 |
+| M3: Context Alignment 完成 | done | 2026-04-04 | 已支持切模摘要与 system 注入 |
+| M4: Cascade Gate 完成 | done | 2026-04-04 | 已支持失败证据识别与重试升级 |
+| M5: Semantic Router 完成 | done | 2026-04-04 | 已支持 classifier / embedding 双模式 |
+| M6: Shadow Supervisor 完成 | done | 2026-04-04 | 已支持 verifier 与 sync_guard |
+| M7: 全链路验证与文档收口 | done | 2026-04-04 | 已补齐文档、测试、配置模板 |
+| M8: 治理指标观测增强 | in_progress | 2026-04-04 | 已新增 metrics API 与 UI 摘要卡片 |
 
 ## 当前决策记录
 
@@ -117,6 +119,10 @@
 - 完成 4 份治理化演进文档初稿
 - 明确以 `src/governance/` 作为后续实现承载层
 - 明确分阶段落地，而不是一次性并入主链
+- 完成 Governance 全链路主能力：sticky / alignment / cascade / semantic / shadow
+- 新增 `GET /api/governance/metrics`，支持聚合近期 sticky / cascade / shadow / alignment 指标
+- `/ui` 新增治理指标摘要卡片，用于快速观察近期治理命中情况
+- 已补充聚合指标与调试页相关测试，当前阶段可作为轻量观测面板使用
 
 ## 下次更新时应补充的内容
 
