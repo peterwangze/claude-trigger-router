@@ -52,6 +52,7 @@
 ### 4. 语义补足路由
 
 - 新增 semantic prototype router
+- 新增 semantic classifier router
 - 将主链顺序推进到：
   - TriggerRouter
   - Sticky Routing
@@ -66,6 +67,8 @@
 ### 5. 输出质量审计
 
 - 新增 shadow supervisor 最小异步审计能力
+- 新增 verifier-backed shadow audit
+- 新增 `sync_guard` 受控升级模式
 - 支持对低质量输出进行规则化留痕
 
 关键模块：
@@ -78,6 +81,16 @@
 - README 已加入 Governance 说明
 - `docs/configuration-guide.md` 已加入治理增强模板
 - `config/trigger.example.yaml` 已加入 Governance 示例配置
+
+### 7. 集成测试与主链抽象
+
+- 新增 `response-governance` helper
+- 为 `semantic + cascade + shadow sync_guard` 增加组合测试
+
+关键模块：
+
+- `src/governance/response-governance.ts`
+- `src/governance/response-governance.test.ts`
 
 ## 当前主链状态
 
@@ -121,8 +134,8 @@ npm run build
 
 验证结果：
 
-- 27 个测试文件通过
-- 250 个测试通过
+- 28 个测试文件通过
+- 261 个测试通过
 - 构建成功
 
 ## 当前边界
@@ -132,8 +145,9 @@ npm run build
 - Sticky 依赖当前 `sessionId` 和简化后的任务指纹
 - Context Alignment 仍依赖回环 LLM 生成摘要
 - Cascade Retry 目前仅对非流式响应自动重投
-- Semantic Router 目前是 prototype 匹配，不是真正 embedding/classifier
-- Shadow Supervisor 目前是规则审计，不是真正 verifier 模型
+- Cascade / sync_guard 目前仅对非流式响应自动重投
+- Semantic Router 当前支持 prototype 与 classifier，但还没有真正 embedding 引擎
+- Shadow Supervisor 当前支持规则审计与 verifier model，但尚未暴露更细粒度策略控制
 
 这些都属于当前里程碑的可接受边界，不影响作为治理底座版本交付。
 
