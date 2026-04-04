@@ -26,6 +26,7 @@ async function build() {
         'json5',
         'lru-cache',
         'openurl',
+        'readline/promises',
         'rotating-file-stream',
         'tiktoken',
         'uuid',
