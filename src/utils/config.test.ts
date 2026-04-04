@@ -86,4 +86,43 @@ describe('normalizeAndValidateConfig governance', () => {
       'Governance.shadow.sample_rate must be between 0 and 1'
     );
   });
+
+  it('validates Governance semantic threshold bounds', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Governance: {
+        enabled: true,
+        semantic: {
+          enabled: true,
+          threshold: 1.5,
+        },
+      },
+    });
+
+    expect(result.errors).toContain(
+      'Governance.semantic.threshold must be between 0 and 1'
+    );
+  });
+
+  it('validates Governance cascade level model references', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Governance: {
+        enabled: true,
+        cascade: {
+          enabled: true,
+          levels: [
+            {
+              from: 'openrouter,anthropic/claude-sonnet-4',
+              to: 'glm,missing-model',
+            },
+          ],
+        },
+      },
+    });
+
+    expect(result.errors).toContain(
+      'Governance.cascade.levels[0].to 引用的模型 "missing-model" 不在提供商 "glm" 的 models 列表中'
+    );
+  });
 });

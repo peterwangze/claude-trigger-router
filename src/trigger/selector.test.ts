@@ -307,6 +307,37 @@ describe('ModelSelector', () => {
       expect(result.routeSource).toBe('sticky');
     });
 
+    it('should not reuse sticky session model when governance is disabled', async () => {
+      sessionStateStore.put('sticky-session', {
+        preferredModel: 'provider,sticky-model',
+        lastSuccessfulModel: 'provider,sticky-model',
+        lastTaskFingerprint: '请帮我修复登录逻辑',
+      });
+
+      const req = {
+        sessionId: 'sticky-session',
+        body: {
+          messages: [{ role: 'user', content: '请帮我修复登录逻辑' }],
+        },
+      };
+
+      const result = await selector.selectModel(
+        req as any,
+        config,
+        3456,
+        undefined,
+        {
+          enabled: false,
+          sticky: {
+            enabled: true,
+          },
+        } as any
+      );
+
+      expect(result.matched).toBe(false);
+      expect(result.routeSource).toBeUndefined();
+    });
+
     it('should match semantic intent before SmartRouter when semantic routing is enabled', async () => {
       const req = {
         body: {
@@ -356,6 +387,57 @@ describe('ModelSelector', () => {
       expect(result.routeSource).toBe('intent');
       expect(req.governanceTrace.semanticIntent).toBe('architecture');
       expect(smartSpy).not.toHaveBeenCalled();
+      smartSpy.mockRestore();
+    });
+
+    it('should fall back to SmartRouter when semantic routing is enabled but misses threshold', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '帮我选一个更合适的模型' }],
+        },
+        governanceTrace: {
+          requestId: 'req-semantic-fallback',
+          routeReason: [],
+          stickyHit: false,
+          alignmentUsed: false,
+          cascadeTriggered: false,
+          shadowChecked: false,
+          startedAt: Date.now(),
+        },
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.9,
+      });
+
+      const result = await selector.selectModel(
+        req as any,
+        config,
+        3456,
+        {
+          enabled: true,
+          router_model: 'test,router',
+          candidates: [
+            { model: 'provider,model-a', description: 'A' },
+            { model: 'provider,model-b', description: 'B' },
+          ],
+        },
+        {
+          enabled: true,
+          semantic: {
+            enabled: true,
+            threshold: 0.8,
+            prototypes: {
+              architecture: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          },
+        } as any
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('provider,model-a');
+      expect(result.routeSource).toBe('smart_router');
+      expect(smartSpy).toHaveBeenCalledOnce();
       smartSpy.mockRestore();
     });
   });
