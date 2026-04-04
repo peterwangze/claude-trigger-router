@@ -272,6 +272,56 @@ describe('createServer /api/config', () => {
     });
   });
 
+  it('returns anomaly alerts in governance metrics response', async () => {
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1_000,
+      latencyMs: 800,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      routeReason: ['cascade_gate'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      startedAt: 7_000,
+      latencyMs: 3200,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-3',
+      routeReason: ['cascade_gate'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      startedAt: 8_000,
+      latencyMs: 3600,
+    });
+
+    const server = createServer({});
+    const metricsHandler = server.app.routes.get('GET /api/governance/metrics');
+    const result = await metricsHandler({
+      query: {
+        windowMs: '8000',
+        bucketCount: '4',
+        now: '8000',
+      },
+    }, {});
+
+    expect(result.anomalies.map((item: any) => item.type)).toContain('cascade_rate_high');
+    expect(result.anomalies.map((item: any) => item.type)).toContain('shadow_rate_high');
+    expect(result.anomalies.map((item: any) => item.type)).toContain('latency_high');
+  });
+
   it('renders a governance trace debug page at /ui', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('GET /ui');
@@ -287,6 +337,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/governance/traces');
     expect(html).toContain('/api/governance/metrics');
     expect(html).toContain('metricsGrid');
+    expect(html).toContain('anomalyList');
     expect(html).toContain('bucketGrid');
     expect(html).toContain('routeRanking');
     expect(html).toContain('modelRanking');

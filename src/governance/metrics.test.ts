@@ -187,4 +187,68 @@ describe('summarizeGovernanceMetrics', () => {
       { key: 'delivery', count: 1, rate: 0.3333 },
     ]);
   });
+
+  it('detects elevated governance anomalies from rates and latest bucket spike', () => {
+    governanceTraceStore.clear();
+
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1_000,
+      latencyMs: 1000,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 2_000,
+      latencyMs: 1200,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-3',
+      routeReason: ['cascade_gate'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      startedAt: 7_000,
+      latencyMs: 4000,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-4',
+      routeReason: ['cascade_gate'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      startedAt: 8_000,
+      latencyMs: 4500,
+    });
+
+    const report = getGovernanceMetricsReport({
+      windowMs: 8_000,
+      bucketCount: 4,
+      now: 8_000,
+    });
+
+    expect(report.anomalies.map((item) => item.type)).toEqual([
+      'cascade_rate_high',
+      'shadow_rate_high',
+      'latency_high',
+      'cascade_spike',
+      'shadow_spike',
+    ]);
+    expect(report.anomalies[0].severity).toBe('warn');
+  });
 });

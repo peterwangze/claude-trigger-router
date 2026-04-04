@@ -135,6 +135,8 @@
 - `/ui` 新增 bucket 详细趋势表，可直接对比 sticky / cascade / shadow / alignment 命中率
 - governance trace 已支持落盘到本地 `~/.claude-trigger-router/governance-traces.json`
 - 重启服务后会自动加载近期治理 trace，时间窗观测不再只依赖单次进程生命周期
+- metrics 已支持异常检测，当前可提示 cascade / shadow 命中率偏高、平均时延偏高及最新 bucket 突增
+- `/ui` 新增 anomaly alerts 面板，可直接高亮当前窗口中的治理风险信号
 
 ## 下次更新时应补充的内容
 

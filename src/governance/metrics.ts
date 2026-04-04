@@ -29,6 +29,15 @@ export interface IGovernanceDistributionEntry {
   rate: number;
 }
 
+export interface IGovernanceAnomaly {
+  type: string;
+  severity: 'info' | 'warn' | 'critical';
+  message: string;
+  metric: string;
+  value: number;
+  threshold?: number;
+}
+
 export interface IGovernanceMetrics {
   totalTraces: number;
   stickyHitCount: number;
@@ -56,6 +65,7 @@ export interface IGovernanceMetricsReport {
   topRouteReasons: IGovernanceDistributionEntry[];
   topFinalModels: IGovernanceDistributionEntry[];
   topSemanticIntents: IGovernanceDistributionEntry[];
+  anomalies: IGovernanceAnomaly[];
 }
 
 function rate(count: number, total: number): number {
@@ -101,6 +111,92 @@ function buildTopEntries(
       count,
       rate: rate(count, total),
     }));
+}
+
+function averageRate(values: number[]): number {
+  if (!values.length) {
+    return 0;
+  }
+
+  return Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(4));
+}
+
+function buildAnomalies(
+  metrics: IGovernanceMetrics,
+  buckets: IGovernanceMetricsBucket[]
+): IGovernanceAnomaly[] {
+  const anomalies: IGovernanceAnomaly[] = [];
+
+  if (metrics.totalTraces >= 3 && metrics.cascadeTriggeredRate >= 0.4) {
+    anomalies.push({
+      type: 'cascade_rate_high',
+      severity: metrics.cascadeTriggeredRate >= 0.6 ? 'critical' : 'warn',
+      message: `Cascade trigger rate is elevated at ${(metrics.cascadeTriggeredRate * 100).toFixed(1)}%`,
+      metric: 'cascadeTriggeredRate',
+      value: metrics.cascadeTriggeredRate,
+      threshold: 0.4,
+    });
+  }
+
+  if (metrics.totalTraces >= 3 && metrics.shadowCheckedRate >= 0.5) {
+    anomalies.push({
+      type: 'shadow_rate_high',
+      severity: metrics.shadowCheckedRate >= 0.7 ? 'critical' : 'warn',
+      message: `Shadow supervision rate is elevated at ${(metrics.shadowCheckedRate * 100).toFixed(1)}%`,
+      metric: 'shadowCheckedRate',
+      value: metrics.shadowCheckedRate,
+      threshold: 0.5,
+    });
+  }
+
+  if (metrics.totalTraces >= 3 && metrics.averageLatencyMs >= 1500) {
+    anomalies.push({
+      type: 'latency_high',
+      severity: metrics.averageLatencyMs >= 3000 ? 'critical' : 'warn',
+      message: `Average latency is elevated at ${metrics.averageLatencyMs.toFixed(0)} ms`,
+      metric: 'averageLatencyMs',
+      value: metrics.averageLatencyMs,
+      threshold: 1500,
+    });
+  }
+
+  if (buckets.length >= 2) {
+    const latestBucket = buckets[buckets.length - 1];
+    const previousBuckets = buckets.slice(0, -1).filter((bucket) => bucket.metrics.totalTraces > 0);
+    if (latestBucket.metrics.totalTraces > 0 && previousBuckets.length > 0) {
+      const previousCascadeAverage = averageRate(
+        previousBuckets.map((bucket) => bucket.metrics.cascadeTriggeredRate)
+      );
+      if (latestBucket.metrics.cascadeTriggeredRate >= 0.5 &&
+        latestBucket.metrics.cascadeTriggeredRate >= previousCascadeAverage + 0.3) {
+        anomalies.push({
+          type: 'cascade_spike',
+          severity: 'warn',
+          message: `Latest bucket cascade rate spiked to ${(latestBucket.metrics.cascadeTriggeredRate * 100).toFixed(1)}%`,
+          metric: 'cascadeTriggeredRate',
+          value: latestBucket.metrics.cascadeTriggeredRate,
+          threshold: previousCascadeAverage,
+        });
+      }
+
+      const previousShadowAverage = averageRate(
+        previousBuckets.map((bucket) => bucket.metrics.shadowCheckedRate)
+      );
+      if (latestBucket.metrics.shadowCheckedRate >= 0.5 &&
+        latestBucket.metrics.shadowCheckedRate >= previousShadowAverage + 0.3) {
+        anomalies.push({
+          type: 'shadow_spike',
+          severity: 'warn',
+          message: `Latest bucket shadow rate spiked to ${(latestBucket.metrics.shadowCheckedRate * 100).toFixed(1)}%`,
+          metric: 'shadowCheckedRate',
+          value: latestBucket.metrics.shadowCheckedRate,
+          threshold: previousShadowAverage,
+        });
+      }
+    }
+  }
+
+  return anomalies;
 }
 
 export function summarizeGovernanceMetrics(traces: IGovernanceTrace[]): IGovernanceMetrics {
@@ -227,6 +323,7 @@ export function getGovernanceMetricsReport(
     : windowed.traces;
   const bucketCount = options.bucketCount && options.bucketCount > 0 ? options.bucketCount : 6;
   const metrics = summarizeGovernanceMetrics(limitedTraces);
+  const buckets = buildBuckets(limitedTraces, windowed.windowStart, windowed.windowEnd, bucketCount);
 
   return {
     windowMs: options.windowMs,
@@ -234,10 +331,11 @@ export function getGovernanceMetricsReport(
     windowStart: windowed.windowStart,
     windowEnd: windowed.windowEnd,
     metrics,
-    buckets: buildBuckets(limitedTraces, windowed.windowStart, windowed.windowEnd, bucketCount),
+    buckets,
     topRouteReasons: buildTopEntries(metrics.routeReasonDistribution, limitedTraces.length),
     topFinalModels: buildTopEntries(metrics.finalModelDistribution, limitedTraces.length),
     topSemanticIntents: buildTopEntries(metrics.semanticIntentDistribution, limitedTraces.length),
+    anomalies: buildAnomalies(metrics, buckets),
   };
 }
 

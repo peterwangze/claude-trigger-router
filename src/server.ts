@@ -172,6 +172,11 @@ export const createServer = (config: any): Server => {
       `.mini-list{list-style:none;padding:0;margin:.75rem 0 0}` +
       `.mini-list li{display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px dashed #e5e7eb}` +
       `.mini-list li:last-child{border-bottom:none}` +
+      `.alert-list{display:grid;gap:.75rem;margin-top:1rem}` +
+      `.alert{border-radius:12px;padding:.85rem 1rem;border:1px solid}` +
+      `.alert.warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}` +
+      `.alert.critical{background:#fef2f2;border-color:#fca5a5;color:#991b1b}` +
+      `.alert.info{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}` +
       `.trend-table{width:100%;margin-top:.75rem}` +
       `.trend-table th,.trend-table td{padding:.45rem;border-bottom:1px solid #e5e7eb;font-size:.92rem}` +
       `.row{display:flex;gap:1rem;flex-wrap:wrap;align-items:center}` +
@@ -210,6 +215,12 @@ export const createServer = (config: any): Server => {
       `<div class="stat"><span class="muted">Shadow rate</span><strong>-</strong></div>` +
       `<div class="stat"><span class="muted">Alignment rate</span><strong>-</strong></div>` +
       `<div class="stat"><span class="muted">Avg latency</span><strong>-</strong></div>` +
+      `</div>` +
+      `<div class="subpanel">` +
+      `<div class="row"><strong>Anomaly alerts</strong><span class="muted">检测近期治理异常与突增</span></div>` +
+      `<div id="anomalyList" class="alert-list">` +
+      `<div class="alert info"><strong>No alerts yet</strong><div class="muted">等待治理指标加载</div></div>` +
+      `</div>` +
       `</div>` +
       `<div class="subpanel">` +
       `<div class="row"><strong>Window buckets</strong><span id="bucketHint" class="muted">按时间窗查看近期治理趋势</span></div>` +
@@ -266,6 +277,7 @@ export const createServer = (config: any): Server => {
       `const routeRanking=document.getElementById('routeRanking');` +
       `const modelRanking=document.getElementById('modelRanking');` +
       `const intentRanking=document.getElementById('intentRanking');` +
+      `const anomalyList=document.getElementById('anomalyList');` +
       `const trendTableBody=document.querySelector('#trendTable tbody');` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
@@ -284,6 +296,10 @@ export const createServer = (config: any): Server => {
       `function renderRanking(target,entries,emptyLabel){` +
       `  if(!entries || !entries.length){ target.innerHTML='<li><span class="muted">'+esc(emptyLabel)+'</span><strong>0</strong></li>'; return; }` +
       `  target.innerHTML=entries.map(item=>'<li><span><code>'+esc(item.key)+'</code></span><strong>'+esc(item.count)+' · '+esc(pct(item.rate))+'</strong></li>').join('');` +
+      `}` +
+      `function renderAnomalies(anomalies){` +
+      `  if(!anomalies || !anomalies.length){ anomalyList.innerHTML='<div class="alert info"><strong>No active alerts</strong><div class="muted">当前窗口未发现明显治理异常</div></div>'; return; }` +
+      `  anomalyList.innerHTML=anomalies.map(item=>'<div class="alert '+esc(item.severity || 'info')+'"><strong>'+esc(item.type)+'</strong><div>'+esc(item.message)+'</div></div>').join('');` +
       `}` +
       `function renderBuckets(report){` +
       `  const buckets=report.buckets || [];` +
@@ -337,6 +353,7 @@ export const createServer = (config: any): Server => {
       `  const metricsData=await metricsRes.json();` +
       `  renderMetrics(metricsData.metrics || {});` +
       `  renderBuckets(metricsData || {});` +
+      `  renderAnomalies(metricsData.anomalies || []);` +
       `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +
       `  renderRanking(modelRanking,metricsData.topFinalModels || [],'No models');` +
       `  renderRanking(intentRanking,metricsData.topSemanticIntents || [],'No intents');` +
