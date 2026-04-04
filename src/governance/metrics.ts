@@ -68,6 +68,8 @@ export interface IGovernanceMetricsReport {
   anomalies: IGovernanceAnomaly[];
 }
 
+export type TGovernanceMetricsExportFormat = 'json' | 'csv';
+
 function rate(count: number, total: number): number {
   if (!total) {
     return 0;
@@ -343,4 +345,54 @@ export function getGovernanceMetrics(
   options: IGovernanceMetricsWindowOptions = {}
 ): IGovernanceMetrics {
   return getGovernanceMetricsReport(options).metrics;
+}
+
+export function exportGovernanceMetricsReport(
+  report: IGovernanceMetricsReport,
+  format: TGovernanceMetricsExportFormat = 'json'
+): string {
+  if (format === 'json') {
+    return JSON.stringify(report, null, 2);
+  }
+
+  const lines: string[] = [
+    'section,key,value',
+    `summary,totalTraces,${report.metrics.totalTraces}`,
+    `summary,stickyHitRate,${report.metrics.stickyHitRate}`,
+    `summary,cascadeTriggeredRate,${report.metrics.cascadeTriggeredRate}`,
+    `summary,shadowCheckedRate,${report.metrics.shadowCheckedRate}`,
+    `summary,alignmentUsedRate,${report.metrics.alignmentUsedRate}`,
+    `summary,averageLatencyMs,${report.metrics.averageLatencyMs}`,
+    `summary,averageEstimatedCost,${report.metrics.averageEstimatedCost}`,
+  ];
+
+  for (const anomaly of report.anomalies) {
+    lines.push(`anomaly,${anomaly.type},${anomaly.severity}:${anomaly.value}`);
+  }
+
+  for (const item of report.topRouteReasons) {
+    lines.push(`topRouteReason,${item.key},${item.count}:${item.rate}`);
+  }
+
+  for (const item of report.topFinalModels) {
+    lines.push(`topFinalModel,${item.key},${item.count}:${item.rate}`);
+  }
+
+  for (const item of report.topSemanticIntents) {
+    lines.push(`topSemanticIntent,${item.key},${item.count}:${item.rate}`);
+  }
+
+  for (const bucket of report.buckets) {
+    lines.push(
+      `bucket,${bucket.label},${[
+        bucket.metrics.totalTraces,
+        bucket.metrics.stickyHitRate,
+        bucket.metrics.cascadeTriggeredRate,
+        bucket.metrics.shadowCheckedRate,
+        bucket.metrics.alignmentUsedRate,
+      ].join(':')}`
+    );
+  }
+
+  return lines.join('\n');
 }

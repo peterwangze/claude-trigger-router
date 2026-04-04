@@ -322,6 +322,44 @@ describe('createServer /api/config', () => {
     expect(result.anomalies.map((item: any) => item.type)).toContain('latency_high');
   });
 
+  it('exports governance metrics as csv download response', async () => {
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['sticky'],
+      stickyHit: true,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1_000,
+      latencyMs: 50,
+    });
+
+    const server = createServer({});
+    const exportHandler = server.app.routes.get('GET /api/governance/metrics/export');
+    const reply = {
+      header: vi.fn().mockReturnThis(),
+      send: vi.fn((body: string) => body),
+    };
+
+    const result = await exportHandler({
+      query: {
+        format: 'csv',
+        windowMs: '8000',
+        bucketCount: '2',
+        now: '8000',
+      },
+    }, reply);
+
+    expect(reply.header).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
+    expect(reply.header).toHaveBeenCalledWith(
+      'Content-Disposition',
+      'attachment; filename="governance-metrics.csv"'
+    );
+    expect(result).toContain('section,key,value');
+    expect(result).toContain('summary,totalTraces,1');
+  });
+
   it('renders a governance trace debug page at /ui', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('GET /ui');
@@ -336,6 +374,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Governance Trace');
     expect(html).toContain('/api/governance/traces');
     expect(html).toContain('/api/governance/metrics');
+    expect(html).toContain('/api/governance/metrics/export');
     expect(html).toContain('metricsGrid');
     expect(html).toContain('anomalyList');
     expect(html).toContain('bucketGrid');

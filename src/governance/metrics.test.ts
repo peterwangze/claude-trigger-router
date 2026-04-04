@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getGovernanceMetricsReport, summarizeGovernanceMetrics } from './metrics';
+import { exportGovernanceMetricsReport, getGovernanceMetricsReport, summarizeGovernanceMetrics } from './metrics';
 import { governanceTraceStore } from './trace';
 
 describe('summarizeGovernanceMetrics', () => {
@@ -250,5 +250,60 @@ describe('summarizeGovernanceMetrics', () => {
       'shadow_spike',
     ]);
     expect(report.anomalies[0].severity).toBe('warn');
+  });
+
+  it('exports governance metrics reports as csv', () => {
+    const csv = exportGovernanceMetricsReport({
+      bucketCount: 1,
+      metrics: {
+        totalTraces: 2,
+        stickyHitCount: 1,
+        stickyHitRate: 0.5,
+        alignmentUsedCount: 1,
+        alignmentUsedRate: 0.5,
+        cascadeTriggeredCount: 1,
+        cascadeTriggeredRate: 0.5,
+        shadowCheckedCount: 1,
+        shadowCheckedRate: 0.5,
+        averageLatencyMs: 120,
+        averageEstimatedCost: 0.2,
+        routeReasonDistribution: { sticky: 1 },
+        finalModelDistribution: { 'model-a': 2 },
+        semanticIntentDistribution: { review: 1 },
+      },
+      buckets: [
+        {
+          bucketStart: 1,
+          bucketEnd: 2,
+          label: 'bucket-1',
+          metrics: {
+            totalTraces: 2,
+            stickyHitCount: 1,
+            stickyHitRate: 0.5,
+            alignmentUsedCount: 1,
+            alignmentUsedRate: 0.5,
+            cascadeTriggeredCount: 1,
+            cascadeTriggeredRate: 0.5,
+            shadowCheckedCount: 1,
+            shadowCheckedRate: 0.5,
+            averageLatencyMs: 120,
+            averageEstimatedCost: 0.2,
+            routeReasonDistribution: {},
+            finalModelDistribution: {},
+            semanticIntentDistribution: {},
+          },
+        },
+      ],
+      topRouteReasons: [{ key: 'sticky', count: 1, rate: 0.5 }],
+      topFinalModels: [{ key: 'model-a', count: 2, rate: 1 }],
+      topSemanticIntents: [{ key: 'review', count: 1, rate: 0.5 }],
+      anomalies: [{ type: 'cascade_rate_high', severity: 'warn', message: 'x', metric: 'cascadeTriggeredRate', value: 0.5 }],
+    }, 'csv');
+
+    expect(csv).toContain('section,key,value');
+    expect(csv).toContain('summary,totalTraces,2');
+    expect(csv).toContain('anomaly,cascade_rate_high,warn:0.5');
+    expect(csv).toContain('topFinalModel,model-a,2:1');
+    expect(csv).toContain('bucket,bucket-1,2:0.5:0.5:0.5:0.5');
   });
 });

@@ -137,6 +137,8 @@
 - 重启服务后会自动加载近期治理 trace，时间窗观测不再只依赖单次进程生命周期
 - metrics 已支持异常检测，当前可提示 cascade / shadow 命中率偏高、平均时延偏高及最新 bucket 突增
 - `/ui` 新增 anomaly alerts 面板，可直接高亮当前窗口中的治理风险信号
+- 新增 `GET /api/governance/metrics/export`，支持导出治理指标快照
+- 当前导出支持 `json` 与 `csv`，便于对接外部看板和离线分析
 
 ## 下次更新时应补充的内容
 

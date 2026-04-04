@@ -8,13 +8,38 @@ import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig } from "./utils";
 import { log } from "./utils/log";
 import { SERVICE_NAME } from "./service-health";
-import { governanceTraceStore, getGovernanceMetricsReport } from "./governance";
+import { governanceTraceStore, getGovernanceMetricsReport, exportGovernanceMetricsReport } from "./governance";
 
 /**
  * 创建服务器
  */
 export const createServer = (config: any): Server => {
   const server = new Server(config);
+
+  const readGovernanceMetricsQuery = (query: any) => {
+    const limit = query?.limit ? Number(query.limit) : undefined;
+    const windowMs = query?.windowMs ? Number(query.windowMs) : undefined;
+    const bucketCount = query?.bucketCount ? Number(query.bucketCount) : undefined;
+    const now = query?.now ? Number(query.now) : undefined;
+    const cascadeTriggered = query?.cascadeTriggered === undefined
+      ? undefined
+      : String(query.cascadeTriggered).toLowerCase() === 'true';
+    const shadowChecked = query?.shadowChecked === undefined
+      ? undefined
+      : String(query.shadowChecked).toLowerCase() === 'true';
+
+    return {
+      requestId: query?.requestId,
+      sessionKey: query?.sessionKey,
+      routeReason: query?.routeReason,
+      cascadeTriggered,
+      shadowChecked,
+      limit: Number.isFinite(limit) ? limit : undefined,
+      windowMs: Number.isFinite(windowMs) ? windowMs : undefined,
+      bucketCount: Number.isFinite(bucketCount) ? bucketCount : undefined,
+      now: Number.isFinite(now) ? now : undefined,
+    };
+  };
 
   // 读取配置 API
   server.app.get("/api/config", async (req: any, reply: any) => {
@@ -50,30 +75,25 @@ export const createServer = (config: any): Server => {
   });
 
   server.app.get("/api/governance/metrics", async (req: any) => {
-    const limit = req.query?.limit ? Number(req.query.limit) : undefined;
-    const windowMs = req.query?.windowMs ? Number(req.query.windowMs) : undefined;
-    const bucketCount = req.query?.bucketCount ? Number(req.query.bucketCount) : undefined;
-    const now = req.query?.now ? Number(req.query.now) : undefined;
-    const cascadeTriggered = req.query?.cascadeTriggered === undefined
-      ? undefined
-      : String(req.query.cascadeTriggered).toLowerCase() === 'true';
-    const shadowChecked = req.query?.shadowChecked === undefined
-      ? undefined
-      : String(req.query.shadowChecked).toLowerCase() === 'true';
-
     return {
-      ...getGovernanceMetricsReport({
-        requestId: req.query?.requestId,
-        sessionKey: req.query?.sessionKey,
-        routeReason: req.query?.routeReason,
-        cascadeTriggered,
-        shadowChecked,
-        limit: Number.isFinite(limit) ? limit : undefined,
-        windowMs: Number.isFinite(windowMs) ? windowMs : undefined,
-        bucketCount: Number.isFinite(bucketCount) ? bucketCount : undefined,
-        now: Number.isFinite(now) ? now : undefined,
-      }),
+      ...getGovernanceMetricsReport(readGovernanceMetricsQuery(req.query)),
     };
+  });
+
+  server.app.get("/api/governance/metrics/export", async (req: any, reply: any) => {
+    const format = String(req.query?.format || 'json').toLowerCase() === 'csv' ? 'csv' : 'json';
+    const report = getGovernanceMetricsReport(readGovernanceMetricsQuery(req.query));
+    const content = exportGovernanceMetricsReport(report, format);
+
+    reply.header(
+      'Content-Type',
+      format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8'
+    );
+    reply.header(
+      'Content-Disposition',
+      `attachment; filename="governance-metrics.${format}"`
+    );
+    return reply.send(content);
   });
 
   server.app.get("/api/governance/traces/:requestId", async (req: any, reply: any) => {
@@ -207,7 +227,7 @@ export const createServer = (config: any): Server => {
       `<input id="limit" placeholder="limit" value="20">` +
       `<button id="refreshBtn">刷新</button>` +
       `</div>` +
-      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code> 与 <code>/api/governance/metrics</code></div>` +
+      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/metrics</code> 与 <code>/api/governance/metrics/export</code></div>` +
       `<div id="metricsGrid" class="stats">` +
       `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
       `<div class="stat"><span class="muted">Sticky hit rate</span><strong>-</strong></div>` +
