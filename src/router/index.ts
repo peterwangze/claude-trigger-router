@@ -13,7 +13,7 @@ import { get_encoding } from "tiktoken";
 import { IAppConfig } from '../trigger/types';
 import { sessionUsageCache, Usage } from './cache';
 import { log, logError } from '../utils/log';
-import { resolveModelReference } from '../models/compile';
+import { getCompiledModelRef, resolveModelReference } from '../models/compile';
 
 const enc = get_encoding("cl100k_base");
 
@@ -153,6 +153,43 @@ const getUseModel = async (
   return resolveModelReference(config, config.Router!.default);
 };
 
+const applyModelThinking = (req: any, config: IAppConfig, modelRef?: string): void => {
+  const compiled = getCompiledModelRef(config, modelRef);
+  const thinking = compiled?.thinking;
+
+  if (!thinking) {
+    return;
+  }
+
+  if (thinking.mode === 'off') {
+    delete req.body.thinking;
+    return;
+  }
+
+  if (thinking.mode === 'on') {
+    req.body.thinking = {
+      ...(typeof req.body.thinking === 'object' && req.body.thinking ? req.body.thinking : { type: 'enabled' }),
+      type: 'enabled',
+    };
+  }
+
+  if (thinking.mode === 'auto' && !req.body.thinking) {
+    return;
+  }
+
+  if (!req.body.thinking) {
+    req.body.thinking = { type: 'enabled' };
+  }
+
+  if (thinking.effort) {
+    req.body.thinking.effort = thinking.effort;
+  }
+
+  if (thinking.budget_tokens) {
+    req.body.thinking.budget_tokens = thinking.budget_tokens;
+  }
+};
+
 /**
  * 路由中间件
  */
@@ -199,6 +236,7 @@ export const router = async (req: any, _res: any, context: any) => {
 
     // 如果触发路由已命中（模型含逗号），保留其选择
     req.body.model = model ?? req.body.model;
+    applyModelThinking(req, config, req.body.model);
     req.tokenCount = tokenCount;
   } catch (error: any) {
     logError("Error in router middleware:", error.message);

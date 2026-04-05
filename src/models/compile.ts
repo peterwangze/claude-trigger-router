@@ -93,6 +93,27 @@ export function resolveModelReference(config: IAppConfig, ref?: string): string 
   return `${compiled.providerName},${compiled.modelName}`;
 }
 
+export function getCompiledModelRef(config: IAppConfig, ref?: string): ICompiledModelRef | undefined {
+  if (!ref) {
+    return undefined;
+  }
+
+  const registry = buildModelRegistry(config);
+  if (!ref.includes(',')) {
+    return registry.modelMap[ref];
+  }
+
+  const resolvedRef = registry.modelMap[ref];
+  if (resolvedRef) {
+    return resolvedRef;
+  }
+
+  const [providerName, modelName] = ref.split(',');
+  return Object.values(registry.modelMap).find(
+    (item) => item.providerName === providerName && item.modelName === modelName
+  );
+}
+
 export function isKnownModelReference(config: IAppConfig, ref?: string): boolean {
   if (!ref) {
     return false;
