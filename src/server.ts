@@ -465,6 +465,11 @@ export const createServer = (config: any): Server => {
       `.diff-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.75rem;margin-top:.75rem}` +
       `.diff-chip{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:.75rem}` +
       `.diff-chip strong{display:block;font-size:1rem;margin-top:.2rem}` +
+      `.models-form-grid{display:grid;gap:.75rem;margin-top:.75rem}` +
+      `.model-card{border:1px solid #e5e7eb;border-radius:12px;padding:1rem;background:#fcfcfd}` +
+      `.model-card-header{display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:.75rem}` +
+      `.model-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem}` +
+      `.model-card-grid textarea{min-height:84px;resize:vertical}` +
       `.control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
       `.control-grid label{display:block;font-size:.85rem;color:#6b7280;margin-bottom:.35rem}` +
       `.trend-table{width:100%;margin-top:.75rem}` +
@@ -502,8 +507,17 @@ export const createServer = (config: any): Server => {
       `<div class="row"><strong>Draft Config Preview</strong><span class="muted">编辑当前配置草稿并即时预览 compiled models 结果，不落盘</span></div>` +
       `<div class="action-row">` +
       `<button id="loadConfigDraftBtn" type="button">载入当前配置</button>` +
+      `<button id="addModelDraftBtn" type="button">新增 Model</button>` +
+      `<button id="syncDraftJsonBtn" type="button">同步 JSON 草稿</button>` +
       `<button id="previewConfigDraftBtn" type="button">预览 compiled models</button>` +
       `<span id="draftPreviewStatus" class="muted">尚未预览配置草稿</span>` +
+      `</div>` +
+      `<div class="control-grid">` +
+      `<div><label>Router default (modelId)</label><input id="draftRouterDefault" placeholder="例如 sonnet"></div>` +
+      `<div><label>Models count</label><input id="draftModelsCount" value="0" readonly></div>` +
+      `</div>` +
+      `<div id="modelsFormGrid" class="models-form-grid">` +
+      `<div class="panel" style="margin-bottom:0"><span class="muted">No draft models loaded yet</span></div>` +
       `</div>` +
       `<textarea id="configDraftEditor" style="width:100%;min-height:240px;margin-top:.75rem;padding:.75rem;border-radius:12px;border:1px solid #d1d5db;font:12px/1.5 ui-monospace,SFMono-Regular,monospace" spellcheck="false" placeholder='{"Models":[{"id":"sonnet","api_base_url":"https://...","api_key":"sk-...","protocol":"openai","model":"anthropic/claude-sonnet-4"}]}'></textarea>` +
       `<div class="subpanel">` +
@@ -657,6 +671,9 @@ export const createServer = (config: any): Server => {
       `const detailHint=document.getElementById('detailHint');` +
       `const draftPreviewStatus=document.getElementById('draftPreviewStatus');` +
       `const configDraftEditor=document.getElementById('configDraftEditor');` +
+      `const modelsFormGrid=document.getElementById('modelsFormGrid');` +
+      `const draftRouterDefault=document.getElementById('draftRouterDefault');` +
+      `const draftModelsCount=document.getElementById('draftModelsCount');` +
       `const compiledModelsStatus=document.getElementById('compiledModelsStatus');` +
       `const compiledDiffSummary=document.getElementById('compiledDiffSummary');` +
       `const compiledDiffTableBody=document.querySelector('#compiledDiffTable tbody');` +
@@ -676,10 +693,73 @@ export const createServer = (config: any): Server => {
       `const scheduleTableBody=document.querySelector('#scheduleTable tbody');` +
       `const archiveTableBody=document.querySelector('#archiveTable tbody');` +
       `const trendTableBody=document.querySelector('#trendTable tbody');` +
+      `let currentDraftConfig={};` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
       `function fmt(v){return Number(v || 0).toFixed(2);}` +
       `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
+      `function renderModelsForm(models){` +
+      `  const list=Array.isArray(models) ? models : [];` +
+      `  draftModelsCount.value=String(list.length);` +
+      `  if(!list.length){ modelsFormGrid.innerHTML='<div class="panel" style="margin-bottom:0"><span class="muted">No draft models loaded yet</span></div>'; return; }` +
+      `  modelsFormGrid.innerHTML=list.map((model,index)=>'<div class="model-card" data-model-card=\"'+index+'\">' +` +
+      `    '<div class="model-card-header"><strong>Model #'+(index+1)+'</strong><button type="button" data-remove-model=\"'+index+'\">删除</button></div>' +` +
+      `    '<div class="model-card-grid">' +` +
+      `      '<div><label>ID</label><input data-field=\"id\" data-index=\"'+index+'\" value=\"'+esc(model.id || '')+'\" placeholder=\"sonnet\"></div>' +` +
+      `      '<div><label>Protocol</label><select data-field=\"protocol\" data-index=\"'+index+'\"><option value=\"openai\"'+((model.protocol || 'openai') === 'openai' ? ' selected' : '')+'>openai</option><option value=\"anthropic\"'+(model.protocol === 'anthropic' ? ' selected' : '')+'>anthropic</option></select></div>' +` +
+      `      '<div><label>Model</label><input data-field=\"model\" data-index=\"'+index+'\" value=\"'+esc(model.model || '')+'\" placeholder=\"anthropic/claude-sonnet-4\"></div>' +` +
+      `      '<div><label>API base URL</label><input data-field=\"api_base_url\" data-index=\"'+index+'\" value=\"'+esc(model.api_base_url || '')+'\" placeholder=\"https://...\"></div>' +` +
+      `      '<div><label>API key</label><input data-field=\"api_key\" data-index=\"'+index+'\" value=\"'+esc(model.api_key || '')+'\" placeholder=\"sk-...\"></div>' +` +
+      `      '<div><label>Thinking mode</label><select data-field=\"thinking_mode\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"off\"'+(model.thinking?.mode === 'off' ? ' selected' : '')+'>off</option><option value=\"auto\"'+(model.thinking?.mode === 'auto' ? ' selected' : '')+'>auto</option><option value=\"on\"'+(model.thinking?.mode === 'on' ? ' selected' : '')+'>on</option></select></div>' +` +
+      `      '<div><label>Thinking effort</label><select data-field=\"thinking_effort\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"low\"'+(model.thinking?.effort === 'low' ? ' selected' : '')+'>low</option><option value=\"medium\"'+(model.thinking?.effort === 'medium' ? ' selected' : '')+'>medium</option><option value=\"high\"'+(model.thinking?.effort === 'high' ? ' selected' : '')+'>high</option></select></div>' +` +
+      `      '<div><label>Thinking budget</label><input data-field=\"thinking_budget_tokens\" data-index=\"'+index+'\" value=\"'+esc(model.thinking?.budget_tokens || '')+'\" placeholder=\"1024\"></div>' +` +
+      `      '<div style=\"grid-column:1/-1\"><label>Metadata (JSON)</label><textarea data-field=\"metadata\" data-index=\"'+index+'\" placeholder=\"{\\\"vendor\\\":\\\"openrouter\\\"}\">'+esc(model.metadata ? JSON.stringify(model.metadata, null, 2) : '')+'</textarea></div>' +` +
+      `    '</div>' +` +
+      `  '</div>').join('');` +
+      `}` +
+      `function extractModelsFromForm(){` +
+      `  const cards=Array.from(modelsFormGrid.querySelectorAll('[data-model-card]'));` +
+      `  return cards.map((card,index)=>{` +
+      `    const read=(field)=>card.querySelector('[data-field=\"'+field+'\"][data-index=\"'+index+'\"]');` +
+      `    const metadataRaw=(read('metadata')?.value || '').trim();` +
+      `    let metadata;` +
+      `    if(metadataRaw){ metadata=JSON.parse(metadataRaw); }` +
+      `    const thinking={};` +
+      `    const mode=(read('thinking_mode')?.value || '').trim();` +
+      `    const effort=(read('thinking_effort')?.value || '').trim();` +
+      `    const budget=(read('thinking_budget_tokens')?.value || '').trim();` +
+      `    if(mode) thinking.mode=mode;` +
+      `    if(effort) thinking.effort=effort;` +
+      `    if(budget) thinking.budget_tokens=Number(budget);` +
+      `    const model={` +
+      `      id:(read('id')?.value || '').trim(),` +
+      `      api_base_url:(read('api_base_url')?.value || '').trim(),` +
+      `      api_key:(read('api_key')?.value || '').trim(),` +
+      `      protocol:(read('protocol')?.value || '').trim(),` +
+      `      model:(read('model')?.value || '').trim(),` +
+      `    };` +
+      `    if(Object.keys(thinking).length){ model.thinking=thinking; }` +
+      `    if(metadata !== undefined){ model.metadata=metadata; }` +
+      `    return model;` +
+      `  });` +
+      `}` +
+      `function buildDraftPayloadFromForm(){` +
+      `  const payload=JSON.parse(JSON.stringify(currentDraftConfig || {}));` +
+      `  payload.Models=extractModelsFromForm();` +
+      `  const routerDefault=(draftRouterDefault.value || '').trim();` +
+      `  if(routerDefault){ payload.Router={ ...(payload.Router || {}), default: routerDefault }; }` +
+      `  else if(payload.Router){ delete payload.Router.default; if(!Object.keys(payload.Router).length){ delete payload.Router; } }` +
+      `  return payload;` +
+      `}` +
+      `function syncDraftEditorFromForm(){` +
+      `  try {` +
+      `    const payload=buildDraftPayloadFromForm();` +
+      `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
+      `    draftPreviewStatus.textContent='已同步 Models 表单到 JSON 草稿';` +
+      `  } catch (error) {` +
+      `    draftPreviewStatus.textContent='同步失败：'+error.message;` +
+      `  }` +
+      `}` +
       `function renderCompiledDiff(diff){` +
       `  const summary=diff?.summary || {};` +
       `  compiledDiffSummary.innerHTML=[` +
@@ -726,15 +806,19 @@ export const createServer = (config: any): Server => {
       `  draftPreviewStatus.textContent='加载当前配置中...';` +
       `  const res=await fetch('/api/config');` +
       `  const data=await res.json();` +
+      `  currentDraftConfig=data || {};` +
+      `  renderModelsForm(currentDraftConfig.Models || []);` +
+      `  draftRouterDefault.value=currentDraftConfig.Router?.default || '';` +
       `  configDraftEditor.value=JSON.stringify(data,null,2);` +
-      `  draftPreviewStatus.textContent='已载入当前配置，可直接编辑 JSON 草稿';` +
+      `  draftPreviewStatus.textContent='已载入当前配置，可通过 Models 表单或 JSON 草稿编辑';` +
       `}` +
       `async function previewConfigDraft(){` +
       `  let payload;` +
       `  try {` +
-      `    payload=JSON.parse(configDraftEditor.value || '{}');` +
+      `    payload=buildDraftPayloadFromForm();` +
+      `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `  } catch (error) {` +
-      `    draftPreviewStatus.textContent='JSON 解析失败：'+error.message;` +
+      `    draftPreviewStatus.textContent='草稿解析失败：'+error.message;` +
       `    return;` +
       `  }` +
       `  draftPreviewStatus.textContent='预览编译结果中...';` +
@@ -752,6 +836,16 @@ export const createServer = (config: any): Server => {
       `  renderCompiledModels(data);` +
       `  draftPreviewStatus.textContent='预览完成：已按草稿配置刷新 compiled models';` +
       `}` +
+      `function addDraftModel(){` +
+      `  const nextModels=extractModelsFromForm();` +
+      `  nextModels.push({ protocol:'openai', thinking:{ mode:'auto' } });` +
+      `  renderModelsForm(nextModels);` +
+      `  syncDraftEditorFromForm();` +
+      `}` +
+      `modelsFormGrid.addEventListener('input',()=>syncDraftEditorFromForm());` +
+      `modelsFormGrid.addEventListener('change',()=>syncDraftEditorFromForm());` +
+      `modelsFormGrid.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-model]'); if(!btn){ return; } const removeIndex=Number(btn.dataset.removeModel); const nextModels=extractModelsFromForm().filter((_,index)=>index!==removeIndex); renderModelsForm(nextModels); syncDraftEditorFromForm(); });` +
+      `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
       `function renderMetrics(metrics){` +
       `  metricsGrid.innerHTML=[` +
       "    ['Recent traces', metrics.totalTraces ?? 0]," +
@@ -919,6 +1013,8 @@ export const createServer = (config: any): Server => {
       `}` +
       `document.getElementById('refreshBtn').addEventListener('click',loadTraces);` +
       `document.getElementById('loadConfigDraftBtn').addEventListener('click',loadConfigDraft);` +
+      `document.getElementById('addModelDraftBtn').addEventListener('click',addDraftModel);` +
+      `document.getElementById('syncDraftJsonBtn').addEventListener('click',syncDraftEditorFromForm);` +
       `document.getElementById('previewConfigDraftBtn').addEventListener('click',previewConfigDraft);` +
       `document.getElementById('createSnapshotBtn').addEventListener('click',createSnapshot);` +
       `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +
