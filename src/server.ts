@@ -917,11 +917,32 @@ export const createServer = (config: any): Server => {
       `function syncDraftEditorFromForm(){` +
       `  try {` +
       `    const payload=buildDraftPayloadFromForm();` +
+      `    currentDraftConfig=payload;` +
       `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `    draftPreviewStatus.textContent='已同步 Models 表单到 JSON 草稿';` +
       `  } catch (error) {` +
       `    draftPreviewStatus.textContent='同步失败：'+error.message;` +
       `  }` +
+      `}` +
+      `function applyReferenceSuggestion(path,modelId){` +
+      `  if(!modelId){ return; }` +
+      `  if(path==='Router.default'){ draftRouterDefault.value=modelId; syncDraftEditorFromForm(); draftPreviewStatus.textContent='已将建议模型应用到 Router.default'; return; }` +
+      `  const payload=JSON.parse(JSON.stringify(currentDraftConfig || {}));` +
+      `  const pathMatch=path.match(/^([^.\[]+)(?:\.(.+))?$/);` +
+      `  if(!pathMatch){ draftPreviewStatus.textContent='暂不支持自动修复：'+path; return; }` +
+      `  const tokens=path.replace(/\[(\d+)\]/g,'.$1').split('.');` +
+      `  let cursor=payload;` +
+      `  for(let i=0;i<tokens.length-1;i++){` +
+      `    const token=tokens[i];` +
+      `    const nextToken=tokens[i+1];` +
+      `    if(cursor[token] === undefined){ cursor[token]=String(Number(nextToken))===nextToken ? [] : {}; }` +
+      `    cursor=cursor[token];` +
+      `  }` +
+      `  cursor[tokens[tokens.length-1]]=modelId;` +
+      `  currentDraftConfig=payload;` +
+      `  if(payload.Router?.default){ draftRouterDefault.value=payload.Router.default; }` +
+      `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
+      `  draftPreviewStatus.textContent='已将建议模型应用到 '+path+'，可重新预览验证';` +
       `}` +
       `function renderCompiledDiff(diff){` +
       `  const summary=diff?.summary || {};` +
@@ -961,7 +982,7 @@ export const createServer = (config: any): Server => {
       `    '<td>'+esc(item.referenceType)+'</td>' +` +
       `    '<td>'+esc(item.status)+'</td>' +` +
       `    '<td><code>'+esc(item.resolvedTarget?.providerName || '-')+'</code><div class="muted">'+esc(item.resolvedTarget?.modelName || '-')}</div></td>' +` +
-      `    '<td>'+((item.suggestions || []).length ? item.suggestions.map(s=>'<div><code>'+esc(s.modelId)+'</code><div class="muted">'+esc(s.modelName || '-')+'</div></div>').join('') : '<span class="muted">-</span>')+'</td>' +` +
+      `    '<td>'+((item.suggestions || []).length ? item.suggestions.map(s=>'<div><code>'+esc(s.modelId)+'</code><div class="muted">'+esc(s.modelName || '-')+'</div><button type="button" data-apply-reference-path=\"'+esc(item.path)+'\" data-apply-reference-model=\"'+esc(s.modelId)+'\">应用建议</button></div>').join('') : '<span class="muted">-</span>')+'</td>' +` +
       `  '</tr>').join('') : '<tr><td colspan="6" class="muted">No model references found</td></tr>';` +
       `}` +
       `function renderCompiledModels(data){` +
@@ -1029,6 +1050,7 @@ export const createServer = (config: any): Server => {
       `modelsFormGrid.addEventListener('input',()=>syncDraftEditorFromForm());` +
       `modelsFormGrid.addEventListener('change',()=>syncDraftEditorFromForm());` +
       `modelsFormGrid.addEventListener('click',(e)=>{ const applyBtn=e.target.closest('button[data-apply-template]'); if(applyBtn){ const applyIndex=Number(applyBtn.dataset.applyTemplate); applyProviderTemplate(applyIndex); syncDraftEditorFromForm(); return; } const btn=e.target.closest('button[data-remove-model]'); if(!btn){ return; } const removeIndex=Number(btn.dataset.removeModel); const nextModels=extractModelsFromForm().filter((_,index)=>index!==removeIndex); renderModelsForm(nextModels); syncDraftEditorFromForm(); });` +
+      `referenceImpactTableBody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-apply-reference-path]'); if(!btn){ return; } applyReferenceSuggestion(btn.dataset.applyReferencePath, btn.dataset.applyReferenceModel); });` +
       `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
       `function renderMetrics(metrics){` +
       `  metricsGrid.innerHTML=[` +

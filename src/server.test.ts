@@ -957,6 +957,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('referenceImpactTable');
     expect(html).toContain('Suggestions');
     expect(html).toContain('Resolved target');
+    expect(html).toContain('应用建议');
+    expect(html).toContain('data-apply-reference-path');
+    expect(html).toContain('data-apply-reference-model');
     expect(html).toContain('modelsFormGrid');
     expect(html).toContain('draftRouterDefault');
     expect(html).toContain('draftModelsCount');
@@ -985,6 +988,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('extractModelsFromForm');
     expect(html).toContain('buildDraftPayloadFromForm');
     expect(html).toContain('syncDraftEditorFromForm');
+    expect(html).toContain('applyReferenceSuggestion');
     expect(html).toContain('addDraftModel');
     expect(html).toContain('renderCompiledDiff');
     expect(html).toContain('renderReferenceImpact');
