@@ -140,4 +140,44 @@ describe('governance trace', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('lists, reads, filters, and deletes archive files', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctr-governance-archive-list-'));
+    const persistFile = join(dir, 'governance-traces.json');
+    const archiveDir = join(dir, 'archives');
+
+    try {
+      const store = new GovernanceTraceStore({
+        persistFile,
+        archiveDir,
+        persistEnabled: true,
+        activePersistLimit: 1,
+        retainArchiveFiles: 5,
+      });
+
+      for (let index = 0; index < 4; index += 1) {
+        store.add(createGovernanceTrace({
+          requestId: `req-list-${index}`,
+          routeReason: ['smart_router'],
+          startedAt: new Date(`2026-04-0${index + 1}T08:00:00.000Z`).getTime(),
+        }));
+      }
+
+      const archives = store.listArchives();
+      expect(archives.length).toBeGreaterThan(0);
+
+      const target = archives[0];
+      const filtered = store.listArchives({
+        date: new Date(target.startedAt ?? 0).toISOString().slice(0, 10),
+      });
+      const traces = store.getArchivedTraces(target.file);
+
+      expect(filtered.some((item) => item.file === target.file)).toBe(true);
+      expect(traces.length).toBeGreaterThan(0);
+      expect(store.deleteArchive(target.file)).toBe(true);
+      expect(store.getArchivedTraces(target.file)).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

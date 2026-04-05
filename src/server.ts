@@ -169,6 +169,48 @@ export const createServer = (config: any): Server => {
     return trace;
   });
 
+  server.app.get("/api/governance/archives", async (req: any) => {
+    const limit = req.query?.limit ? Number(req.query.limit) : undefined;
+    return {
+      archives: governanceTraceStore.listArchives({
+        date: req.query?.date,
+        limit: Number.isFinite(limit) ? limit : undefined,
+      }),
+    };
+  });
+
+  server.app.get("/api/governance/archives/:file", async (req: any, reply: any) => {
+    const traces = governanceTraceStore.getArchivedTraces(req.params.file);
+    if (!traces.length) {
+      reply.code(404);
+      return {
+        success: false,
+        message: 'Governance archive not found',
+      };
+    }
+
+    return {
+      file: req.params.file,
+      traces,
+    };
+  });
+
+  server.app.post("/api/governance/archives/:file/delete", async (req: any, reply: any) => {
+    const deleted = governanceTraceStore.deleteArchive(req.params.file);
+    if (!deleted) {
+      reply.code(404);
+      return {
+        success: false,
+        message: 'Governance archive not found',
+      };
+    }
+
+    return {
+      success: true,
+      file: req.params.file,
+    };
+  });
+
   // 获取转换器列表
   server.app.get("/api/transformers", async () => {
     const transformers =
@@ -287,7 +329,7 @@ export const createServer = (config: any): Server => {
       `<input id="limit" placeholder="limit" value="20">` +
       `<button id="refreshBtn">刷新</button>` +
       `</div>` +
-      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
+      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
       `<div id="metricsGrid" class="stats">` +
       `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
       `<div class="stat"><span class="muted">Sticky hit rate</span><strong>-</strong></div>` +
@@ -345,6 +387,9 @@ export const createServer = (config: any): Server => {
       `<li><code>POST /api/config</code> — 保存配置</li>` +
       `<li><code>GET /api/transformers</code> — 查看已加载 transformer</li>` +
       `<li><code>POST /api/restart</code> — 重启服务</li>` +
+      `<li><code>GET /api/governance/archives</code> — 查看治理归档列表</li>` +
+      `<li><code>GET /api/governance/archives/:file</code> — 查看归档内 traces</li>` +
+      `<li><code>POST /api/governance/archives/:file/delete</code> — 删除指定归档</li>` +
       `<li><code>POST /api/governance/metrics/snapshots</code> — 生成一次治理指标快照</li>` +
       `<li><code>POST /api/governance/metrics/schedules</code> — 注册定时快照任务</li>` +
       `</ul>` +

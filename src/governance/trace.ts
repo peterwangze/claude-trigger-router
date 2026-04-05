@@ -21,6 +21,14 @@ export interface IGovernanceTraceStoreOptions {
   retainArchiveFiles?: number;
 }
 
+export interface IGovernanceTraceArchiveRecord {
+  file: string;
+  filePath: string;
+  traceCount: number;
+  startedAt?: number;
+  endedAt?: number;
+}
+
 export class GovernanceTraceStore {
   private cache: LRUCache<string, IGovernanceTrace>;
   private persistFile?: string;
@@ -93,6 +101,7 @@ export class GovernanceTraceStore {
   clear(): void {
     this.cache.clear();
     this.persistToDisk();
+    this.clearArchives();
   }
 
   hydrate(traces: IGovernanceTrace[]): void {
@@ -101,6 +110,67 @@ export class GovernanceTraceStore {
       this.cache.set(trace.requestId, { ...trace, routeReason: [...trace.routeReason] });
     }
     this.persistToDisk();
+  }
+
+  listArchives(filters?: {
+    date?: string;
+    limit?: number;
+  }): IGovernanceTraceArchiveRecord[] {
+    if (!this.archiveDir || !existsSync(this.archiveDir)) {
+      return [];
+    }
+
+    let records = readdirSync(this.archiveDir)
+      .filter((file) => file.endsWith('.json'))
+      .sort()
+      .reverse()
+      .map((file) => this.readArchiveRecord(file))
+      .filter((record): record is IGovernanceTraceArchiveRecord => Boolean(record));
+
+    if (filters?.date) {
+      records = records.filter((record) => {
+        const started = record.startedAt ? new Date(record.startedAt).toISOString().slice(0, 10) : '';
+        const ended = record.endedAt ? new Date(record.endedAt).toISOString().slice(0, 10) : '';
+        return started === filters.date || ended === filters.date;
+      });
+    }
+
+    if (filters?.limit && filters.limit > 0) {
+      records = records.slice(0, filters.limit);
+    }
+
+    return records;
+  }
+
+  getArchivedTraces(file: string): IGovernanceTrace[] {
+    if (!this.archiveDir) {
+      return [];
+    }
+
+    const filePath = join(this.archiveDir, file);
+    if (!existsSync(filePath)) {
+      return [];
+    }
+
+    try {
+      return JSON.parse(readFileSync(filePath, 'utf-8')) as IGovernanceTrace[];
+    } catch {
+      return [];
+    }
+  }
+
+  deleteArchive(file: string): boolean {
+    if (!this.archiveDir) {
+      return false;
+    }
+
+    const filePath = join(this.archiveDir, file);
+    if (!existsSync(filePath)) {
+      return false;
+    }
+
+    rmSync(filePath, { force: true });
+    return true;
   }
 
   private loadFromDisk(): void {
@@ -179,6 +249,27 @@ export class GovernanceTraceStore {
     writeFileSync(join(this.archiveDir, filename), JSON.stringify(traces, null, 2), 'utf-8');
   }
 
+  private readArchiveRecord(file: string): IGovernanceTraceArchiveRecord | null {
+    if (!this.archiveDir) {
+      return null;
+    }
+
+    const filePath = join(this.archiveDir, file);
+    try {
+      const traces = JSON.parse(readFileSync(filePath, 'utf-8')) as IGovernanceTrace[];
+      const startedAtValues = traces.map((trace) => trace.startedAt).filter((value) => typeof value === 'number');
+      return {
+        file,
+        filePath,
+        traceCount: traces.length,
+        startedAt: startedAtValues.length ? Math.min(...startedAtValues) : undefined,
+        endedAt: startedAtValues.length ? Math.max(...startedAtValues) : undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   private pruneArchives(): void {
     if (!this.archiveDir || !existsSync(this.archiveDir)) {
       return;
@@ -190,6 +281,16 @@ export class GovernanceTraceStore {
       .reverse();
 
     for (const file of archiveFiles.slice(this.retainArchiveFiles)) {
+      rmSync(join(this.archiveDir, file), { force: true });
+    }
+  }
+
+  private clearArchives(): void {
+    if (!this.archiveDir || !existsSync(this.archiveDir)) {
+      return;
+    }
+
+    for (const file of readdirSync(this.archiveDir).filter((item) => item.endsWith('.json'))) {
       rmSync(join(this.archiveDir, file), { force: true });
     }
   }

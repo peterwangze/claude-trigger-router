@@ -145,6 +145,8 @@
 - `GET /api/governance/metrics` 与导出接口现可通过 query 自定义 min sample、rate 和 latency 阈值
 - 新增导出历史记录与定时快照调度能力
 - 支持 `GET /api/governance/metrics/exports`、`POST /api/governance/metrics/snapshots`、`POST /api/governance/metrics/schedules`
+- 新增治理归档管理 API，可列出、按日期筛选、查看和删除归档文件
+- 支持 `GET /api/governance/archives`、`GET /api/governance/archives/:file`、`POST /api/governance/archives/:file/delete`
 
 ## 下次更新时应补充的内容
 

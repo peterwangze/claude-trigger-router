@@ -143,6 +143,61 @@ describe('createServer /api/config', () => {
     });
   });
 
+  it('exposes governance archive list, detail, and delete endpoints', async () => {
+    const originalListArchives = governanceTraceStore.listArchives.bind(governanceTraceStore);
+    const originalGetArchivedTraces = governanceTraceStore.getArchivedTraces.bind(governanceTraceStore);
+    const originalDeleteArchive = governanceTraceStore.deleteArchive.bind(governanceTraceStore);
+
+    governanceTraceStore.listArchives = vi.fn().mockReturnValue([
+      {
+        file: 'governance-traces-1.json',
+        filePath: '/tmp/governance-traces-1.json',
+        traceCount: 2,
+        startedAt: 1,
+        endedAt: 2,
+      },
+    ]) as any;
+    governanceTraceStore.getArchivedTraces = vi.fn().mockReturnValue([
+      {
+        requestId: 'archive-trace-1',
+        routeReason: ['sticky'],
+        stickyHit: true,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        cascadeEvidence: [],
+        shadowChecked: false,
+        startedAt: 1,
+      },
+    ]) as any;
+    governanceTraceStore.deleteArchive = vi.fn().mockReturnValue(true) as any;
+
+    try {
+      const server = createServer({});
+      const listHandler = server.app.routes.get('GET /api/governance/archives');
+      const detailHandler = server.app.routes.get('GET /api/governance/archives/:file');
+      const deleteHandler = server.app.routes.get('POST /api/governance/archives/:file/delete');
+      const reply = {
+        code: vi.fn().mockReturnThis(),
+      };
+
+      const listResult = await listHandler({ query: { date: '2026-04-01' } }, {});
+      const detailResult = await detailHandler({ params: { file: 'governance-traces-1.json' } }, reply);
+      const deleteResult = await deleteHandler({ params: { file: 'governance-traces-1.json' } }, reply);
+
+      expect(listResult.archives).toHaveLength(1);
+      expect(detailResult.file).toBe('governance-traces-1.json');
+      expect(detailResult.traces).toHaveLength(1);
+      expect(deleteResult).toEqual({
+        success: true,
+        file: 'governance-traces-1.json',
+      });
+    } finally {
+      governanceTraceStore.listArchives = originalListArchives as any;
+      governanceTraceStore.getArchivedTraces = originalGetArchivedTraces as any;
+      governanceTraceStore.deleteArchive = originalDeleteArchive as any;
+    }
+  });
+
   it('exposes governance metrics endpoint with matching filters', async () => {
     governanceTraceStore.add({
       requestId: 'trace-1',
@@ -466,6 +521,7 @@ describe('createServer /api/config', () => {
     expect(reply.header).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
     expect(html).toContain('Governance Trace');
     expect(html).toContain('/api/governance/traces');
+    expect(html).toContain('/api/governance/archives');
     expect(html).toContain('/api/governance/metrics');
     expect(html).toContain('/api/governance/metrics/export');
     expect(html).toContain('/api/governance/metrics/exports');
