@@ -591,6 +591,9 @@ export const createServer = (config: any): Server => {
       `.model-card-header{display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:.75rem}` +
       `.model-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem}` +
       `.model-card-grid textarea{min-height:84px;resize:vertical}` +
+      `.list-editor{display:grid;gap:.75rem;margin-top:.75rem}` +
+      `.list-item{border:1px solid #e5e7eb;border-radius:12px;padding:.85rem;background:#fcfcfd}` +
+      `.list-item-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem}` +
       `.control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
       `.control-grid label{display:block;font-size:.85rem;color:#6b7280;margin-bottom:.35rem}` +
       `.trend-table{width:100%;margin-top:.75rem}` +
@@ -648,7 +651,7 @@ export const createServer = (config: any): Server => {
       `<div><label>Analysis scope</label><select id="triggerAnalysisScope"><option value="last_message">last_message</option><option value="full_context">full_context</option></select></div>` +
       `<div><label>Intent model</label><input id="triggerIntentModel" placeholder="modelId"></div>` +
       `</div>` +
-      `<div style="margin-top:.75rem"><label>Rules (JSON array)</label><textarea id="triggerRulesEditor" style="width:100%;min-height:100px;padding:.75rem;border-radius:12px;border:1px solid #d1d5db;font:12px/1.5 ui-monospace,SFMono-Regular,monospace" spellcheck="false" placeholder='[{"name":"architecture","enabled":true,"priority":10,"model":"sonnet","patterns":[{"type":"exact","keywords":["架构设计"]}]}]'></textarea></div>` +
+      `<div style="margin-top:.75rem"><div class="action-row"><label>Rules</label><button id="addTriggerRuleBtn" type="button">新增 Rule</button></div><div id="triggerRulesList" class="list-editor"><div class="panel" style="margin-bottom:0"><span class="muted">No trigger rules yet</span></div></div></div>` +
       `</div>` +
       `<div class="panel" style="margin-bottom:0">` +
       `<div class="row"><strong>SmartRouter</strong><span class="muted">智能候选选择</span></div>` +
@@ -659,7 +662,7 @@ export const createServer = (config: any): Server => {
       `<div><label>Cache TTL</label><input id="smartCacheTtl" placeholder="600000"></div>` +
       `<div><label>Max tokens</label><input id="smartMaxTokens" placeholder="256"></div>` +
       `</div>` +
-      `<div style="margin-top:.75rem"><label>Candidates (JSON array)</label><textarea id="smartCandidatesEditor" style="width:100%;min-height:100px;padding:.75rem;border-radius:12px;border:1px solid #d1d5db;font:12px/1.5 ui-monospace,SFMono-Regular,monospace" spellcheck="false" placeholder='[{"model":"sonnet","description":"balanced default"},{"model":"haiku","description":"fast lightweight"}]'></textarea></div>` +
+      `<div style="margin-top:.75rem"><div class="action-row"><label>Candidates</label><button id="addSmartCandidateBtn" type="button">新增 Candidate</button></div><div id="smartCandidatesList" class="list-editor"><div class="panel" style="margin-bottom:0"><span class="muted">No smart candidates yet</span></div></div></div>` +
       `</div>` +
       `<div class="panel" style="margin-bottom:0">` +
       `<div class="row"><strong>Governance</strong><span class="muted">对齐、语义、影子校验与级联</span></div>` +
@@ -672,7 +675,7 @@ export const createServer = (config: any): Server => {
       `<div><label><input id="governanceShadowEnabled" type="checkbox"> Shadow</label></div>` +
       `<div><label>Verifier model</label><input id="governanceVerifierModel" placeholder="modelId"></div>` +
       `</div>` +
-      `<div style="margin-top:.75rem"><label>Cascade levels (JSON array)</label><textarea id="governanceCascadeLevelsEditor" style="width:100%;min-height:100px;padding:.75rem;border-radius:12px;border:1px solid #d1d5db;font:12px/1.5 ui-monospace,SFMono-Regular,monospace" spellcheck="false" placeholder='[{"from":"haiku","to":"sonnet","reason":"quality_low"}]'></textarea></div>` +
+      `<div style="margin-top:.75rem"><div class="action-row"><label>Cascade levels</label><button id="addCascadeLevelBtn" type="button">新增 Level</button></div><div id="governanceCascadeLevelsList" class="list-editor"><div class="panel" style="margin-bottom:0"><span class="muted">No cascade levels yet</span></div></div></div>` +
       `</div>` +
       `</div>` +
       `</div>` +
@@ -852,13 +855,13 @@ export const createServer = (config: any): Server => {
       `const triggerIntentEnabled=document.getElementById('triggerIntentEnabled');` +
       `const triggerAnalysisScope=document.getElementById('triggerAnalysisScope');` +
       `const triggerIntentModel=document.getElementById('triggerIntentModel');` +
-      `const triggerRulesEditor=document.getElementById('triggerRulesEditor');` +
+      `const triggerRulesList=document.getElementById('triggerRulesList');` +
       `const smartEnabled=document.getElementById('smartEnabled');` +
       `const smartRouterModel=document.getElementById('smartRouterModel');` +
       `const smartFallback=document.getElementById('smartFallback');` +
       `const smartCacheTtl=document.getElementById('smartCacheTtl');` +
       `const smartMaxTokens=document.getElementById('smartMaxTokens');` +
-      `const smartCandidatesEditor=document.getElementById('smartCandidatesEditor');` +
+      `const smartCandidatesList=document.getElementById('smartCandidatesList');` +
       `const governanceEnabled=document.getElementById('governanceEnabled');` +
       `const governanceAlignmentEnabled=document.getElementById('governanceAlignmentEnabled');` +
       `const governanceSummarizerModel=document.getElementById('governanceSummarizerModel');` +
@@ -866,7 +869,7 @@ export const createServer = (config: any): Server => {
       `const governanceClassifierModel=document.getElementById('governanceClassifierModel');` +
       `const governanceShadowEnabled=document.getElementById('governanceShadowEnabled');` +
       `const governanceVerifierModel=document.getElementById('governanceVerifierModel');` +
-      `const governanceCascadeLevelsEditor=document.getElementById('governanceCascadeLevelsEditor');` +
+      `const governanceCascadeLevelsList=document.getElementById('governanceCascadeLevelsList');` +
       `const compiledModelsStatus=document.getElementById('compiledModelsStatus');` +
       `const compiledDiffSummary=document.getElementById('compiledDiffSummary');` +
       `const compiledDiffTableBody=document.querySelector('#compiledDiffTable tbody');` +
@@ -964,18 +967,74 @@ export const createServer = (config: any): Server => {
       `  if(nextModels[index]){ nextModels[index]={ ...nextModels[index], provider_template: templateKey }; }` +
       `  renderModelsForm(nextModels);` +
       `}` +
+      `function renderTriggerRulesList(rules){` +
+      `  const list=Array.isArray(rules) ? rules : [];` +
+      `  if(!list.length){ triggerRulesList.innerHTML='<div class="panel" style="margin-bottom:0"><span class="muted">No trigger rules yet</span></div>'; return; }` +
+      `  triggerRulesList.innerHTML=list.map((rule,index)=>'<div class="list-item" data-trigger-rule=\"'+index+'\">' +` +
+      `    '<div class="action-row"><strong>Rule #'+(index+1)+'</strong><button type="button" data-remove-trigger-rule=\"'+index+'\">删除</button></div>' +` +
+      `    '<div class="list-item-grid">' +` +
+      `      '<div><label>Name</label><input data-trigger-field=\"name\" data-index=\"'+index+'\" value=\"'+esc(rule.name || '')+'\"></div>' +` +
+      `      '<div><label>Model</label><input data-trigger-field=\"model\" data-index=\"'+index+'\" value=\"'+esc(rule.model || '')+'\"></div>' +` +
+      `      '<div><label>Priority</label><input data-trigger-field=\"priority\" data-index=\"'+index+'\" value=\"'+esc(rule.priority ?? 10)+'\"></div>' +` +
+      `      '<div><label><input type=\"checkbox\" data-trigger-field=\"enabled\" data-index=\"'+index+'\"'+(rule.enabled === false ? '' : ' checked')+'> Enabled</label></div>' +` +
+      `      '<div style=\"grid-column:1/-1\"><label>Keywords (comma separated)</label><input data-trigger-field=\"keywords\" data-index=\"'+index+'\" value=\"'+esc(((rule.patterns && rule.patterns[0] && rule.patterns[0].keywords) || []).join(', '))+'\"></div>' +` +
+      `    '</div>' +` +
+      `  '</div>').join('');` +
+      `}` +
+      `function extractTriggerRulesFromForm(){` +
+      `  return Array.from(triggerRulesList.querySelectorAll('[data-trigger-rule]')).map((card,index)=>{` +
+      `    const read=(field)=>card.querySelector('[data-trigger-field=\"'+field+'\"][data-index=\"'+index+'\"]');` +
+      `    return { name:(read('name')?.value || '').trim(), model:(read('model')?.value || '').trim(), priority:Number(read('priority')?.value || 10), enabled:Boolean(read('enabled')?.checked), patterns:[{ type:'exact', keywords:(read('keywords')?.value || '').split(',').map(v=>v.trim()).filter(Boolean) }] };` +
+      `  });` +
+      `}` +
+      `function renderSmartCandidatesList(candidates){` +
+      `  const list=Array.isArray(candidates) ? candidates : [];` +
+      `  if(!list.length){ smartCandidatesList.innerHTML='<div class="panel" style="margin-bottom:0"><span class="muted">No smart candidates yet</span></div>'; return; }` +
+      `  smartCandidatesList.innerHTML=list.map((candidate,index)=>'<div class="list-item" data-smart-candidate=\"'+index+'\">' +` +
+      `    '<div class="action-row"><strong>Candidate #'+(index+1)+'</strong><button type="button" data-remove-smart-candidate=\"'+index+'\">删除</button></div>' +` +
+      `    '<div class="list-item-grid">' +` +
+      `      '<div><label>Model</label><input data-smart-field=\"model\" data-index=\"'+index+'\" value=\"'+esc(candidate.model || '')+'\"></div>' +` +
+      `      '<div style=\"grid-column:1/-1\"><label>Description</label><input data-smart-field=\"description\" data-index=\"'+index+'\" value=\"'+esc(candidate.description || '')+'\"></div>' +` +
+      `    '</div>' +` +
+      `  '</div>').join('');` +
+      `}` +
+      `function extractSmartCandidatesFromForm(){` +
+      `  return Array.from(smartCandidatesList.querySelectorAll('[data-smart-candidate]')).map((card,index)=>{` +
+      `    const read=(field)=>card.querySelector('[data-smart-field=\"'+field+'\"][data-index=\"'+index+'\"]');` +
+      `    return { model:(read('model')?.value || '').trim(), description:(read('description')?.value || '').trim() };` +
+      `  });` +
+      `}` +
+      `function renderCascadeLevelsList(levels){` +
+      `  const list=Array.isArray(levels) ? levels : [];` +
+      `  if(!list.length){ governanceCascadeLevelsList.innerHTML='<div class="panel" style="margin-bottom:0"><span class="muted">No cascade levels yet</span></div>'; return; }` +
+      `  governanceCascadeLevelsList.innerHTML=list.map((level,index)=>'<div class="list-item" data-cascade-level=\"'+index+'\">' +` +
+      `    '<div class="action-row"><strong>Level #'+(index+1)+'</strong><button type="button" data-remove-cascade-level=\"'+index+'\">删除</button></div>' +` +
+      `    '<div class="list-item-grid">' +` +
+      `      '<div><label>From</label><input data-cascade-field=\"from\" data-index=\"'+index+'\" value=\"'+esc(level.from || '')+'\"></div>' +` +
+      `      '<div><label>To</label><input data-cascade-field=\"to\" data-index=\"'+index+'\" value=\"'+esc(level.to || '')+'\"></div>' +` +
+      `      '<div style=\"grid-column:1/-1\"><label>Reason</label><input data-cascade-field=\"reason\" data-index=\"'+index+'\" value=\"'+esc(level.reason || '')+'\"></div>' +` +
+      `    '</div>' +` +
+      `  '</div>').join('');` +
+      `}` +
+      `function extractCascadeLevelsFromForm(){` +
+      `  return Array.from(governanceCascadeLevelsList.querySelectorAll('[data-cascade-level]')).map((card,index)=>{` +
+      `    const read=(field)=>card.querySelector('[data-cascade-field=\"'+field+'\"][data-index=\"'+index+'\"]');` +
+      `    const level={ from:(read('from')?.value || '').trim(), to:(read('to')?.value || '').trim() };` +
+      `    const reason=(read('reason')?.value || '').trim(); if(reason){ level.reason=reason; } return level;` +
+      `  });` +
+      `}` +
       `function buildDraftPayloadFromForm(){` +
-      `  const payload=JSON.parse(JSON.stringify(currentDraftConfig || {}));` +
-      `  payload.Models=extractModelsFromForm();` +
-      `  const routerDefault=(draftRouterDefault.value || '').trim();` +
-      `  if(routerDefault){ payload.Router={ ...(payload.Router || {}), default: routerDefault }; }` +
-      `  else if(payload.Router){ delete payload.Router.default; if(!Object.keys(payload.Router).length){ delete payload.Router; } }` +
-      `  const triggerRules=(triggerRulesEditor.value || '').trim();` +
-      `  if(triggerEnabled.checked || triggerIntentEnabled.checked || triggerIntentModel.value.trim() || triggerRules){ payload.TriggerRouter={ ...(payload.TriggerRouter || {}), enabled: triggerEnabled.checked, analysis_scope: triggerAnalysisScope.value || 'last_message', llm_intent_recognition: triggerIntentEnabled.checked, intent_model: triggerIntentModel.value.trim(), rules: triggerRules ? JSON.parse(triggerRules) : [] }; } else { delete payload.TriggerRouter; }` +
-      `  const smartCandidates=(smartCandidatesEditor.value || '').trim();` +
-      `  if(smartEnabled.checked || smartRouterModel.value.trim() || smartCandidates || smartCacheTtl.value.trim() || smartMaxTokens.value.trim()){ payload.SmartRouter={ ...(payload.SmartRouter || {}), enabled: smartEnabled.checked, router_model: smartRouterModel.value.trim(), fallback: smartFallback.value || 'default', candidates: smartCandidates ? JSON.parse(smartCandidates) : [], cache_ttl: smartCacheTtl.value.trim() ? Number(smartCacheTtl.value.trim()) : undefined, max_tokens: smartMaxTokens.value.trim() ? Number(smartMaxTokens.value.trim()) : undefined }; } else { delete payload.SmartRouter; }` +
-      `  const cascadeLevels=(governanceCascadeLevelsEditor.value || '').trim();` +
-      `  if(governanceEnabled.checked || governanceAlignmentEnabled.checked || governanceSummarizerModel.value.trim() || governanceSemanticEnabled.checked || governanceClassifierModel.value.trim() || governanceShadowEnabled.checked || governanceVerifierModel.value.trim() || cascadeLevels){ payload.Governance={ ...(payload.Governance || {}), enabled: governanceEnabled.checked, sticky:{ ...((payload.Governance && payload.Governance.sticky) || {}), enabled: Boolean(governanceEnabled.checked || governanceAlignmentEnabled.checked), alignment:{ ...(((payload.Governance && payload.Governance.sticky && payload.Governance.sticky.alignment) || {})), enabled: governanceAlignmentEnabled.checked, summarizer_model: governanceSummarizerModel.value.trim() } }, semantic:{ ...((payload.Governance && payload.Governance.semantic) || {}), enabled: governanceSemanticEnabled.checked, mode:'classifier', classifier_model: governanceClassifierModel.value.trim() }, shadow:{ ...((payload.Governance && payload.Governance.shadow) || {}), enabled: governanceShadowEnabled.checked, verifier_model: governanceVerifierModel.value.trim() }, cascade:{ ...((payload.Governance && payload.Governance.cascade) || {}), enabled: Boolean(cascadeLevels), levels: cascadeLevels ? JSON.parse(cascadeLevels) : [] } }; } else { delete payload.Governance; }` +
+        `  const payload=JSON.parse(JSON.stringify(currentDraftConfig || {}));` +
+        `  payload.Models=extractModelsFromForm();` +
+        `  const routerDefault=(draftRouterDefault.value || '').trim();` +
+        `  if(routerDefault){ payload.Router={ ...(payload.Router || {}), default: routerDefault }; }` +
+        `  else if(payload.Router){ delete payload.Router.default; if(!Object.keys(payload.Router).length){ delete payload.Router; } }` +
+      `  const triggerRules=extractTriggerRulesFromForm();` +
+      `  if(triggerEnabled.checked || triggerIntentEnabled.checked || triggerIntentModel.value.trim() || triggerRules.length){ payload.TriggerRouter={ ...(payload.TriggerRouter || {}), enabled: triggerEnabled.checked, analysis_scope: triggerAnalysisScope.value || 'last_message', llm_intent_recognition: triggerIntentEnabled.checked, intent_model: triggerIntentModel.value.trim(), rules: triggerRules }; } else { delete payload.TriggerRouter; }` +
+      `  const smartCandidates=extractSmartCandidatesFromForm();` +
+      `  if(smartEnabled.checked || smartRouterModel.value.trim() || smartCandidates.length || smartCacheTtl.value.trim() || smartMaxTokens.value.trim()){ payload.SmartRouter={ ...(payload.SmartRouter || {}), enabled: smartEnabled.checked, router_model: smartRouterModel.value.trim(), fallback: smartFallback.value || 'default', candidates: smartCandidates, cache_ttl: smartCacheTtl.value.trim() ? Number(smartCacheTtl.value.trim()) : undefined, max_tokens: smartMaxTokens.value.trim() ? Number(smartMaxTokens.value.trim()) : undefined }; } else { delete payload.SmartRouter; }` +
+      `  const cascadeLevels=extractCascadeLevelsFromForm();` +
+      `  if(governanceEnabled.checked || governanceAlignmentEnabled.checked || governanceSummarizerModel.value.trim() || governanceSemanticEnabled.checked || governanceClassifierModel.value.trim() || governanceShadowEnabled.checked || governanceVerifierModel.value.trim() || cascadeLevels.length){ payload.Governance={ ...(payload.Governance || {}), enabled: governanceEnabled.checked, sticky:{ ...((payload.Governance && payload.Governance.sticky) || {}), enabled: Boolean(governanceEnabled.checked || governanceAlignmentEnabled.checked), alignment:{ ...(((payload.Governance && payload.Governance.sticky && payload.Governance.sticky.alignment) || {})), enabled: governanceAlignmentEnabled.checked, summarizer_model: governanceSummarizerModel.value.trim() } }, semantic:{ ...((payload.Governance && payload.Governance.semantic) || {}), enabled: governanceSemanticEnabled.checked, mode:'classifier', classifier_model: governanceClassifierModel.value.trim() }, shadow:{ ...((payload.Governance && payload.Governance.shadow) || {}), enabled: governanceShadowEnabled.checked, verifier_model: governanceVerifierModel.value.trim() }, cascade:{ ...((payload.Governance && payload.Governance.cascade) || {}), enabled: Boolean(cascadeLevels.length), levels: cascadeLevels } }; } else { delete payload.Governance; }` +
       `  return payload;` +
       `}` +
       `function renderConfigControlForms(config){` +
@@ -984,14 +1043,14 @@ export const createServer = (config: any): Server => {
       `  triggerIntentEnabled.checked=Boolean(trigger.llm_intent_recognition);` +
       `  triggerAnalysisScope.value=trigger.analysis_scope || 'last_message';` +
       `  triggerIntentModel.value=trigger.intent_model || '';` +
-      `  triggerRulesEditor.value=JSON.stringify(trigger.rules || [], null, 2);` +
+      `  renderTriggerRulesList(trigger.rules || []);` +
       `  const smart=config?.SmartRouter || {};` +
       `  smartEnabled.checked=Boolean(smart.enabled);` +
       `  smartRouterModel.value=smart.router_model || '';` +
       `  smartFallback.value=smart.fallback || 'default';` +
       `  smartCacheTtl.value=smart.cache_ttl ?? '';` +
       `  smartMaxTokens.value=smart.max_tokens ?? '';` +
-      `  smartCandidatesEditor.value=JSON.stringify(smart.candidates || [], null, 2);` +
+      `  renderSmartCandidatesList(smart.candidates || []);` +
       `  const governance=config?.Governance || {};` +
       `  governanceEnabled.checked=Boolean(governance.enabled);` +
       `  governanceAlignmentEnabled.checked=Boolean(governance.sticky?.alignment?.enabled);` +
@@ -1000,7 +1059,7 @@ export const createServer = (config: any): Server => {
       `  governanceClassifierModel.value=governance.semantic?.classifier_model || '';` +
       `  governanceShadowEnabled.checked=Boolean(governance.shadow?.enabled);` +
       `  governanceVerifierModel.value=governance.shadow?.verifier_model || '';` +
-      `  governanceCascadeLevelsEditor.value=JSON.stringify(governance.cascade?.levels || [], null, 2);` +
+      `  renderCascadeLevelsList(governance.cascade?.levels || []);` +
       `}` +
       `function syncDraftEditorFromForm(){` +
       `  try {` +
@@ -1137,12 +1196,24 @@ export const createServer = (config: any): Server => {
       `  renderModelsForm(nextModels);` +
       `  syncDraftEditorFromForm();` +
       `}` +
+      `function addTriggerRule(){ const next=extractTriggerRulesFromForm(); next.push({ name:'', enabled:true, priority:10, model:'', patterns:[{ type:'exact', keywords:[] }] }); renderTriggerRulesList(next); syncDraftEditorFromForm(); }` +
+      `function addSmartCandidate(){ const next=extractSmartCandidatesFromForm(); next.push({ model:'', description:'' }); renderSmartCandidatesList(next); syncDraftEditorFromForm(); }` +
+      `function addCascadeLevel(){ const next=extractCascadeLevelsFromForm(); next.push({ from:'', to:'' }); renderCascadeLevelsList(next); syncDraftEditorFromForm(); }` +
       `modelsFormGrid.addEventListener('input',()=>syncDraftEditorFromForm());` +
       `modelsFormGrid.addEventListener('change',()=>syncDraftEditorFromForm());` +
       `modelsFormGrid.addEventListener('click',(e)=>{ const applyBtn=e.target.closest('button[data-apply-template]'); if(applyBtn){ const applyIndex=Number(applyBtn.dataset.applyTemplate); applyProviderTemplate(applyIndex); syncDraftEditorFromForm(); return; } const btn=e.target.closest('button[data-remove-model]'); if(!btn){ return; } const removeIndex=Number(btn.dataset.removeModel); const nextModels=extractModelsFromForm().filter((_,index)=>index!==removeIndex); renderModelsForm(nextModels); syncDraftEditorFromForm(); });` +
+      `triggerRulesList.addEventListener('input',()=>syncDraftEditorFromForm());` +
+      `triggerRulesList.addEventListener('change',()=>syncDraftEditorFromForm());` +
+      `triggerRulesList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-trigger-rule]'); if(!btn){ return; } const next=extractTriggerRulesFromForm().filter((_,index)=>index!==Number(btn.dataset.removeTriggerRule)); renderTriggerRulesList(next); syncDraftEditorFromForm(); });` +
+      `smartCandidatesList.addEventListener('input',()=>syncDraftEditorFromForm());` +
+      `smartCandidatesList.addEventListener('change',()=>syncDraftEditorFromForm());` +
+      `smartCandidatesList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-smart-candidate]'); if(!btn){ return; } const next=extractSmartCandidatesFromForm().filter((_,index)=>index!==Number(btn.dataset.removeSmartCandidate)); renderSmartCandidatesList(next); syncDraftEditorFromForm(); });` +
+      `governanceCascadeLevelsList.addEventListener('input',()=>syncDraftEditorFromForm());` +
+      `governanceCascadeLevelsList.addEventListener('change',()=>syncDraftEditorFromForm());` +
+      `governanceCascadeLevelsList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-cascade-level]'); if(!btn){ return; } const next=extractCascadeLevelsFromForm().filter((_,index)=>index!==Number(btn.dataset.removeCascadeLevel)); renderCascadeLevelsList(next); syncDraftEditorFromForm(); });` +
       `referenceImpactTableBody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-apply-reference-path]'); if(!btn){ return; } applyReferenceSuggestion(btn.dataset.applyReferencePath, btn.dataset.applyReferenceModel); });` +
       `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
-      `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,triggerRulesEditor,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,smartCandidatesEditor,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel,governanceCascadeLevelsEditor].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
+      `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
       `function renderMetrics(metrics){` +
       `  metricsGrid.innerHTML=[` +
       "    ['Recent traces', metrics.totalTraces ?? 0]," +
@@ -1312,6 +1383,9 @@ export const createServer = (config: any): Server => {
       `document.getElementById('refreshBtn').addEventListener('click',loadTraces);` +
       `document.getElementById('loadConfigDraftBtn').addEventListener('click',loadConfigDraft);` +
       `document.getElementById('addModelDraftBtn').addEventListener('click',addDraftModel);` +
+      `document.getElementById('addTriggerRuleBtn').addEventListener('click',addTriggerRule);` +
+      `document.getElementById('addSmartCandidateBtn').addEventListener('click',addSmartCandidate);` +
+      `document.getElementById('addCascadeLevelBtn').addEventListener('click',addCascadeLevel);` +
       `document.getElementById('syncDraftJsonBtn').addEventListener('click',syncDraftEditorFromForm);` +
       `document.getElementById('previewConfigDraftBtn').addEventListener('click',previewConfigDraft);` +
       `document.getElementById('createSnapshotBtn').addEventListener('click',createSnapshot);` +
