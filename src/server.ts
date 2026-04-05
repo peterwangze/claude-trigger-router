@@ -642,6 +642,7 @@ export const createServer = (config: any): Server => {
       `</div>` +
       `<div class="control-grid">` +
       `<div><label>Preset mode</label><select id="draftPresetMode"><option value="merge" selected>append / merge</option><option value="replace">overwrite</option></select></div>` +
+      `<div><label>Mode guide</label><div id="draftPresetModeHint" class="muted">append / merge 会尽量保留当前草稿，仅补充预设相关字段</div></div>` +
       `</div>` +
       `<div id="draftPresetList" class="alert-list">` +
       `<div class="alert info"><strong>Preset guide</strong><div class="muted">选择预设前可先查看其会覆盖的区域与推荐用途</div></div>` +
@@ -872,6 +873,7 @@ export const createServer = (config: any): Server => {
       `const detailHint=document.getElementById('detailHint');` +
       `const draftPreviewStatus=document.getElementById('draftPreviewStatus');` +
       `const draftPresetMode=document.getElementById('draftPresetMode');` +
+      `const draftPresetModeHint=document.getElementById('draftPresetModeHint');` +
       `const draftPresetList=document.getElementById('draftPresetList');` +
       `const draftValidationList=document.getElementById('draftValidationList');` +
       `const configDraftEditor=document.getElementById('configDraftEditor');` +
@@ -1017,6 +1019,10 @@ export const createServer = (config: any): Server => {
       `  target.scrollIntoView({ behavior:'smooth', block:'center' });` +
       `  if(target.classList){ target.classList.add('jump-highlight'); activeValidationHighlight=target; setTimeout(()=>{ if(target.classList){ target.classList.remove('jump-highlight'); if(activeValidationHighlight===target){ activeValidationHighlight=null; } } }, 1800); }` +
       `  if(typeof target.focus === 'function'){ target.focus({ preventScroll:true }); }` +
+      `}` +
+      `function renderDraftPresetModeHint(){` +
+      `  const overwriteMode=draftPresetMode.value === 'replace';` +
+      `  draftPresetModeHint.textContent=overwriteMode ? 'overwrite 会重置 TriggerRouter / SmartRouter / Governance 相关表单，再应用预设' : 'append / merge 会尽量保留当前草稿，仅补充预设相关字段';` +
       `}` +
       `function renderDraftPresetGuide(){` +
       `  draftPresetList.innerHTML=Object.entries(draftPresets).map(([key,preset])=>'<div class="alert info"><strong>'+esc(preset.label || key)+'</strong><div>'+esc(preset.description || '')+'</div><div class="muted">影响范围：'+esc((preset.affects || []).join(' / '))+'</div></div>').join('');` +
@@ -1568,11 +1574,13 @@ export const createServer = (config: any): Server => {
       `document.getElementById('addCascadeLevelBtn').addEventListener('click',addCascadeLevel);` +
       `document.getElementById('syncDraftJsonBtn').addEventListener('click',syncDraftEditorFromForm);` +
       `document.getElementById('previewConfigDraftBtn').addEventListener('click',previewConfigDraft);` +
+      `draftPresetMode.addEventListener('change',renderDraftPresetModeHint);` +
       `document.getElementById('createSnapshotBtn').addEventListener('click',createSnapshot);` +
       `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +
       `document.getElementById('saveThresholdsBtn').addEventListener('click',saveThresholds);` +
       `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
       `renderDraftPresetGuide();` +
+      `renderDraftPresetModeHint();` +
       `loadConfigDraft();` +
       `loadCompiledModels();` +
       `loadExports();` +

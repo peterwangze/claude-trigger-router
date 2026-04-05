@@ -968,8 +968,10 @@ describe('createServer /api/config', () => {
     expect(html).toContain('applyFastPresetBtn');
     expect(html).toContain('applyGovernancePresetBtn');
     expect(html).toContain('draftPresetMode');
+    expect(html).toContain('draftPresetModeHint');
     expect(html).toContain('append / merge');
     expect(html).toContain('overwrite');
+    expect(html).toContain('TriggerRouter / SmartRouter / Governance');
     expect(html).toContain('平衡预设');
     expect(html).toContain('快速预设');
     expect(html).toContain('治理预设');
@@ -1056,6 +1058,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('draftPresets');
     expect(html).toContain('applyDraftPreset');
     expect(html).toContain('renderDraftPresetGuide');
+    expect(html).toContain('renderDraftPresetModeHint');
     expect(html).toContain('resolvePresetModelId');
     expect(html).toContain("draftPresetMode.value === 'replace'");
     expect(html).toContain('extractModelsFromForm');
