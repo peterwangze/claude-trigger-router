@@ -647,6 +647,12 @@ export const createServer = (config: any): Server => {
       `<div class="stat"><span class="muted">Cascade levels</span><strong>0</strong></div>` +
       `<div class="stat"><span class="muted">Model refs</span><strong>0</strong></div>` +
       `</div>` +
+      `<div class="subpanel">` +
+      `<div class="row"><strong>Validation Summary</strong><span class="muted">集中显示当前草稿的关键校验问题</span></div>` +
+      `<div id="draftValidationList" class="alert-list">` +
+      `<div class="alert info"><strong>No validation issues</strong><div class="muted">预览前会在这里汇总草稿问题</div></div>` +
+      `</div>` +
+      `</div>` +
       `<div class="control-grid">` +
       `<div><label>Router default (modelId)</label><input id="draftRouterDefault" placeholder="例如 sonnet"></div>` +
       `<div><label>Models count</label><input id="draftModelsCount" value="0" readonly></div>` +
@@ -858,6 +864,7 @@ export const createServer = (config: any): Server => {
       `const detail=document.getElementById('traceDetail');` +
       `const detailHint=document.getElementById('detailHint');` +
       `const draftPreviewStatus=document.getElementById('draftPreviewStatus');` +
+      `const draftValidationList=document.getElementById('draftValidationList');` +
       `const configDraftEditor=document.getElementById('configDraftEditor');` +
       `const draftSummaryGrid=document.getElementById('draftSummaryGrid');` +
       `const modelsFormGrid=document.getElementById('modelsFormGrid');` +
@@ -950,6 +957,11 @@ export const createServer = (config: any): Server => {
       "    ['Cascade levels', cascadeLevels.length]," +
       "    ['Model refs', modelRefCount]" +
       `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
+      `}` +
+      `function renderDraftValidation(errors){` +
+      `  const list=Array.isArray(errors) ? errors.filter(Boolean) : [];` +
+      `  if(!list.length){ draftValidationList.innerHTML='<div class="alert info"><strong>No validation issues</strong><div class="muted">当前草稿未发现集中展示的问题</div></div>'; return; }` +
+      `  draftValidationList.innerHTML=list.slice(0,8).map(item=>'<div class="alert warn"><strong>Validation issue</strong><div>'+esc(item)+'</div></div>').join('');` +
       `}` +
       `function updateTopLevelModelSuggestionLists(){` +
       `  const markup=knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('');` +
@@ -1139,6 +1151,7 @@ export const createServer = (config: any): Server => {
       `    currentDraftConfig=payload;` +
       `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `    renderDraftSummary(payload);` +
+      `    renderDraftValidation([]);` +
       `    draftPreviewStatus.textContent='已同步 Models 表单到 JSON 草稿';` +
       `  } catch (error) {` +
       `    draftPreviewStatus.textContent='同步失败：'+error.message;` +
@@ -1164,6 +1177,7 @@ export const createServer = (config: any): Server => {
       `  renderConfigControlForms(payload);` +
       `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `  renderDraftSummary(payload);` +
+      `  renderDraftValidation([]);` +
       `  draftPreviewStatus.textContent='已将建议模型应用到 '+path+'，可重新预览验证';` +
       `}` +
       `function renderCompiledDiff(diff){` +
@@ -1241,6 +1255,7 @@ export const createServer = (config: any): Server => {
       `  draftRouterDefault.value=currentDraftConfig.Router?.default || '';` +
       `  configDraftEditor.value=JSON.stringify(data,null,2);` +
       `  renderDraftSummary(currentDraftConfig);` +
+      `  renderDraftValidation([]);` +
       `  draftPreviewStatus.textContent='已载入当前配置，可通过 Models 表单或 JSON 草稿编辑';` +
       `}` +
       `async function previewConfigDraft(){` +
@@ -1249,6 +1264,7 @@ export const createServer = (config: any): Server => {
       `    payload=buildDraftPayloadFromForm();` +
       `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `  } catch (error) {` +
+      `    renderDraftValidation(['JSON parse error: '+error.message]);` +
       `    draftPreviewStatus.textContent='草稿解析失败：'+error.message;` +
       `    return;` +
       `  }` +
@@ -1261,10 +1277,12 @@ export const createServer = (config: any): Server => {
       `  const data=await res.json();` +
       `  if(!res.ok){` +
       `    draftPreviewStatus.textContent='预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error');` +
+      `    renderDraftValidation(data.errors || [data.message || 'unknown error']);` +
       `    renderCompiledDiff();` +
       `    renderReferenceImpact(data.referenceImpact);` +
       `    return;` +
       `  }` +
+      `  renderDraftValidation([]);` +
       `  renderCompiledModels(data);` +
       `  draftPreviewStatus.textContent='预览完成：已按草稿配置刷新 compiled models';` +
       `}` +
