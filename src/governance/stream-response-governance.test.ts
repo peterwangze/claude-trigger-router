@@ -201,4 +201,69 @@ describe('governStreamingResponse', () => {
     expect(req.governanceTrace.routeReason).toContain('cascade_stream_retry_executed');
     expect(governanceTraceStore.get('req-stream-retry')?.finalModel).toBe('provider,model-b');
   });
+
+  it('resolves cascade level modelIds in stream governance', async () => {
+    governanceTraceStore.clear();
+
+    const req: any = {
+      body: {
+        model: 'model__sonnet,anthropic/claude-sonnet-4',
+        metadata: {},
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-stream-model-id' }),
+    };
+
+    const original = createSSEStream([
+      { event: 'content_block_delta', data: { delta: { text: 'TODO: finish implementation' } } },
+      { event: 'message_delta', data: { usage: { input_tokens: 1, output_tokens: 2 } } },
+    ]);
+
+    const retried = createSSEStream([
+      { event: 'content_block_delta', data: { delta: { text: 'rescued streamed output' } } },
+      { event: 'message_delta', data: { usage: { input_tokens: 2, output_tokens: 4 } } },
+    ]);
+
+    const result = governStreamingResponse(
+      original,
+      req,
+      {
+        Models: [
+          {
+            id: 'sonnet',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-test',
+            protocol: 'openai',
+            model: 'anthropic/claude-sonnet-4',
+          },
+          {
+            id: 'opus',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-test',
+            protocol: 'openai',
+            model: 'anthropic/claude-opus-4',
+          },
+        ],
+        Governance: {
+          enabled: true,
+          cascade: {
+            enabled: true,
+            stream_guard: true,
+            triggers: {
+              placeholder_patterns: ['TODO'],
+            },
+            levels: [
+              { from: 'sonnet', to: 'opus' },
+            ],
+          },
+        },
+      } as any,
+      3456,
+      {
+        executeCascadeRetryStream: vi.fn().mockResolvedValue(retried),
+      }
+    );
+
+    await readAll(result);
+    expect(req.body.model).toBe('model__opus,anthropic/claude-opus-4');
+  });
 });

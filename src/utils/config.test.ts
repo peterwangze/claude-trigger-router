@@ -320,4 +320,56 @@ describe('normalizeAndValidateConfig governance', () => {
     expect(result.errors).toContain('Models[0].thinking.budget_tokens must be greater than 0');
     expect(result.errors).toContain('Models[1].id must be unique');
   });
+
+  it('accepts Governance model references via Models ids', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          protocol: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          protocol: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+      Governance: {
+        enabled: true,
+        sticky: {
+          enabled: true,
+          alignment: {
+            enabled: true,
+            summarizer_model: 'sonnet',
+          },
+        },
+        cascade: {
+          enabled: true,
+          levels: [
+            {
+              from: 'sonnet',
+              to: 'opus',
+            },
+          ],
+        },
+        semantic: {
+          enabled: true,
+          mode: 'classifier',
+          classifier_model: 'sonnet',
+        },
+        shadow: {
+          enabled: true,
+          verifier_model: 'opus',
+        },
+      },
+    } as any);
+
+    expect(result.errors).toEqual([]);
+  });
 });

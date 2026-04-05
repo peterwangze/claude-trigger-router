@@ -9,6 +9,7 @@ import { appendTraceReason, finalizeTrace, recordGovernanceTrace } from './trace
 import { createTaskFingerprint, sessionStateStore } from './session-store';
 import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetry } from './cascade-gate';
 import { shadowSupervisor } from './shadow-supervisor';
+import { resolveModelReference } from '../models/compile';
 
 export interface IResponseGovernanceDeps {
   decideCascadeEscalation?: typeof decideCascadeEscalation;
@@ -32,22 +33,38 @@ export async function applyResponseGovernance({
   deps,
 }: IApplyResponseGovernanceInput): Promise<any> {
   let nextPayload = payload;
+  const resolvedCascadeConfig = config.Governance?.cascade
+    ? {
+        ...config.Governance.cascade,
+        levels: config.Governance.cascade.levels?.map((level) => ({
+          ...level,
+          from: resolveModelReference(config, level.from) ?? level.from,
+          to: resolveModelReference(config, level.to) ?? level.to,
+        })),
+      }
+    : undefined;
+  const resolvedShadowConfig = config.Governance?.shadow
+    ? {
+        ...config.Governance.shadow,
+        verifier_model: resolveModelReference(config, config.Governance.shadow.verifier_model) ?? config.Governance.shadow.verifier_model,
+      }
+    : undefined;
   const detectFailureEvidenceFn = deps?.detectFailureEvidence ?? detectFailureEvidence;
   const decideCascadeEscalationFn = deps?.decideCascadeEscalation ?? decideCascadeEscalation;
   const executeCascadeRetryFn = deps?.executeCascadeRetry ?? executeCascadeRetry;
 
   if (
     config.Governance?.enabled &&
-    config.Governance.cascade?.enabled &&
+    resolvedCascadeConfig?.enabled &&
     req.governanceTrace
   ) {
-    const evidences = detectFailureEvidenceFn(nextPayload, config.Governance.cascade);
+    const evidences = detectFailureEvidenceFn(nextPayload, resolvedCascadeConfig);
     if (evidences.length > 0) {
       const cascadeAttempt = Number(req.body?.metadata?.ctr_cascade_attempt ?? 0);
       const decision = decideCascadeEscalationFn(
         req.body?.model,
         evidences,
-        config.Governance.cascade,
+        resolvedCascadeConfig,
         cascadeAttempt
       );
       req.governanceTrace.cascadeEvidence = evidences.map((item) => item.type);
@@ -88,34 +105,34 @@ export async function applyResponseGovernance({
 
   if (
     config.Governance?.enabled &&
-    config.Governance.shadow?.enabled &&
+    resolvedShadowConfig?.enabled &&
     req.governanceTrace
   ) {
-    const audit = config.Governance.shadow.verifier_model
+    const audit = resolvedShadowConfig.verifier_model
       ? await shadowSupervisor.inspectWithVerifier(
           nextPayload,
-          config.Governance.shadow,
+          resolvedShadowConfig,
           servicePort,
           undefined,
           config.APIKEY,
           config.API_TIMEOUT_MS
         )
-      : shadowSupervisor.inspect(nextPayload, config.Governance.shadow);
+      : shadowSupervisor.inspect(nextPayload, resolvedShadowConfig);
     if (audit.triggered) {
       req.governanceTrace.shadowChecked = true;
       req.governanceTrace.verificationResult = `${audit.riskLevel}:${audit.findings.join(',')}`;
       appendTraceReason(req.governanceTrace, 'shadow_supervisor');
 
       if (
-        config.Governance.shadow.mode === 'sync_guard' &&
-        config.Governance.cascade?.enabled &&
+        resolvedShadowConfig.mode === 'sync_guard' &&
+        resolvedCascadeConfig?.enabled &&
         audit.riskLevel !== 'low'
       ) {
         const guardAttempt = Number(req.body?.metadata?.ctr_cascade_attempt ?? 0);
         const guardDecision = decideCascadeEscalationFn(
           req.body?.model,
           shadowSupervisor.toFailureEvidence(audit),
-          config.Governance.cascade,
+          resolvedCascadeConfig,
           guardAttempt
         );
 

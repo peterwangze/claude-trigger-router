@@ -9,6 +9,7 @@ import { sessionUsageCache } from '../router/cache';
 import { SSEParserTransform } from '../utils/SSEParser.transform';
 import { appendTraceReason, finalizeTrace, recordGovernanceTrace } from './trace';
 import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetryStream } from './cascade-gate';
+import { resolveModelReference } from '../models/compile';
 
 interface ICollectedSSE {
   events: any[];
@@ -77,6 +78,16 @@ export function governStreamingResponse(
   const executeCascadeRetryStreamFn = deps?.executeCascadeRetryStream ?? executeCascadeRetryStream;
   const detectFailureEvidenceFn = deps?.detectFailureEvidence ?? detectFailureEvidence;
   const decideCascadeEscalationFn = deps?.decideCascadeEscalation ?? decideCascadeEscalation;
+  const resolvedCascadeConfig = config.Governance?.cascade
+    ? {
+        ...config.Governance.cascade,
+        levels: config.Governance.cascade.levels?.map((level) => ({
+          ...level,
+          from: resolveModelReference(config, level.from) ?? level.from,
+          to: resolveModelReference(config, level.to) ?? level.to,
+        })),
+      }
+    : undefined;
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -86,14 +97,14 @@ export function governStreamingResponse(
 
         if (
           config.Governance?.enabled &&
-          config.Governance.cascade?.enabled &&
-          config.Governance.cascade.stream_guard &&
+          resolvedCascadeConfig?.enabled &&
+          resolvedCascadeConfig.stream_guard &&
           req.governanceTrace &&
           original.sawText
         ) {
           const evidences = detectFailureEvidenceFn(
             { content: [{ text: original.text }] },
-            config.Governance.cascade
+            resolvedCascadeConfig
           );
 
           if (evidences.length > 0) {
@@ -101,7 +112,7 @@ export function governStreamingResponse(
             const decision = decideCascadeEscalationFn(
               req.body?.model,
               evidences,
-              config.Governance.cascade,
+              resolvedCascadeConfig,
               cascadeAttempt
             );
             req.governanceTrace.cascadeEvidence = evidences.map((item) => item.type);

@@ -19,6 +19,7 @@ import {
   DEFAULT_SMART_ROUTER_CONFIG,
 } from '../constants';
 import { IAppConfig, ITriggerConfig } from '../trigger/types';
+import { isKnownModelReference } from '../models/compile';
 import { logError, logWarn } from './log';
 
 /**
@@ -299,7 +300,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
       if (sticky.alignment?.enabled) {
         if (!sticky.alignment.summarizer_model) {
           errors.push('Governance.sticky.alignment.summarizer_model is required when alignment is enabled');
-        } else if (validProviders.length > 0) {
+        } else if (!isKnownModelReference(config as IAppConfig, sticky.alignment.summarizer_model)) {
           const err = validateModelRef(
             sticky.alignment.summarizer_model,
             validProviders,
@@ -321,13 +322,13 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
       cascade.levels?.forEach((level, index) => {
         if (!level.from) {
           errors.push(`Governance.cascade.levels[${index}].from is required`);
-        } else if (validProviders.length > 0) {
+        } else if (!isKnownModelReference(config as IAppConfig, level.from)) {
           const err = validateModelRef(level.from, validProviders, `Governance.cascade.levels[${index}].from`);
           if (err) errors.push(err);
         }
         if (!level.to) {
           errors.push(`Governance.cascade.levels[${index}].to is required`);
-        } else if (validProviders.length > 0) {
+        } else if (!isKnownModelReference(config as IAppConfig, level.to)) {
           const err = validateModelRef(level.to, validProviders, `Governance.cascade.levels[${index}].to`);
           if (err) errors.push(err);
         }
@@ -346,7 +347,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
       if (semantic.mode === 'classifier') {
         if (!semantic.classifier_model) {
           errors.push('Governance.semantic.classifier_model is required when semantic mode is "classifier"');
-        } else if (validProviders.length > 0) {
+        } else if (!isKnownModelReference(config as IAppConfig, semantic.classifier_model)) {
           const err = validateModelRef(semantic.classifier_model, validProviders, 'Governance.semantic.classifier_model');
           if (err) errors.push(err);
         }
@@ -362,7 +363,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
       if (shadow.mode && !['async_audit', 'sync_guard'].includes(shadow.mode)) {
         errors.push('Governance.shadow.mode must be either "async_audit" or "sync_guard"');
       }
-      if (shadow.verifier_model && validProviders.length > 0) {
+      if (shadow.verifier_model && !isKnownModelReference(config as IAppConfig, shadow.verifier_model)) {
         const err = validateModelRef(shadow.verifier_model, validProviders, 'Governance.shadow.verifier_model');
         if (err) errors.push(err);
       }

@@ -30,6 +30,7 @@ import { EventEmitter } from "node:events";
 import { triggerRouter } from "./trigger";
 import { createStream } from 'rotating-file-stream';
 import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, governStreamingResponse, sessionStateStore } from "./governance";
+import { resolveModelReference } from "./models/compile";
 
 const event = new EventEmitter();
 
@@ -194,9 +195,9 @@ async function run(options: RunOptions = {}) {
       req.triggerResult = triggerResult;
 
       if (triggerResult.matched && triggerResult.model) {
-        const previousSessionState = req.sessionId ? sessionStateStore.get(req.sessionId) : undefined;
-        const previousModel = previousSessionState?.lastSuccessfulModel;
-        const alignmentConfig = config.Governance?.sticky?.alignment;
+          const previousSessionState = req.sessionId ? sessionStateStore.get(req.sessionId) : undefined;
+          const previousModel = previousSessionState?.lastSuccessfulModel;
+          const alignmentConfig = config.Governance?.sticky?.alignment;
 
         if (
           config.Governance?.enabled &&
@@ -204,15 +205,19 @@ async function run(options: RunOptions = {}) {
           previousModel &&
           previousModel !== triggerResult.model &&
           triggerResult.analyzedText
-        ) {
-          const summary = await contextAlignmentService.summarizeTransition(
-            triggerResult.analyzedText,
-            previousModel,
-            triggerResult.model,
-            alignmentConfig,
-            servicePort,
-            undefined,
-            config.APIKEY,
+          ) {
+            const resolvedAlignmentConfig = {
+              ...alignmentConfig,
+              summarizer_model: resolveModelReference(config, alignmentConfig.summarizer_model) ?? alignmentConfig.summarizer_model,
+            };
+            const summary = await contextAlignmentService.summarizeTransition(
+              triggerResult.analyzedText,
+              previousModel,
+              triggerResult.model,
+              resolvedAlignmentConfig,
+              servicePort,
+              undefined,
+              config.APIKEY,
             config.API_TIMEOUT_MS
           );
 

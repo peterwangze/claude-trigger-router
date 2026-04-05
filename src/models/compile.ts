@@ -92,3 +92,21 @@ export function resolveModelReference(config: IAppConfig, ref?: string): string 
 
   return `${compiled.providerName},${compiled.modelName}`;
 }
+
+export function isKnownModelReference(config: IAppConfig, ref?: string): boolean {
+  if (!ref) {
+    return false;
+  }
+
+  if (ref.includes(',')) {
+    const [provider, model] = ref.split(',');
+    return Boolean(
+      config.Providers?.find((item) =>
+        item.name === provider && item.models?.includes(model)
+      )
+    );
+  }
+
+  const registry = buildModelRegistry(config);
+  return Boolean(registry.modelMap[ref]);
+}

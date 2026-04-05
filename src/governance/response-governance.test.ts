@@ -138,4 +138,65 @@ describe('applyResponseGovernance', () => {
     expect(req.governanceTrace.routeReason).toContain('shadow_sync_guard');
     expect(req.governanceTrace.verificationResult).toContain('guard_retry:provider,model-b');
   });
+
+  it('resolves governance model references from Models ids during response governance', async () => {
+    const req: any = {
+      body: {
+        model: 'model__sonnet,anthropic/claude-sonnet-4',
+        metadata: {},
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-governance-model-id' }),
+    };
+
+    const payload = { content: [{ text: 'TODO: finish implementation' }] };
+    const config: any = {
+      Models: [
+        {
+          id: 'sonnet',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          protocol: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          protocol: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+      Governance: {
+        enabled: true,
+        cascade: {
+          enabled: true,
+          max_attempts: 2,
+          triggers: {
+            placeholder_patterns: ['TODO'],
+          },
+          levels: [
+            { from: 'sonnet', to: 'opus' },
+          ],
+        },
+        shadow: {
+          enabled: true,
+          verifier_model: 'opus',
+        },
+      },
+    };
+
+    await applyResponseGovernance({
+      req,
+      payload,
+      config,
+      servicePort: 3456,
+      deps: {
+        executeCascadeRetry: vi.fn().mockResolvedValue({
+          content: [{ text: 'rescued output' }],
+        }),
+      },
+    });
+
+    expect(req.body.model).toBe('model__opus,anthropic/claude-opus-4');
+  });
 });
