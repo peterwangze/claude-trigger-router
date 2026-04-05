@@ -955,6 +955,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Smart candidates');
     expect(html).toContain('Cascade levels');
     expect(html).toContain('Model refs');
+    expect(html).toContain('applyBalancedPresetBtn');
+    expect(html).toContain('applyFastPresetBtn');
+    expect(html).toContain('applyGovernancePresetBtn');
     expect(html).toContain('Routing Controls');
     expect(html).toContain('TriggerRouter');
     expect(html).toContain('SmartRouter');
@@ -1026,6 +1029,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('previewConfigDraft');
     expect(html).toContain('renderModelsForm');
     expect(html).toContain('renderDraftSummary');
+    expect(html).toContain('draftPresets');
+    expect(html).toContain('applyDraftPreset');
     expect(html).toContain('extractModelsFromForm');
     expect(html).toContain('buildDraftPayloadFromForm');
     expect(html).toContain('renderConfigControlForms');

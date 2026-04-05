@@ -632,6 +632,9 @@ export const createServer = (config: any): Server => {
       `<div class="action-row">` +
       `<button id="loadConfigDraftBtn" type="button">载入当前配置</button>` +
       `<button id="addModelDraftBtn" type="button">新增 Model</button>` +
+      `<button id="applyBalancedPresetBtn" type="button">应用平衡预设</button>` +
+      `<button id="applyFastPresetBtn" type="button">应用快速预设</button>` +
+      `<button id="applyGovernancePresetBtn" type="button">应用治理预设</button>` +
       `<button id="syncDraftJsonBtn" type="button">同步 JSON 草稿</button>` +
       `<button id="previewConfigDraftBtn" type="button">预览 compiled models</button>` +
       `<span id="draftPreviewStatus" class="muted">尚未预览配置草稿</span>` +
@@ -907,6 +910,11 @@ export const createServer = (config: any): Server => {
       `const trendTableBody=document.querySelector('#trendTable tbody');` +
       `let currentDraftConfig={};` +
       `let knownModelIds=[];` +
+      `const draftPresets={` +
+      `  balanced:{ routerDefault:'sonnet', smartEnabled:true, smartCandidates:[{ model:'sonnet', description:'balanced default' },{ model:'haiku', description:'fast lightweight' }] },` +
+      `  fast:{ routerDefault:'haiku', triggerEnabled:true, triggerRules:[{ name:'quick-response', enabled:true, priority:20, model:'haiku', patterns:[{ type:'exact', keywords:['快速处理','快速回答'] }] }] },` +
+      `  governance:{ governanceEnabled:true, governanceAlignmentEnabled:true, governanceSemanticEnabled:true, governanceShadowEnabled:true, governanceSummarizerModel:'sonnet', governanceClassifierModel:'sonnet', governanceVerifierModel:'haiku' }` +
+      `};` +
       `const modelProviderTemplates={` +
       `  openai:{ label:'OpenAI', protocol:'openai', api_base_url:'https://api.openai.com/v1/chat/completions', default_model:'gpt-5', model_examples:['gpt-5','gpt-5-mini','gpt-4.1'] },` +
       `  anthropic:{ label:'Anthropic', protocol:'anthropic', api_base_url:'https://api.anthropic.com/v1/messages', default_model:'claude-sonnet-4-5', model_examples:['claude-sonnet-4-5','claude-opus-4-1','claude-3-5-haiku-latest'] },` +
@@ -1296,6 +1304,24 @@ export const createServer = (config: any): Server => {
       "    ['Avg latency', fmt(metrics.averageLatencyMs)+' ms']" +
       `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
       `}` +
+      `function applyDraftPreset(presetName){` +
+      `  const preset=draftPresets[presetName];` +
+      `  if(!preset){ return; }` +
+      `  if(preset.routerDefault){ draftRouterDefault.value=preset.routerDefault; }` +
+      `  if(preset.triggerEnabled !== undefined){ triggerEnabled.checked=Boolean(preset.triggerEnabled); }` +
+      `  if(preset.triggerRules){ renderTriggerRulesList(preset.triggerRules); }` +
+      `  if(preset.smartEnabled !== undefined){ smartEnabled.checked=Boolean(preset.smartEnabled); }` +
+      `  if(preset.smartCandidates){ renderSmartCandidatesList(preset.smartCandidates); }` +
+      `  if(preset.governanceEnabled !== undefined){ governanceEnabled.checked=Boolean(preset.governanceEnabled); }` +
+      `  if(preset.governanceAlignmentEnabled !== undefined){ governanceAlignmentEnabled.checked=Boolean(preset.governanceAlignmentEnabled); }` +
+      `  if(preset.governanceSemanticEnabled !== undefined){ governanceSemanticEnabled.checked=Boolean(preset.governanceSemanticEnabled); }` +
+      `  if(preset.governanceShadowEnabled !== undefined){ governanceShadowEnabled.checked=Boolean(preset.governanceShadowEnabled); }` +
+      `  if(preset.governanceSummarizerModel !== undefined){ governanceSummarizerModel.value=preset.governanceSummarizerModel; }` +
+      `  if(preset.governanceClassifierModel !== undefined){ governanceClassifierModel.value=preset.governanceClassifierModel; }` +
+      `  if(preset.governanceVerifierModel !== undefined){ governanceVerifierModel.value=preset.governanceVerifierModel; }` +
+      `  syncDraftEditorFromForm();` +
+      `  draftPreviewStatus.textContent='已应用预设：'+presetName;` +
+      `}` +
       `function renderRanking(target,entries,emptyLabel){` +
       `  if(!entries || !entries.length){ target.innerHTML='<li><span class="muted">'+esc(emptyLabel)+'</span><strong>0</strong></li>'; return; }` +
       `  target.innerHTML=entries.map(item=>'<li><span><code>'+esc(item.key)+'</code></span><strong>'+esc(item.count)+' · '+esc(pct(item.rate))+'</strong></li>').join('');` +
@@ -1455,6 +1481,9 @@ export const createServer = (config: any): Server => {
       `document.getElementById('refreshBtn').addEventListener('click',loadTraces);` +
       `document.getElementById('loadConfigDraftBtn').addEventListener('click',loadConfigDraft);` +
       `document.getElementById('addModelDraftBtn').addEventListener('click',addDraftModel);` +
+      `document.getElementById('applyBalancedPresetBtn').addEventListener('click',()=>applyDraftPreset('balanced'));` +
+      `document.getElementById('applyFastPresetBtn').addEventListener('click',()=>applyDraftPreset('fast'));` +
+      `document.getElementById('applyGovernancePresetBtn').addEventListener('click',()=>applyDraftPreset('governance'));` +
       `document.getElementById('addTriggerRuleBtn').addEventListener('click',addTriggerRule);` +
       `document.getElementById('addSmartCandidateBtn').addEventListener('click',addSmartCandidate);` +
       `document.getElementById('addCascadeLevelBtn').addEventListener('click',addCascadeLevel);` +
