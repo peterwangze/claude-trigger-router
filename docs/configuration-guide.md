@@ -12,7 +12,7 @@
 ctr setup
 ```
 
-`ctr setup` 会检查当前配置、识别可迁移的旧 `ccr` 配置，并在需要时询问 provider、API Key 和默认模型。配置可用后，它会自动准备服务并进入 Claude Code。
+`ctr setup` 会检查当前配置、识别可迁移的旧 `ccr` 配置，并在需要时询问 provider、API Key 和默认模型。默认会生成更易用的 `Models` 配置抽象。配置可用后，它会自动准备服务并进入 Claude Code。
 
 如果你更想先复制模板再手动编辑，也可以改用：
 
@@ -24,22 +24,20 @@ ctr init
 
 - `~/.claude-trigger-router/config.yaml`
 
-### 第二步：填一个可用 provider
+### 第二步：填一个可用模型接入项
 
 如果你走的是 `ctr init` 手动路径，下面是最小可用示例：
 
 ```yaml
-Providers:
-  - name: openrouter
+Models:
+  - id: sonnet
     api_base_url: "https://openrouter.ai/api/v1/chat/completions"
     api_key: "sk-xxx"
-    models:
-      - "anthropic/claude-sonnet-4"
-    transformer:
-      use: ["openrouter"]
+    protocol: "openai"
+    model: "anthropic/claude-sonnet-4"
 
 Router:
-  default: "openrouter,anthropic/claude-sonnet-4"
+  default: "sonnet"
 ```
 
 ### 第三步：启动服务

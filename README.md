@@ -11,7 +11,7 @@ Claude Code 默认只会请求一个上游模型；而实际工作里，不同�
 - 复杂推理想用专门的 reasoning 模型
 - 日常小任务又希望更快、更便宜
 
-Claude Trigger Router 作为本地 HTTP 代理运行在 `http://127.0.0.1:3456`，拦截 Claude Code 发出的请求，再按你的配置决定最终转给哪个 provider / model。
+Claude Trigger Router 作为本地 HTTP 代理运行在 `http://127.0.0.1:3456`，拦截 Claude Code 发出的请求，再按你的配置决定最终转给哪个模型接入项。
 
 ```text
 Claude Code
@@ -78,17 +78,15 @@ ctr init
 如果你选择的是 `ctr init` 手动路径，可以把 `~/.claude-trigger-router/config.yaml` 改成这样：
 
 ```yaml
-Providers:
-  - name: openrouter
+Models:
+  - id: sonnet
     api_base_url: "https://openrouter.ai/api/v1/chat/completions"
     api_key: "sk-xxx"
-    models:
-      - "anthropic/claude-sonnet-4"
-    transformer:
-      use: ["openrouter"]
+    protocol: "openai"
+    model: "anthropic/claude-sonnet-4"
 
 Router:
-  default: "openrouter,anthropic/claude-sonnet-4"
+  default: "sonnet"
 ```
 
 ### 4. 启动服务
@@ -156,37 +154,41 @@ ctr code
 
 ## 配置结构
 
-### 1. Providers
+### 1. Models
 
-每个 provider 定义一个上游 API 和它可用的模型列表。
+推荐优先使用 `Models`。每个模型接入项只描述“这个模型怎么连”，不要求你理解 `transformer` 或手写 `provider,model`。
 
 ```yaml
-Providers:
-  - name: openrouter
+Models:
+  - id: sonnet
     api_base_url: "https://openrouter.ai/api/v1/chat/completions"
     api_key: "sk-xxx"
-    models:
-      - "anthropic/claude-sonnet-4"
-      - "anthropic/claude-opus-4"
-    transformer:
-      use: ["openrouter"]
+    protocol: "openai"
+    model: "anthropic/claude-sonnet-4"
+    thinking:
+      mode: "auto"
 ```
 
 常用字段：
 
 | 字段 | 说明 |
 |------|------|
-| `name` | provider 名称，在路由配置里作为前缀使用 |
+| `id` | 模型接入项标识，在 Router / TriggerRouter / SmartRouter / Governance 中直接引用 |
 | `api_base_url` | 上游 API 地址 |
-| `api_key` | 对应 provider 的密钥 |
-| `models` | 该 provider 可用模型列表 |
-| `transformer` | 请求 / 响应格式转换配置 |
+| `api_key` | 对应模型接入项的密钥 |
+| `protocol` | 接口协议类型，当前支持 `openai` / `anthropic` |
+| `model` | 目标模型名 |
+| `thinking` | 可选。模型级 thinking 配置，运行时会自动映射到请求 |
+
+### 1.1 Legacy Providers
+
+旧版 `Providers` 仍然兼容，但更适合高级用户或历史配置迁移场景。新配置优先推荐 `Models`。
 
 ### 2. Router 基础路由
 
 | 配置项 | 说明 |
 |--------|------|
-| `Router.default` | 必填。默认模型，格式 `provider,model` |
+| `Router.default` | 必填。推荐直接写 `Models[].id`，旧 `provider,model` 仍兼容 |
 | `Router.background` | 后台任务模型 |
 | `Router.think` | 深度思考模型 |
 | `Router.longContext` | 长上下文模型 |
@@ -209,7 +211,7 @@ TriggerRouter:
       patterns:
         - type: exact
           keywords: ["架构设计", "system design"]
-      model: "openrouter,anthropic/claude-opus-4"
+      model: "opus"
 ```
 
 关键字段：
@@ -231,7 +233,7 @@ TriggerRouter:
 | `enabled` | 是否启用 |
 | `description` | 规则说明 |
 | `patterns` | `exact` 或 `regex` 模式 |
-| `model` | 命中后使用的模型 |
+| `model` | 命中后使用的模型。推荐写 `Models[].id` |
 
 ### 4. SmartRouter
 
@@ -240,13 +242,13 @@ TriggerRouter:
 ```yaml
 SmartRouter:
   enabled: true
-  router_model: "openrouter,anthropic/claude-sonnet-4"
+  router_model: "sonnet"
   candidates:
-    - model: "openrouter,anthropic/claude-sonnet-4"
+    - model: "sonnet"
       description: "通用编程、代码生成、日常调试"
-    - model: "deepseek,deepseek-reasoner"
+    - model: "deepseek_reasoner"
       description: "复杂推理、严谨分析"
-    - model: "openrouter,anthropic/claude-opus-4"
+    - model: "opus"
       description: "架构设计、系统规划、长文档"
 ```
 
@@ -340,7 +342,7 @@ ctr code
 
 如果你需要的是“先稳定可用”，优先只配置：
 
-- `Providers`
+- `Models`
 - `Router.default`
 - `TriggerRouter.rules`
 - `SmartRouter`
@@ -394,7 +396,7 @@ ctr start --daemon
 
 - `SmartRouter.enabled` 是否为 `true`
 - `router_model` 是否有效
-- `candidates` 是否至少有 2 个，并且都在 `Providers` 中声明
+- `candidates` 是否至少有 2 个，并且都能解析到有效的模型接入项
 - 是否已经被更高优先级的 TriggerRouter 提前命中
 
 ### Governance 没生效
@@ -403,7 +405,7 @@ ctr start --daemon
 
 - `Governance.enabled` 是否为 `true`
 - 对应子模块如 `sticky / semantic / cascade / shadow` 是否已单独启用
-- `sticky.alignment.summarizer_model`、`cascade.levels[].from/to` 等模型引用是否都存在于 `Providers`
+- `sticky.alignment.summarizer_model`、`cascade.levels[].from/to` 等模型引用是否都能解析到有效模型
 - 当前请求是否真的满足该治理能力的触发条件
 
 ## 配置指南

@@ -1,65 +1,54 @@
 # Claude Trigger Router 配置示例
 # 复制到 ~/.claude-trigger-router/config.yaml 后，先替换 API Key 和模型名。
 
-# 服务监听地址
 HOST: "127.0.0.1"
 PORT: 3456
 
-# 日志开关
 LOG: true
 LOG_LEVEL: "debug"
 
-# 1) Providers：先声明你有哪些上游模型可用
-Providers:
-  - name: openrouter
+# 1) Models：推荐优先使用的简化模型接入配置
+Models:
+  - id: sonnet
     api_base_url: "https://openrouter.ai/api/v1/chat/completions"
     api_key: "sk-xxx"
-    models:
-      - "anthropic/claude-sonnet-4"
-      - "anthropic/claude-opus-4"
-    transformer:
-      use: ["openrouter"]
+    protocol: "openai"
+    model: "anthropic/claude-sonnet-4"
+    thinking:
+      mode: "auto"
 
-  - name: deepseek
+  - id: opus
+    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
+    api_key: "sk-xxx"
+    protocol: "openai"
+    model: "anthropic/claude-opus-4"
+
+  - id: deepseek_reasoner
     api_base_url: "https://api.deepseek.com/chat/completions"
     api_key: "sk-xxx"
-    models:
-      - "deepseek-chat"
-      - "deepseek-reasoner"
-    transformer:
-      use: ["deepseek"]
-      "deepseek-chat":
-        use: ["tooluse"]
+    protocol: "openai"
+    model: "deepseek-reasoner"
+    thinking:
+      mode: "on"
+      effort: "high"
+      budget_tokens: 2048
 
-  # OpenAI 兼容中转服务（OneAPI / NewAPI / SiliconFlow / 阿里 DashScope 等）
-  # 任何提供 OpenAI 兼容接口（/v1/chat/completions）的服务均可按此格式配置
-  # transformer.use: ["openrouter"] 负责：
-  #   - 入方向：清除 GPT 不支持的 Anthropic 字段（cache_control 等）
-  #   - 出方向：将 OpenAI 响应格式（含流式 SSE）转换回 Anthropic 格式
-  - name: oneapi
-    api_base_url: "https://your-oneapi.example.com/v1/chat/completions"
-    api_key: "sk-xxx"
-    models:
-      - "gpt-4o"
-      - "gpt-4o-mini"
-      - "o1-mini"
-    transformer:
-      use: ["openrouter"]
-
-  - name: ollama
+  - id: ollama_qwen
     api_base_url: "http://localhost:11434/v1/chat/completions"
     api_key: "ollama"
-    models:
-      - "qwen2.5-coder:latest"
+    protocol: "openai"
+    model: "qwen2.5-coder:latest"
+    thinking:
+      mode: "off"
 
-# 2) Router：先给一个稳定默认模型，再按能力补充分流
+# 2) Router：推荐直接引用 model id
 Router:
-  default: "openrouter,anthropic/claude-sonnet-4"
-  background: "ollama,qwen2.5-coder:latest"
-  think: "deepseek,deepseek-reasoner"
-  longContext: "openrouter,anthropic/claude-sonnet-4"
+  default: "sonnet"
+  background: "ollama_qwen"
+  think: "deepseek_reasoner"
+  longContext: "opus"
   longContextThreshold: 60000
-  webSearch: "openrouter,anthropic/claude-sonnet-4"
+  webSearch: "sonnet"
 
 # 3) TriggerRouter：高确定性任务优先走规则路由
 TriggerRouter:
@@ -67,7 +56,6 @@ TriggerRouter:
   analysis_scope: "last_message"
   llm_intent_recognition: false
   rules:
-    # 架构 / 方案 / 设计任务，优先走更强的规划模型
     - name: "architecture"
       priority: 90
       enabled: true
@@ -82,9 +70,8 @@ TriggerRouter:
             - "system design"
         - type: regex
           pattern: "(架构|系统设计|技术方案)"
-      model: "openrouter,anthropic/claude-opus-4"
+      model: "opus"
 
-    # 代码审查与评审任务，优先走更稳的分析模型
     - name: "code_review"
       priority: 80
       enabled: true
@@ -98,9 +85,8 @@ TriggerRouter:
             - "检查代码"
         - type: regex
           pattern: "(代码|code).{0,5}(审查|review|检查|审核)"
-      model: "openrouter,anthropic/claude-sonnet-4"
+      model: "sonnet"
 
-    # 深度推理 / 分析任务，走 reasoning 模型
     - name: "complex_reasoning"
       priority: 70
       enabled: true
@@ -115,9 +101,8 @@ TriggerRouter:
             - "reasoning"
         - type: regex
           pattern: "(深入|复杂|详细).{0,5}(分析|推理|解析)"
-      model: "deepseek,deepseek-reasoner"
+      model: "deepseek_reasoner"
 
-    # 明确要求“简单 / 快速”时，切到更快的轻量模型
     - name: "simple_task"
       priority: 10
       enabled: true
@@ -129,42 +114,27 @@ TriggerRouter:
             - "简单"
             - "quick"
             - "simple"
-      model: "ollama,qwen2.5-coder:latest"
-
-    # 可选示例：图像生成路由。不是主线能力，按需启用。
-    - name: "image_generation"
-      priority: 5
-      enabled: false
-      description: "图片生成扩展示例"
-      patterns:
-        - type: exact
-          keywords:
-            - "生成图片"
-            - "create image"
-            - "generate image"
-        - type: regex
-          pattern: "(画|生成|创作|绘制).{0,10}(图|画|图像|插图)"
-      model: "openrouter,anthropic/claude-sonnet-4"
+      model: "ollama_qwen"
 
 # 4) SmartRouter：规则没命中时，让路由模型从候选模型中挑选
 SmartRouter:
   enabled: true
-  router_model: "openrouter,anthropic/claude-sonnet-4"
+  router_model: "sonnet"
   candidates:
-    - model: "openrouter,anthropic/claude-sonnet-4"
+    - model: "sonnet"
       description: "通用编程、代码生成、日常调试、多轮对话"
 
-    - model: "deepseek,deepseek-reasoner"
+    - model: "deepseek_reasoner"
       description: "复杂推理、逻辑分析、需要严谨思考的任务"
 
-    - model: "openrouter,anthropic/claude-opus-4"
+    - model: "opus"
       description: "架构设计、系统规划、长文档与复杂评审任务"
 
   cache_ttl: 600000
   max_tokens: 256
   fallback: "default"
 
-# 5) Governance：为多模型路由增加连续性、失败升级和质量审计能力
+# 5) Governance：治理配置也推荐直接引用 model id
 Governance:
   enabled: true
 
@@ -175,7 +145,7 @@ Governance:
     break_on_explicit_route: true
     alignment:
       enabled: true
-      summarizer_model: "openrouter,anthropic/claude-sonnet-4"
+      summarizer_model: "sonnet"
       max_summary_tokens: 256
 
   cascade:
@@ -189,8 +159,8 @@ Governance:
         - "...rest of code"
         - "placeholder"
     levels:
-      - from: "openrouter,anthropic/claude-sonnet-4"
-        to: "openrouter,anthropic/claude-opus-4"
+      - from: "sonnet"
+        to: "opus"
         reasoning: "high"
 
   semantic:
@@ -205,6 +175,7 @@ Governance:
   shadow:
     enabled: true
     mode: "async_audit"
+    verifier_model: "sonnet"
     sample_rate: 0.2
     checks:
       placeholder_patterns: true
@@ -223,10 +194,12 @@ Governance:
       spike_warn_rate: 0.5
       spike_delta_rate: 0.3
 
-# 6) 高级 / 预留字段：当前不建议放进最小可用配置
-# APIKEY: "your-secret-key"
-# Router.image: "openrouter,anthropic/claude-sonnet-4"
-# forceUseImageAgent: false
-# PROXY_URL: "http://127.0.0.1:7890"
-# API_TIMEOUT_MS: 600000
-# NON_INTERACTIVE_MODE: false
+# 6) Legacy 兼容：如果你仍在使用旧配置，可继续保留 Providers
+# Providers:
+#   - name: openrouter
+#     api_base_url: "https://openrouter.ai/api/v1/chat/completions"
+#     api_key: "sk-xxx"
+#     models:
+#       - "anthropic/claude-sonnet-4"
+#     transformer:
+#       use: ["openrouter"]
