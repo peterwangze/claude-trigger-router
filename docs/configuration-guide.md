@@ -4,6 +4,8 @@
 
 如果你只想先跑通，请先看 `README.md` 里的最小配置；如果你想把多模型路由配顺，这份文档更合适。
 
+如果你已经在使用旧版 `Providers + provider,model` 配置，建议同时阅读：`docs/models-migration-guide.md`
+
 ## 5 分钟上手
 
 ### 第一步：运行首次使用向导

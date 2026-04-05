@@ -412,6 +412,8 @@ ctr start --daemon
 
 更面向新手、可直接复制的配置模板见：`docs/configuration-guide.md`
 
+如果你正在从旧 `Providers` 配置迁移到新的 `Models` 配置，可进一步阅读：`docs/models-migration-guide.md`
+
 ## 致谢
 
 - 基于 `claude-code-router` 的兼容配置思路扩展
