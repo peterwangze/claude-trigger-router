@@ -559,6 +559,62 @@ describe('createServer /api/config', () => {
     expect(result.anomalies.map((item: any) => item.type)).toContain('latency_high');
   });
 
+  it('persists anomaly thresholds through the dedicated governance endpoint', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/governance/observability/anomaly-thresholds');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    mockReadConfigFile.mockResolvedValue({
+      HOST: '127.0.0.1',
+      PORT: 3456,
+      LOG: true,
+      LOG_LEVEL: 'debug',
+      API_TIMEOUT_MS: 600000,
+      NON_INTERACTIVE_MODE: false,
+      Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+      Providers: [
+        {
+          name: 'openrouter',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4'],
+        },
+      ],
+      Governance: {
+        enabled: true,
+      },
+    });
+
+    const result = await handler({
+      body: {
+        min_sample_size: 4,
+        cascade_warn_rate: 0.45,
+        shadow_warn_rate: 0.55,
+        latency_warn_ms: 1800,
+      },
+    }, reply);
+
+    expect(reply.code).not.toHaveBeenCalled();
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Governance: expect.objectContaining({
+          observability: expect.objectContaining({
+            anomaly_thresholds: expect.objectContaining({
+              min_sample_size: 4,
+              cascade_warn_rate: 0.45,
+              shadow_warn_rate: 0.55,
+              latency_warn_ms: 1800,
+            }),
+          }),
+        }),
+      })
+    );
+    expect(result.success).toBe(true);
+    expect(result.message).toBe('Anomaly thresholds saved successfully');
+  });
+
   it('renders a governance trace debug page at /ui', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('GET /ui');
@@ -582,6 +638,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('cascadeWarnRate');
     expect(html).toContain('shadowWarnRate');
     expect(html).toContain('latencyWarnMs');
+    expect(html).toContain('saveThresholdsBtn');
+    expect(html).toContain('/api/governance/observability/anomaly-thresholds');
     expect(html).toContain('bucketGrid');
     expect(html).toContain('routeRanking');
     expect(html).toContain('modelRanking');

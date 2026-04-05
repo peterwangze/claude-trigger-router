@@ -153,6 +153,8 @@
 - `governance-metric-schedules.json` 会保存当前 schedule 元数据，重启后自动恢复有效任务
 - 归档文件现默认使用压缩格式保存，减少本地存储占用
 - 归档列表查询新增分页参数，可支撑更长时间窗口下的归档浏览
+- `/ui` anomaly tuning 已支持直接写回配置文件
+- 新增 `POST /api/governance/observability/anomaly-thresholds`，用于单独保存治理异常阈值
 
 ## 下次更新时应补充的内容
 

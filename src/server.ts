@@ -157,6 +157,45 @@ export const createServer = (config: any): Server => {
     };
   });
 
+  server.app.post("/api/governance/observability/anomaly-thresholds", async (req: any, reply: any) => {
+    const currentConfig = await readConfigFile();
+    const nextConfig = {
+      ...currentConfig,
+      Governance: {
+        ...(currentConfig.Governance ?? { enabled: false }),
+        observability: {
+          ...(currentConfig.Governance?.observability ?? {}),
+          anomaly_thresholds: {
+            ...(currentConfig.Governance?.observability?.anomaly_thresholds ?? {}),
+            ...(req.body ?? {}),
+          },
+        },
+      },
+    };
+
+    const result = normalizeAndValidateConfig(nextConfig);
+    if (result.errors.length > 0) {
+      reply.code(400);
+      return {
+        success: false,
+        message: "Invalid anomaly threshold configuration",
+        errors: result.errors,
+      };
+    }
+
+    const backupPath = await backupConfigFile();
+    if (backupPath) {
+      log(`Backed up existing configuration file to ${backupPath}`);
+    }
+
+    await writeConfigFile(result.config);
+    return {
+      success: true,
+      message: "Anomaly thresholds saved successfully",
+      anomaly_thresholds: result.config.Governance?.observability?.anomaly_thresholds ?? {},
+    };
+  });
+
   server.app.get("/api/governance/traces/:requestId", async (req: any, reply: any) => {
     const trace = governanceTraceStore.get(req.params.requestId);
     if (!trace) {
@@ -359,6 +398,10 @@ export const createServer = (config: any): Server => {
       `<div><label>Shadow warn</label><input id="shadowWarnRate" value="${configuredThresholds.shadow_warn_rate ?? 0.5}"></div>` +
       `<div><label>Latency warn ms</label><input id="latencyWarnMs" value="${configuredThresholds.latency_warn_ms ?? 1500}"></div>` +
       `</div>` +
+      `<div class="row" style="margin-top:.75rem">` +
+      `<button id="saveThresholdsBtn" type="button">保存阈值到配置</button>` +
+      `<span id="saveThresholdsStatus" class="muted">当前仅作为页面查询参数；点击可写回配置文件</span>` +
+      `</div>` +
       `</div>` +
       `<div class="subpanel">` +
       `<div class="row"><strong>Window buckets</strong><span id="bucketHint" class="muted">按时间窗查看近期治理趋势</span></div>` +
@@ -421,6 +464,7 @@ export const createServer = (config: any): Server => {
       `const modelRanking=document.getElementById('modelRanking');` +
       `const intentRanking=document.getElementById('intentRanking');` +
       `const anomalyList=document.getElementById('anomalyList');` +
+      `const saveThresholdsStatus=document.getElementById('saveThresholdsStatus');` +
       `const trendTableBody=document.querySelector('#trendTable tbody');` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
@@ -528,7 +572,25 @@ export const createServer = (config: any): Server => {
       `  detailHint.textContent='当前查看：'+requestId;` +
       `  detail.textContent=JSON.stringify(data,null,2);` +
       `}` +
+      `async function saveThresholds(){` +
+      `  const payload={` +
+      `    min_sample_size:Number(document.getElementById('minSampleSize').value || 0),` +
+      `    cascade_warn_rate:Number(document.getElementById('cascadeWarnRate').value || 0),` +
+      `    shadow_warn_rate:Number(document.getElementById('shadowWarnRate').value || 0),` +
+      `    latency_warn_ms:Number(document.getElementById('latencyWarnMs').value || 0)` +
+      `  };` +
+      `  saveThresholdsStatus.textContent='保存中...';` +
+      `  const res=await fetch('/api/governance/observability/anomaly-thresholds',{` +
+      `    method:'POST',` +
+      `    headers:{'Content-Type':'application/json'},` +
+      `    body:JSON.stringify(payload)` +
+      `  });` +
+      `  const data=await res.json();` +
+      `  if(!res.ok){ saveThresholdsStatus.textContent='保存失败：'+(data.message || 'unknown error'); return; }` +
+      `  saveThresholdsStatus.textContent='已保存到配置文件';` +
+      `}` +
       `document.getElementById('refreshBtn').addEventListener('click',loadTraces);` +
+      `document.getElementById('saveThresholdsBtn').addEventListener('click',saveThresholds);` +
       `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
       `loadTraces();` +
       `</script>` +
