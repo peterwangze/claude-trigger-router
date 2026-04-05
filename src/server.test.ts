@@ -186,6 +186,86 @@ describe('createServer /api/config', () => {
     });
   });
 
+  it('previews compiled Models registry for a draft config without saving', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/models/compiled/preview');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      body: {
+        Models: [
+          {
+            id: 'haiku',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-preview',
+            protocol: 'openai',
+            model: 'anthropic/claude-3.5-haiku',
+            thinking: {
+              mode: 'off',
+            },
+          },
+        ],
+        Router: {
+          default: 'haiku',
+        },
+      },
+    }, reply);
+
+    expect(reply.code).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    expect(result.providers).toEqual([
+      {
+        name: 'model__haiku',
+        api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+        models: ['anthropic/claude-3.5-haiku'],
+        transformer: { use: ['openrouter'] },
+        has_api_key: true,
+      },
+    ]);
+    expect(result.modelMap.haiku).toEqual({
+      id: 'haiku',
+      providerName: 'model__haiku',
+      modelName: 'anthropic/claude-3.5-haiku',
+      protocol: 'openai',
+      thinking: {
+        mode: 'off',
+      },
+      source: 'models',
+    });
+    expect(result.normalizedConfig.Router?.default).toBe('haiku');
+    expect(mockWriteConfigFile).not.toHaveBeenCalled();
+    expect(mockBackupConfigFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid compiled Models draft preview', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/models/compiled/preview');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      body: {
+        Models: [
+          {
+            id: 'broken',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-preview',
+            protocol: 'openai',
+          },
+        ],
+      },
+    }, reply);
+
+    expect(reply.code).toHaveBeenCalledWith(400);
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('Invalid configuration preview');
+    expect(result.errors).toContain('Models[0].model is required');
+    expect(mockWriteConfigFile).not.toHaveBeenCalled();
+  });
+
   it('exposes governance archive list, detail, and delete endpoints', async () => {
     const originalListArchives = governanceTraceStore.listArchives.bind(governanceTraceStore);
     const originalGetArchivedTraces = governanceTraceStore.getArchivedTraces.bind(governanceTraceStore);
@@ -671,6 +751,14 @@ describe('createServer /api/config', () => {
     expect(reply.header).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
     expect(html).toContain('Governance Trace');
     expect(html).toContain('/api/models/compiled');
+    expect(html).toContain('/api/models/compiled/preview');
+    expect(html).toContain('Draft Config Preview');
+    expect(html).toContain('configDraftEditor');
+    expect(html).toContain('loadConfigDraftBtn');
+    expect(html).toContain('previewConfigDraftBtn');
+    expect(html).toContain('draftPreviewStatus');
+    expect(html).toContain('loadConfigDraft');
+    expect(html).toContain('previewConfigDraft');
     expect(html).toContain('Compiled Models');
     expect(html).toContain('compiledModelsStatus');
     expect(html).toContain('compiledProvidersTable');

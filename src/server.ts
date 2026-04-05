@@ -78,6 +78,32 @@ export const createServer = (config: any): Server => {
     };
   });
 
+  server.app.post("/api/models/compiled/preview", async (req: any, reply: any) => {
+    const result = normalizeAndValidateConfig(req.body ?? {});
+    if (result.errors.length > 0) {
+      reply.code(400);
+      return {
+        success: false,
+        message: "Invalid configuration preview",
+        errors: result.errors,
+      };
+    }
+
+    const registry = buildModelRegistry(result.config);
+    return {
+      success: true,
+      providers: registry.providers.map((provider) => ({
+        name: provider.name,
+        api_base_url: provider.api_base_url,
+        models: provider.models,
+        transformer: provider.transformer,
+        has_api_key: Boolean(provider.api_key),
+      })),
+      modelMap: registry.modelMap,
+      normalizedConfig: result.config,
+    };
+  });
+
   server.app.get("/api/health", async () => {
     return {
       service: SERVICE_NAME,
@@ -393,7 +419,16 @@ export const createServer = (config: any): Server => {
       `<input id="limit" placeholder="limit" value="20">` +
       `<button id="refreshBtn">刷新</button>` +
       `</div>` +
-      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
+      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/models/compiled/preview</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
+      `<div class="subpanel">` +
+      `<div class="row"><strong>Draft Config Preview</strong><span class="muted">编辑当前配置草稿并即时预览 compiled models 结果，不落盘</span></div>` +
+      `<div class="action-row">` +
+      `<button id="loadConfigDraftBtn" type="button">载入当前配置</button>` +
+      `<button id="previewConfigDraftBtn" type="button">预览 compiled models</button>` +
+      `<span id="draftPreviewStatus" class="muted">尚未预览配置草稿</span>` +
+      `</div>` +
+      `<textarea id="configDraftEditor" style="width:100%;min-height:240px;margin-top:.75rem;padding:.75rem;border-radius:12px;border:1px solid #d1d5db;font:12px/1.5 ui-monospace,SFMono-Regular,monospace" spellcheck="false" placeholder='{"Models":[{"id":"sonnet","api_base_url":"https://...","api_key":"sk-...","protocol":"openai","model":"anthropic/claude-sonnet-4"}]}'></textarea>` +
+      `</div>` +
       `<div class="subpanel">` +
       `<div class="row"><strong>Compiled Models</strong><span class="muted">查看 Models 编译后的 provider 与路由映射</span></div>` +
       `<div id="compiledModelsStatus" class="muted" style="margin-top:.75rem">加载 compiled models 中...</div>` +
@@ -512,6 +547,7 @@ export const createServer = (config: any): Server => {
       `<ul>` +
       `<li><code>GET /api/config</code> — 读取当前配置</li>` +
       `<li><code>GET /api/models/compiled</code> — 查看 Models 编译后的内部 provider / model 映射</li>` +
+      `<li><code>POST /api/models/compiled/preview</code> — 用配置草稿预览 compiled models 结果，不写回文件</li>` +
       `<li><code>POST /api/config</code> — 保存配置</li>` +
       `<li><code>GET /api/transformers</code> — 查看已加载 transformer</li>` +
       `<li><code>POST /api/restart</code> — 重启服务</li>` +
@@ -526,6 +562,8 @@ export const createServer = (config: any): Server => {
       `const tbody=document.querySelector('#traceTable tbody');` +
       `const detail=document.getElementById('traceDetail');` +
       `const detailHint=document.getElementById('detailHint');` +
+      `const draftPreviewStatus=document.getElementById('draftPreviewStatus');` +
+      `const configDraftEditor=document.getElementById('configDraftEditor');` +
       `const compiledModelsStatus=document.getElementById('compiledModelsStatus');` +
       `const compiledProvidersTableBody=document.querySelector('#compiledProvidersTable tbody');` +
       `const compiledModelMapTableBody=document.querySelector('#compiledModelMapTable tbody');` +
@@ -565,6 +603,35 @@ export const createServer = (config: any): Server => {
       `    '<td><code>'+esc(JSON.stringify(item.thinking || { mode: 'off' }))+'</code></td>' +` +
       `    '<td>'+esc(item.source || '-')+'</td>' +` +
       `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No compiled model map</td></tr>';` +
+      `}` +
+      `async function loadConfigDraft(){` +
+      `  draftPreviewStatus.textContent='加载当前配置中...';` +
+      `  const res=await fetch('/api/config');` +
+      `  const data=await res.json();` +
+      `  configDraftEditor.value=JSON.stringify(data,null,2);` +
+      `  draftPreviewStatus.textContent='已载入当前配置，可直接编辑 JSON 草稿';` +
+      `}` +
+      `async function previewConfigDraft(){` +
+      `  let payload;` +
+      `  try {` +
+      `    payload=JSON.parse(configDraftEditor.value || '{}');` +
+      `  } catch (error) {` +
+      `    draftPreviewStatus.textContent='JSON 解析失败：'+error.message;` +
+      `    return;` +
+      `  }` +
+      `  draftPreviewStatus.textContent='预览编译结果中...';` +
+      `  const res=await fetch('/api/models/compiled/preview',{` +
+      `    method:'POST',` +
+      `    headers:{'Content-Type':'application/json'},` +
+      `    body:JSON.stringify(payload)` +
+      `  });` +
+      `  const data=await res.json();` +
+      `  if(!res.ok){` +
+      `    draftPreviewStatus.textContent='预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error');` +
+      `    return;` +
+      `  }` +
+      `  renderCompiledModels(data);` +
+      `  draftPreviewStatus.textContent='预览完成：已按草稿配置刷新 compiled models';` +
       `}` +
       `function renderMetrics(metrics){` +
       `  metricsGrid.innerHTML=[` +
@@ -731,10 +798,13 @@ export const createServer = (config: any): Server => {
       `  saveThresholdsStatus.textContent='已保存到配置文件';` +
       `}` +
       `document.getElementById('refreshBtn').addEventListener('click',loadTraces);` +
+      `document.getElementById('loadConfigDraftBtn').addEventListener('click',loadConfigDraft);` +
+      `document.getElementById('previewConfigDraftBtn').addEventListener('click',previewConfigDraft);` +
       `document.getElementById('createSnapshotBtn').addEventListener('click',createSnapshot);` +
       `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +
       `document.getElementById('saveThresholdsBtn').addEventListener('click',saveThresholds);` +
       `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
+      `loadConfigDraft();` +
       `loadCompiledModels();` +
       `loadExports();` +
       `loadArchives();` +
