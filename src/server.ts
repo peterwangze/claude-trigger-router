@@ -694,6 +694,13 @@ export const createServer = (config: any): Server => {
       `const archiveTableBody=document.querySelector('#archiveTable tbody');` +
       `const trendTableBody=document.querySelector('#trendTable tbody');` +
       `let currentDraftConfig={};` +
+      `const modelProviderTemplates={` +
+      `  openai:{ label:'OpenAI', protocol:'openai', api_base_url:'https://api.openai.com/v1/chat/completions' },` +
+      `  anthropic:{ label:'Anthropic', protocol:'anthropic', api_base_url:'https://api.anthropic.com/v1/messages' },` +
+      `  openrouter:{ label:'OpenRouter', protocol:'openai', api_base_url:'https://openrouter.ai/api/v1/chat/completions' },` +
+      `  deepseek:{ label:'DeepSeek', protocol:'openai', api_base_url:'https://api.deepseek.com/chat/completions' },` +
+      `  siliconflow:{ label:'SiliconFlow', protocol:'openai', api_base_url:'https://api.siliconflow.cn/v1/chat/completions' }` +
+      `};` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
       `function fmt(v){return Number(v || 0).toFixed(2);}` +
@@ -705,6 +712,7 @@ export const createServer = (config: any): Server => {
       `  modelsFormGrid.innerHTML=list.map((model,index)=>'<div class="model-card" data-model-card=\"'+index+'\">' +` +
       `    '<div class="model-card-header"><strong>Model #'+(index+1)+'</strong><button type="button" data-remove-model=\"'+index+'\">删除</button></div>' +` +
       `    '<div class="model-card-grid">' +` +
+      `      '<div><label>Provider template</label><div class="row"><select data-field=\"provider_template\" data-index=\"'+index+'\"><option value=\"\">custom</option>'+Object.entries(modelProviderTemplates).map(([key,item])=>'<option value=\"'+esc(key)+'\"'+(model.provider_template === key ? ' selected' : '')+'>'+esc(item.label)+'</option>').join('')+'</select><button type="button" data-apply-template=\"'+index+'\">应用</button></div></div>' +` +
       `      '<div><label>ID</label><input data-field=\"id\" data-index=\"'+index+'\" value=\"'+esc(model.id || '')+'\" placeholder=\"sonnet\"></div>' +` +
       `      '<div><label>Protocol</label><select data-field=\"protocol\" data-index=\"'+index+'\"><option value=\"openai\"'+((model.protocol || 'openai') === 'openai' ? ' selected' : '')+'>openai</option><option value=\"anthropic\"'+(model.protocol === 'anthropic' ? ' selected' : '')+'>anthropic</option></select></div>' +` +
       `      '<div><label>Model</label><input data-field=\"model\" data-index=\"'+index+'\" value=\"'+esc(model.model || '')+'\" placeholder=\"anthropic/claude-sonnet-4\"></div>' +` +
@@ -742,6 +750,17 @@ export const createServer = (config: any): Server => {
       `    if(metadata !== undefined){ model.metadata=metadata; }` +
       `    return model;` +
       `  });` +
+      `}` +
+      `function applyProviderTemplate(index){` +
+      `  const card=modelsFormGrid.querySelector('[data-model-card=\"'+index+'\"]');` +
+      `  if(!card){ return; }` +
+      `  const templateKey=(card.querySelector('[data-field=\"provider_template\"][data-index=\"'+index+'\"]')?.value || '').trim();` +
+      `  const template=modelProviderTemplates[templateKey];` +
+      `  if(!template){ return; }` +
+      `  const protocol=card.querySelector('[data-field=\"protocol\"][data-index=\"'+index+'\"]');` +
+      `  const apiBaseUrl=card.querySelector('[data-field=\"api_base_url\"][data-index=\"'+index+'\"]');` +
+      `  if(protocol){ protocol.value=template.protocol; }` +
+      `  if(apiBaseUrl && !apiBaseUrl.value.trim()){ apiBaseUrl.value=template.api_base_url; } else if(apiBaseUrl){ apiBaseUrl.value=template.api_base_url; }` +
       `}` +
       `function buildDraftPayloadFromForm(){` +
       `  const payload=JSON.parse(JSON.stringify(currentDraftConfig || {}));` +
@@ -844,7 +863,7 @@ export const createServer = (config: any): Server => {
       `}` +
       `modelsFormGrid.addEventListener('input',()=>syncDraftEditorFromForm());` +
       `modelsFormGrid.addEventListener('change',()=>syncDraftEditorFromForm());` +
-      `modelsFormGrid.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-model]'); if(!btn){ return; } const removeIndex=Number(btn.dataset.removeModel); const nextModels=extractModelsFromForm().filter((_,index)=>index!==removeIndex); renderModelsForm(nextModels); syncDraftEditorFromForm(); });` +
+      `modelsFormGrid.addEventListener('click',(e)=>{ const applyBtn=e.target.closest('button[data-apply-template]'); if(applyBtn){ const applyIndex=Number(applyBtn.dataset.applyTemplate); applyProviderTemplate(applyIndex); syncDraftEditorFromForm(); return; } const btn=e.target.closest('button[data-remove-model]'); if(!btn){ return; } const removeIndex=Number(btn.dataset.removeModel); const nextModels=extractModelsFromForm().filter((_,index)=>index!==removeIndex); renderModelsForm(nextModels); syncDraftEditorFromForm(); });` +
       `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
       `function renderMetrics(metrics){` +
       `  metricsGrid.innerHTML=[` +

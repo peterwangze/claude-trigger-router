@@ -808,6 +808,12 @@ describe('createServer /api/config', () => {
     expect(html).toContain('draftModelsCount');
     expect(html).toContain('addModelDraftBtn');
     expect(html).toContain('syncDraftJsonBtn');
+    expect(html).toContain('Provider template');
+    expect(html).toContain('modelProviderTemplates');
+    expect(html).toContain('data-apply-template');
+    expect(html).toContain('applyProviderTemplate');
+    expect(html).toContain('OpenRouter');
+    expect(html).toContain('Anthropic');
     expect(html).toContain('configDraftEditor');
     expect(html).toContain('loadConfigDraftBtn');
     expect(html).toContain('previewConfigDraftBtn');
