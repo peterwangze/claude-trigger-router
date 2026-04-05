@@ -962,6 +962,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('data-remove-trigger-pattern');
     expect(html).toContain('data-trigger-pattern');
     expect(html).toContain('data-trigger-pattern-field');
+    expect(html).toContain('data-add-trigger-keyword');
+    expect(html).toContain('data-remove-trigger-keyword');
+    expect(html).toContain('data-trigger-keyword');
     expect(html).toContain('regex 模式下忽略 keywords');
     expect(html).toContain('exact 模式下忽略 regex pattern');
     expect(html).toContain('smartEnabled');
@@ -1020,6 +1023,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('renderTriggerRulesList');
     expect(html).toContain('extractTriggerRulesFromForm');
     expect(html).toContain('addTriggerPattern');
+    expect(html).toContain('addTriggerKeyword');
     expect(html).toContain('renderSmartCandidatesList');
     expect(html).toContain('extractSmartCandidatesFromForm');
     expect(html).toContain('renderCascadeLevelsList');
