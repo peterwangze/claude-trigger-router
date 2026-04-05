@@ -632,6 +632,13 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/governance/metrics');
     expect(html).toContain('/api/governance/metrics/export');
     expect(html).toContain('/api/governance/metrics/exports');
+    expect(html).toContain('createSnapshotBtn');
+    expect(html).toContain('snapshotFormat');
+    expect(html).toContain('exportTable');
+    expect(html).toContain('scheduleTable');
+    expect(html).toContain('archiveTable');
+    expect(html).toContain('loadArchivesBtn');
+    expect(html).toContain('archivePageSize');
     expect(html).toContain('metricsGrid');
     expect(html).toContain('anomalyList');
     expect(html).toContain('minSampleSize');

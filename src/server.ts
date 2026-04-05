@@ -338,6 +338,9 @@ export const createServer = (config: any): Server => {
       `.mini-list{list-style:none;padding:0;margin:.75rem 0 0}` +
       `.mini-list li{display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px dashed #e5e7eb}` +
       `.mini-list li:last-child{border-bottom:none}` +
+      `.action-row{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-top:.75rem}` +
+      `.management-table{width:100%;margin-top:.75rem}` +
+      `.management-table th,.management-table td{padding:.5rem;border-bottom:1px solid #e5e7eb;font-size:.92rem;vertical-align:top}` +
       `.alert-list{display:grid;gap:.75rem;margin-top:1rem}` +
       `.alert{border-radius:12px;padding:.85rem 1rem;border:1px solid}` +
       `.alert.warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}` +
@@ -440,6 +443,36 @@ export const createServer = (config: any): Server => {
       `<pre id="traceDetail">{}</pre>` +
       `</div>` +
       `<div class="panel">` +
+      `<div class="row"><strong>Snapshot Management</strong><span class="muted">查看导出历史、定时任务，并手动创建快照</span></div>` +
+      `<div class="action-row">` +
+      `<select id="snapshotFormat"><option value="json">snapshot json</option><option value="csv">snapshot csv</option></select>` +
+      `<button id="createSnapshotBtn" type="button">生成快照</button>` +
+      `<span id="snapshotStatus" class="muted">尚未创建快照</span>` +
+      `</div>` +
+      `<table id="exportTable" class="management-table">` +
+      `<thead><tr><th>Export</th><th>Kind</th><th>Format</th><th>Created</th></tr></thead>` +
+      `<tbody><tr><td colspan="4" class="muted">Loading exports...</td></tr></tbody>` +
+      `</table>` +
+      `<table id="scheduleTable" class="management-table">` +
+      `<thead><tr><th>Schedule</th><th>Interval</th><th>Format</th><th>Last run</th></tr></thead>` +
+      `<tbody><tr><td colspan="4" class="muted">Loading schedules...</td></tr></tbody>` +
+      `</table>` +
+      `</div>` +
+      `<div class="panel">` +
+      `<div class="row"><strong>Archive Management</strong><span class="muted">浏览压缩归档并查看分页结果</span></div>` +
+      `<div class="action-row">` +
+      `<input id="archiveDate" placeholder="YYYY-MM-DD">` +
+      `<input id="archivePage" placeholder="page" value="1">` +
+      `<input id="archivePageSize" placeholder="pageSize" value="5">` +
+      `<button id="loadArchivesBtn" type="button">加载归档</button>` +
+      `<span id="archiveStatus" class="muted">尚未加载归档</span>` +
+      `</div>` +
+      `<table id="archiveTable" class="management-table">` +
+      `<thead><tr><th>Archive</th><th>Range</th><th>Count</th><th>Compressed</th></tr></thead>` +
+      `<tbody><tr><td colspan="4" class="muted">Loading archives...</td></tr></tbody>` +
+      `</table>` +
+      `</div>` +
+      `<div class="panel">` +
       `<p>其他管理 API：</p>` +
       `<ul>` +
       `<li><code>GET /api/config</code> — 读取当前配置</li>` +
@@ -465,6 +498,11 @@ export const createServer = (config: any): Server => {
       `const intentRanking=document.getElementById('intentRanking');` +
       `const anomalyList=document.getElementById('anomalyList');` +
       `const saveThresholdsStatus=document.getElementById('saveThresholdsStatus');` +
+      `const snapshotStatus=document.getElementById('snapshotStatus');` +
+      `const archiveStatus=document.getElementById('archiveStatus');` +
+      `const exportTableBody=document.querySelector('#exportTable tbody');` +
+      `const scheduleTableBody=document.querySelector('#scheduleTable tbody');` +
+      `const archiveTableBody=document.querySelector('#archiveTable tbody');` +
       `const trendTableBody=document.querySelector('#trendTable tbody');` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
@@ -512,6 +550,16 @@ export const createServer = (config: any): Server => {
       `    '<td>'+esc(pct(bucket.metrics.shadowCheckedRate))+'</td>' +` +
       `    '<td>'+esc(pct(bucket.metrics.alignmentUsedRate))+'</td>' +` +
       `  '</tr>').join('');` +
+      `}` +
+      `function renderExportHistory(data){` +
+      `  const exports=(data.exports || []);` +
+      `  const schedules=(data.schedules || []);` +
+      `  exportTableBody.innerHTML=exports.length ? exports.map(item=>'<tr><td><code>'+esc(item.id)+'</code></td><td>'+esc(item.kind)+'</td><td>'+esc(item.format)+'</td><td>'+esc(new Date(item.createdAt).toISOString())+'</td></tr>').join('') : '<tr><td colspan="4" class="muted">No exports yet</td></tr>';` +
+      `  scheduleTableBody.innerHTML=schedules.length ? schedules.map(item=>'<tr><td><code>'+esc(item.id)+'</code></td><td>'+esc(item.intervalMs)+' ms</td><td>'+esc(item.format)+'</td><td>'+esc(item.lastRunAt ? new Date(item.lastRunAt).toISOString() : '-')}</td></tr>').join('') : '<tr><td colspan="4" class="muted">No schedules yet</td></tr>';` +
+      `}` +
+      `function renderArchives(data){` +
+      `  const archives=(data.archives || []);` +
+      `  archiveTableBody.innerHTML=archives.length ? archives.map(item=>'<tr><td><code>'+esc(item.file)+'</code></td><td>'+esc(item.startedAt ? new Date(item.startedAt).toISOString().slice(0,10) : '-')+' ~ '+esc(item.endedAt ? new Date(item.endedAt).toISOString().slice(0,10) : '-')+'</td><td>'+esc(item.traceCount)+'</td><td>'+esc(item.compressed ? 'yes' : 'no')+'</td></tr>').join('') : '<tr><td colspan="4" class="muted">No archives found</td></tr>';` +
       `}` +
       `async function loadTraces(){` +
       `  const requestId=document.getElementById('requestId').value.trim();` +
@@ -572,6 +620,35 @@ export const createServer = (config: any): Server => {
       `  detailHint.textContent='当前查看：'+requestId;` +
       `  detail.textContent=JSON.stringify(data,null,2);` +
       `}` +
+      `async function loadExports(){` +
+      `  const res=await fetch('/api/governance/metrics/exports');` +
+      `  renderExportHistory(await res.json());` +
+      `}` +
+      `async function createSnapshot(){` +
+      `  snapshotStatus.textContent='创建快照中...';` +
+      `  const res=await fetch('/api/governance/metrics/snapshots',{` +
+      `    method:'POST',` +
+      `    headers:{'Content-Type':'application/json'},` +
+      `    body:JSON.stringify({ format: document.getElementById('snapshotFormat').value, windowMs: Number(document.getElementById('windowMs').value || 0) || undefined })` +
+      `  });` +
+      `  const data=await res.json();` +
+      `  snapshotStatus.textContent=res.ok ? ('已创建：'+data.export.id) : ('创建失败：'+(data.message || 'unknown error'));` +
+      `  if(res.ok) await loadExports();` +
+      `}` +
+      `async function loadArchives(){` +
+      `  archiveStatus.textContent='加载归档中...';` +
+      `  const params=new URLSearchParams();` +
+      `  const archiveDate=document.getElementById('archiveDate').value.trim();` +
+      `  const archivePage=document.getElementById('archivePage').value.trim();` +
+      `  const archivePageSize=document.getElementById('archivePageSize').value.trim();` +
+      `  if(archiveDate) params.set('date',archiveDate);` +
+      `  if(archivePage) params.set('page',archivePage);` +
+      `  if(archivePageSize) params.set('pageSize',archivePageSize);` +
+      `  const res=await fetch('/api/governance/archives'+(params.toString()?('?'+params.toString()):''));` +
+      `  const data=await res.json();` +
+      `  renderArchives(data);` +
+      `  archiveStatus.textContent='归档加载完成';` +
+      `}` +
       `async function saveThresholds(){` +
       `  const payload={` +
       `    min_sample_size:Number(document.getElementById('minSampleSize').value || 0),` +
@@ -590,8 +667,12 @@ export const createServer = (config: any): Server => {
       `  saveThresholdsStatus.textContent='已保存到配置文件';` +
       `}` +
       `document.getElementById('refreshBtn').addEventListener('click',loadTraces);` +
+      `document.getElementById('createSnapshotBtn').addEventListener('click',createSnapshot);` +
+      `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +
       `document.getElementById('saveThresholdsBtn').addEventListener('click',saveThresholds);` +
       `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
+      `loadExports();` +
+      `loadArchives();` +
       `loadTraces();` +
       `</script>` +
       `</body></html>`

@@ -155,6 +155,8 @@
 - 归档列表查询新增分页参数，可支撑更长时间窗口下的归档浏览
 - `/ui` anomaly tuning 已支持直接写回配置文件
 - 新增 `POST /api/governance/observability/anomaly-thresholds`，用于单独保存治理异常阈值
+- `/ui` 新增快照/归档管理面板，可直接查看导出历史、调度状态和归档列表
+- 管理面板现支持手动创建快照、查看 exports/schedules，以及按日期+分页浏览 archives
 
 ## 下次更新时应补充的内容
 
