@@ -957,6 +957,10 @@ describe('createServer /api/config', () => {
     expect(html).toContain('triggerIntentModel');
     expect(html).toContain('triggerRulesList');
     expect(html).toContain('addTriggerRuleBtn');
+    expect(html).toContain('data-add-trigger-pattern');
+    expect(html).toContain('data-remove-trigger-pattern');
+    expect(html).toContain('data-trigger-pattern');
+    expect(html).toContain('data-trigger-pattern-field');
     expect(html).toContain('smartEnabled');
     expect(html).toContain('smartRouterModel');
     expect(html).toContain('smartCandidatesList');
@@ -1008,6 +1012,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('renderConfigControlForms');
     expect(html).toContain('renderTriggerRulesList');
     expect(html).toContain('extractTriggerRulesFromForm');
+    expect(html).toContain('addTriggerPattern');
     expect(html).toContain('renderSmartCandidatesList');
     expect(html).toContain('extractSmartCandidatesFromForm');
     expect(html).toContain('renderCascadeLevelsList');

@@ -981,14 +981,34 @@ export const createServer = (config: any): Server => {
       `      '<div><label>Model</label><input data-trigger-field=\"model\" data-index=\"'+index+'\" list=\"triggerModelSuggestions'+index+'\" value=\"'+esc(rule.model || '')+'\">'+getModelIdSuggestionsMarkup('triggerModelSuggestions'+index)+'</div>' +` +
       `      '<div><label>Priority</label><input data-trigger-field=\"priority\" data-index=\"'+index+'\" value=\"'+esc(rule.priority ?? 10)+'\"></div>' +` +
       `      '<div><label><input type=\"checkbox\" data-trigger-field=\"enabled\" data-index=\"'+index+'\"'+(rule.enabled === false ? '' : ' checked')+'> Enabled</label></div>' +` +
-      `      '<div style=\"grid-column:1/-1\"><label>Keywords (comma separated)</label><input data-trigger-field=\"keywords\" data-index=\"'+index+'\" value=\"'+esc(((rule.patterns && rule.patterns[0] && rule.patterns[0].keywords) || []).join(', '))+'\"></div>' +` +
+      `      '<div style=\"grid-column:1/-1\"><label>Description</label><input data-trigger-field=\"description\" data-index=\"'+index+'\" value=\"'+esc(rule.description || '')+'\"></div>' +` +
       `    '</div>' +` +
+      `    '<div class=\"action-row\" style=\"margin-top:.75rem\"><strong>Patterns</strong><button type=\"button\" data-add-trigger-pattern=\"'+index+'\">新增 Pattern</button></div>' +` +
+      `    '<div class=\"list-editor\">'+(((rule.patterns || []).length ? rule.patterns : [{ type:'exact', keywords:[] }]).map((pattern,patternIndex)=>'<div class=\"list-item\" data-trigger-pattern=\"'+index+'-'+patternIndex+'\">' +` +
+      `      '<div class=\"action-row\"><span class=\"muted\">Pattern #'+(patternIndex+1)+'</span><button type=\"button\" data-remove-trigger-pattern=\"'+index+'\" data-pattern-index=\"'+patternIndex+'\">删除</button></div>' +` +
+      `      '<div class=\"list-item-grid\">' +` +
+      `        '<div><label>Type</label><select data-trigger-pattern-field=\"type\" data-index=\"'+index+'\" data-pattern-index=\"'+patternIndex+'\"><option value=\"exact\"'+(pattern.type !== 'regex' ? ' selected' : '')+'>exact</option><option value=\"regex\"'+(pattern.type === 'regex' ? ' selected' : '')+'>regex</option></select></div>' +` +
+      `        '<div><label><input type=\"checkbox\" data-trigger-pattern-field=\"caseSensitive\" data-index=\"'+index+'\" data-pattern-index=\"'+patternIndex+'\"'+(pattern.caseSensitive ? ' checked' : '')+'> Case sensitive</label></div>' +` +
+      `        '<div style=\"grid-column:1/-1\"><label>Keywords</label><input data-trigger-pattern-field=\"keywords\" data-index=\"'+index+'\" data-pattern-index=\"'+patternIndex+'\" value=\"'+esc((pattern.keywords || []).join(', '))+'\" placeholder=\"keyword1, keyword2\"></div>' +` +
+      `        '<div style=\"grid-column:1/-1\"><label>Regex pattern</label><input data-trigger-pattern-field=\"pattern\" data-index=\"'+index+'\" data-pattern-index=\"'+patternIndex+'\" value=\"'+esc(pattern.pattern || '')+'\" placeholder=\"error|exception\"></div>' +` +
+      `      '</div>' +` +
+      `    '</div>').join(''))+'</div>' +` +
       `  '</div>').join('');` +
       `}` +
       `function extractTriggerRulesFromForm(){` +
       `  return Array.from(triggerRulesList.querySelectorAll('[data-trigger-rule]')).map((card,index)=>{` +
       `    const read=(field)=>card.querySelector('[data-trigger-field=\"'+field+'\"][data-index=\"'+index+'\"]');` +
-      `    return { name:(read('name')?.value || '').trim(), model:(read('model')?.value || '').trim(), priority:Number(read('priority')?.value || 10), enabled:Boolean(read('enabled')?.checked), patterns:[{ type:'exact', keywords:(read('keywords')?.value || '').split(',').map(v=>v.trim()).filter(Boolean) }] };` +
+      `    const patterns=Array.from(card.querySelectorAll('[data-trigger-pattern]')).map((patternCard,patternIndex)=>{` +
+      `      const patternRead=(field)=>patternCard.querySelector('[data-trigger-pattern-field=\"'+field+'\"][data-index=\"'+index+'\"][data-pattern-index=\"'+patternIndex+'\"]');` +
+      `      const type=(patternRead('type')?.value || 'exact').trim();` +
+      `      const pattern={ type, caseSensitive:Boolean(patternRead('caseSensitive')?.checked) };` +
+      `      const keywords=(patternRead('keywords')?.value || '').split(',').map(v=>v.trim()).filter(Boolean);` +
+      `      const regexPattern=(patternRead('pattern')?.value || '').trim();` +
+      `      if(type === 'regex'){ if(regexPattern){ pattern.pattern=regexPattern; } } else if(keywords.length){ pattern.keywords=keywords; }` +
+      `      return pattern;` +
+      `    });` +
+      `    const rule={ name:(read('name')?.value || '').trim(), model:(read('model')?.value || '').trim(), priority:Number(read('priority')?.value || 10), enabled:Boolean(read('enabled')?.checked), patterns };` +
+      `    const description=(read('description')?.value || '').trim(); if(description){ rule.description=description; } return rule;` +
       `  });` +
       `}` +
       `function renderSmartCandidatesList(candidates){` +
@@ -1203,6 +1223,7 @@ export const createServer = (config: any): Server => {
       `  syncDraftEditorFromForm();` +
       `}` +
       `function addTriggerRule(){ const next=extractTriggerRulesFromForm(); next.push({ name:'', enabled:true, priority:10, model:'', patterns:[{ type:'exact', keywords:[] }] }); renderTriggerRulesList(next); syncDraftEditorFromForm(); }` +
+      `function addTriggerPattern(ruleIndex){ const next=extractTriggerRulesFromForm(); if(!next[ruleIndex]){ return; } next[ruleIndex].patterns = Array.isArray(next[ruleIndex].patterns) ? next[ruleIndex].patterns : []; next[ruleIndex].patterns.push({ type:'exact', keywords:[] }); renderTriggerRulesList(next); syncDraftEditorFromForm(); }` +
       `function addSmartCandidate(){ const next=extractSmartCandidatesFromForm(); next.push({ model:'', description:'' }); renderSmartCandidatesList(next); syncDraftEditorFromForm(); }` +
       `function addCascadeLevel(){ const next=extractCascadeLevelsFromForm(); next.push({ from:'', to:'' }); renderCascadeLevelsList(next); syncDraftEditorFromForm(); }` +
       `modelsFormGrid.addEventListener('input',()=>syncDraftEditorFromForm());` +
@@ -1210,7 +1231,7 @@ export const createServer = (config: any): Server => {
       `modelsFormGrid.addEventListener('click',(e)=>{ const applyBtn=e.target.closest('button[data-apply-template]'); if(applyBtn){ const applyIndex=Number(applyBtn.dataset.applyTemplate); applyProviderTemplate(applyIndex); syncDraftEditorFromForm(); return; } const btn=e.target.closest('button[data-remove-model]'); if(!btn){ return; } const removeIndex=Number(btn.dataset.removeModel); const nextModels=extractModelsFromForm().filter((_,index)=>index!==removeIndex); renderModelsForm(nextModels); syncDraftEditorFromForm(); });` +
       `triggerRulesList.addEventListener('input',()=>syncDraftEditorFromForm());` +
       `triggerRulesList.addEventListener('change',()=>syncDraftEditorFromForm());` +
-      `triggerRulesList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-trigger-rule]'); if(!btn){ return; } const next=extractTriggerRulesFromForm().filter((_,index)=>index!==Number(btn.dataset.removeTriggerRule)); renderTriggerRulesList(next); syncDraftEditorFromForm(); });` +
+      `triggerRulesList.addEventListener('click',(e)=>{ const addBtn=e.target.closest('button[data-add-trigger-pattern]'); if(addBtn){ addTriggerPattern(Number(addBtn.dataset.addTriggerPattern)); return; } const removePatternBtn=e.target.closest('button[data-remove-trigger-pattern]'); if(removePatternBtn){ const ruleIndex=Number(removePatternBtn.dataset.removeTriggerPattern); const patternIndex=Number(removePatternBtn.dataset.patternIndex); const next=extractTriggerRulesFromForm(); if(next[ruleIndex]){ next[ruleIndex].patterns=(next[ruleIndex].patterns || []).filter((_,index)=>index!==patternIndex); if(!next[ruleIndex].patterns.length){ next[ruleIndex].patterns=[{ type:'exact', keywords:[] }]; } renderTriggerRulesList(next); syncDraftEditorFromForm(); } return; } const btn=e.target.closest('button[data-remove-trigger-rule]'); if(!btn){ return; } const next=extractTriggerRulesFromForm().filter((_,index)=>index!==Number(btn.dataset.removeTriggerRule)); renderTriggerRulesList(next); syncDraftEditorFromForm(); });` +
       `smartCandidatesList.addEventListener('input',()=>syncDraftEditorFromForm());` +
       `smartCandidatesList.addEventListener('change',()=>syncDraftEditorFromForm());` +
       `smartCandidatesList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-smart-candidate]'); if(!btn){ return; } const next=extractSmartCandidatesFromForm().filter((_,index)=>index!==Number(btn.dataset.removeSmartCandidate)); renderSmartCandidatesList(next); syncDraftEditorFromForm(); });` +
