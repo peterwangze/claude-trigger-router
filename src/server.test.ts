@@ -962,6 +962,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('data-remove-trigger-pattern');
     expect(html).toContain('data-trigger-pattern');
     expect(html).toContain('data-trigger-pattern-field');
+    expect(html).toContain('regex 模式下忽略 keywords');
+    expect(html).toContain('exact 模式下忽略 regex pattern');
     expect(html).toContain('smartEnabled');
     expect(html).toContain('smartRouterModel');
     expect(html).toContain('topLevelSmartRouterSuggestions');
