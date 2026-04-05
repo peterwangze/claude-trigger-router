@@ -13,6 +13,7 @@ import { get_encoding } from "tiktoken";
 import { IAppConfig } from '../trigger/types';
 import { sessionUsageCache, Usage } from './cache';
 import { log, logError } from '../utils/log';
+import { buildModelRegistry } from '../models/compile';
 
 const enc = get_encoding("cl100k_base");
 
@@ -73,6 +74,34 @@ const calculateTokenCount = (
   return tokenCount;
 };
 
+const resolveModelReference = (config: IAppConfig, ref?: string): string | undefined => {
+  if (!ref) {
+    return undefined;
+  }
+
+  if (ref.includes(",")) {
+    const [provider, model] = ref.split(",");
+    const finalProvider = config.Providers.find(
+      (p: any) => p.name.toLowerCase() === provider.toLowerCase()
+    );
+    const finalModel = finalProvider?.models?.find(
+      (m: any) => m.toLowerCase() === model.toLowerCase()
+    );
+    if (finalProvider && finalModel) {
+      return `${finalProvider.name},${finalModel}`;
+    }
+    return ref;
+  }
+
+  const registry = buildModelRegistry(config);
+  const compiled = registry.modelMap[ref];
+  if (!compiled) {
+    return ref;
+  }
+
+  return `${compiled.providerName},${compiled.modelName}`;
+};
+
 /**
  * 获取使用的模型
  */
@@ -83,18 +112,9 @@ const getUseModel = async (
   lastUsage?: Usage | undefined
 ) => {
   // 如果模型已经包含逗号（已经被触发路由设置），直接返回
-  if (req.body.model.includes(",")) {
-    const [provider, model] = req.body.model.split(",");
-    const finalProvider = config.Providers.find(
-        (p: any) => p.name.toLowerCase() === provider.toLowerCase()
-    );
-    const finalModel = finalProvider?.models?.find(
-        (m: any) => m.toLowerCase() === model.toLowerCase()
-    );
-    if (finalProvider && finalModel) {
-      return `${finalProvider.name},${finalModel}`;
-    }
-    return req.body.model;
+  const explicitModel = resolveModelReference(config, req.body.model);
+  if (explicitModel && explicitModel.includes(",")) {
+    return explicitModel;
   }
 
   // if tokenCount is greater than the configured threshold, use the long context model
@@ -114,7 +134,7 @@ const getUseModel = async (
       "threshold:",
       longContextThreshold
     );
-    return config.Router.longContext;
+    return resolveModelReference(config, config.Router.longContext);
   }
 
   // 子代理模型标记
@@ -130,7 +150,7 @@ const getUseModel = async (
         `<CTR-SUBAGENT-MODEL>${model[1]}</CTR-SUBAGENT-MODEL>`,
         ""
       );
-      return model[1];
+      return resolveModelReference(config, model[1]);
     }
   }
 
@@ -140,13 +160,13 @@ const getUseModel = async (
     config.Router.background
   ) {
     log("Using background model for ", req.body.model);
-    return config.Router.background;
+    return resolveModelReference(config, config.Router.background);
   }
 
   // if exits thinking, use the think model
   if (req.body.thinking && config.Router.think) {
     log("Using think model for ", req.body.thinking);
-    return config.Router.think;
+    return resolveModelReference(config, config.Router.think);
   }
 
   // web search
@@ -155,10 +175,10 @@ const getUseModel = async (
     req.body.tools.some((tool: any) => tool.type?.startsWith("web_search")) &&
     config.Router.webSearch
   ) {
-    return config.Router.webSearch;
+    return resolveModelReference(config, config.Router.webSearch);
   }
 
-  return config.Router!.default;
+  return resolveModelReference(config, config.Router!.default);
 };
 
 /**
