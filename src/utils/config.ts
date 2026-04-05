@@ -139,10 +139,60 @@ function validateModelRef(
 function validateConfig(config: Partial<IAppConfig>): string[] {
   const errors: string[] = [];
 
+  if (config.Models !== undefined) {
+    if (!Array.isArray(config.Models)) {
+      errors.push('Models must be an array when provided');
+    } else {
+      const ids = new Set<string>();
+      config.Models.forEach((item, index) => {
+        if (!item.id?.trim()) {
+          errors.push(`Models[${index}].id is required`);
+        } else if (ids.has(item.id.trim())) {
+          errors.push(`Models[${index}].id must be unique`);
+        } else {
+          ids.add(item.id.trim());
+        }
+
+        if (!item.api_base_url?.trim()) {
+          errors.push(`Models[${index}].api_base_url is required`);
+        }
+
+        if (!item.api_key?.trim()) {
+          errors.push(`Models[${index}].api_key is required`);
+        }
+
+        if (!item.protocol) {
+          errors.push(`Models[${index}].protocol is required`);
+        } else if (!['openai', 'anthropic'].includes(item.protocol)) {
+          errors.push(`Models[${index}].protocol must be either "openai" or "anthropic"`);
+        }
+
+        if (!item.model?.trim()) {
+          errors.push(`Models[${index}].model is required`);
+        }
+
+        const thinking = item.thinking;
+        if (thinking?.mode && !['off', 'auto', 'on'].includes(thinking.mode)) {
+          errors.push(`Models[${index}].thinking.mode must be one of "off", "auto", "on"`);
+        }
+
+        if (thinking?.effort && !['low', 'medium', 'high'].includes(thinking.effort)) {
+          errors.push(`Models[${index}].thinking.effort must be one of "low", "medium", "high"`);
+        }
+
+        if (thinking?.budget_tokens !== undefined && thinking.budget_tokens <= 0) {
+          errors.push(`Models[${index}].thinking.budget_tokens must be greater than 0`);
+        }
+      });
+    }
+  }
+
   // 验证 Providers
-  if (!config.Providers || !Array.isArray(config.Providers) || config.Providers.length === 0) {
+  const hasModels = Array.isArray(config.Models) && config.Models.length > 0;
+
+  if (!hasModels && (!config.Providers || !Array.isArray(config.Providers) || config.Providers.length === 0)) {
     errors.push('Providers is required and must be a non-empty array');
-  } else {
+  } else if (config.Providers && Array.isArray(config.Providers)) {
     config.Providers.forEach((provider, index) => {
       if (!provider.name) {
         errors.push(`Providers[${index}].name is required`);
@@ -396,6 +446,27 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
 
   if (config.Governance) {
     normalizedConfig.Governance = deepMerge(DEFAULT_GOVERNANCE_CONFIG, config.Governance) as IAppConfig['Governance'];
+  }
+
+  if (config.Models) {
+    normalizedConfig.Models = config.Models.map((item) => ({
+      ...item,
+      id: item.id?.trim() ?? '',
+      api_base_url: item.api_base_url?.trim() ?? '',
+      api_key: item.api_key?.trim() ?? '',
+      protocol: item.protocol,
+      model: item.model?.trim() ?? '',
+      thinking: item.thinking
+        ? {
+            ...item.thinking,
+          }
+        : undefined,
+      metadata: item.metadata
+        ? {
+            ...item.metadata,
+          }
+        : undefined,
+    }));
   }
 
   return {

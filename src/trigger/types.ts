@@ -151,6 +151,9 @@ export interface IAppConfig {
   /** 模型提供商配置 */
   Providers: IProvider[];
 
+  /** 简化模型接入配置 */
+  Models?: IModelEndpointConfig[];
+
   /** 原有路由配置 */
   Router: IRouterConfig;
 
@@ -179,6 +182,29 @@ export interface IProvider {
   api_key: string;
   models: string[];
   transformer?: any;
+}
+
+export interface IModelThinkingConfig {
+  mode?: 'off' | 'auto' | 'on';
+  effort?: 'low' | 'medium' | 'high';
+  budget_tokens?: number;
+}
+
+export interface IModelEndpointMetadata {
+  label?: string;
+  vendor_hint?: string;
+  supports_tools?: boolean;
+  supports_reasoning?: boolean;
+}
+
+export interface IModelEndpointConfig {
+  id: string;
+  api_base_url: string;
+  api_key: string;
+  protocol: 'openai' | 'anthropic';
+  model: string;
+  thinking?: IModelThinkingConfig;
+  metadata?: IModelEndpointMetadata;
 }
 
 /**

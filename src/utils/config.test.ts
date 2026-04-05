@@ -262,4 +262,62 @@ describe('normalizeAndValidateConfig governance', () => {
       'Governance.observability.anomaly_thresholds.latency_warn_ms must be less than or equal to latency_critical_ms'
     );
   });
+
+  it('accepts simplified Models config without Providers', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          protocol: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+          thinking: {
+            mode: 'auto',
+          },
+        },
+      ],
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.Models).toHaveLength(1);
+    expect(result.config.Models?.[0].id).toBe('sonnet');
+  });
+
+  it('validates Models fields and uniqueness', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api_base_url: '',
+          api_key: '',
+          protocol: 'invalid' as any,
+          model: '',
+          thinking: {
+            mode: 'wrong' as any,
+            effort: 'wrong' as any,
+            budget_tokens: 0,
+          },
+        },
+        {
+          id: 'sonnet',
+          api_base_url: 'https://example.com',
+          api_key: 'sk-test',
+          protocol: 'openai',
+          model: 'model-a',
+        },
+      ],
+    });
+
+    expect(result.errors).toContain('Models[0].api_base_url is required');
+    expect(result.errors).toContain('Models[0].api_key is required');
+    expect(result.errors).toContain('Models[0].protocol must be either "openai" or "anthropic"');
+    expect(result.errors).toContain('Models[0].model is required');
+    expect(result.errors).toContain('Models[0].thinking.mode must be one of "off", "auto", "on"');
+    expect(result.errors).toContain('Models[0].thinking.effort must be one of "low", "medium", "high"');
+    expect(result.errors).toContain('Models[0].thinking.budget_tokens must be greater than 0');
+    expect(result.errors).toContain('Models[1].id must be unique');
+  });
 });
