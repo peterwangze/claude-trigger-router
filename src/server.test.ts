@@ -1048,6 +1048,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('findValidationTarget');
     expect(html).toContain('jumpToValidationPath');
     expect(html).toContain('scrollIntoView');
+    expect(html).toContain('jump-highlight');
+    expect(html).toContain('activeValidationHighlight');
     expect(html).toContain('draftPresets');
     expect(html).toContain('applyDraftPreset');
     expect(html).toContain('renderDraftPresetGuide');

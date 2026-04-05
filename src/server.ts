@@ -594,6 +594,7 @@ export const createServer = (config: any): Server => {
       `.list-editor{display:grid;gap:.75rem;margin-top:.75rem}` +
       `.list-item{border:1px solid #e5e7eb;border-radius:12px;padding:.85rem;background:#fcfcfd}` +
       `.list-item-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem}` +
+      `.jump-highlight{outline:3px solid #f59e0b;box-shadow:0 0 0 6px rgba(245,158,11,.15);transition:box-shadow .25s ease,outline-color .25s ease}` +
       `.control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
       `.control-grid label{display:block;font-size:.85rem;color:#6b7280;margin-bottom:.35rem}` +
       `.trend-table{width:100%;margin-top:.75rem}` +
@@ -921,6 +922,7 @@ export const createServer = (config: any): Server => {
       `const trendTableBody=document.querySelector('#trendTable tbody');` +
       `let currentDraftConfig={};` +
       `let knownModelIds=[];` +
+      `let activeValidationHighlight=null;` +
       `const draftPresets={` +
       `  balanced:{ label:'平衡预设', description:'启用 SmartRouter，并填充平衡/快速候选模型组合。', affects:['Router.default','SmartRouter.enabled','SmartRouter.candidates'], routerDefault:'sonnet', smartEnabled:true, smartCandidates:[{ model:'sonnet', description:'balanced default' },{ model:'haiku', description:'fast lightweight' }] },` +
       `  fast:{ label:'快速预设', description:'默认走轻量模型，并添加一条快速响应 TriggerRule。', affects:['Router.default','TriggerRouter.enabled','TriggerRouter.rules'], routerDefault:'haiku', triggerEnabled:true, triggerRules:[{ name:'quick-response', enabled:true, priority:20, model:'haiku', patterns:[{ type:'exact', keywords:['快速处理','快速回答'] }] }] },` +
@@ -1007,7 +1009,9 @@ export const createServer = (config: any): Server => {
       `function jumpToValidationPath(path){` +
       `  const target=findValidationTarget(path);` +
       `  if(!target || typeof target.scrollIntoView !== 'function'){ return; }` +
+      `  if(activeValidationHighlight && activeValidationHighlight.classList){ activeValidationHighlight.classList.remove('jump-highlight'); }` +
       `  target.scrollIntoView({ behavior:'smooth', block:'center' });` +
+      `  if(target.classList){ target.classList.add('jump-highlight'); activeValidationHighlight=target; setTimeout(()=>{ if(target.classList){ target.classList.remove('jump-highlight'); if(activeValidationHighlight===target){ activeValidationHighlight=null; } } }, 1800); }` +
       `  if(typeof target.focus === 'function'){ target.focus({ preventScroll:true }); }` +
       `}` +
       `function renderDraftPresetGuide(){` +
