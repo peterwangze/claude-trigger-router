@@ -74,3 +74,21 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
     modelMap,
   };
 }
+
+export function resolveModelReference(config: IAppConfig, ref?: string): string | undefined {
+  if (!ref) {
+    return undefined;
+  }
+
+  if (ref.includes(',')) {
+    return ref;
+  }
+
+  const registry = buildModelRegistry(config);
+  const compiled = registry.modelMap[ref];
+  if (!compiled) {
+    return ref;
+  }
+
+  return `${compiled.providerName},${compiled.modelName}`;
+}

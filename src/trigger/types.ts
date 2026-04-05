@@ -283,6 +283,9 @@ export interface IRequestContext {
   /** 请求 URL */
   url?: string;
 
+  /** 运行时应用配置，用于解析 modelId 等高层抽象 */
+  appConfig?: IAppConfig;
+
   /** 请求体 */
   body: {
     model: string;

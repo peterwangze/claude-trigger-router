@@ -4,7 +4,7 @@
  * 模型选择器，负责根据触发规则选择合适的模型
  */
 
-import { ITriggerConfig, ITriggerRule, IAnalysisResult, IMatchResult, IRequestContext, ISmartRouterConfig } from './types';
+import { ITriggerConfig, ITriggerRule, IAnalysisResult, IMatchResult, IRequestContext, ISmartRouterConfig, IAppConfig } from './types';
 import { patternMatcher } from './matcher';
 import { contextAnalyzer } from './analyzer';
 import { intentDetector } from './intent';
@@ -13,6 +13,7 @@ import { log, logError } from '../utils/log';
 import { IGovernanceConfig } from '../governance/types';
 import { createTaskFingerprint, sessionStateStore } from '../governance/session-store';
 import { semanticRouter } from '../governance/semantic-router';
+import { resolveModelReference } from '../models/compile';
 
 /**
  * 模型选择器类
@@ -90,6 +91,7 @@ export class ModelSelector {
     timeoutMs?: number
   ): Promise<IAnalysisResult> {
     const startTime = Date.now();
+    const appConfig = (req as any).appConfig as IAppConfig | undefined;
 
     // 如果触发路由未启用，直接返回不匹配
     if (!config.enabled) {
@@ -119,7 +121,7 @@ export class ModelSelector {
       return {
         matched: true,
         rule: matchResult.rule,
-        model: matchResult.rule.model,
+        model: appConfig ? resolveModelReference(appConfig, matchResult.rule.model) ?? matchResult.rule.model : matchResult.rule.model,
         confidence: 1.0, // 关键词匹配置信度为 1
         analysisTime: Date.now() - startTime,
         analyzedText: text,
@@ -142,7 +144,7 @@ export class ModelSelector {
           log(`[StickyRouting] Reusing model "${stickyModel}" for session "${req.sessionId}"`);
           return {
             matched: true,
-            model: stickyModel,
+            model: appConfig ? resolveModelReference(appConfig, stickyModel) ?? stickyModel : stickyModel,
             confidence: 0.95,
             analysisTime: Date.now() - startTime,
             analyzedText: text,
@@ -177,7 +179,7 @@ export class ModelSelector {
           return {
             matched: true,
             rule: matchedRule,
-            model: matchedRule.model,
+            model: appConfig ? resolveModelReference(appConfig, matchedRule.model) ?? matchedRule.model : matchedRule.model,
             confidence: semanticResult.confidence,
             analysisTime: Date.now() - startTime,
             analyzedText: text,
@@ -190,7 +192,15 @@ export class ModelSelector {
     // 第四步：SmartRouter 智能模型选择
     if (smartRouterConfig?.enabled && smartRouterConfig.candidates?.length >= 2) {
       try {
-        const smartResult = await smartRouterSelector.selectModel(text, smartRouterConfig, port, undefined, apiKey, timeoutMs);
+        const resolvedSmartRouterConfig = appConfig ? {
+          ...smartRouterConfig,
+          router_model: resolveModelReference(appConfig, smartRouterConfig.router_model) ?? smartRouterConfig.router_model,
+          candidates: smartRouterConfig.candidates.map((candidate) => ({
+            ...candidate,
+            model: resolveModelReference(appConfig, candidate.model) ?? candidate.model,
+          })),
+        } : smartRouterConfig;
+        const smartResult = await smartRouterSelector.selectModel(text, resolvedSmartRouterConfig, port, undefined, apiKey, timeoutMs);
         if (smartResult) {
           log(`[SmartRouter] Selected model "${smartResult.model}" (confidence: ${smartResult.confidence})`);
           return {
@@ -219,7 +229,7 @@ export class ModelSelector {
             return {
               matched: true,
               rule: matchedRule,
-              model: matchedRule.model,
+              model: appConfig ? resolveModelReference(appConfig, matchedRule.model) ?? matchedRule.model : matchedRule.model,
               confidence: intentResult.confidence,
               analysisTime: Date.now() - startTime,
               analyzedText: text,
@@ -251,6 +261,7 @@ export class ModelSelector {
    */
   selectModelSync(req: IRequestContext, config: ITriggerConfig): IAnalysisResult {
     const startTime = Date.now();
+    const appConfig = (req as any).appConfig as IAppConfig | undefined;
 
     // 如果触发路由未启用，直接返回不匹配
     if (!config.enabled) {
@@ -280,7 +291,7 @@ export class ModelSelector {
       return {
         matched: true,
         rule: matchResult.rule,
-        model: matchResult.rule.model,
+        model: appConfig ? resolveModelReference(appConfig, matchResult.rule.model) ?? matchResult.rule.model : matchResult.rule.model,
         confidence: 1.0,
         analysisTime: Date.now() - startTime,
         analyzedText: text,

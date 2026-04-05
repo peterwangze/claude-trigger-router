@@ -180,6 +180,19 @@ describe('ModelSelector', () => {
 
     it('should select model when keyword matches', async () => {
       const req = {
+        appConfig: {
+          Providers: [],
+          Models: [
+            {
+              id: 'image_model',
+              api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+              api_key: 'sk-test',
+              protocol: 'openai',
+              model: 'anthropic/claude-sonnet-4',
+            },
+          ],
+          Router: { default: 'image_model' },
+        },
         body: {
           messages: [{ role: 'user', content: '请帮我生成图片' }],
         },
@@ -190,6 +203,43 @@ describe('ModelSelector', () => {
       expect(result.confidence).toBe(1.0);
       expect(result.rule?.name).toBe('image_generation');
       expect(result.analysisTime).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should resolve trigger rule modelId through appConfig Models registry', async () => {
+      const req = {
+        appConfig: {
+          Providers: [],
+          Models: [
+            {
+              id: 'image_model',
+              api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+              api_key: 'sk-test',
+              protocol: 'openai',
+              model: 'anthropic/claude-sonnet-4',
+            },
+          ],
+          Router: { default: 'image_model' },
+        },
+        body: {
+          messages: [{ role: 'user', content: '生成图片' }],
+        },
+      };
+      const modelIdConfig: ITriggerConfig = {
+        ...config,
+        rules: [
+          {
+            name: 'image_generation',
+            priority: 100,
+            enabled: true,
+            patterns: [{ type: 'exact', keywords: ['生成图片'] }],
+            model: 'image_model',
+          },
+        ],
+      };
+
+      const result = await selector.selectModel(req as any, modelIdConfig);
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('model__image_model,anthropic/claude-sonnet-4');
     });
 
     it('should return not matched when no rule matches', async () => {
@@ -388,6 +438,77 @@ describe('ModelSelector', () => {
       expect(result.routeSource).toBe('intent');
       expect(req.governanceTrace.semanticIntent).toBe('architecture');
       expect(smartSpy).not.toHaveBeenCalled();
+      smartSpy.mockRestore();
+    });
+
+    it('should resolve SmartRouter router_model and candidates from modelId before selection', async () => {
+      const req = {
+        appConfig: {
+          Providers: [],
+          Models: [
+            {
+              id: 'router_model',
+              api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+              api_key: 'sk-test',
+              protocol: 'openai',
+              model: 'anthropic/claude-sonnet-4',
+            },
+            {
+              id: 'candidate_a',
+              api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+              api_key: 'sk-test',
+              protocol: 'openai',
+              model: 'anthropic/claude-opus-4',
+            },
+            {
+              id: 'candidate_b',
+              api_base_url: 'https://api.deepseek.com/chat/completions',
+              api_key: 'sk-test',
+              protocol: 'openai',
+              model: 'deepseek-reasoner',
+            },
+          ],
+          Router: { default: 'router_model' },
+        },
+        body: {
+          messages: [{ role: 'user', content: '帮我选一个更合适的模型' }],
+        },
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'model__candidate_b,deepseek-reasoner',
+        confidence: 0.92,
+      });
+
+      const result = await selector.selectModel(
+        req as any,
+        config,
+        3456,
+        {
+          enabled: true,
+          router_model: 'router_model',
+          candidates: [
+            { model: 'candidate_a', description: 'A' },
+            { model: 'candidate_b', description: 'B' },
+          ],
+        },
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('model__candidate_b,deepseek-reasoner');
+      expect(smartSpy).toHaveBeenCalledWith(
+        '帮我选一个更合适的模型',
+        expect.objectContaining({
+          router_model: 'model__router_model,anthropic/claude-sonnet-4',
+          candidates: [
+            expect.objectContaining({ model: 'model__candidate_a,anthropic/claude-opus-4' }),
+            expect.objectContaining({ model: 'model__candidate_b,deepseek-reasoner' }),
+          ],
+        }),
+        3456,
+        undefined,
+        undefined,
+        undefined
+      );
       smartSpy.mockRestore();
     });
 

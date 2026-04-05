@@ -24,6 +24,7 @@ import { IGovernanceConfig } from '../governance/types';
  */
 export class TriggerRouter {
   private config: ITriggerConfig | null = null;
+  private appConfig: IAppConfig | null = null;
   private port: number = 3456;
   private smartRouterConfig: ISmartRouterConfig | undefined = undefined;
   private governanceConfig: IGovernanceConfig | undefined = undefined;
@@ -36,6 +37,7 @@ export class TriggerRouter {
    * @param appConfig 应用配置
    */
   init(appConfig: IAppConfig): void {
+    this.appConfig = appConfig;
     this.config = appConfig.TriggerRouter || this.getDefaultConfig();
     this.port = appConfig.PORT || 3456;
     this.smartRouterConfig = appConfig.SmartRouter;
@@ -97,7 +99,10 @@ export class TriggerRouter {
     }
 
     const result = await modelSelector.selectModel(
-      req,
+      {
+        ...req,
+        appConfig: this.appConfig ?? undefined,
+      } as IRequestContext,
       this.config,
       this.port,
       this.smartRouterConfig,
@@ -150,7 +155,10 @@ export class TriggerRouter {
       };
     }
 
-    return modelSelector.selectModelSync(req, this.config);
+    return modelSelector.selectModelSync({
+      ...req,
+      appConfig: this.appConfig ?? undefined,
+    } as IRequestContext, this.config);
   }
 
   /**

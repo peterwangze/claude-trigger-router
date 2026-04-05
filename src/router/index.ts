@@ -13,7 +13,7 @@ import { get_encoding } from "tiktoken";
 import { IAppConfig } from '../trigger/types';
 import { sessionUsageCache, Usage } from './cache';
 import { log, logError } from '../utils/log';
-import { buildModelRegistry } from '../models/compile';
+import { resolveModelReference } from '../models/compile';
 
 const enc = get_encoding("cl100k_base");
 
@@ -72,34 +72,6 @@ const calculateTokenCount = (
     });
   }
   return tokenCount;
-};
-
-const resolveModelReference = (config: IAppConfig, ref?: string): string | undefined => {
-  if (!ref) {
-    return undefined;
-  }
-
-  if (ref.includes(",")) {
-    const [provider, model] = ref.split(",");
-    const finalProvider = config.Providers.find(
-      (p: any) => p.name.toLowerCase() === provider.toLowerCase()
-    );
-    const finalModel = finalProvider?.models?.find(
-      (m: any) => m.toLowerCase() === model.toLowerCase()
-    );
-    if (finalProvider && finalModel) {
-      return `${finalProvider.name},${finalModel}`;
-    }
-    return ref;
-  }
-
-  const registry = buildModelRegistry(config);
-  const compiled = registry.modelMap[ref];
-  if (!compiled) {
-    return ref;
-  }
-
-  return `${compiled.providerName},${compiled.modelName}`;
 };
 
 /**
