@@ -671,6 +671,11 @@ describe('createServer /api/config', () => {
     expect(reply.header).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
     expect(html).toContain('Governance Trace');
     expect(html).toContain('/api/models/compiled');
+    expect(html).toContain('Compiled Models');
+    expect(html).toContain('compiledModelsStatus');
+    expect(html).toContain('compiledProvidersTable');
+    expect(html).toContain('compiledModelMapTable');
+    expect(html).toContain('loadCompiledModels');
     expect(html).toContain('/api/governance/traces');
     expect(html).toContain('/api/governance/archives');
     expect(html).toContain('/api/governance/metrics');

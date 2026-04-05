@@ -394,6 +394,26 @@ export const createServer = (config: any): Server => {
       `<button id="refreshBtn">刷新</button>` +
       `</div>` +
       `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
+      `<div class="subpanel">` +
+      `<div class="row"><strong>Compiled Models</strong><span class="muted">查看 Models 编译后的 provider 与路由映射</span></div>` +
+      `<div id="compiledModelsStatus" class="muted" style="margin-top:.75rem">加载 compiled models 中...</div>` +
+      `<div class="detail-grid">` +
+      `<div class="panel" style="margin-bottom:0">` +
+      `<div class="row"><strong>Compiled providers</strong><span class="muted">内部 provider、模型列表与 transformer</span></div>` +
+      `<table id="compiledProvidersTable" class="management-table">` +
+      `<thead><tr><th>Provider</th><th>Interface</th><th>Models</th><th>Transformer</th><th>API key</th></tr></thead>` +
+      `<tbody><tr><td colspan="5" class="muted">Loading compiled providers...</td></tr></tbody>` +
+      `</table>` +
+      `</div>` +
+      `<div class="panel" style="margin-bottom:0">` +
+      `<div class="row"><strong>Model map</strong><span class="muted">modelId 到内部 provider/model 与 thinking 配置</span></div>` +
+      `<table id="compiledModelMapTable" class="management-table">` +
+      `<thead><tr><th>Model ID</th><th>Internal target</th><th>Protocol</th><th>Thinking</th><th>Source</th></tr></thead>` +
+      `<tbody><tr><td colspan="5" class="muted">Loading model map...</td></tr></tbody>` +
+      `</table>` +
+      `</div>` +
+      `</div>` +
+      `</div>` +
       `<div id="metricsGrid" class="stats">` +
       `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
       `<div class="stat"><span class="muted">Sticky hit rate</span><strong>-</strong></div>` +
@@ -506,6 +526,9 @@ export const createServer = (config: any): Server => {
       `const tbody=document.querySelector('#traceTable tbody');` +
       `const detail=document.getElementById('traceDetail');` +
       `const detailHint=document.getElementById('detailHint');` +
+      `const compiledModelsStatus=document.getElementById('compiledModelsStatus');` +
+      `const compiledProvidersTableBody=document.querySelector('#compiledProvidersTable tbody');` +
+      `const compiledModelMapTableBody=document.querySelector('#compiledModelMapTable tbody');` +
       `const metricsGrid=document.getElementById('metricsGrid');` +
       `const bucketGrid=document.getElementById('bucketGrid');` +
       `const bucketHint=document.getElementById('bucketHint');` +
@@ -524,6 +547,25 @@ export const createServer = (config: any): Server => {
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
       `function fmt(v){return Number(v || 0).toFixed(2);}` +
       `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
+      `function renderCompiledModels(data){` +
+      `  const providers=Array.isArray(data.providers) ? data.providers : [];` +
+      `  const modelMapEntries=Object.entries(data.modelMap || {});` +
+      `  compiledModelsStatus.textContent='已加载 '+providers.length+' 个 compiled provider / '+modelMapEntries.length+' 个 modelId 映射';` +
+      `  compiledProvidersTableBody.innerHTML=providers.length ? providers.map(provider=>'<tr>' +` +
+      `    '<td><code>'+esc(provider.name)+'</code><div class="muted">'+esc(provider.api_base_url || '-')+'</div></td>' +` +
+      `    '<td>'+esc(provider.transformer?.use?.[0] || '-')+'</td>' +` +
+      `    '<td>'+esc((provider.models || []).join(', ') || '-')+'</td>' +` +
+      `    '<td>'+esc(JSON.stringify(provider.transformer || {}))+'</td>' +` +
+      `    '<td>'+esc(provider.has_api_key ? 'configured' : 'missing')+'</td>' +` +
+      `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No compiled providers</td></tr>';` +
+      `  compiledModelMapTableBody.innerHTML=modelMapEntries.length ? modelMapEntries.map(([modelId,item])=>'<tr>' +` +
+      `    '<td><code>'+esc(modelId)+'</code></td>' +` +
+      `    '<td><code>'+esc(item.providerName || '-')+'</code><div class="muted">'+esc(item.modelName || '-')+'</div></td>' +` +
+      `    '<td>'+esc(item.protocol || '-')+'</td>' +` +
+      `    '<td><code>'+esc(JSON.stringify(item.thinking || { mode: 'off' }))+'</code></td>' +` +
+      `    '<td>'+esc(item.source || '-')+'</td>' +` +
+      `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No compiled model map</td></tr>';` +
+      `}` +
       `function renderMetrics(metrics){` +
       `  metricsGrid.innerHTML=[` +
       "    ['Recent traces', metrics.totalTraces ?? 0]," +
@@ -576,6 +618,12 @@ export const createServer = (config: any): Server => {
       `function renderArchives(data){` +
       `  const archives=(data.archives || []);` +
       `  archiveTableBody.innerHTML=archives.length ? archives.map(item=>'<tr><td><code>'+esc(item.file)+'</code></td><td>'+esc(item.startedAt ? new Date(item.startedAt).toISOString().slice(0,10) : '-')+' ~ '+esc(item.endedAt ? new Date(item.endedAt).toISOString().slice(0,10) : '-')+'</td><td>'+esc(item.traceCount)+'</td><td>'+esc(item.compressed ? 'yes' : 'no')+'</td></tr>').join('') : '<tr><td colspan="4" class="muted">No archives found</td></tr>';` +
+      `}` +
+      `async function loadCompiledModels(){` +
+      `  compiledModelsStatus.textContent='加载 compiled models 中...';` +
+      `  const res=await fetch('/api/models/compiled');` +
+      `  const data=await res.json();` +
+      `  renderCompiledModels(data);` +
       `}` +
       `async function loadTraces(){` +
       `  const requestId=document.getElementById('requestId').value.trim();` +
@@ -687,6 +735,7 @@ export const createServer = (config: any): Server => {
       `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +
       `document.getElementById('saveThresholdsBtn').addEventListener('click',saveThresholds);` +
       `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
+      `loadCompiledModels();` +
       `loadExports();` +
       `loadArchives();` +
       `loadTraces();` +
