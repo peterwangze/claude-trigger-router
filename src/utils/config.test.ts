@@ -184,4 +184,82 @@ describe('normalizeAndValidateConfig governance', () => {
       'Governance.cascade.levels[0].to 引用的模型 "missing-model" 不在提供商 "glm" 的 models 列表中'
     );
   });
+
+  it('merges Governance observability anomaly threshold defaults when configured', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Governance: {
+        enabled: true,
+        observability: {
+          anomaly_thresholds: {
+            min_sample_size: 5,
+          },
+        },
+      },
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.Governance?.observability?.anomaly_thresholds).toEqual(
+      expect.objectContaining({
+        min_sample_size: 5,
+        cascade_warn_rate: 0.4,
+        latency_warn_ms: 1500,
+      })
+    );
+  });
+
+  it('validates Governance observability anomaly threshold bounds', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Governance: {
+        enabled: true,
+        observability: {
+          anomaly_thresholds: {
+            min_sample_size: 0,
+            cascade_warn_rate: 1.2,
+            latency_warn_ms: -1,
+          },
+        },
+      },
+    });
+
+    expect(result.errors).toContain(
+      'Governance.observability.anomaly_thresholds.min_sample_size must be at least 1'
+    );
+    expect(result.errors).toContain(
+      'Governance.observability.anomaly_thresholds.cascade_warn_rate must be between 0 and 1'
+    );
+    expect(result.errors).toContain(
+      'Governance.observability.anomaly_thresholds.latency_warn_ms must be greater than 0'
+    );
+  });
+
+  it('validates Governance observability threshold ordering', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Governance: {
+        enabled: true,
+        observability: {
+          anomaly_thresholds: {
+            cascade_warn_rate: 0.8,
+            cascade_critical_rate: 0.6,
+            shadow_warn_rate: 0.9,
+            shadow_critical_rate: 0.7,
+            latency_warn_ms: 4000,
+            latency_critical_ms: 3000,
+          },
+        },
+      },
+    });
+
+    expect(result.errors).toContain(
+      'Governance.observability.anomaly_thresholds.cascade_warn_rate must be less than or equal to cascade_critical_rate'
+    );
+    expect(result.errors).toContain(
+      'Governance.observability.anomaly_thresholds.shadow_warn_rate must be less than or equal to shadow_critical_rate'
+    );
+    expect(result.errors).toContain(
+      'Governance.observability.anomaly_thresholds.latency_warn_ms must be less than or equal to latency_critical_ms'
+    );
+  });
 });

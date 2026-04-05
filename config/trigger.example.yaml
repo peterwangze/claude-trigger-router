@@ -211,6 +211,18 @@ Governance:
       length_anomaly: true
       missing_code_block: true
 
+  observability:
+    anomaly_thresholds:
+      min_sample_size: 3
+      cascade_warn_rate: 0.4
+      cascade_critical_rate: 0.6
+      shadow_warn_rate: 0.5
+      shadow_critical_rate: 0.7
+      latency_warn_ms: 1500
+      latency_critical_ms: 3000
+      spike_warn_rate: 0.5
+      spike_delta_rate: 0.3
+
 # 6) 高级 / 预留字段：当前不建议放进最小可用配置
 # APIKEY: "your-secret-key"
 # Router.image: "openrouter,anthropic/claude-sonnet-4"

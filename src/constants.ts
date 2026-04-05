@@ -137,6 +137,19 @@ export const DEFAULT_GOVERNANCE_CONFIG = {
       missing_code_block: true,
     },
   },
+  observability: {
+    anomaly_thresholds: {
+      min_sample_size: 3,
+      cascade_warn_rate: 0.4,
+      cascade_critical_rate: 0.6,
+      shadow_warn_rate: 0.5,
+      shadow_critical_rate: 0.7,
+      latency_warn_ms: 1500,
+      latency_critical_ms: 3000,
+      spike_warn_rate: 0.5,
+      spike_delta_rate: 0.3,
+    },
+  },
 };
 
 /**

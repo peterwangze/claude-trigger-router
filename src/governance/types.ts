@@ -104,6 +104,22 @@ export interface IShadowSupervisorConfig {
   checks?: IShadowChecksConfig;
 }
 
+export interface IAnomalyThresholdsConfig {
+  min_sample_size?: number;
+  cascade_warn_rate?: number;
+  cascade_critical_rate?: number;
+  shadow_warn_rate?: number;
+  shadow_critical_rate?: number;
+  latency_warn_ms?: number;
+  latency_critical_ms?: number;
+  spike_warn_rate?: number;
+  spike_delta_rate?: number;
+}
+
+export interface IObservabilityConfig {
+  anomaly_thresholds?: IAnomalyThresholdsConfig;
+}
+
 export interface IGovernanceConfig {
   /** 是否启用治理层 */
   enabled: boolean;
@@ -112,6 +128,7 @@ export interface IGovernanceConfig {
   cascade?: ICascadeGateConfig;
   semantic?: ISemanticRouterConfig;
   shadow?: IShadowSupervisorConfig;
+  observability?: IObservabilityConfig;
 }
 
 export interface IGovernanceTrace {

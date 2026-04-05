@@ -508,6 +508,55 @@ describe('createServer /api/config', () => {
     expect(result.anomalies.map((item: any) => item.type)).toContain('latency_high');
   });
 
+  it('uses configured anomaly thresholds as default metrics query thresholds', async () => {
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1_000,
+      latencyMs: 1200,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      routeReason: ['cascade_gate'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 8_000,
+      latencyMs: 1600,
+    });
+
+    const server = createServer({
+      initialConfig: {
+        Governance: {
+          enabled: true,
+          observability: {
+            anomaly_thresholds: {
+              min_sample_size: 2,
+              latency_warn_ms: 1000,
+            },
+          },
+        },
+      },
+    });
+    const metricsHandler = server.app.routes.get('GET /api/governance/metrics');
+    const result = await metricsHandler({
+      query: {
+        windowMs: '8000',
+        bucketCount: '4',
+        now: '8000',
+      },
+    }, {});
+
+    expect(result.anomalies.map((item: any) => item.type)).toContain('latency_high');
+  });
+
   it('renders a governance trace debug page at /ui', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('GET /ui');
@@ -527,6 +576,10 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/governance/metrics/exports');
     expect(html).toContain('metricsGrid');
     expect(html).toContain('anomalyList');
+    expect(html).toContain('minSampleSize');
+    expect(html).toContain('cascadeWarnRate');
+    expect(html).toContain('shadowWarnRate');
+    expect(html).toContain('latencyWarnMs');
     expect(html).toContain('bucketGrid');
     expect(html).toContain('routeRanking');
     expect(html).toContain('modelRanking');
@@ -763,6 +816,12 @@ describe('createServer /api/config', () => {
             },
           ],
         },
+        observability: {
+          anomaly_thresholds: {
+            min_sample_size: 5,
+            latency_warn_ms: 1200,
+          },
+        },
       },
     };
 
@@ -784,6 +843,13 @@ describe('createServer /api/config', () => {
           cascade: expect.objectContaining({
             enabled: true,
             max_attempts: 2,
+          }),
+          observability: expect.objectContaining({
+            anomaly_thresholds: expect.objectContaining({
+              min_sample_size: 5,
+              latency_warn_ms: 1200,
+              cascade_warn_rate: 0.4,
+            }),
           }),
         }),
       })

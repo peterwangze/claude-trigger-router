@@ -20,6 +20,7 @@ import {
  */
 export const createServer = (config: any): Server => {
   const server = new Server(config);
+  const configuredThresholds = config.initialConfig?.Governance?.observability?.anomaly_thresholds ?? {};
 
   const readGovernanceMetricsQuery = (query: any) => {
     const limit = query?.limit ? Number(query.limit) : undefined;
@@ -44,15 +45,15 @@ export const createServer = (config: any): Server => {
       bucketCount: Number.isFinite(bucketCount) ? bucketCount : undefined,
       now: Number.isFinite(now) ? now : undefined,
       anomalyThresholds: {
-        minSampleSize: query?.minSampleSize ? Number(query.minSampleSize) : undefined,
-        cascadeWarnRate: query?.cascadeWarnRate ? Number(query.cascadeWarnRate) : undefined,
-        cascadeCriticalRate: query?.cascadeCriticalRate ? Number(query.cascadeCriticalRate) : undefined,
-        shadowWarnRate: query?.shadowWarnRate ? Number(query.shadowWarnRate) : undefined,
-        shadowCriticalRate: query?.shadowCriticalRate ? Number(query.shadowCriticalRate) : undefined,
-        latencyWarnMs: query?.latencyWarnMs ? Number(query.latencyWarnMs) : undefined,
-        latencyCriticalMs: query?.latencyCriticalMs ? Number(query.latencyCriticalMs) : undefined,
-        spikeWarnRate: query?.spikeWarnRate ? Number(query.spikeWarnRate) : undefined,
-        spikeDeltaRate: query?.spikeDeltaRate ? Number(query.spikeDeltaRate) : undefined,
+        minSampleSize: query?.minSampleSize ? Number(query.minSampleSize) : configuredThresholds.min_sample_size,
+        cascadeWarnRate: query?.cascadeWarnRate ? Number(query.cascadeWarnRate) : configuredThresholds.cascade_warn_rate,
+        cascadeCriticalRate: query?.cascadeCriticalRate ? Number(query.cascadeCriticalRate) : configuredThresholds.cascade_critical_rate,
+        shadowWarnRate: query?.shadowWarnRate ? Number(query.shadowWarnRate) : configuredThresholds.shadow_warn_rate,
+        shadowCriticalRate: query?.shadowCriticalRate ? Number(query.shadowCriticalRate) : configuredThresholds.shadow_critical_rate,
+        latencyWarnMs: query?.latencyWarnMs ? Number(query.latencyWarnMs) : configuredThresholds.latency_warn_ms,
+        latencyCriticalMs: query?.latencyCriticalMs ? Number(query.latencyCriticalMs) : configuredThresholds.latency_critical_ms,
+        spikeWarnRate: query?.spikeWarnRate ? Number(query.spikeWarnRate) : configuredThresholds.spike_warn_rate,
+        spikeDeltaRate: query?.spikeDeltaRate ? Number(query.spikeDeltaRate) : configuredThresholds.spike_delta_rate,
       },
     };
   };
@@ -299,6 +300,8 @@ export const createServer = (config: any): Server => {
       `.alert.warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}` +
       `.alert.critical{background:#fef2f2;border-color:#fca5a5;color:#991b1b}` +
       `.alert.info{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}` +
+      `.control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
+      `.control-grid label{display:block;font-size:.85rem;color:#6b7280;margin-bottom:.35rem}` +
       `.trend-table{width:100%;margin-top:.75rem}` +
       `.trend-table th,.trend-table td{padding:.45rem;border-bottom:1px solid #e5e7eb;font-size:.92rem}` +
       `.row{display:flex;gap:1rem;flex-wrap:wrap;align-items:center}` +
@@ -342,6 +345,15 @@ export const createServer = (config: any): Server => {
       `<div class="row"><strong>Anomaly alerts</strong><span class="muted">检测近期治理异常与突增</span></div>` +
       `<div id="anomalyList" class="alert-list">` +
       `<div class="alert info"><strong>No alerts yet</strong><div class="muted">等待治理指标加载</div></div>` +
+      `</div>` +
+      `</div>` +
+      `<div class="subpanel">` +
+      `<div class="row"><strong>Anomaly tuning</strong><span class="muted">来自配置文件，可在此临时覆盖当前页面查询</span></div>` +
+      `<div class="control-grid">` +
+      `<div><label>Min sample</label><input id="minSampleSize" value="${configuredThresholds.min_sample_size ?? 3}"></div>` +
+      `<div><label>Cascade warn</label><input id="cascadeWarnRate" value="${configuredThresholds.cascade_warn_rate ?? 0.4}"></div>` +
+      `<div><label>Shadow warn</label><input id="shadowWarnRate" value="${configuredThresholds.shadow_warn_rate ?? 0.5}"></div>` +
+      `<div><label>Latency warn ms</label><input id="latencyWarnMs" value="${configuredThresholds.latency_warn_ms ?? 1500}"></div>` +
       `</div>` +
       `</div>` +
       `<div class="subpanel">` +
@@ -460,6 +472,10 @@ export const createServer = (config: any): Server => {
       `  const cascadeTriggered=document.getElementById('cascadeTriggered').value;` +
       `  const shadowChecked=document.getElementById('shadowChecked').value;` +
       `  const windowMs=document.getElementById('windowMs').value;` +
+      `  const minSampleSize=document.getElementById('minSampleSize').value.trim();` +
+      `  const cascadeWarnRate=document.getElementById('cascadeWarnRate').value.trim();` +
+      `  const shadowWarnRate=document.getElementById('shadowWarnRate').value.trim();` +
+      `  const latencyWarnMs=document.getElementById('latencyWarnMs').value.trim();` +
       `  const limit=document.getElementById('limit').value.trim();` +
       `  const params=new URLSearchParams();` +
       `  if(requestId) params.set('requestId',requestId);` +
@@ -468,6 +484,10 @@ export const createServer = (config: any): Server => {
       `  if(cascadeTriggered) params.set('cascadeTriggered',cascadeTriggered);` +
       `  if(shadowChecked) params.set('shadowChecked',shadowChecked);` +
       `  if(windowMs) params.set('windowMs',windowMs);` +
+      `  if(minSampleSize) params.set('minSampleSize',minSampleSize);` +
+      `  if(cascadeWarnRate) params.set('cascadeWarnRate',cascadeWarnRate);` +
+      `  if(shadowWarnRate) params.set('shadowWarnRate',shadowWarnRate);` +
+      `  if(latencyWarnMs) params.set('latencyWarnMs',latencyWarnMs);` +
       `  params.set('bucketCount','6');` +
       `  if(limit) params.set('limit',limit);` +
       `  tbody.innerHTML='<tr><td colspan="6" class="muted">加载中...</td></tr>';` +

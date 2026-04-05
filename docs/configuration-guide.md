@@ -382,6 +382,12 @@ Governance:
       placeholder_patterns: true
       length_anomaly: true
       missing_code_block: true
+  observability:
+    anomaly_thresholds:
+      min_sample_size: 3
+      cascade_warn_rate: 0.4
+      shadow_warn_rate: 0.5
+      latency_warn_ms: 1500
 ```
 
 ## 常见错误与排查

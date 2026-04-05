@@ -317,6 +317,58 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
         if (err) errors.push(err);
       }
     }
+
+    const anomalyThresholds = config.Governance.observability?.anomaly_thresholds;
+    if (anomalyThresholds) {
+      const rateFields: Array<[number | undefined, string]> = [
+        [anomalyThresholds.cascade_warn_rate, 'Governance.observability.anomaly_thresholds.cascade_warn_rate'],
+        [anomalyThresholds.cascade_critical_rate, 'Governance.observability.anomaly_thresholds.cascade_critical_rate'],
+        [anomalyThresholds.shadow_warn_rate, 'Governance.observability.anomaly_thresholds.shadow_warn_rate'],
+        [anomalyThresholds.shadow_critical_rate, 'Governance.observability.anomaly_thresholds.shadow_critical_rate'],
+        [anomalyThresholds.spike_warn_rate, 'Governance.observability.anomaly_thresholds.spike_warn_rate'],
+        [anomalyThresholds.spike_delta_rate, 'Governance.observability.anomaly_thresholds.spike_delta_rate'],
+      ];
+      for (const [value, field] of rateFields) {
+        if (value !== undefined && (value < 0 || value > 1)) {
+          errors.push(`${field} must be between 0 and 1`);
+        }
+      }
+
+      const minSampleSize = anomalyThresholds.min_sample_size;
+      if (minSampleSize !== undefined && minSampleSize < 1) {
+        errors.push('Governance.observability.anomaly_thresholds.min_sample_size must be at least 1');
+      }
+
+      const latencyWarnMs = anomalyThresholds.latency_warn_ms;
+      const latencyCriticalMs = anomalyThresholds.latency_critical_ms;
+      if (latencyWarnMs !== undefined && latencyWarnMs < 1) {
+        errors.push('Governance.observability.anomaly_thresholds.latency_warn_ms must be greater than 0');
+      }
+      if (latencyCriticalMs !== undefined && latencyCriticalMs < 1) {
+        errors.push('Governance.observability.anomaly_thresholds.latency_critical_ms must be greater than 0');
+      }
+      if (
+        anomalyThresholds.cascade_warn_rate !== undefined &&
+        anomalyThresholds.cascade_critical_rate !== undefined &&
+        anomalyThresholds.cascade_warn_rate > anomalyThresholds.cascade_critical_rate
+      ) {
+        errors.push('Governance.observability.anomaly_thresholds.cascade_warn_rate must be less than or equal to cascade_critical_rate');
+      }
+      if (
+        anomalyThresholds.shadow_warn_rate !== undefined &&
+        anomalyThresholds.shadow_critical_rate !== undefined &&
+        anomalyThresholds.shadow_warn_rate > anomalyThresholds.shadow_critical_rate
+      ) {
+        errors.push('Governance.observability.anomaly_thresholds.shadow_warn_rate must be less than or equal to shadow_critical_rate');
+      }
+      if (
+        latencyWarnMs !== undefined &&
+        latencyCriticalMs !== undefined &&
+        latencyWarnMs > latencyCriticalMs
+      ) {
+        errors.push('Governance.observability.anomaly_thresholds.latency_warn_ms must be less than or equal to latency_critical_ms');
+      }
+    }
   }
 
   return errors;

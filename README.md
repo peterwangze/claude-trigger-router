@@ -270,6 +270,7 @@ SmartRouter:
 | `Governance.cascade` | 失败证据检测与自动升级重投 |
 | `Governance.semantic` | 语义原型匹配；在规则没命中时补充意图识别 |
 | `Governance.shadow` | 对可疑输出做异步审计和 trace 留痕 |
+| `Governance.observability.anomaly_thresholds` | 为治理观测设置正式的异常阈值默认值，并作为 `/ui` 调参初始值 |
 
 ## 路由优先级
 

@@ -147,6 +147,8 @@
 - 支持 `GET /api/governance/metrics/exports`、`POST /api/governance/metrics/snapshots`、`POST /api/governance/metrics/schedules`
 - 新增治理归档管理 API，可列出、按日期筛选、查看和删除归档文件
 - 支持 `GET /api/governance/archives`、`GET /api/governance/archives/:file`、`POST /api/governance/archives/:file/delete`
+- Governance 现已支持正式 `observability.anomaly_thresholds` 配置项
+- `/ui` 新增 anomaly tuning 面板，默认读取配置阈值，并允许当前页面临时覆盖查询参数
 
 ## 下次更新时应补充的内容
 
