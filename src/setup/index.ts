@@ -180,6 +180,16 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
           transformer: provider.transformer?.use ? { use: [...provider.transformer.use] } : undefined,
         }))
       : [],
+    Models: Array.isArray(config?.Models)
+      ? config.Models.map((model: any) => ({
+          id: model.id ?? '',
+          api_key: model.api_key ?? '',
+          api_base_url: model.api_base_url,
+          protocol: model.protocol,
+          model: model.model ?? '',
+          thinking: model.thinking ? { ...model.thinking } : undefined,
+        }))
+      : [],
     Router: {
       default: config?.Router?.default,
     },
@@ -203,7 +213,7 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
         api_base_url: apiBaseUrl,
       },
     ],
-    defaultModel: `${providerName},${model}`,
+    defaultModel: providerName,
   });
 }
 
@@ -211,10 +221,13 @@ async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]
   const draft = toDraftFromConfig(input.draft);
 
   if (input.fields.includes('defaultModel')) {
-    const defaultProvider = draft.Providers[0]?.name ?? 'provider';
-    const defaultModel = draft.Providers[0]?.models[0] ?? '';
+    const defaultProvider = draft.Models?.[0]?.id ?? draft.Providers?.[0]?.name ?? 'provider';
+    const defaultModel = draft.Models?.[0]?.model ?? draft.Providers?.[0]?.models?.[0] ?? '';
     const model = await input.io.input('默认模型', defaultModel);
-    if (draft.Providers[0]) {
+    if (draft.Models?.[0]) {
+      draft.Models[0].model = model;
+      draft.Router.default = defaultProvider;
+    } else if (draft.Providers?.[0]) {
       draft.Providers[0].models = [model];
       draft.Router.default = `${defaultProvider},${model}`;
     }
@@ -222,15 +235,26 @@ async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]
 
   if (input.fields.includes('apiKey')) {
     const apiKey = await input.io.input('API Key');
-    draft.Providers = draft.Providers.map((provider) => ({ ...provider, api_key: provider.api_key || apiKey }));
+    if (draft.Models?.length) {
+      draft.Models = draft.Models.map((model) => ({ ...model, api_key: model.api_key || apiKey }));
+    } else {
+      draft.Providers = draft.Providers?.map((provider) => ({ ...provider, api_key: provider.api_key || apiKey }));
+    }
   }
 
   if (input.fields.includes('apiBaseUrl')) {
     const apiBaseUrl = await input.io.input('API Base URL');
-    draft.Providers = draft.Providers.map((provider) => ({
-      ...provider,
-      api_base_url: provider.api_base_url || apiBaseUrl,
-    }));
+    if (draft.Models?.length) {
+      draft.Models = draft.Models.map((model) => ({
+        ...model,
+        api_base_url: model.api_base_url || apiBaseUrl,
+      }));
+    } else {
+      draft.Providers = draft.Providers?.map((provider) => ({
+        ...provider,
+        api_base_url: provider.api_base_url || apiBaseUrl,
+      }));
+    }
   }
 
   return draft;

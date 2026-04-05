@@ -63,7 +63,7 @@ npm install -g @peterwangze/claude-trigger-router
 ctr setup
 ```
 
-`ctr setup` 会检查当前配置、识别可迁移的旧 `ccr` 配置，在需要时询问 provider / API Key / 默认模型，并在配置可用后自动拉起服务再进入 Claude Code。
+`ctr setup` 会检查当前配置、识别可迁移的旧 `ccr` 配置，在需要时询问 provider / API Key / 默认模型，并默认生成更易用的 `Models` 配置抽象；配置可用后会自动拉起服务再进入 Claude Code。
 
 如果你更喜欢先复制模板再手动编辑，也可以改用：
 

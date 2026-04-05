@@ -36,16 +36,17 @@ describe('runSetupCli', () => {
 
     expect(writeConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        Providers: [
+        Models: [
           expect.objectContaining({
-            name: 'openrouter',
+            id: 'openrouter',
             api_key: 'sk-test',
             api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
-            models: ['anthropic/claude-sonnet-4'],
+            model: 'anthropic/claude-sonnet-4',
+            protocol: 'openai',
           }),
         ],
         Router: {
-          default: 'openrouter,anthropic/claude-sonnet-4',
+          default: 'openrouter',
         },
       })
     );

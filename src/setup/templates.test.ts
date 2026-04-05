@@ -9,21 +9,21 @@ describe('setup templates', () => {
       const preset = getProviderPreset('openrouter');
       expect(preset).toBeDefined();
       expect(preset?.api_base_url).toBe('https://openrouter.ai/api/v1/chat/completions');
-      expect(preset?.transformer?.use).toContain('openrouter');
+      expect(preset?.protocol).toBe('openai');
     });
 
     it('should return deepseek preset with correct api_base_url', () => {
       const preset = getProviderPreset('deepseek');
       expect(preset).toBeDefined();
       expect(preset?.api_base_url).toBe('https://api.deepseek.com/chat/completions');
-      expect(preset?.transformer?.use).toContain('deepseek');
+      expect(preset?.protocol).toBe('openai');
     });
 
     it('should return openai-compatible preset with generic OpenAI URL', () => {
       const preset = getProviderPreset('openai-compatible');
       expect(preset).toBeDefined();
       expect(preset?.api_base_url).toBe('https://api.openai.com/v1/chat/completions');
-      expect(preset?.transformer?.use).toContain('openrouter');
+      expect(preset?.protocol).toBe('openai');
     });
 
     it('should return custom preset without default URL', () => {
@@ -41,7 +41,7 @@ describe('setup templates', () => {
   // ============ buildMinimalConfig ============
 
   describe('buildMinimalConfig', () => {
-    it('should generate Providers[0].name from minimal single provider input', () => {
+    it('should generate Models[0].id from minimal single provider input', () => {
       const input = {
         providers: [
           {
@@ -52,13 +52,13 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
-      expect(config.Providers).toHaveLength(1);
-      expect(config.Providers[0].name).toBe('my-provider');
-      expect(config.Providers[0].api_key).toBe('sk-test');
-      expect(config.Providers[0].models).toContain('model-1');
+      expect(config.Models).toHaveLength(1);
+      expect(config.Models?.[0].id).toBe('my-provider');
+      expect(config.Models?.[0].api_key).toBe('sk-test');
+      expect(config.Models?.[0].model).toBe('model-1');
     });
 
-    it('should generate Router.default in correct format', () => {
+    it('should generate Router.default as model id', () => {
       const input = {
         providers: [
           {
@@ -67,10 +67,10 @@ describe('setup templates', () => {
             models: ['gpt-4'],
           },
         ],
-        defaultModel: 'test-provider,gpt-4',
+        defaultModel: 'test-provider',
       };
       const config = buildMinimalConfig(input);
-      expect(config.Router.default).toBe('test-provider,gpt-4');
+      expect(config.Router.default).toBe('test-provider');
     });
 
     it('should use preset api_base_url when preset is specified', () => {
@@ -85,7 +85,7 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
-      expect(config.Providers[0].api_base_url).toBe(
+      expect(config.Models?.[0].api_base_url).toBe(
         'https://openrouter.ai/api/v1/chat/completions'
       );
     });
@@ -102,7 +102,7 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
-      expect(config.Providers[0].api_base_url).toBe(
+      expect(config.Models?.[0].api_base_url).toBe(
         'https://custom.api.com/v1/chat/completions'
       );
     });
@@ -119,7 +119,7 @@ describe('setup templates', () => {
         ],
       });
 
-      expect(config.Providers[0].api_base_url).toBeUndefined();
+      expect(config.Models?.[0].api_base_url).toBeUndefined();
     });
 
     it('should not infer Router.default when explicit defaultModel is an empty string', () => {
@@ -137,7 +137,7 @@ describe('setup templates', () => {
       expect(config.Router.default).toBeUndefined();
     });
 
-    it('should generate correct Router.default with provider and first model', () => {
+    it('should generate correct Router.default with first model id', () => {
       const input = {
         providers: [
           {
@@ -149,10 +149,10 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
-      expect(config.Router.default).toBe('deepseek,deepseek-chat');
+      expect(config.Router.default).toBe('deepseek');
     });
 
-    it('should include transformer from preset', () => {
+    it('should include protocol from preset', () => {
       const input = {
         providers: [
           {
@@ -164,8 +164,7 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
-      expect(config.Providers[0].transformer).toBeDefined();
-      expect(config.Providers[0].transformer.use).toContain('deepseek');
+      expect(config.Models?.[0].protocol).toBe('openai');
     });
 
     it('should handle custom preset without forcing default URL', () => {
@@ -181,7 +180,7 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
-      expect(config.Providers[0].api_base_url).toBe(
+      expect(config.Models?.[0].api_base_url).toBe(
         'https://my-custom-url.com/v1/chat/completions'
       );
     });
@@ -198,7 +197,7 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
-      expect(config.Providers[0].api_base_url).toBeUndefined();
+      expect(config.Models?.[0].api_base_url).toBeUndefined();
     });
 
     it('should omit Router.default when first provider has no models', () => {
@@ -215,7 +214,7 @@ describe('setup templates', () => {
       expect(config.Router.default).toBeUndefined();
     });
 
-    it('should clone provider arrays and preset transformer to avoid shared references', () => {
+    it('should clone provider arrays and preset protocol to avoid shared references', () => {
       const models = ['deepseek-chat'];
       const config = buildMinimalConfig({
         providers: [
@@ -229,17 +228,21 @@ describe('setup templates', () => {
       });
 
       models.push('deepseek-reasoner');
-      config.Providers[0].transformer.use.push('mutated');
+      if (config.Models?.[0]) {
+        config.Models[0].protocol = 'anthropic';
+      }
 
-      expect(config.Providers[0].models).toEqual(['deepseek-chat']);
-      expect(getProviderPreset('deepseek')?.transformer?.use).toEqual(['deepseek']);
+      expect(config.Models?.[0].model).toEqual('deepseek-chat');
+      expect(getProviderPreset('deepseek')?.protocol).toEqual('openai');
     });
 
     it('should return a cloned preset instead of leaking shared preset references', () => {
       const preset = getProviderPreset('deepseek');
-      preset?.transformer?.use.push('mutated');
+      if (preset) {
+        preset.protocol = 'anthropic';
+      }
 
-      expect(getProviderPreset('deepseek')?.transformer?.use).toEqual(['deepseek']);
+      expect(getProviderPreset('deepseek')?.protocol).toEqual('openai');
     });
   });
 });

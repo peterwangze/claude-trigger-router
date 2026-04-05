@@ -16,10 +16,8 @@ export interface IProviderPreset {
   /** API 基础 URL（custom 可能为空） */
   api_base_url?: string;
 
-  /** 默认 transformer 配置 */
-  transformer?: {
-    use: string[];
-  };
+  /** 协议类型 */
+  protocol?: 'openai' | 'anthropic';
 }
 
 /** setup 期间生成的 Provider 草稿 */
@@ -33,9 +31,23 @@ export interface ISetupProviderDraft {
   };
 }
 
+export interface ISetupModelDraft {
+  id: string;
+  api_key: string;
+  api_base_url?: string;
+  protocol?: 'openai' | 'anthropic';
+  model: string;
+  thinking?: {
+    mode?: 'off' | 'auto' | 'on';
+    effort?: 'low' | 'medium' | 'high';
+    budget_tokens?: number;
+  };
+}
+
 /** setup 期间生成的配置草稿 */
 export interface ISetupConfigDraft {
-  Providers: ISetupProviderDraft[];
+  Providers?: ISetupProviderDraft[];
+  Models?: ISetupModelDraft[];
   Router: {
     default?: string;
   };
