@@ -973,6 +973,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('data-trigger-keyword');
     expect(html).toContain('regex 模式下忽略 keywords');
     expect(html).toContain('exact 模式下忽略 regex pattern');
+    expect(html).toContain('regex 模式需要填写 pattern');
+    expect(html).toContain('exact 模式至少需要一个 keyword');
     expect(html).toContain('smartEnabled');
     expect(html).toContain('smartRouterModel');
     expect(html).toContain('topLevelSmartRouterSuggestions');
@@ -1037,6 +1039,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('extractCascadeLevelsFromForm');
     expect(html).toContain('knownModelIds');
     expect(html).toContain('getModelIdSuggestionsMarkup');
+    expect(html).toContain('getTriggerPatternValidationHint');
     expect(html).toContain('updateTopLevelModelSuggestionLists');
     expect(html).toContain('triggerModelSuggestions');
     expect(html).toContain('smartModelSuggestions');

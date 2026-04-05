@@ -921,6 +921,12 @@ export const createServer = (config: any): Server => {
       `function getModelIdSuggestionsMarkup(idPrefix){` +
       `  return '<datalist id=\"'+idPrefix+'\">'+knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('')+'</datalist>';` +
       `}` +
+      `function getTriggerPatternValidationHint(pattern){` +
+      `  if((pattern?.type || 'exact') === 'regex'){` +
+      `    return pattern?.pattern ? { level:'ok', message:'regex pattern 已配置' } : { level:'warn', message:'regex 模式需要填写 pattern' };` +
+      `  }` +
+      `  return Array.isArray(pattern?.keywords) && pattern.keywords.some((keyword)=>String(keyword || '').trim()) ? { level:'ok', message:'exact keywords 已配置' } : { level:'warn', message:'exact 模式至少需要一个 keyword' };` +
+      `}` +
       `function renderDraftSummary(config){` +
       `  const models=Array.isArray(config?.Models) ? config.Models : [];` +
       `  const triggerRules=Array.isArray(config?.TriggerRouter?.rules) ? config.TriggerRouter.rules : [];` +
@@ -1019,7 +1025,7 @@ export const createServer = (config: any): Server => {
       `    '</div>' +` +
       `    '<div class=\"action-row\" style=\"margin-top:.75rem\"><strong>Patterns</strong><button type=\"button\" data-add-trigger-pattern=\"'+index+'\">新增 Pattern</button></div>' +` +
       `    '<div class=\"list-editor\">'+(((rule.patterns || []).length ? rule.patterns : [{ type:'exact', keywords:[] }]).map((pattern,patternIndex)=>'<div class=\"list-item\" data-trigger-pattern=\"'+index+'-'+patternIndex+'\">' +` +
-      `      '<div class=\"action-row\"><span class=\"muted\">Pattern #'+(patternIndex+1)+'</span><span class=\"pill\">'+esc(pattern.type || 'exact')+'</span><button type=\"button\" data-remove-trigger-pattern=\"'+index+'\" data-pattern-index=\"'+patternIndex+'\">删除</button></div>' +` +
+      `      '<div class=\"action-row\"><span class=\"muted\">Pattern #'+(patternIndex+1)+'</span><span class=\"pill\">'+esc(pattern.type || 'exact')+'</span><span class=\"muted\">'+esc(getTriggerPatternValidationHint(pattern).message)+'</span><button type=\"button\" data-remove-trigger-pattern=\"'+index+'\" data-pattern-index=\"'+patternIndex+'\">删除</button></div>' +` +
       `      '<div class=\"list-item-grid\">' +` +
       `        '<div><label>Type</label><select data-trigger-pattern-field=\"type\" data-index=\"'+index+'\" data-pattern-index=\"'+patternIndex+'\"><option value=\"exact\"'+(pattern.type !== 'regex' ? ' selected' : '')+'>exact</option><option value=\"regex\"'+(pattern.type === 'regex' ? ' selected' : '')+'>regex</option></select></div>' +` +
       `        '<div><label><input type=\"checkbox\" data-trigger-pattern-field=\"caseSensitive\" data-index=\"'+index+'\" data-pattern-index=\"'+patternIndex+'\"'+(pattern.caseSensitive ? ' checked' : '')+'> Case sensitive</label></div>' +` +
