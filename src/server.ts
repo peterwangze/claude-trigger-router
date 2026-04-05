@@ -82,10 +82,50 @@ function collectModelReferences(config: any): ModelReferenceEntry[] {
   return refs;
 }
 
+function scoreModelIdSuggestion(source: string, candidateId: string, candidate: any) {
+  const sourceText = String(source || "").toLowerCase();
+  const candidateText = `${candidateId} ${candidate?.modelName || ""}`.toLowerCase();
+  let score = 0;
+
+  if (candidateId.toLowerCase() === sourceText) {
+    score += 100;
+  }
+  if (candidateId.toLowerCase().includes(sourceText) || sourceText.includes(candidateId.toLowerCase())) {
+    score += 40;
+  }
+
+  const sourceParts = sourceText.split(/[^a-z0-9]+/).filter(Boolean);
+  sourceParts.forEach((part) => {
+    if (candidateText.includes(part)) {
+      score += Math.min(part.length * 3, 18);
+    }
+  });
+
+  return score;
+}
+
+function suggestModelReferences(value: string, nextCompiled: CompiledRegistryView) {
+  return Object.entries(nextCompiled.modelMap ?? {})
+    .map(([modelId, item]) => ({
+      modelId,
+      providerName: item.providerName,
+      modelName: item.modelName,
+      protocol: item.protocol,
+      score: scoreModelIdSuggestion(value, modelId, item),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.modelId.localeCompare(b.modelId))
+    .slice(0, 3)
+    .map(({ score, ...item }) => item);
+}
+
 function analyzeModelReferenceImpact(config: any, nextCompiled: CompiledRegistryView) {
   const references = collectModelReferences(config);
   const entries = references.map((ref) => {
     const resolved = ref.referenceType === "modelId" ? nextCompiled.modelMap?.[ref.value] : null;
+    const suggestions = ref.referenceType === "modelId" && !resolved
+      ? suggestModelReferences(ref.value, nextCompiled)
+      : [];
     return {
       ...ref,
       status: ref.referenceType === "modelId"
@@ -98,6 +138,7 @@ function analyzeModelReferenceImpact(config: any, nextCompiled: CompiledRegistry
             protocol: resolved.protocol,
           }
         : null,
+      suggestions,
     };
   });
 
@@ -625,8 +666,8 @@ export const createServer = (config: any): Server => {
       `<div class="diff-chip"><span class="muted">Missing modelIds</span><strong>0</strong></div>` +
       `</div>` +
       `<table id="referenceImpactTable" class="management-table">` +
-      `<thead><tr><th>Path</th><th>Ref</th><th>Type</th><th>Status</th><th>Resolved target</th></tr></thead>` +
-      `<tbody><tr><td colspan="5" class="muted">Preview a draft to inspect model reference impact</td></tr></tbody>` +
+      `<thead><tr><th>Path</th><th>Ref</th><th>Type</th><th>Status</th><th>Resolved target</th><th>Suggestions</th></tr></thead>` +
+      `<tbody><tr><td colspan="6" class="muted">Preview a draft to inspect model reference impact</td></tr></tbody>` +
       `</table>` +
       `</div>` +
       `</div>` +
@@ -920,7 +961,8 @@ export const createServer = (config: any): Server => {
       `    '<td>'+esc(item.referenceType)+'</td>' +` +
       `    '<td>'+esc(item.status)+'</td>' +` +
       `    '<td><code>'+esc(item.resolvedTarget?.providerName || '-')+'</code><div class="muted">'+esc(item.resolvedTarget?.modelName || '-')}</div></td>' +` +
-      `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No model references found</td></tr>';` +
+      `    '<td>'+((item.suggestions || []).length ? item.suggestions.map(s=>'<div><code>'+esc(s.modelId)+'</code><div class="muted">'+esc(s.modelName || '-')+'</div></div>').join('') : '<span class="muted">-</span>')+'</td>' +` +
+      `  '</tr>').join('') : '<tr><td colspan="6" class="muted">No model references found</td></tr>';` +
       `}` +
       `function renderCompiledModels(data){` +
       `  const providers=Array.isArray(data.providers) ? data.providers : [];` +

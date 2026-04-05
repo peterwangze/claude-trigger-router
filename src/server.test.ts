@@ -295,6 +295,7 @@ describe('createServer /api/config', () => {
         value: 'haiku',
         referenceType: 'modelId',
         status: 'valid',
+        suggestions: [],
         resolvedTarget: expect.objectContaining({
           providerName: 'model__haiku',
           modelName: 'anthropic/claude-3.5-haiku',
@@ -381,11 +382,81 @@ describe('createServer /api/config', () => {
           path: 'Router.default',
           value: 'missing-model-id',
           status: 'missing',
+          suggestions: [],
         }),
         expect.objectContaining({
           path: 'Governance.sticky.alignment.summarizer_model',
           value: 'missing-model-id',
           status: 'missing',
+          suggestions: [],
+        }),
+      ])
+    );
+  });
+
+  it('suggests replacement modelIds for missing references when preview can infer close matches', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/models/compiled/preview');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      body: {
+        Models: [
+          {
+            id: 'sonnet',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-preview',
+            protocol: 'openai',
+            model: 'anthropic/claude-sonnet-4',
+          },
+          {
+            id: 'haiku',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-preview',
+            protocol: 'openai',
+            model: 'anthropic/claude-3.5-haiku',
+          },
+        ],
+        Router: {
+          default: 'sonnet-v2',
+        },
+        Governance: {
+          enabled: true,
+          sticky: {
+            enabled: true,
+            alignment: {
+              enabled: true,
+              summarizer_model: 'haiku-lite',
+            },
+          },
+        },
+      },
+    }, reply);
+
+    expect(reply.code).toHaveBeenCalledWith(400);
+    expect(result.referenceImpact.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'Router.default',
+          status: 'missing',
+          suggestions: expect.arrayContaining([
+            expect.objectContaining({
+              modelId: 'sonnet',
+              modelName: 'anthropic/claude-sonnet-4',
+            }),
+          ]),
+        }),
+        expect.objectContaining({
+          path: 'Governance.sticky.alignment.summarizer_model',
+          status: 'missing',
+          suggestions: expect.arrayContaining([
+            expect.objectContaining({
+              modelId: 'haiku',
+              modelName: 'anthropic/claude-3.5-haiku',
+            }),
+          ]),
         }),
       ])
     );
@@ -884,6 +955,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('compiledDiffTable');
     expect(html).toContain('referenceImpactSummary');
     expect(html).toContain('referenceImpactTable');
+    expect(html).toContain('Suggestions');
+    expect(html).toContain('Resolved target');
     expect(html).toContain('modelsFormGrid');
     expect(html).toContain('draftRouterDefault');
     expect(html).toContain('draftModelsCount');
