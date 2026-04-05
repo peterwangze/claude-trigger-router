@@ -640,6 +640,9 @@ export const createServer = (config: any): Server => {
       `<button id="previewConfigDraftBtn" type="button">预览 compiled models</button>` +
       `<span id="draftPreviewStatus" class="muted">尚未预览配置草稿</span>` +
       `</div>` +
+      `<div class="control-grid">` +
+      `<div><label>Preset mode</label><select id="draftPresetMode"><option value="merge" selected>append / merge</option><option value="replace">overwrite</option></select></div>` +
+      `</div>` +
       `<div id="draftPresetList" class="alert-list">` +
       `<div class="alert info"><strong>Preset guide</strong><div class="muted">选择预设前可先查看其会覆盖的区域与推荐用途</div></div>` +
       `</div>` +
@@ -868,6 +871,7 @@ export const createServer = (config: any): Server => {
       `const detail=document.getElementById('traceDetail');` +
       `const detailHint=document.getElementById('detailHint');` +
       `const draftPreviewStatus=document.getElementById('draftPreviewStatus');` +
+      `const draftPresetMode=document.getElementById('draftPresetMode');` +
       `const draftPresetList=document.getElementById('draftPresetList');` +
       `const draftValidationList=document.getElementById('draftValidationList');` +
       `const configDraftEditor=document.getElementById('configDraftEditor');` +
@@ -1380,6 +1384,8 @@ export const createServer = (config: any): Server => {
       `function applyDraftPreset(presetName){` +
       `  const preset=draftPresets[presetName];` +
       `  if(!preset){ return; }` +
+      `  const overwriteMode=draftPresetMode.value === 'replace';` +
+      `  if(overwriteMode){ renderModelsForm(currentDraftConfig.Models || []); renderTriggerRulesList([]); renderSmartCandidatesList([]); renderCascadeLevelsList([]); triggerEnabled.checked=false; triggerIntentEnabled.checked=false; triggerIntentModel.value=''; smartEnabled.checked=false; smartRouterModel.value=''; governanceEnabled.checked=false; governanceAlignmentEnabled.checked=false; governanceSummarizerModel.value=''; governanceSemanticEnabled.checked=false; governanceClassifierModel.value=''; governanceShadowEnabled.checked=false; governanceVerifierModel.value=''; }` +
       `  if(preset.routerDefault){ draftRouterDefault.value=resolvePresetModelId(preset.routerDefault); }` +
       `  if(preset.triggerEnabled !== undefined){ triggerEnabled.checked=Boolean(preset.triggerEnabled); }` +
       `  if(preset.triggerRules){ renderTriggerRulesList(preset.triggerRules.map(rule=>({ ...rule, model: resolvePresetModelId(rule.model) }))); }` +
@@ -1393,7 +1399,7 @@ export const createServer = (config: any): Server => {
       `  if(preset.governanceClassifierModel !== undefined){ governanceClassifierModel.value=resolvePresetModelId(preset.governanceClassifierModel); }` +
       `  if(preset.governanceVerifierModel !== undefined){ governanceVerifierModel.value=resolvePresetModelId(preset.governanceVerifierModel); }` +
       `  syncDraftEditorFromForm();` +
-      `  draftPreviewStatus.textContent='已应用预设：'+presetName;` +
+      `  draftPreviewStatus.textContent='已应用预设：'+presetName+'（'+(overwriteMode ? 'overwrite' : 'append / merge')+'）';` +
       `}` +
       `function renderRanking(target,entries,emptyLabel){` +
       `  if(!entries || !entries.length){ target.innerHTML='<li><span class="muted">'+esc(emptyLabel)+'</span><strong>0</strong></li>'; return; }` +
