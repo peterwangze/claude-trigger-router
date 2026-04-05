@@ -149,6 +149,8 @@
 - 支持 `GET /api/governance/archives`、`GET /api/governance/archives/:file`、`POST /api/governance/archives/:file/delete`
 - Governance 现已支持正式 `observability.anomaly_thresholds` 配置项
 - `/ui` 新增 anomaly tuning 面板，默认读取配置阈值，并允许当前页面临时覆盖查询参数
+- 定时快照调度已支持本地持久化和服务重启恢复
+- `governance-metric-schedules.json` 会保存当前 schedule 元数据，重启后自动恢复有效任务
 
 ## 下次更新时应补充的内容
 

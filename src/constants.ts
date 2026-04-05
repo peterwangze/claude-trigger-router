@@ -58,6 +58,11 @@ export const GOVERNANCE_EXPORT_HISTORY_FILE = join(CONFIG_DIR, 'governance-metri
 export const GOVERNANCE_SNAPSHOT_DIR = join(CONFIG_DIR, 'governance-metric-snapshots');
 
 /**
+ * Governance metrics 定时快照调度文件
+ */
+export const GOVERNANCE_SCHEDULE_FILE = join(CONFIG_DIR, 'governance-metric-schedules.json');
+
+/**
  * 默认配置
  */
 export const DEFAULT_CONFIG = {

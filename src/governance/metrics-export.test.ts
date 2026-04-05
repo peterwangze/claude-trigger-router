@@ -56,4 +56,39 @@ describe('GovernanceMetricsExportStore', () => {
       store.clear();
     }
   });
+
+  it('persists schedules and restores them on restart', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctr-metrics-schedule-'));
+    try {
+      const historyFile = join(dir, 'history.json');
+      const snapshotDir = join(dir, 'snapshots');
+      const scheduleFile = join(dir, 'schedules.json');
+
+      const store = new GovernanceMetricsExportStore({
+        historyFile,
+        snapshotDir,
+        scheduleFile,
+        persistEnabled: true,
+      });
+
+      const schedule = store.startSchedule(1000, { windowMs: 60_000 }, 'csv');
+
+      const reloadedStore = new GovernanceMetricsExportStore({
+        historyFile,
+        snapshotDir,
+        scheduleFile,
+        persistEnabled: true,
+      });
+
+      expect(reloadedStore.listSchedules().length).toBeGreaterThan(0);
+      expect(reloadedStore.listSchedules()[0].intervalMs).toBe(1000);
+      expect(reloadedStore.listSchedules()[0].format).toBe('csv');
+      reloadedStore.stopSchedule(reloadedStore.listSchedules()[0].id);
+      store.stopSchedule(schedule.id);
+      store.clear();
+      reloadedStore.clear();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

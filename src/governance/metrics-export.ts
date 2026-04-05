@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import {
   GOVERNANCE_EXPORT_HISTORY_FILE,
+  GOVERNANCE_SCHEDULE_FILE,
   GOVERNANCE_SNAPSHOT_DIR,
 } from '../constants';
 import {
@@ -35,6 +36,7 @@ export interface IGovernanceSnapshotSchedule {
 interface IGovernanceMetricsExportStoreOptions {
   historyFile?: string;
   snapshotDir?: string;
+  scheduleFile?: string;
   persistEnabled?: boolean;
   retainHistory?: number;
 }
@@ -42,6 +44,7 @@ interface IGovernanceMetricsExportStoreOptions {
 export class GovernanceMetricsExportStore {
   private historyFile: string;
   private snapshotDir: string;
+  private scheduleFile: string;
   private persistEnabled: boolean;
   private retainHistory: number;
   private history: IGovernanceMetricsExportRecord[] = [];
@@ -50,9 +53,11 @@ export class GovernanceMetricsExportStore {
   constructor(options: IGovernanceMetricsExportStoreOptions = {}) {
     this.historyFile = options.historyFile ?? GOVERNANCE_EXPORT_HISTORY_FILE;
     this.snapshotDir = options.snapshotDir ?? GOVERNANCE_SNAPSHOT_DIR;
+    this.scheduleFile = options.scheduleFile ?? GOVERNANCE_SCHEDULE_FILE;
     this.persistEnabled = options.persistEnabled ?? process.env.NODE_ENV !== 'test';
     this.retainHistory = options.retainHistory ?? 50;
     this.loadHistory();
+    this.loadSchedules();
   }
 
   listHistory(): IGovernanceMetricsExportRecord[] {
@@ -116,11 +121,13 @@ export class GovernanceMetricsExportStore {
       const current = this.schedules.get(id);
       if (current) {
         current.meta.lastRunAt = result.record.createdAt;
+        this.persistSchedules();
       }
     }, intervalMs);
     timer.unref?.();
 
     this.schedules.set(id, { meta, timer });
+    this.persistSchedules();
     return { ...meta };
   }
 
@@ -135,6 +142,7 @@ export class GovernanceMetricsExportStore {
     }
     current.meta.enabled = false;
     this.schedules.delete(id);
+    this.persistSchedules();
     return true;
   }
 
@@ -147,6 +155,7 @@ export class GovernanceMetricsExportStore {
     this.schedules.clear();
     this.history = [];
     this.persistHistory();
+    this.persistSchedules();
   }
 
   private loadHistory(): void {
@@ -168,6 +177,48 @@ export class GovernanceMetricsExportStore {
 
     mkdirSync(dirname(this.historyFile), { recursive: true });
     writeFileSync(this.historyFile, JSON.stringify(this.history, null, 2), 'utf-8');
+  }
+
+  private loadSchedules(): void {
+    if (!this.persistEnabled || !existsSync(this.scheduleFile)) {
+      return;
+    }
+
+    try {
+      const schedules = JSON.parse(readFileSync(this.scheduleFile, 'utf-8')) as IGovernanceSnapshotSchedule[];
+      for (const schedule of schedules.filter((item) => item.enabled)) {
+        this.restoreSchedule(schedule);
+      }
+    } catch {
+      this.schedules.clear();
+    }
+  }
+
+  private persistSchedules(): void {
+    if (!this.persistEnabled) {
+      return;
+    }
+
+    mkdirSync(dirname(this.scheduleFile), { recursive: true });
+    const schedules = Array.from(this.schedules.values()).map((item) => item.meta);
+    writeFileSync(this.scheduleFile, JSON.stringify(schedules, null, 2), 'utf-8');
+  }
+
+  private restoreSchedule(schedule: IGovernanceSnapshotSchedule): void {
+    const timer = setInterval(() => {
+      const result = this.createSnapshot(schedule.options, schedule.format, 'scheduled');
+      const current = this.schedules.get(schedule.id);
+      if (current) {
+        current.meta.lastRunAt = result.record.createdAt;
+        this.persistSchedules();
+      }
+    }, schedule.intervalMs);
+    timer.unref?.();
+
+    this.schedules.set(schedule.id, {
+      meta: { ...schedule, enabled: true },
+      timer,
+    });
   }
 }
 
