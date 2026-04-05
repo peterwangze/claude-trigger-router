@@ -695,11 +695,11 @@ export const createServer = (config: any): Server => {
       `const trendTableBody=document.querySelector('#trendTable tbody');` +
       `let currentDraftConfig={};` +
       `const modelProviderTemplates={` +
-      `  openai:{ label:'OpenAI', protocol:'openai', api_base_url:'https://api.openai.com/v1/chat/completions' },` +
-      `  anthropic:{ label:'Anthropic', protocol:'anthropic', api_base_url:'https://api.anthropic.com/v1/messages' },` +
-      `  openrouter:{ label:'OpenRouter', protocol:'openai', api_base_url:'https://openrouter.ai/api/v1/chat/completions' },` +
-      `  deepseek:{ label:'DeepSeek', protocol:'openai', api_base_url:'https://api.deepseek.com/chat/completions' },` +
-      `  siliconflow:{ label:'SiliconFlow', protocol:'openai', api_base_url:'https://api.siliconflow.cn/v1/chat/completions' }` +
+      `  openai:{ label:'OpenAI', protocol:'openai', api_base_url:'https://api.openai.com/v1/chat/completions', default_model:'gpt-5', model_examples:['gpt-5','gpt-5-mini','gpt-4.1'] },` +
+      `  anthropic:{ label:'Anthropic', protocol:'anthropic', api_base_url:'https://api.anthropic.com/v1/messages', default_model:'claude-sonnet-4-5', model_examples:['claude-sonnet-4-5','claude-opus-4-1','claude-3-5-haiku-latest'] },` +
+      `  openrouter:{ label:'OpenRouter', protocol:'openai', api_base_url:'https://openrouter.ai/api/v1/chat/completions', default_model:'anthropic/claude-sonnet-4', model_examples:['anthropic/claude-sonnet-4','openai/gpt-5','google/gemini-2.5-pro'] },` +
+      `  deepseek:{ label:'DeepSeek', protocol:'openai', api_base_url:'https://api.deepseek.com/chat/completions', default_model:'deepseek-chat', model_examples:['deepseek-chat','deepseek-reasoner'] },` +
+      `  siliconflow:{ label:'SiliconFlow', protocol:'openai', api_base_url:'https://api.siliconflow.cn/v1/chat/completions', default_model:'Qwen/Qwen3-32B', model_examples:['Qwen/Qwen3-32B','deepseek-ai/DeepSeek-V3','THUDM/GLM-4-9B-Chat'] }` +
       `};` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
@@ -715,7 +715,7 @@ export const createServer = (config: any): Server => {
       `      '<div><label>Provider template</label><div class="row"><select data-field=\"provider_template\" data-index=\"'+index+'\"><option value=\"\">custom</option>'+Object.entries(modelProviderTemplates).map(([key,item])=>'<option value=\"'+esc(key)+'\"'+(model.provider_template === key ? ' selected' : '')+'>'+esc(item.label)+'</option>').join('')+'</select><button type="button" data-apply-template=\"'+index+'\">应用</button></div></div>' +` +
       `      '<div><label>ID</label><input data-field=\"id\" data-index=\"'+index+'\" value=\"'+esc(model.id || '')+'\" placeholder=\"sonnet\"></div>' +` +
       `      '<div><label>Protocol</label><select data-field=\"protocol\" data-index=\"'+index+'\"><option value=\"openai\"'+((model.protocol || 'openai') === 'openai' ? ' selected' : '')+'>openai</option><option value=\"anthropic\"'+(model.protocol === 'anthropic' ? ' selected' : '')+'>anthropic</option></select></div>' +` +
-      `      '<div><label>Model</label><input data-field=\"model\" data-index=\"'+index+'\" value=\"'+esc(model.model || '')+'\" placeholder=\"anthropic/claude-sonnet-4\"></div>' +` +
+      `      '<div><label>Model</label><input data-field=\"model\" data-index=\"'+index+'\" list=\"modelSuggestions'+index+'\" value=\"'+esc(model.model || '')+'\" placeholder=\"'+esc(modelProviderTemplates[model.provider_template || 'openrouter']?.default_model || 'anthropic/claude-sonnet-4')+'\"><datalist id=\"modelSuggestions'+index+'\">'+((modelProviderTemplates[model.provider_template || '']?.model_examples || []).map(item=>'<option value=\"'+esc(item)+'\"></option>').join(''))+'</datalist><div class="muted">例如：'+esc((modelProviderTemplates[model.provider_template || '']?.model_examples || ['anthropic/claude-sonnet-4']).join(' / '))+'</div></div>' +` +
       `      '<div><label>API base URL</label><input data-field=\"api_base_url\" data-index=\"'+index+'\" value=\"'+esc(model.api_base_url || '')+'\" placeholder=\"https://...\"></div>' +` +
       `      '<div><label>API key</label><input data-field=\"api_key\" data-index=\"'+index+'\" value=\"'+esc(model.api_key || '')+'\" placeholder=\"sk-...\"></div>' +` +
       `      '<div><label>Thinking mode</label><select data-field=\"thinking_mode\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"off\"'+(model.thinking?.mode === 'off' ? ' selected' : '')+'>off</option><option value=\"auto\"'+(model.thinking?.mode === 'auto' ? ' selected' : '')+'>auto</option><option value=\"on\"'+(model.thinking?.mode === 'on' ? ' selected' : '')+'>on</option></select></div>' +` +
@@ -729,6 +729,7 @@ export const createServer = (config: any): Server => {
       `  const cards=Array.from(modelsFormGrid.querySelectorAll('[data-model-card]'));` +
       `  return cards.map((card,index)=>{` +
       `    const read=(field)=>card.querySelector('[data-field=\"'+field+'\"][data-index=\"'+index+'\"]');` +
+      `    const providerTemplate=(read('provider_template')?.value || '').trim();` +
       `    const metadataRaw=(read('metadata')?.value || '').trim();` +
       `    let metadata;` +
       `    if(metadataRaw){ metadata=JSON.parse(metadataRaw); }` +
@@ -746,6 +747,7 @@ export const createServer = (config: any): Server => {
       `      protocol:(read('protocol')?.value || '').trim(),` +
       `      model:(read('model')?.value || '').trim(),` +
       `    };` +
+      `    if(providerTemplate){ model.provider_template=providerTemplate; }` +
       `    if(Object.keys(thinking).length){ model.thinking=thinking; }` +
       `    if(metadata !== undefined){ model.metadata=metadata; }` +
       `    return model;` +
@@ -759,8 +761,13 @@ export const createServer = (config: any): Server => {
       `  if(!template){ return; }` +
       `  const protocol=card.querySelector('[data-field=\"protocol\"][data-index=\"'+index+'\"]');` +
       `  const apiBaseUrl=card.querySelector('[data-field=\"api_base_url\"][data-index=\"'+index+'\"]');` +
+      `  const modelInput=card.querySelector('[data-field=\"model\"][data-index=\"'+index+'\"]');` +
       `  if(protocol){ protocol.value=template.protocol; }` +
       `  if(apiBaseUrl && !apiBaseUrl.value.trim()){ apiBaseUrl.value=template.api_base_url; } else if(apiBaseUrl){ apiBaseUrl.value=template.api_base_url; }` +
+      `  if(modelInput){ modelInput.placeholder=template.default_model || modelInput.placeholder; if(!modelInput.value.trim() && template.default_model){ modelInput.value=template.default_model; } }` +
+      `  const nextModels=extractModelsFromForm();` +
+      `  if(nextModels[index]){ nextModels[index]={ ...nextModels[index], provider_template: templateKey }; }` +
+      `  renderModelsForm(nextModels);` +
       `}` +
       `function buildDraftPayloadFromForm(){` +
       `  const payload=JSON.parse(JSON.stringify(currentDraftConfig || {}));` +

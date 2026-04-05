@@ -814,6 +814,13 @@ describe('createServer /api/config', () => {
     expect(html).toContain('applyProviderTemplate');
     expect(html).toContain('OpenRouter');
     expect(html).toContain('Anthropic');
+    expect(html).toContain('default_model');
+    expect(html).toContain('model_examples');
+    expect(html).toContain('modelSuggestions');
+    expect(html).toContain('gpt-5');
+    expect(html).toContain('claude-sonnet-4-5');
+    expect(html).toContain('deepseek-chat');
+    expect(html).toContain('例如：');
     expect(html).toContain('configDraftEditor');
     expect(html).toContain('loadConfigDraftBtn');
     expect(html).toContain('previewConfigDraftBtn');
