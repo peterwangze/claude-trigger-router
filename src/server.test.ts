@@ -1012,6 +1012,12 @@ describe('createServer /api/config', () => {
     expect(html).toContain('extractSmartCandidatesFromForm');
     expect(html).toContain('renderCascadeLevelsList');
     expect(html).toContain('extractCascadeLevelsFromForm');
+    expect(html).toContain('knownModelIds');
+    expect(html).toContain('getModelIdSuggestionsMarkup');
+    expect(html).toContain('triggerModelSuggestions');
+    expect(html).toContain('smartModelSuggestions');
+    expect(html).toContain('cascadeFromSuggestions');
+    expect(html).toContain('cascadeToSuggestions');
     expect(html).toContain('syncDraftEditorFromForm');
     expect(html).toContain('applyReferenceSuggestion');
     expect(html).toContain('addDraftModel');

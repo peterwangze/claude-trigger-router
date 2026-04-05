@@ -892,6 +892,7 @@ export const createServer = (config: any): Server => {
       `const archiveTableBody=document.querySelector('#archiveTable tbody');` +
       `const trendTableBody=document.querySelector('#trendTable tbody');` +
       `let currentDraftConfig={};` +
+      `let knownModelIds=[];` +
       `const modelProviderTemplates={` +
       `  openai:{ label:'OpenAI', protocol:'openai', api_base_url:'https://api.openai.com/v1/chat/completions', default_model:'gpt-5', model_examples:['gpt-5','gpt-5-mini','gpt-4.1'] },` +
       `  anthropic:{ label:'Anthropic', protocol:'anthropic', api_base_url:'https://api.anthropic.com/v1/messages', default_model:'claude-sonnet-4-5', model_examples:['claude-sonnet-4-5','claude-opus-4-1','claude-3-5-haiku-latest'] },` +
@@ -903,6 +904,9 @@ export const createServer = (config: any): Server => {
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
       `function fmt(v){return Number(v || 0).toFixed(2);}` +
       `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
+      `function getModelIdSuggestionsMarkup(idPrefix){` +
+      `  return '<datalist id=\"'+idPrefix+'\">'+knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('')+'</datalist>';` +
+      `}` +
       `function renderModelsForm(models){` +
       `  const list=Array.isArray(models) ? models : [];` +
       `  draftModelsCount.value=String(list.length);` +
@@ -974,7 +978,7 @@ export const createServer = (config: any): Server => {
       `    '<div class="action-row"><strong>Rule #'+(index+1)+'</strong><button type="button" data-remove-trigger-rule=\"'+index+'\">删除</button></div>' +` +
       `    '<div class="list-item-grid">' +` +
       `      '<div><label>Name</label><input data-trigger-field=\"name\" data-index=\"'+index+'\" value=\"'+esc(rule.name || '')+'\"></div>' +` +
-      `      '<div><label>Model</label><input data-trigger-field=\"model\" data-index=\"'+index+'\" value=\"'+esc(rule.model || '')+'\"></div>' +` +
+      `      '<div><label>Model</label><input data-trigger-field=\"model\" data-index=\"'+index+'\" list=\"triggerModelSuggestions'+index+'\" value=\"'+esc(rule.model || '')+'\">'+getModelIdSuggestionsMarkup('triggerModelSuggestions'+index)+'</div>' +` +
       `      '<div><label>Priority</label><input data-trigger-field=\"priority\" data-index=\"'+index+'\" value=\"'+esc(rule.priority ?? 10)+'\"></div>' +` +
       `      '<div><label><input type=\"checkbox\" data-trigger-field=\"enabled\" data-index=\"'+index+'\"'+(rule.enabled === false ? '' : ' checked')+'> Enabled</label></div>' +` +
       `      '<div style=\"grid-column:1/-1\"><label>Keywords (comma separated)</label><input data-trigger-field=\"keywords\" data-index=\"'+index+'\" value=\"'+esc(((rule.patterns && rule.patterns[0] && rule.patterns[0].keywords) || []).join(', '))+'\"></div>' +` +
@@ -993,7 +997,7 @@ export const createServer = (config: any): Server => {
       `  smartCandidatesList.innerHTML=list.map((candidate,index)=>'<div class="list-item" data-smart-candidate=\"'+index+'\">' +` +
       `    '<div class="action-row"><strong>Candidate #'+(index+1)+'</strong><button type="button" data-remove-smart-candidate=\"'+index+'\">删除</button></div>' +` +
       `    '<div class="list-item-grid">' +` +
-      `      '<div><label>Model</label><input data-smart-field=\"model\" data-index=\"'+index+'\" value=\"'+esc(candidate.model || '')+'\"></div>' +` +
+      `      '<div><label>Model</label><input data-smart-field=\"model\" data-index=\"'+index+'\" list=\"smartModelSuggestions'+index+'\" value=\"'+esc(candidate.model || '')+'\">'+getModelIdSuggestionsMarkup('smartModelSuggestions'+index)+'</div>' +` +
       `      '<div style=\"grid-column:1/-1\"><label>Description</label><input data-smart-field=\"description\" data-index=\"'+index+'\" value=\"'+esc(candidate.description || '')+'\"></div>' +` +
       `    '</div>' +` +
       `  '</div>').join('');` +
@@ -1010,8 +1014,8 @@ export const createServer = (config: any): Server => {
       `  governanceCascadeLevelsList.innerHTML=list.map((level,index)=>'<div class="list-item" data-cascade-level=\"'+index+'\">' +` +
       `    '<div class="action-row"><strong>Level #'+(index+1)+'</strong><button type="button" data-remove-cascade-level=\"'+index+'\">删除</button></div>' +` +
       `    '<div class="list-item-grid">' +` +
-      `      '<div><label>From</label><input data-cascade-field=\"from\" data-index=\"'+index+'\" value=\"'+esc(level.from || '')+'\"></div>' +` +
-      `      '<div><label>To</label><input data-cascade-field=\"to\" data-index=\"'+index+'\" value=\"'+esc(level.to || '')+'\"></div>' +` +
+      `      '<div><label>From</label><input data-cascade-field=\"from\" data-index=\"'+index+'\" list=\"cascadeFromSuggestions'+index+'\" value=\"'+esc(level.from || '')+'\">'+getModelIdSuggestionsMarkup('cascadeFromSuggestions'+index)+'</div>' +` +
+      `      '<div><label>To</label><input data-cascade-field=\"to\" data-index=\"'+index+'\" list=\"cascadeToSuggestions'+index+'\" value=\"'+esc(level.to || '')+'\">'+getModelIdSuggestionsMarkup('cascadeToSuggestions'+index)+'</div>' +` +
       `      '<div style=\"grid-column:1/-1\"><label>Reason</label><input data-cascade-field=\"reason\" data-index=\"'+index+'\" value=\"'+esc(level.reason || '')+'\"></div>' +` +
       `    '</div>' +` +
       `  '</div>').join('');` +
@@ -1136,6 +1140,7 @@ export const createServer = (config: any): Server => {
       `function renderCompiledModels(data){` +
       `  const providers=Array.isArray(data.providers) ? data.providers : [];` +
       `  const modelMapEntries=Object.entries(data.modelMap || {});` +
+      `  knownModelIds=modelMapEntries.map(([modelId])=>modelId).sort();` +
       `  compiledModelsStatus.textContent='已加载 '+providers.length+' 个 compiled provider / '+modelMapEntries.length+' 个 modelId 映射';` +
       `  compiledProvidersTableBody.innerHTML=providers.length ? providers.map(provider=>'<tr>' +` +
       `    '<td><code>'+esc(provider.name)+'</code><div class="muted">'+esc(provider.api_base_url || '-')+'</div></td>' +` +
@@ -1153,6 +1158,7 @@ export const createServer = (config: any): Server => {
       `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No compiled model map</td></tr>';` +
       `  if(data.diff){ renderCompiledDiff(data.diff); }` +
       `  if(data.referenceImpact){ renderReferenceImpact(data.referenceImpact); }` +
+      `  renderConfigControlForms(currentDraftConfig);` +
       `}` +
       `async function loadConfigDraft(){` +
       `  draftPreviewStatus.textContent='加载当前配置中...';` +
