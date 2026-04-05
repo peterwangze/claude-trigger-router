@@ -649,7 +649,7 @@ export const createServer = (config: any): Server => {
       `<div><label><input id="triggerEnabled" type="checkbox"> Enabled</label></div>` +
       `<div><label><input id="triggerIntentEnabled" type="checkbox"> Intent recognition</label></div>` +
       `<div><label>Analysis scope</label><select id="triggerAnalysisScope"><option value="last_message">last_message</option><option value="full_context">full_context</option></select></div>` +
-      `<div><label>Intent model</label><input id="triggerIntentModel" placeholder="modelId"></div>` +
+      `<div><label>Intent model</label><input id="triggerIntentModel" list="topLevelTriggerIntentSuggestions" placeholder="modelId"><datalist id="topLevelTriggerIntentSuggestions"></datalist></div>` +
       `</div>` +
       `<div style="margin-top:.75rem"><div class="action-row"><label>Rules</label><button id="addTriggerRuleBtn" type="button">新增 Rule</button></div><div id="triggerRulesList" class="list-editor"><div class="panel" style="margin-bottom:0"><span class="muted">No trigger rules yet</span></div></div></div>` +
       `</div>` +
@@ -657,7 +657,7 @@ export const createServer = (config: any): Server => {
       `<div class="row"><strong>SmartRouter</strong><span class="muted">智能候选选择</span></div>` +
       `<div class="control-grid">` +
       `<div><label><input id="smartEnabled" type="checkbox"> Enabled</label></div>` +
-      `<div><label>Router model</label><input id="smartRouterModel" placeholder="modelId"></div>` +
+      `<div><label>Router model</label><input id="smartRouterModel" list="topLevelSmartRouterSuggestions" placeholder="modelId"><datalist id="topLevelSmartRouterSuggestions"></datalist></div>` +
       `<div><label>Fallback</label><select id="smartFallback"><option value="default">default</option><option value="skip">skip</option></select></div>` +
       `<div><label>Cache TTL</label><input id="smartCacheTtl" placeholder="600000"></div>` +
       `<div><label>Max tokens</label><input id="smartMaxTokens" placeholder="256"></div>` +
@@ -669,11 +669,11 @@ export const createServer = (config: any): Server => {
       `<div class="control-grid">` +
       `<div><label><input id="governanceEnabled" type="checkbox"> Enabled</label></div>` +
       `<div><label><input id="governanceAlignmentEnabled" type="checkbox"> Alignment</label></div>` +
-      `<div><label>Summarizer model</label><input id="governanceSummarizerModel" placeholder="modelId"></div>` +
+      `<div><label>Summarizer model</label><input id="governanceSummarizerModel" list="topLevelGovernanceSummarizerSuggestions" placeholder="modelId"><datalist id="topLevelGovernanceSummarizerSuggestions"></datalist></div>` +
       `<div><label><input id="governanceSemanticEnabled" type="checkbox"> Semantic</label></div>` +
-      `<div><label>Classifier model</label><input id="governanceClassifierModel" placeholder="modelId"></div>` +
+      `<div><label>Classifier model</label><input id="governanceClassifierModel" list="topLevelGovernanceClassifierSuggestions" placeholder="modelId"><datalist id="topLevelGovernanceClassifierSuggestions"></datalist></div>` +
       `<div><label><input id="governanceShadowEnabled" type="checkbox"> Shadow</label></div>` +
-      `<div><label>Verifier model</label><input id="governanceVerifierModel" placeholder="modelId"></div>` +
+      `<div><label>Verifier model</label><input id="governanceVerifierModel" list="topLevelGovernanceVerifierSuggestions" placeholder="modelId"><datalist id="topLevelGovernanceVerifierSuggestions"></datalist></div>` +
       `</div>` +
       `<div style="margin-top:.75rem"><div class="action-row"><label>Cascade levels</label><button id="addCascadeLevelBtn" type="button">新增 Level</button></div><div id="governanceCascadeLevelsList" class="list-editor"><div class="panel" style="margin-bottom:0"><span class="muted">No cascade levels yet</span></div></div></div>` +
       `</div>` +
@@ -870,6 +870,11 @@ export const createServer = (config: any): Server => {
       `const governanceShadowEnabled=document.getElementById('governanceShadowEnabled');` +
       `const governanceVerifierModel=document.getElementById('governanceVerifierModel');` +
       `const governanceCascadeLevelsList=document.getElementById('governanceCascadeLevelsList');` +
+      `const topLevelTriggerIntentSuggestions=document.getElementById('topLevelTriggerIntentSuggestions');` +
+      `const topLevelSmartRouterSuggestions=document.getElementById('topLevelSmartRouterSuggestions');` +
+      `const topLevelGovernanceSummarizerSuggestions=document.getElementById('topLevelGovernanceSummarizerSuggestions');` +
+      `const topLevelGovernanceClassifierSuggestions=document.getElementById('topLevelGovernanceClassifierSuggestions');` +
+      `const topLevelGovernanceVerifierSuggestions=document.getElementById('topLevelGovernanceVerifierSuggestions');` +
       `const compiledModelsStatus=document.getElementById('compiledModelsStatus');` +
       `const compiledDiffSummary=document.getElementById('compiledDiffSummary');` +
       `const compiledDiffTableBody=document.querySelector('#compiledDiffTable tbody');` +
@@ -906,6 +911,10 @@ export const createServer = (config: any): Server => {
       `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
       `function getModelIdSuggestionsMarkup(idPrefix){` +
       `  return '<datalist id=\"'+idPrefix+'\">'+knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('')+'</datalist>';` +
+      `}` +
+      `function updateTopLevelModelSuggestionLists(){` +
+      `  const markup=knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('');` +
+      `  [topLevelTriggerIntentSuggestions,topLevelSmartRouterSuggestions,topLevelGovernanceSummarizerSuggestions,topLevelGovernanceClassifierSuggestions,topLevelGovernanceVerifierSuggestions].forEach(node=>{ if(node){ node.innerHTML=markup; } });` +
       `}` +
       `function renderModelsForm(models){` +
       `  const list=Array.isArray(models) ? models : [];` +
@@ -1161,6 +1170,7 @@ export const createServer = (config: any): Server => {
       `  const providers=Array.isArray(data.providers) ? data.providers : [];` +
       `  const modelMapEntries=Object.entries(data.modelMap || {});` +
       `  knownModelIds=modelMapEntries.map(([modelId])=>modelId).sort();` +
+      `  updateTopLevelModelSuggestionLists();` +
       `  compiledModelsStatus.textContent='已加载 '+providers.length+' 个 compiled provider / '+modelMapEntries.length+' 个 modelId 映射';` +
       `  compiledProvidersTableBody.innerHTML=providers.length ? providers.map(provider=>'<tr>' +` +
       `    '<td><code>'+esc(provider.name)+'</code><div class="muted">'+esc(provider.api_base_url || '-')+'</div></td>' +` +

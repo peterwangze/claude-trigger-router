@@ -955,6 +955,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Governance');
     expect(html).toContain('triggerEnabled');
     expect(html).toContain('triggerIntentModel');
+    expect(html).toContain('topLevelTriggerIntentSuggestions');
     expect(html).toContain('triggerRulesList');
     expect(html).toContain('addTriggerRuleBtn');
     expect(html).toContain('data-add-trigger-pattern');
@@ -963,12 +964,16 @@ describe('createServer /api/config', () => {
     expect(html).toContain('data-trigger-pattern-field');
     expect(html).toContain('smartEnabled');
     expect(html).toContain('smartRouterModel');
+    expect(html).toContain('topLevelSmartRouterSuggestions');
     expect(html).toContain('smartCandidatesList');
     expect(html).toContain('addSmartCandidateBtn');
     expect(html).toContain('governanceEnabled');
     expect(html).toContain('governanceSummarizerModel');
+    expect(html).toContain('topLevelGovernanceSummarizerSuggestions');
     expect(html).toContain('governanceClassifierModel');
+    expect(html).toContain('topLevelGovernanceClassifierSuggestions');
     expect(html).toContain('governanceVerifierModel');
+    expect(html).toContain('topLevelGovernanceVerifierSuggestions');
     expect(html).toContain('governanceCascadeLevelsList');
     expect(html).toContain('addCascadeLevelBtn');
     expect(html).toContain('Preview Diff');
@@ -1019,6 +1024,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('extractCascadeLevelsFromForm');
     expect(html).toContain('knownModelIds');
     expect(html).toContain('getModelIdSuggestionsMarkup');
+    expect(html).toContain('updateTopLevelModelSuggestionLists');
     expect(html).toContain('triggerModelSuggestions');
     expect(html).toContain('smartModelSuggestions');
     expect(html).toContain('cascadeFromSuggestions');
