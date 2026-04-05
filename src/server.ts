@@ -14,6 +14,7 @@ import {
   exportGovernanceMetricsReport,
   governanceMetricsExportStore,
 } from "./governance";
+import { buildModelRegistry } from "./models/compile";
 
 /**
  * 创建服务器
@@ -61,6 +62,20 @@ export const createServer = (config: any): Server => {
   // 读取配置 API
   server.app.get("/api/config", async (req: any, reply: any) => {
     return await readConfigFile();
+  });
+
+  server.app.get("/api/models/compiled", async () => {
+    const registry = buildModelRegistry(config.initialConfig ?? {});
+    return {
+      providers: registry.providers.map((provider) => ({
+        name: provider.name,
+        api_base_url: provider.api_base_url,
+        models: provider.models,
+        transformer: provider.transformer,
+        has_api_key: Boolean(provider.api_key),
+      })),
+      modelMap: registry.modelMap,
+    };
   });
 
   server.app.get("/api/health", async () => {
@@ -378,7 +393,7 @@ export const createServer = (config: any): Server => {
       `<input id="limit" placeholder="limit" value="20">` +
       `<button id="refreshBtn">刷新</button>` +
       `</div>` +
-      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
+      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
       `<div id="metricsGrid" class="stats">` +
       `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
       `<div class="stat"><span class="muted">Sticky hit rate</span><strong>-</strong></div>` +
@@ -476,6 +491,7 @@ export const createServer = (config: any): Server => {
       `<p>其他管理 API：</p>` +
       `<ul>` +
       `<li><code>GET /api/config</code> — 读取当前配置</li>` +
+      `<li><code>GET /api/models/compiled</code> — 查看 Models 编译后的内部 provider / model 映射</li>` +
       `<li><code>POST /api/config</code> — 保存配置</li>` +
       `<li><code>GET /api/transformers</code> — 查看已加载 transformer</li>` +
       `<li><code>POST /api/restart</code> — 重启服务</li>` +

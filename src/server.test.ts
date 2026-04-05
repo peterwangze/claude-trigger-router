@@ -143,6 +143,49 @@ describe('createServer /api/config', () => {
     });
   });
 
+  it('exposes compiled Models registry debug endpoint', async () => {
+    const server = createServer({
+      initialConfig: {
+        Providers: [],
+        Models: [
+          {
+            id: 'sonnet',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-test',
+            protocol: 'openai',
+            model: 'anthropic/claude-sonnet-4',
+            thinking: {
+              mode: 'auto',
+            },
+          },
+        ],
+      },
+    });
+    const handler = server.app.routes.get('GET /api/models/compiled');
+
+    const result = await handler({}, {});
+
+    expect(result.providers).toEqual([
+      {
+        name: 'model__sonnet',
+        api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+        models: ['anthropic/claude-sonnet-4'],
+        transformer: { use: ['openrouter'] },
+        has_api_key: true,
+      },
+    ]);
+    expect(result.modelMap.sonnet).toEqual({
+      id: 'sonnet',
+      providerName: 'model__sonnet',
+      modelName: 'anthropic/claude-sonnet-4',
+      protocol: 'openai',
+      thinking: {
+        mode: 'auto',
+      },
+      source: 'models',
+    });
+  });
+
   it('exposes governance archive list, detail, and delete endpoints', async () => {
     const originalListArchives = governanceTraceStore.listArchives.bind(governanceTraceStore);
     const originalGetArchivedTraces = governanceTraceStore.getArchivedTraces.bind(governanceTraceStore);
@@ -627,6 +670,7 @@ describe('createServer /api/config', () => {
 
     expect(reply.header).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
     expect(html).toContain('Governance Trace');
+    expect(html).toContain('/api/models/compiled');
     expect(html).toContain('/api/governance/traces');
     expect(html).toContain('/api/governance/archives');
     expect(html).toContain('/api/governance/metrics');
