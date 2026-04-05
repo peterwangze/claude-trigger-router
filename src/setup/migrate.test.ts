@@ -18,16 +18,18 @@ describe('migrateLegacyConfig', () => {
 
     expect(result).toEqual({
       draft: {
-        Providers: [
+        Providers: [],
+        Models: [
           {
-            name: 'openrouter',
+            id: 'openrouter_anthropic_claude_sonnet_4',
             api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
             api_key: 'sk-test',
-            models: ['anthropic/claude-sonnet-4'],
+            protocol: 'openai',
+            model: 'anthropic/claude-sonnet-4',
           },
         ],
         Router: {
-          default: 'openrouter,anthropic/claude-sonnet-4',
+          default: 'openrouter_anthropic_claude_sonnet_4',
         },
       },
       skippedFields: [],
@@ -66,7 +68,7 @@ describe('migrateLegacyConfig', () => {
       default: 'openrouter,anthropic/claude-sonnet-4',
     });
 
-    expect(result.draft.Providers[0]?.api_key).toBe('');
+    expect(result.draft.Models?.[0]?.api_key).toBe('');
     expect(result.needsCompletion).toBe(true);
     expect(result.missingFields).toEqual(['apiKey']);
   });
@@ -97,6 +99,7 @@ describe('migrateLegacyConfig', () => {
     expect(result).toEqual({
       draft: {
         Providers: [],
+        Models: [],
         Router: {},
       },
       skippedFields: [],
@@ -114,6 +117,7 @@ describe('migrateLegacyConfig', () => {
     expect(result).toEqual({
       draft: {
         Providers: [],
+        Models: [],
         Router: {},
       },
       skippedFields: [],

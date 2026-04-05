@@ -65,16 +65,17 @@ describe('runSetupCli', () => {
         path: '/tmp/config.yaml',
         format: 'yaml',
         config: {
-          Providers: [
+          Models: [
             {
-              name: 'openrouter',
+              id: 'openrouter_anthropic_claude_sonnet_4',
               api_key: 'sk-test',
               api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
-              models: ['anthropic/claude-sonnet-4'],
+              protocol: 'openai',
+              model: 'anthropic/claude-sonnet-4',
             },
           ],
           Router: {
-            default: 'openrouter,anthropic/claude-sonnet-4',
+            default: 'openrouter_anthropic_claude_sonnet_4',
           },
         },
       }),

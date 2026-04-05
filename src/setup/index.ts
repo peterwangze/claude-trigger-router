@@ -170,6 +170,18 @@ function mapConfigErrorsToRepairFields(errors: string[]) {
 }
 
 function toDraftFromConfig(config: any): ISetupConfigDraft {
+  const derivedModels = !Array.isArray(config?.Models) && Array.isArray(config?.Providers)
+    ? config.Providers.flatMap((provider: any) =>
+        (Array.isArray(provider.models) ? provider.models : []).map((model: string) => ({
+          id: `${provider.name}_${String(model).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}`,
+          api_key: provider.api_key ?? '',
+          api_base_url: provider.api_base_url,
+          protocol: provider.api_base_url?.includes('/v1/messages') ? 'anthropic' : 'openai',
+          model,
+        }))
+      )
+    : [];
+
   return {
     Providers: Array.isArray(config?.Providers)
       ? config.Providers.map((provider: any) => ({
@@ -189,9 +201,16 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
           model: model.model ?? '',
           thinking: model.thinking ? { ...model.thinking } : undefined,
         }))
-      : [],
+      : derivedModels,
     Router: {
-      default: config?.Router?.default,
+      default: Array.isArray(config?.Models)
+        ? config?.Router?.default
+        : Array.isArray(config?.Providers) && typeof config?.Router?.default === 'string' && config.Router.default.includes(',')
+          ? derivedModels.find((item) => {
+              const [providerName, modelName] = config.Router.default.split(',');
+              return item.id.startsWith(`${providerName}_`) && item.model === modelName;
+            })?.id
+          : config?.Router?.default,
     },
   };
 }
