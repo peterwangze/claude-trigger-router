@@ -950,6 +950,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/models/compiled/preview');
     expect(html).toContain('Draft Config Preview');
     expect(html).toContain('draftSummaryGrid');
+    expect(html).toContain('draftPresetList');
+    expect(html).toContain('Preset guide');
     expect(html).toContain('Validation Summary');
     expect(html).toContain('draftValidationList');
     expect(html).toContain('No validation issues');
@@ -964,6 +966,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('applyBalancedPresetBtn');
     expect(html).toContain('applyFastPresetBtn');
     expect(html).toContain('applyGovernancePresetBtn');
+    expect(html).toContain('平衡预设');
+    expect(html).toContain('快速预设');
+    expect(html).toContain('治理预设');
     expect(html).toContain('Routing Controls');
     expect(html).toContain('TriggerRouter');
     expect(html).toContain('SmartRouter');
@@ -1040,6 +1045,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain("text.startsWith('TriggerRouter')");
     expect(html).toContain('draftPresets');
     expect(html).toContain('applyDraftPreset');
+    expect(html).toContain('renderDraftPresetGuide');
     expect(html).toContain('resolvePresetModelId');
     expect(html).toContain('extractModelsFromForm');
     expect(html).toContain('buildDraftPayloadFromForm');

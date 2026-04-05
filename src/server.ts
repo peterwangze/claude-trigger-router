@@ -639,6 +639,9 @@ export const createServer = (config: any): Server => {
       `<button id="previewConfigDraftBtn" type="button">预览 compiled models</button>` +
       `<span id="draftPreviewStatus" class="muted">尚未预览配置草稿</span>` +
       `</div>` +
+      `<div id="draftPresetList" class="alert-list">` +
+      `<div class="alert info"><strong>Preset guide</strong><div class="muted">选择预设前可先查看其会覆盖的区域与推荐用途</div></div>` +
+      `</div>` +
       `<div id="draftSummaryGrid" class="stats">` +
       `<div class="stat"><span class="muted">Models</span><strong>0</strong></div>` +
       `<div class="stat"><span class="muted">Trigger rules</span><strong>0</strong></div>` +
@@ -864,6 +867,7 @@ export const createServer = (config: any): Server => {
       `const detail=document.getElementById('traceDetail');` +
       `const detailHint=document.getElementById('detailHint');` +
       `const draftPreviewStatus=document.getElementById('draftPreviewStatus');` +
+      `const draftPresetList=document.getElementById('draftPresetList');` +
       `const draftValidationList=document.getElementById('draftValidationList');` +
       `const configDraftEditor=document.getElementById('configDraftEditor');` +
       `const draftSummaryGrid=document.getElementById('draftSummaryGrid');` +
@@ -918,9 +922,9 @@ export const createServer = (config: any): Server => {
       `let currentDraftConfig={};` +
       `let knownModelIds=[];` +
       `const draftPresets={` +
-      `  balanced:{ routerDefault:'sonnet', smartEnabled:true, smartCandidates:[{ model:'sonnet', description:'balanced default' },{ model:'haiku', description:'fast lightweight' }] },` +
-      `  fast:{ routerDefault:'haiku', triggerEnabled:true, triggerRules:[{ name:'quick-response', enabled:true, priority:20, model:'haiku', patterns:[{ type:'exact', keywords:['快速处理','快速回答'] }] }] },` +
-      `  governance:{ governanceEnabled:true, governanceAlignmentEnabled:true, governanceSemanticEnabled:true, governanceShadowEnabled:true, governanceSummarizerModel:'sonnet', governanceClassifierModel:'sonnet', governanceVerifierModel:'haiku' }` +
+      `  balanced:{ label:'平衡预设', description:'启用 SmartRouter，并填充平衡/快速候选模型组合。', affects:['Router.default','SmartRouter.enabled','SmartRouter.candidates'], routerDefault:'sonnet', smartEnabled:true, smartCandidates:[{ model:'sonnet', description:'balanced default' },{ model:'haiku', description:'fast lightweight' }] },` +
+      `  fast:{ label:'快速预设', description:'默认走轻量模型，并添加一条快速响应 TriggerRule。', affects:['Router.default','TriggerRouter.enabled','TriggerRouter.rules'], routerDefault:'haiku', triggerEnabled:true, triggerRules:[{ name:'quick-response', enabled:true, priority:20, model:'haiku', patterns:[{ type:'exact', keywords:['快速处理','快速回答'] }] }] },` +
+      `  governance:{ label:'治理预设', description:'打开治理核心能力，并填入 summarizer/classifier/verifier 示例模型。', affects:['Governance.enabled','Governance.sticky.alignment','Governance.semantic','Governance.shadow'], governanceEnabled:true, governanceAlignmentEnabled:true, governanceSemanticEnabled:true, governanceShadowEnabled:true, governanceSummarizerModel:'sonnet', governanceClassifierModel:'sonnet', governanceVerifierModel:'haiku' }` +
       `};` +
       `const modelProviderTemplates={` +
       `  openai:{ label:'OpenAI', protocol:'openai', api_base_url:'https://api.openai.com/v1/chat/completions', default_model:'gpt-5', model_examples:['gpt-5','gpt-5-mini','gpt-4.1'] },` +
@@ -983,6 +987,9 @@ export const createServer = (config: any): Server => {
       `    return acc;` +
       `  }, {});` +
       `  draftValidationList.innerHTML=Object.entries(grouped).map(([bucket,items])=>'<div class="alert warn"><strong>'+esc(bucket)+'</strong><div>'+items.slice(0,4).map(item=>'<div>'+esc(item)+'</div>').join('')+'</div></div>').join('');` +
+      `}` +
+      `function renderDraftPresetGuide(){` +
+      `  draftPresetList.innerHTML=Object.entries(draftPresets).map(([key,preset])=>'<div class="alert info"><strong>'+esc(preset.label || key)+'</strong><div>'+esc(preset.description || '')+'</div><div class="muted">影响范围：'+esc((preset.affects || []).join(' / '))+'</div></div>').join('');` +
       `}` +
       `function updateTopLevelModelSuggestionLists(){` +
       `  const markup=knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('');` +
@@ -1532,6 +1539,7 @@ export const createServer = (config: any): Server => {
       `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +
       `document.getElementById('saveThresholdsBtn').addEventListener('click',saveThresholds);` +
       `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
+      `renderDraftPresetGuide();` +
       `loadConfigDraft();` +
       `loadCompiledModels();` +
       `loadExports();` +
