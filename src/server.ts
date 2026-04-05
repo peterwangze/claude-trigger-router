@@ -29,6 +29,12 @@ type CompiledRegistryView = {
   modelMap: Record<string, any>;
 };
 
+type ModelReferenceEntry = {
+  path: string;
+  value: string;
+  referenceType: "modelId" | "legacy";
+};
+
 function toCompiledRegistryView(config: any): CompiledRegistryView {
   const registry = buildModelRegistry(config ?? {});
   return {
@@ -40,6 +46,70 @@ function toCompiledRegistryView(config: any): CompiledRegistryView {
       has_api_key: Boolean(provider.api_key),
     })),
     modelMap: registry.modelMap,
+  };
+}
+
+function collectModelReferences(config: any): ModelReferenceEntry[] {
+  const refs: ModelReferenceEntry[] = [];
+  const pushRef = (path: string, value: any) => {
+    if (typeof value !== "string" || !value.trim()) {
+      return;
+    }
+    refs.push({
+      path,
+      value,
+      referenceType: value.includes(",") ? "legacy" : "modelId",
+    });
+  };
+
+  pushRef("Router.default", config?.Router?.default);
+  pushRef("TriggerRouter.intent_model", config?.TriggerRouter?.intent_model);
+  config?.TriggerRouter?.rules?.forEach((rule: any, index: number) => {
+    pushRef(`TriggerRouter.rules[${index}].model`, rule?.model);
+  });
+  pushRef("SmartRouter.router_model", config?.SmartRouter?.router_model);
+  config?.SmartRouter?.candidates?.forEach((candidate: any, index: number) => {
+    pushRef(`SmartRouter.candidates[${index}].model`, candidate?.model);
+  });
+  pushRef("Governance.sticky.alignment.summarizer_model", config?.Governance?.sticky?.alignment?.summarizer_model);
+  config?.Governance?.cascade?.levels?.forEach((level: any, index: number) => {
+    pushRef(`Governance.cascade.levels[${index}].from`, level?.from);
+    pushRef(`Governance.cascade.levels[${index}].to`, level?.to);
+  });
+  pushRef("Governance.semantic.classifier_model", config?.Governance?.semantic?.classifier_model);
+  pushRef("Governance.shadow.verifier_model", config?.Governance?.shadow?.verifier_model);
+
+  return refs;
+}
+
+function analyzeModelReferenceImpact(config: any, nextCompiled: CompiledRegistryView) {
+  const references = collectModelReferences(config);
+  const entries = references.map((ref) => {
+    const resolved = ref.referenceType === "modelId" ? nextCompiled.modelMap?.[ref.value] : null;
+    return {
+      ...ref,
+      status: ref.referenceType === "modelId"
+        ? (resolved ? "valid" : "missing")
+        : "legacy",
+      resolvedTarget: resolved
+        ? {
+            providerName: resolved.providerName,
+            modelName: resolved.modelName,
+            protocol: resolved.protocol,
+          }
+        : null,
+    };
+  });
+
+  return {
+    entries,
+    summary: {
+      total: entries.length,
+      modelIdRefs: entries.filter((entry) => entry.referenceType === "modelId").length,
+      legacyRefs: entries.filter((entry) => entry.referenceType === "legacy").length,
+      validModelIds: entries.filter((entry) => entry.referenceType === "modelId" && entry.status === "valid").length,
+      missingModelIds: entries.filter((entry) => entry.referenceType === "modelId" && entry.status === "missing").length,
+    },
   };
 }
 
@@ -158,13 +228,22 @@ export const createServer = (config: any): Server => {
   });
 
   server.app.post("/api/models/compiled/preview", async (req: any, reply: any) => {
-    const result = normalizeAndValidateConfig(req.body ?? {});
+    const rawConfig = req.body ?? {};
+    let rawCompiled: CompiledRegistryView | null = null;
+    try {
+      rawCompiled = toCompiledRegistryView(rawConfig);
+    } catch (_error) {
+      rawCompiled = null;
+    }
+
+    const result = normalizeAndValidateConfig(rawConfig);
     if (result.errors.length > 0) {
       reply.code(400);
       return {
         success: false,
         message: "Invalid configuration preview",
         errors: result.errors,
+        referenceImpact: rawCompiled ? analyzeModelReferenceImpact(rawConfig, rawCompiled) : undefined,
       };
     }
 
@@ -176,6 +255,7 @@ export const createServer = (config: any): Server => {
       modelMap: previewCompiled.modelMap,
       normalizedConfig: result.config,
       diff: diffCompiledRegistry(currentCompiled, previewCompiled),
+      referenceImpact: analyzeModelReferenceImpact(result.config, previewCompiled),
     };
   });
 
@@ -535,6 +615,20 @@ export const createServer = (config: any): Server => {
       `<tbody><tr><td colspan="5" class="muted">Preview a draft to inspect compiled registry changes</td></tr></tbody>` +
       `</table>` +
       `</div>` +
+      `<div class="subpanel">` +
+      `<div class="row"><strong>Reference Impact</strong><span class="muted">分析 Router / TriggerRouter / Governance 等 modelId 引用是否仍然有效</span></div>` +
+      `<div id="referenceImpactSummary" class="diff-summary">` +
+      `<div class="diff-chip"><span class="muted">Total refs</span><strong>0</strong></div>` +
+      `<div class="diff-chip"><span class="muted">modelId refs</span><strong>0</strong></div>` +
+      `<div class="diff-chip"><span class="muted">Legacy refs</span><strong>0</strong></div>` +
+      `<div class="diff-chip"><span class="muted">Valid modelIds</span><strong>0</strong></div>` +
+      `<div class="diff-chip"><span class="muted">Missing modelIds</span><strong>0</strong></div>` +
+      `</div>` +
+      `<table id="referenceImpactTable" class="management-table">` +
+      `<thead><tr><th>Path</th><th>Ref</th><th>Type</th><th>Status</th><th>Resolved target</th></tr></thead>` +
+      `<tbody><tr><td colspan="5" class="muted">Preview a draft to inspect model reference impact</td></tr></tbody>` +
+      `</table>` +
+      `</div>` +
       `</div>` +
       `<div class="subpanel">` +
       `<div class="row"><strong>Compiled Models</strong><span class="muted">查看 Models 编译后的 provider 与路由映射</span></div>` +
@@ -677,6 +771,8 @@ export const createServer = (config: any): Server => {
       `const compiledModelsStatus=document.getElementById('compiledModelsStatus');` +
       `const compiledDiffSummary=document.getElementById('compiledDiffSummary');` +
       `const compiledDiffTableBody=document.querySelector('#compiledDiffTable tbody');` +
+      `const referenceImpactSummary=document.getElementById('referenceImpactSummary');` +
+      `const referenceImpactTableBody=document.querySelector('#referenceImpactTable tbody');` +
       `const compiledProvidersTableBody=document.querySelector('#compiledProvidersTable tbody');` +
       `const compiledModelMapTableBody=document.querySelector('#compiledModelMapTable tbody');` +
       `const metricsGrid=document.getElementById('metricsGrid');` +
@@ -808,6 +904,24 @@ export const createServer = (config: any): Server => {
       `    '<td><code>'+esc(item.target.providerName || item.target.name || '-')+'</code><div class="muted">'+esc(item.target.modelName || (item.target.models || []).join(', ') || '-')}</div></td>' +` +
       `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No compiled registry changes</td></tr>';` +
       `}` +
+      `function renderReferenceImpact(impact){` +
+      `  const summary=impact?.summary || {};` +
+      `  referenceImpactSummary.innerHTML=[` +
+      "    ['Total refs', summary.total ?? 0]," +
+      "    ['modelId refs', summary.modelIdRefs ?? 0]," +
+      "    ['Legacy refs', summary.legacyRefs ?? 0]," +
+      "    ['Valid modelIds', summary.validModelIds ?? 0]," +
+      "    ['Missing modelIds', summary.missingModelIds ?? 0]" +
+      `  ].map(([label,value])=>'<div class=\"diff-chip\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
+      `  const entries=impact?.entries || [];` +
+      `  referenceImpactTableBody.innerHTML=entries.length ? entries.map(item=>'<tr>' +` +
+      `    '<td><code>'+esc(item.path)+'</code></td>' +` +
+      `    '<td><code>'+esc(item.value)+'</code></td>' +` +
+      `    '<td>'+esc(item.referenceType)+'</td>' +` +
+      `    '<td>'+esc(item.status)+'</td>' +` +
+      `    '<td><code>'+esc(item.resolvedTarget?.providerName || '-')+'</code><div class="muted">'+esc(item.resolvedTarget?.modelName || '-')}</div></td>' +` +
+      `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No model references found</td></tr>';` +
+      `}` +
       `function renderCompiledModels(data){` +
       `  const providers=Array.isArray(data.providers) ? data.providers : [];` +
       `  const modelMapEntries=Object.entries(data.modelMap || {});` +
@@ -827,6 +941,7 @@ export const createServer = (config: any): Server => {
       `    '<td>'+esc(item.source || '-')+'</td>' +` +
       `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No compiled model map</td></tr>';` +
       `  if(data.diff){ renderCompiledDiff(data.diff); }` +
+      `  if(data.referenceImpact){ renderReferenceImpact(data.referenceImpact); }` +
       `}` +
       `async function loadConfigDraft(){` +
       `  draftPreviewStatus.textContent='加载当前配置中...';` +
@@ -857,6 +972,7 @@ export const createServer = (config: any): Server => {
       `  if(!res.ok){` +
       `    draftPreviewStatus.textContent='预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error');` +
       `    renderCompiledDiff();` +
+      `    renderReferenceImpact(data.referenceImpact);` +
       `    return;` +
       `  }` +
       `  renderCompiledModels(data);` +
@@ -931,6 +1047,7 @@ export const createServer = (config: any): Server => {
       `  const data=await res.json();` +
       `  renderCompiledModels(data);` +
       `  renderCompiledDiff();` +
+      `  renderReferenceImpact();` +
       `}` +
       `async function loadTraces(){` +
       `  const requestId=document.getElementById('requestId').value.trim();` +

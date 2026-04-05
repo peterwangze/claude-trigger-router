@@ -282,6 +282,25 @@ describe('createServer /api/config', () => {
         }),
       ])
     );
+    expect(result.referenceImpact.summary).toEqual({
+      total: 1,
+      modelIdRefs: 1,
+      legacyRefs: 0,
+      validModelIds: 1,
+      missingModelIds: 0,
+    });
+    expect(result.referenceImpact.entries).toEqual([
+      expect.objectContaining({
+        path: 'Router.default',
+        value: 'haiku',
+        referenceType: 'modelId',
+        status: 'valid',
+        resolvedTarget: expect.objectContaining({
+          providerName: 'model__haiku',
+          modelName: 'anthropic/claude-3.5-haiku',
+        }),
+      }),
+    ]);
     expect(mockWriteConfigFile).not.toHaveBeenCalled();
     expect(mockBackupConfigFile).not.toHaveBeenCalled();
   });
@@ -311,6 +330,65 @@ describe('createServer /api/config', () => {
     expect(result.message).toBe('Invalid configuration preview');
     expect(result.errors).toContain('Models[0].model is required');
     expect(mockWriteConfigFile).not.toHaveBeenCalled();
+  });
+
+  it('reports missing modelId references in preview impact analysis when draft is invalid', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/models/compiled/preview');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      body: {
+        Models: [
+          {
+            id: 'haiku',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-preview',
+            protocol: 'openai',
+            model: 'anthropic/claude-3.5-haiku',
+          },
+        ],
+        Router: {
+          default: 'missing-model-id',
+        },
+        Governance: {
+          enabled: true,
+          sticky: {
+            enabled: true,
+            alignment: {
+              enabled: true,
+              summarizer_model: 'missing-model-id',
+            },
+          },
+        },
+      },
+    }, reply);
+
+    expect(reply.code).toHaveBeenCalledWith(400);
+    expect(result.success).toBe(false);
+    expect(result.referenceImpact.summary).toEqual({
+      total: 2,
+      modelIdRefs: 2,
+      legacyRefs: 0,
+      validModelIds: 0,
+      missingModelIds: 2,
+    });
+    expect(result.referenceImpact.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'Router.default',
+          value: 'missing-model-id',
+          status: 'missing',
+        }),
+        expect.objectContaining({
+          path: 'Governance.sticky.alignment.summarizer_model',
+          value: 'missing-model-id',
+          status: 'missing',
+        }),
+      ])
+    );
   });
 
   it('exposes governance archive list, detail, and delete endpoints', async () => {
@@ -801,8 +879,11 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/models/compiled/preview');
     expect(html).toContain('Draft Config Preview');
     expect(html).toContain('Preview Diff');
+    expect(html).toContain('Reference Impact');
     expect(html).toContain('compiledDiffSummary');
     expect(html).toContain('compiledDiffTable');
+    expect(html).toContain('referenceImpactSummary');
+    expect(html).toContain('referenceImpactTable');
     expect(html).toContain('modelsFormGrid');
     expect(html).toContain('draftRouterDefault');
     expect(html).toContain('draftModelsCount');
@@ -833,6 +914,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('syncDraftEditorFromForm');
     expect(html).toContain('addDraftModel');
     expect(html).toContain('renderCompiledDiff');
+    expect(html).toContain('renderReferenceImpact');
     expect(html).toContain('Compiled Models');
     expect(html).toContain('compiledModelsStatus');
     expect(html).toContain('compiledProvidersTable');
