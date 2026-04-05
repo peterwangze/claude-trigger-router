@@ -936,6 +936,20 @@ export const createServer = (config: any): Server => {
       `function getModelIdSuggestionsMarkup(idPrefix){` +
       `  return '<datalist id=\"'+idPrefix+'\">'+knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('')+'</datalist>';` +
       `}` +
+      `function resolvePresetModelId(seed){` +
+      `  const source=String(seed || '').trim().toLowerCase();` +
+      `  if(!source || !knownModelIds.length){ return seed; }` +
+      `  if(knownModelIds.includes(seed)){ return seed; }` +
+      `  const ranked=knownModelIds.map((modelId)=>{` +
+      `    const target=String(modelId || '').toLowerCase();` +
+      `    let score=0;` +
+      `    if(target===source){ score+=100; }` +
+      `    if(target.includes(source) || source.includes(target)){ score+=40; }` +
+      `    source.split(/[^a-z0-9]+/).filter(Boolean).forEach((part)=>{ if(target.includes(part)){ score+=Math.min(part.length * 4, 24); } });` +
+      `    return { modelId, score };` +
+      `  }).filter((item)=>item.score>0).sort((a,b)=>b.score-a.score || a.modelId.localeCompare(b.modelId));` +
+      `  return ranked.length ? ranked[0].modelId : seed;` +
+      `}` +
       `function getTriggerPatternValidationHint(pattern){` +
       `  if((pattern?.type || 'exact') === 'regex'){` +
       `    return pattern?.pattern ? { level:'ok', message:'regex pattern 已配置' } : { level:'warn', message:'regex 模式需要填写 pattern' };` +
@@ -1325,18 +1339,18 @@ export const createServer = (config: any): Server => {
       `function applyDraftPreset(presetName){` +
       `  const preset=draftPresets[presetName];` +
       `  if(!preset){ return; }` +
-      `  if(preset.routerDefault){ draftRouterDefault.value=preset.routerDefault; }` +
+      `  if(preset.routerDefault){ draftRouterDefault.value=resolvePresetModelId(preset.routerDefault); }` +
       `  if(preset.triggerEnabled !== undefined){ triggerEnabled.checked=Boolean(preset.triggerEnabled); }` +
-      `  if(preset.triggerRules){ renderTriggerRulesList(preset.triggerRules); }` +
+      `  if(preset.triggerRules){ renderTriggerRulesList(preset.triggerRules.map(rule=>({ ...rule, model: resolvePresetModelId(rule.model) }))); }` +
       `  if(preset.smartEnabled !== undefined){ smartEnabled.checked=Boolean(preset.smartEnabled); }` +
-      `  if(preset.smartCandidates){ renderSmartCandidatesList(preset.smartCandidates); }` +
+      `  if(preset.smartCandidates){ renderSmartCandidatesList(preset.smartCandidates.map(item=>({ ...item, model: resolvePresetModelId(item.model) }))); }` +
       `  if(preset.governanceEnabled !== undefined){ governanceEnabled.checked=Boolean(preset.governanceEnabled); }` +
       `  if(preset.governanceAlignmentEnabled !== undefined){ governanceAlignmentEnabled.checked=Boolean(preset.governanceAlignmentEnabled); }` +
       `  if(preset.governanceSemanticEnabled !== undefined){ governanceSemanticEnabled.checked=Boolean(preset.governanceSemanticEnabled); }` +
       `  if(preset.governanceShadowEnabled !== undefined){ governanceShadowEnabled.checked=Boolean(preset.governanceShadowEnabled); }` +
-      `  if(preset.governanceSummarizerModel !== undefined){ governanceSummarizerModel.value=preset.governanceSummarizerModel; }` +
-      `  if(preset.governanceClassifierModel !== undefined){ governanceClassifierModel.value=preset.governanceClassifierModel; }` +
-      `  if(preset.governanceVerifierModel !== undefined){ governanceVerifierModel.value=preset.governanceVerifierModel; }` +
+      `  if(preset.governanceSummarizerModel !== undefined){ governanceSummarizerModel.value=resolvePresetModelId(preset.governanceSummarizerModel); }` +
+      `  if(preset.governanceClassifierModel !== undefined){ governanceClassifierModel.value=resolvePresetModelId(preset.governanceClassifierModel); }` +
+      `  if(preset.governanceVerifierModel !== undefined){ governanceVerifierModel.value=resolvePresetModelId(preset.governanceVerifierModel); }` +
       `  syncDraftEditorFromForm();` +
       `  draftPreviewStatus.textContent='已应用预设：'+presetName;` +
       `}` +

@@ -1035,6 +1035,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('renderDraftValidation');
     expect(html).toContain('draftPresets');
     expect(html).toContain('applyDraftPreset');
+    expect(html).toContain('resolvePresetModelId');
     expect(html).toContain('extractModelsFromForm');
     expect(html).toContain('buildDraftPayloadFromForm');
     expect(html).toContain('renderConfigControlForms');
