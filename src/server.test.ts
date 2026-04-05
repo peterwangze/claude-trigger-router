@@ -953,6 +953,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Validation Summary');
     expect(html).toContain('draftValidationList');
     expect(html).toContain('No validation issues');
+    expect(html).toContain('TriggerRouter');
+    expect(html).toContain('SmartRouter');
+    expect(html).toContain('Governance');
     expect(html).toContain('Trigger rules');
     expect(html).toContain('Patterns');
     expect(html).toContain('Smart candidates');
@@ -1033,6 +1036,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('renderModelsForm');
     expect(html).toContain('renderDraftSummary');
     expect(html).toContain('renderDraftValidation');
+    expect(html).toContain("text.startsWith('Models')");
+    expect(html).toContain("text.startsWith('TriggerRouter')");
     expect(html).toContain('draftPresets');
     expect(html).toContain('applyDraftPreset');
     expect(html).toContain('resolvePresetModelId');

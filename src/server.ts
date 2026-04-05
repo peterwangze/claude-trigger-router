@@ -975,7 +975,14 @@ export const createServer = (config: any): Server => {
       `function renderDraftValidation(errors){` +
       `  const list=Array.isArray(errors) ? errors.filter(Boolean) : [];` +
       `  if(!list.length){ draftValidationList.innerHTML='<div class="alert info"><strong>No validation issues</strong><div class="muted">当前草稿未发现集中展示的问题</div></div>'; return; }` +
-      `  draftValidationList.innerHTML=list.slice(0,8).map(item=>'<div class="alert warn"><strong>Validation issue</strong><div>'+esc(item)+'</div></div>').join('');` +
+      `  const grouped=list.reduce((acc,item)=>{` +
+      `    const text=String(item);` +
+      `    const bucket=text.startsWith('Models') ? 'Models' : text.startsWith('Router') ? 'Router' : text.startsWith('TriggerRouter') ? 'TriggerRouter' : text.startsWith('SmartRouter') ? 'SmartRouter' : text.startsWith('Governance') ? 'Governance' : text.startsWith('JSON parse error') ? 'Draft JSON' : 'Other';` +
+      `    acc[bucket]=acc[bucket] || [];` +
+      `    acc[bucket].push(text);` +
+      `    return acc;` +
+      `  }, {});` +
+      `  draftValidationList.innerHTML=Object.entries(grouped).map(([bucket,items])=>'<div class="alert warn"><strong>'+esc(bucket)+'</strong><div>'+items.slice(0,4).map(item=>'<div>'+esc(item)+'</div>').join('')+'</div></div>').join('');` +
       `}` +
       `function updateTopLevelModelSuggestionLists(){` +
       `  const markup=knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('');` +
