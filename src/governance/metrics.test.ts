@@ -306,4 +306,66 @@ describe('summarizeGovernanceMetrics', () => {
     expect(csv).toContain('topFinalModel,model-a,2:1');
     expect(csv).toContain('bucket,bucket-1,2:0.5:0.5:0.5:0.5');
   });
+
+  it('supports custom anomaly thresholds and dynamic baselines', () => {
+    governanceTraceStore.clear();
+
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1_000,
+      latencyMs: 900,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      startedAt: 2_000,
+      latencyMs: 1200,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-3',
+      routeReason: ['cascade_gate'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      startedAt: 8_000,
+      latencyMs: 1600,
+    });
+
+    const defaultReport = getGovernanceMetricsReport({
+      windowMs: 8_000,
+      bucketCount: 4,
+      now: 8_000,
+    });
+    const customReport = getGovernanceMetricsReport({
+      windowMs: 8_000,
+      bucketCount: 4,
+      now: 8_000,
+      anomalyThresholds: {
+        minSampleSize: 2,
+        cascadeWarnRate: 0.6,
+        shadowWarnRate: 0.6,
+        latencyWarnMs: 1000,
+        spikeWarnRate: 0.4,
+        spikeDeltaRate: 0.2,
+      },
+    });
+
+    expect(defaultReport.anomalies.map((item) => item.type)).not.toContain('latency_high');
+    expect(customReport.anomalies.map((item) => item.type)).toContain('latency_high');
+    expect(customReport.anomalies.map((item) => item.type)).toContain('cascade_spike');
+    expect(customReport.anomalies.map((item) => item.type)).toContain('shadow_spike');
+  });
 });

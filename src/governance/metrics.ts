@@ -14,6 +14,7 @@ export interface IGovernanceMetricsWindowOptions extends IGovernanceMetricsFilte
   windowMs?: number;
   bucketCount?: number;
   now?: number;
+  anomalyThresholds?: Partial<IGovernanceAnomalyThresholds>;
 }
 
 export interface IGovernanceMetricsBucket {
@@ -36,6 +37,18 @@ export interface IGovernanceAnomaly {
   metric: string;
   value: number;
   threshold?: number;
+}
+
+export interface IGovernanceAnomalyThresholds {
+  minSampleSize: number;
+  cascadeWarnRate: number;
+  cascadeCriticalRate: number;
+  shadowWarnRate: number;
+  shadowCriticalRate: number;
+  latencyWarnMs: number;
+  latencyCriticalMs: number;
+  spikeWarnRate: number;
+  spikeDeltaRate: number;
 }
 
 export interface IGovernanceMetrics {
@@ -69,6 +82,34 @@ export interface IGovernanceMetricsReport {
 }
 
 export type TGovernanceMetricsExportFormat = 'json' | 'csv';
+
+const DEFAULT_ANOMALY_THRESHOLDS: IGovernanceAnomalyThresholds = {
+  minSampleSize: 3,
+  cascadeWarnRate: 0.4,
+  cascadeCriticalRate: 0.6,
+  shadowWarnRate: 0.5,
+  shadowCriticalRate: 0.7,
+  latencyWarnMs: 1500,
+  latencyCriticalMs: 3000,
+  spikeWarnRate: 0.5,
+  spikeDeltaRate: 0.3,
+};
+
+function normalizeAnomalyThresholds(
+  input?: Partial<IGovernanceAnomalyThresholds>
+): IGovernanceAnomalyThresholds {
+  return {
+    minSampleSize: input?.minSampleSize ?? DEFAULT_ANOMALY_THRESHOLDS.minSampleSize,
+    cascadeWarnRate: input?.cascadeWarnRate ?? DEFAULT_ANOMALY_THRESHOLDS.cascadeWarnRate,
+    cascadeCriticalRate: input?.cascadeCriticalRate ?? DEFAULT_ANOMALY_THRESHOLDS.cascadeCriticalRate,
+    shadowWarnRate: input?.shadowWarnRate ?? DEFAULT_ANOMALY_THRESHOLDS.shadowWarnRate,
+    shadowCriticalRate: input?.shadowCriticalRate ?? DEFAULT_ANOMALY_THRESHOLDS.shadowCriticalRate,
+    latencyWarnMs: input?.latencyWarnMs ?? DEFAULT_ANOMALY_THRESHOLDS.latencyWarnMs,
+    latencyCriticalMs: input?.latencyCriticalMs ?? DEFAULT_ANOMALY_THRESHOLDS.latencyCriticalMs,
+    spikeWarnRate: input?.spikeWarnRate ?? DEFAULT_ANOMALY_THRESHOLDS.spikeWarnRate,
+    spikeDeltaRate: input?.spikeDeltaRate ?? DEFAULT_ANOMALY_THRESHOLDS.spikeDeltaRate,
+  };
+}
 
 function rate(count: number, total: number): number {
   if (!total) {
@@ -125,40 +166,41 @@ function averageRate(values: number[]): number {
 
 function buildAnomalies(
   metrics: IGovernanceMetrics,
-  buckets: IGovernanceMetricsBucket[]
+  buckets: IGovernanceMetricsBucket[],
+  thresholds: IGovernanceAnomalyThresholds
 ): IGovernanceAnomaly[] {
   const anomalies: IGovernanceAnomaly[] = [];
 
-  if (metrics.totalTraces >= 3 && metrics.cascadeTriggeredRate >= 0.4) {
+  if (metrics.totalTraces >= thresholds.minSampleSize && metrics.cascadeTriggeredRate >= thresholds.cascadeWarnRate) {
     anomalies.push({
       type: 'cascade_rate_high',
-      severity: metrics.cascadeTriggeredRate >= 0.6 ? 'critical' : 'warn',
+      severity: metrics.cascadeTriggeredRate >= thresholds.cascadeCriticalRate ? 'critical' : 'warn',
       message: `Cascade trigger rate is elevated at ${(metrics.cascadeTriggeredRate * 100).toFixed(1)}%`,
       metric: 'cascadeTriggeredRate',
       value: metrics.cascadeTriggeredRate,
-      threshold: 0.4,
+      threshold: thresholds.cascadeWarnRate,
     });
   }
 
-  if (metrics.totalTraces >= 3 && metrics.shadowCheckedRate >= 0.5) {
+  if (metrics.totalTraces >= thresholds.minSampleSize && metrics.shadowCheckedRate >= thresholds.shadowWarnRate) {
     anomalies.push({
       type: 'shadow_rate_high',
-      severity: metrics.shadowCheckedRate >= 0.7 ? 'critical' : 'warn',
+      severity: metrics.shadowCheckedRate >= thresholds.shadowCriticalRate ? 'critical' : 'warn',
       message: `Shadow supervision rate is elevated at ${(metrics.shadowCheckedRate * 100).toFixed(1)}%`,
       metric: 'shadowCheckedRate',
       value: metrics.shadowCheckedRate,
-      threshold: 0.5,
+      threshold: thresholds.shadowWarnRate,
     });
   }
 
-  if (metrics.totalTraces >= 3 && metrics.averageLatencyMs >= 1500) {
+  if (metrics.totalTraces >= thresholds.minSampleSize && metrics.averageLatencyMs >= thresholds.latencyWarnMs) {
     anomalies.push({
       type: 'latency_high',
-      severity: metrics.averageLatencyMs >= 3000 ? 'critical' : 'warn',
+      severity: metrics.averageLatencyMs >= thresholds.latencyCriticalMs ? 'critical' : 'warn',
       message: `Average latency is elevated at ${metrics.averageLatencyMs.toFixed(0)} ms`,
       metric: 'averageLatencyMs',
       value: metrics.averageLatencyMs,
-      threshold: 1500,
+      threshold: thresholds.latencyWarnMs,
     });
   }
 
@@ -169,8 +211,8 @@ function buildAnomalies(
       const previousCascadeAverage = averageRate(
         previousBuckets.map((bucket) => bucket.metrics.cascadeTriggeredRate)
       );
-      if (latestBucket.metrics.cascadeTriggeredRate >= 0.5 &&
-        latestBucket.metrics.cascadeTriggeredRate >= previousCascadeAverage + 0.3) {
+      if (latestBucket.metrics.cascadeTriggeredRate >= thresholds.spikeWarnRate &&
+        latestBucket.metrics.cascadeTriggeredRate >= previousCascadeAverage + thresholds.spikeDeltaRate) {
         anomalies.push({
           type: 'cascade_spike',
           severity: 'warn',
@@ -184,8 +226,8 @@ function buildAnomalies(
       const previousShadowAverage = averageRate(
         previousBuckets.map((bucket) => bucket.metrics.shadowCheckedRate)
       );
-      if (latestBucket.metrics.shadowCheckedRate >= 0.5 &&
-        latestBucket.metrics.shadowCheckedRate >= previousShadowAverage + 0.3) {
+      if (latestBucket.metrics.shadowCheckedRate >= thresholds.spikeWarnRate &&
+        latestBucket.metrics.shadowCheckedRate >= previousShadowAverage + thresholds.spikeDeltaRate) {
         anomalies.push({
           type: 'shadow_spike',
           severity: 'warn',
@@ -326,6 +368,7 @@ export function getGovernanceMetricsReport(
   const bucketCount = options.bucketCount && options.bucketCount > 0 ? options.bucketCount : 6;
   const metrics = summarizeGovernanceMetrics(limitedTraces);
   const buckets = buildBuckets(limitedTraces, windowed.windowStart, windowed.windowEnd, bucketCount);
+  const thresholds = normalizeAnomalyThresholds(options.anomalyThresholds);
 
   return {
     windowMs: options.windowMs,
@@ -337,7 +380,7 @@ export function getGovernanceMetricsReport(
     topRouteReasons: buildTopEntries(metrics.routeReasonDistribution, limitedTraces.length),
     topFinalModels: buildTopEntries(metrics.finalModelDistribution, limitedTraces.length),
     topSemanticIntents: buildTopEntries(metrics.semanticIntentDistribution, limitedTraces.length),
-    anomalies: buildAnomalies(metrics, buckets),
+    anomalies: buildAnomalies(metrics, buckets, thresholds),
   };
 }
 

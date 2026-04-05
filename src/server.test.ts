@@ -314,6 +314,7 @@ describe('createServer /api/config', () => {
         windowMs: '8000',
         bucketCount: '4',
         now: '8000',
+        minSampleSize: '2',
       },
     }, {});
 
@@ -358,6 +359,47 @@ describe('createServer /api/config', () => {
     );
     expect(result).toContain('section,key,value');
     expect(result).toContain('summary,totalTraces,1');
+  });
+
+  it('accepts custom anomaly threshold query parameters', async () => {
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1_000,
+      latencyMs: 900,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      routeReason: ['cascade_gate'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      startedAt: 8_000,
+      latencyMs: 1600,
+    });
+
+    const server = createServer({});
+    const metricsHandler = server.app.routes.get('GET /api/governance/metrics');
+    const result = await metricsHandler({
+      query: {
+        windowMs: '8000',
+        bucketCount: '4',
+        now: '8000',
+        minSampleSize: '2',
+        latencyWarnMs: '1000',
+        spikeWarnRate: '0.4',
+        spikeDeltaRate: '0.2',
+      },
+    }, {});
+
+    expect(result.anomalies.map((item: any) => item.type)).toContain('latency_high');
   });
 
   it('renders a governance trace debug page at /ui', async () => {

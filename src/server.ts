@@ -38,6 +38,17 @@ export const createServer = (config: any): Server => {
       windowMs: Number.isFinite(windowMs) ? windowMs : undefined,
       bucketCount: Number.isFinite(bucketCount) ? bucketCount : undefined,
       now: Number.isFinite(now) ? now : undefined,
+      anomalyThresholds: {
+        minSampleSize: query?.minSampleSize ? Number(query.minSampleSize) : undefined,
+        cascadeWarnRate: query?.cascadeWarnRate ? Number(query.cascadeWarnRate) : undefined,
+        cascadeCriticalRate: query?.cascadeCriticalRate ? Number(query.cascadeCriticalRate) : undefined,
+        shadowWarnRate: query?.shadowWarnRate ? Number(query.shadowWarnRate) : undefined,
+        shadowCriticalRate: query?.shadowCriticalRate ? Number(query.shadowCriticalRate) : undefined,
+        latencyWarnMs: query?.latencyWarnMs ? Number(query.latencyWarnMs) : undefined,
+        latencyCriticalMs: query?.latencyCriticalMs ? Number(query.latencyCriticalMs) : undefined,
+        spikeWarnRate: query?.spikeWarnRate ? Number(query.spikeWarnRate) : undefined,
+        spikeDeltaRate: query?.spikeDeltaRate ? Number(query.spikeDeltaRate) : undefined,
+      },
     };
   };
 

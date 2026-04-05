@@ -141,6 +141,8 @@
 - 当前导出支持 `json` 与 `csv`，便于对接外部看板和离线分析
 - governance trace 持久化新增滚动归档与保留策略，主文件只保留近期窗口
 - 历史 trace 会归档到 `~/.claude-trigger-router/governance-trace-archives/`，并按保留数量自动清理旧归档
+- anomaly 检测已支持动态基线与细粒度阈值参数，可按窗口场景调整灵敏度
+- `GET /api/governance/metrics` 与导出接口现可通过 query 自定义 min sample、rate 和 latency 阈值
 
 ## 下次更新时应补充的内容
 
