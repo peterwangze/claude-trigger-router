@@ -187,7 +187,22 @@ describe('createServer /api/config', () => {
   });
 
   it('previews compiled Models registry for a draft config without saving', async () => {
-    const server = createServer({});
+    const server = createServer({
+      initialConfig: {
+        Models: [
+          {
+            id: 'sonnet',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-live',
+            protocol: 'openai',
+            model: 'anthropic/claude-sonnet-4',
+            thinking: {
+              mode: 'auto',
+            },
+          },
+        ],
+      },
+    });
     const handler = server.app.routes.get('POST /api/models/compiled/preview');
     const reply = {
       code: vi.fn().mockReturnThis(),
@@ -235,6 +250,38 @@ describe('createServer /api/config', () => {
       source: 'models',
     });
     expect(result.normalizedConfig.Router?.default).toBe('haiku');
+    expect(result.diff.summary).toEqual({
+      addedProviders: 1,
+      removedProviders: 1,
+      changedProviders: 0,
+      addedModels: 1,
+      removedModels: 1,
+      changedModels: 0,
+    });
+    expect(result.diff.providerChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'removed',
+          name: 'model__sonnet',
+        }),
+        expect.objectContaining({
+          type: 'added',
+          name: 'model__haiku',
+        }),
+      ])
+    );
+    expect(result.diff.modelChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'removed',
+          modelId: 'sonnet',
+        }),
+        expect.objectContaining({
+          type: 'added',
+          modelId: 'haiku',
+        }),
+      ])
+    );
     expect(mockWriteConfigFile).not.toHaveBeenCalled();
     expect(mockBackupConfigFile).not.toHaveBeenCalled();
   });
@@ -753,12 +800,16 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/models/compiled');
     expect(html).toContain('/api/models/compiled/preview');
     expect(html).toContain('Draft Config Preview');
+    expect(html).toContain('Preview Diff');
+    expect(html).toContain('compiledDiffSummary');
+    expect(html).toContain('compiledDiffTable');
     expect(html).toContain('configDraftEditor');
     expect(html).toContain('loadConfigDraftBtn');
     expect(html).toContain('previewConfigDraftBtn');
     expect(html).toContain('draftPreviewStatus');
     expect(html).toContain('loadConfigDraft');
     expect(html).toContain('previewConfigDraft');
+    expect(html).toContain('renderCompiledDiff');
     expect(html).toContain('Compiled Models');
     expect(html).toContain('compiledModelsStatus');
     expect(html).toContain('compiledProvidersTable');

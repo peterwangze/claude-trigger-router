@@ -16,6 +16,95 @@ import {
 } from "./governance";
 import { buildModelRegistry } from "./models/compile";
 
+type CompiledProviderView = {
+  name: string;
+  api_base_url: string;
+  models: string[];
+  transformer: any;
+  has_api_key: boolean;
+};
+
+type CompiledRegistryView = {
+  providers: CompiledProviderView[];
+  modelMap: Record<string, any>;
+};
+
+function toCompiledRegistryView(config: any): CompiledRegistryView {
+  const registry = buildModelRegistry(config ?? {});
+  return {
+    providers: registry.providers.map((provider) => ({
+      name: provider.name,
+      api_base_url: provider.api_base_url,
+      models: provider.models,
+      transformer: provider.transformer,
+      has_api_key: Boolean(provider.api_key),
+    })),
+    modelMap: registry.modelMap,
+  };
+}
+
+function diffCompiledRegistry(base: CompiledRegistryView, next: CompiledRegistryView) {
+  const providerNames = Array.from(new Set([
+    ...base.providers.map((item) => item.name),
+    ...next.providers.map((item) => item.name),
+  ])).sort();
+  const baseProviders = new Map(base.providers.map((item) => [item.name, item]));
+  const nextProviders = new Map(next.providers.map((item) => [item.name, item]));
+  const providerChanges = providerNames.flatMap((name) => {
+    const before = baseProviders.get(name);
+    const after = nextProviders.get(name);
+    if (!before && after) {
+      return [{ type: "added", name, before: null, after, fields: ["provider"] }];
+    }
+    if (before && !after) {
+      return [{ type: "removed", name, before, after: null, fields: ["provider"] }];
+    }
+    const fields = [
+      before?.api_base_url !== after?.api_base_url ? "api_base_url" : null,
+      JSON.stringify(before?.models ?? []) !== JSON.stringify(after?.models ?? []) ? "models" : null,
+      JSON.stringify(before?.transformer ?? {}) !== JSON.stringify(after?.transformer ?? {}) ? "transformer" : null,
+      before?.has_api_key !== after?.has_api_key ? "has_api_key" : null,
+    ].filter(Boolean);
+    return fields.length ? [{ type: "changed", name, before, after, fields }] : [];
+  });
+
+  const modelIds = Array.from(new Set([
+    ...Object.keys(base.modelMap ?? {}),
+    ...Object.keys(next.modelMap ?? {}),
+  ])).sort();
+  const modelChanges = modelIds.flatMap((modelId) => {
+    const before = base.modelMap?.[modelId];
+    const after = next.modelMap?.[modelId];
+    if (!before && after) {
+      return [{ type: "added", modelId, before: null, after, fields: ["model"] }];
+    }
+    if (before && !after) {
+      return [{ type: "removed", modelId, before, after: null, fields: ["model"] }];
+    }
+    const fields = [
+      before?.providerName !== after?.providerName ? "providerName" : null,
+      before?.modelName !== after?.modelName ? "modelName" : null,
+      before?.protocol !== after?.protocol ? "protocol" : null,
+      JSON.stringify(before?.thinking ?? {}) !== JSON.stringify(after?.thinking ?? {}) ? "thinking" : null,
+      before?.source !== after?.source ? "source" : null,
+    ].filter(Boolean);
+    return fields.length ? [{ type: "changed", modelId, before, after, fields }] : [];
+  });
+
+  return {
+    providerChanges,
+    modelChanges,
+    summary: {
+      addedProviders: providerChanges.filter((item) => item.type === "added").length,
+      removedProviders: providerChanges.filter((item) => item.type === "removed").length,
+      changedProviders: providerChanges.filter((item) => item.type === "changed").length,
+      addedModels: modelChanges.filter((item) => item.type === "added").length,
+      removedModels: modelChanges.filter((item) => item.type === "removed").length,
+      changedModels: modelChanges.filter((item) => item.type === "changed").length,
+    },
+  };
+}
+
 /**
  * 创建服务器
  */
@@ -65,17 +154,7 @@ export const createServer = (config: any): Server => {
   });
 
   server.app.get("/api/models/compiled", async () => {
-    const registry = buildModelRegistry(config.initialConfig ?? {});
-    return {
-      providers: registry.providers.map((provider) => ({
-        name: provider.name,
-        api_base_url: provider.api_base_url,
-        models: provider.models,
-        transformer: provider.transformer,
-        has_api_key: Boolean(provider.api_key),
-      })),
-      modelMap: registry.modelMap,
-    };
+    return toCompiledRegistryView(config.initialConfig ?? {});
   });
 
   server.app.post("/api/models/compiled/preview", async (req: any, reply: any) => {
@@ -89,18 +168,14 @@ export const createServer = (config: any): Server => {
       };
     }
 
-    const registry = buildModelRegistry(result.config);
+    const currentCompiled = toCompiledRegistryView(config.initialConfig ?? {});
+    const previewCompiled = toCompiledRegistryView(result.config);
     return {
       success: true,
-      providers: registry.providers.map((provider) => ({
-        name: provider.name,
-        api_base_url: provider.api_base_url,
-        models: provider.models,
-        transformer: provider.transformer,
-        has_api_key: Boolean(provider.api_key),
-      })),
-      modelMap: registry.modelMap,
+      providers: previewCompiled.providers,
+      modelMap: previewCompiled.modelMap,
       normalizedConfig: result.config,
+      diff: diffCompiledRegistry(currentCompiled, previewCompiled),
     };
   });
 
@@ -387,6 +462,9 @@ export const createServer = (config: any): Server => {
       `.alert.warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}` +
       `.alert.critical{background:#fef2f2;border-color:#fca5a5;color:#991b1b}` +
       `.alert.info{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}` +
+      `.diff-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.75rem;margin-top:.75rem}` +
+      `.diff-chip{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:.75rem}` +
+      `.diff-chip strong{display:block;font-size:1rem;margin-top:.2rem}` +
       `.control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
       `.control-grid label{display:block;font-size:.85rem;color:#6b7280;margin-bottom:.35rem}` +
       `.trend-table{width:100%;margin-top:.75rem}` +
@@ -428,6 +506,21 @@ export const createServer = (config: any): Server => {
       `<span id="draftPreviewStatus" class="muted">尚未预览配置草稿</span>` +
       `</div>` +
       `<textarea id="configDraftEditor" style="width:100%;min-height:240px;margin-top:.75rem;padding:.75rem;border-radius:12px;border:1px solid #d1d5db;font:12px/1.5 ui-monospace,SFMono-Regular,monospace" spellcheck="false" placeholder='{"Models":[{"id":"sonnet","api_base_url":"https://...","api_key":"sk-...","protocol":"openai","model":"anthropic/claude-sonnet-4"}]}'></textarea>` +
+      `<div class="subpanel">` +
+      `<div class="row"><strong>Preview Diff</strong><span class="muted">对比当前运行配置与草稿配置的 compiled model 变化</span></div>` +
+      `<div id="compiledDiffSummary" class="diff-summary">` +
+      `<div class="diff-chip"><span class="muted">Added providers</span><strong>0</strong></div>` +
+      `<div class="diff-chip"><span class="muted">Removed providers</span><strong>0</strong></div>` +
+      `<div class="diff-chip"><span class="muted">Changed providers</span><strong>0</strong></div>` +
+      `<div class="diff-chip"><span class="muted">Added models</span><strong>0</strong></div>` +
+      `<div class="diff-chip"><span class="muted">Removed models</span><strong>0</strong></div>` +
+      `<div class="diff-chip"><span class="muted">Changed models</span><strong>0</strong></div>` +
+      `</div>` +
+      `<table id="compiledDiffTable" class="management-table">` +
+      `<thead><tr><th>Scope</th><th>Type</th><th>Key</th><th>Changed fields</th><th>Target</th></tr></thead>` +
+      `<tbody><tr><td colspan="5" class="muted">Preview a draft to inspect compiled registry changes</td></tr></tbody>` +
+      `</table>` +
+      `</div>` +
       `</div>` +
       `<div class="subpanel">` +
       `<div class="row"><strong>Compiled Models</strong><span class="muted">查看 Models 编译后的 provider 与路由映射</span></div>` +
@@ -565,6 +658,8 @@ export const createServer = (config: any): Server => {
       `const draftPreviewStatus=document.getElementById('draftPreviewStatus');` +
       `const configDraftEditor=document.getElementById('configDraftEditor');` +
       `const compiledModelsStatus=document.getElementById('compiledModelsStatus');` +
+      `const compiledDiffSummary=document.getElementById('compiledDiffSummary');` +
+      `const compiledDiffTableBody=document.querySelector('#compiledDiffTable tbody');` +
       `const compiledProvidersTableBody=document.querySelector('#compiledProvidersTable tbody');` +
       `const compiledModelMapTableBody=document.querySelector('#compiledModelMapTable tbody');` +
       `const metricsGrid=document.getElementById('metricsGrid');` +
@@ -585,6 +680,28 @@ export const createServer = (config: any): Server => {
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
       `function fmt(v){return Number(v || 0).toFixed(2);}` +
       `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
+      `function renderCompiledDiff(diff){` +
+      `  const summary=diff?.summary || {};` +
+      `  compiledDiffSummary.innerHTML=[` +
+      "    ['Added providers', summary.addedProviders ?? 0]," +
+      "    ['Removed providers', summary.removedProviders ?? 0]," +
+      "    ['Changed providers', summary.changedProviders ?? 0]," +
+      "    ['Added models', summary.addedModels ?? 0]," +
+      "    ['Removed models', summary.removedModels ?? 0]," +
+      "    ['Changed models', summary.changedModels ?? 0]" +
+      `  ].map(([label,value])=>'<div class=\"diff-chip\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
+      `  const rows=[` +
+      `    ...((diff?.providerChanges || []).map(item=>({ scope:'provider', key:item.name, type:item.type, fields:item.fields || [], target:item.after || item.before || {} }))),` +
+      `    ...((diff?.modelChanges || []).map(item=>({ scope:'model', key:item.modelId, type:item.type, fields:item.fields || [], target:item.after || item.before || {} }))),` +
+      `  ];` +
+      `  compiledDiffTableBody.innerHTML=rows.length ? rows.map(item=>'<tr>' +` +
+      `    '<td>'+esc(item.scope)+'</td>' +` +
+      `    '<td>'+esc(item.type)+'</td>' +` +
+      `    '<td><code>'+esc(item.key)+'</code></td>' +` +
+      `    '<td>'+esc(item.fields.join(', ') || '-')+'</td>' +` +
+      `    '<td><code>'+esc(item.target.providerName || item.target.name || '-')+'</code><div class="muted">'+esc(item.target.modelName || (item.target.models || []).join(', ') || '-')}</div></td>' +` +
+      `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No compiled registry changes</td></tr>';` +
+      `}` +
       `function renderCompiledModels(data){` +
       `  const providers=Array.isArray(data.providers) ? data.providers : [];` +
       `  const modelMapEntries=Object.entries(data.modelMap || {});` +
@@ -603,6 +720,7 @@ export const createServer = (config: any): Server => {
       `    '<td><code>'+esc(JSON.stringify(item.thinking || { mode: 'off' }))+'</code></td>' +` +
       `    '<td>'+esc(item.source || '-')+'</td>' +` +
       `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No compiled model map</td></tr>';` +
+      `  if(data.diff){ renderCompiledDiff(data.diff); }` +
       `}` +
       `async function loadConfigDraft(){` +
       `  draftPreviewStatus.textContent='加载当前配置中...';` +
@@ -628,6 +746,7 @@ export const createServer = (config: any): Server => {
       `  const data=await res.json();` +
       `  if(!res.ok){` +
       `    draftPreviewStatus.textContent='预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error');` +
+      `    renderCompiledDiff();` +
       `    return;` +
       `  }` +
       `  renderCompiledModels(data);` +
@@ -691,6 +810,7 @@ export const createServer = (config: any): Server => {
       `  const res=await fetch('/api/models/compiled');` +
       `  const data=await res.json();` +
       `  renderCompiledModels(data);` +
+      `  renderCompiledDiff();` +
       `}` +
       `async function loadTraces(){` +
       `  const requestId=document.getElementById('requestId').value.trim();` +
