@@ -172,10 +172,14 @@ export const createServer = (config: any): Server => {
 
   server.app.get("/api/governance/archives", async (req: any) => {
     const limit = req.query?.limit ? Number(req.query.limit) : undefined;
+    const page = req.query?.page ? Number(req.query.page) : undefined;
+    const pageSize = req.query?.pageSize ? Number(req.query.pageSize) : undefined;
     return {
       archives: governanceTraceStore.listArchives({
         date: req.query?.date,
         limit: Number.isFinite(limit) ? limit : undefined,
+        page: Number.isFinite(page) ? page : undefined,
+        pageSize: Number.isFinite(pageSize) ? pageSize : undefined,
       }),
     };
   });

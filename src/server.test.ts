@@ -150,11 +150,12 @@ describe('createServer /api/config', () => {
 
     governanceTraceStore.listArchives = vi.fn().mockReturnValue([
       {
-        file: 'governance-traces-1.json',
-        filePath: '/tmp/governance-traces-1.json',
+        file: 'governance-traces-1.json.gz',
+        filePath: '/tmp/governance-traces-1.json.gz',
         traceCount: 2,
         startedAt: 1,
         endedAt: 2,
+        compressed: true,
       },
     ]) as any;
     governanceTraceStore.getArchivedTraces = vi.fn().mockReturnValue([
@@ -180,16 +181,17 @@ describe('createServer /api/config', () => {
         code: vi.fn().mockReturnThis(),
       };
 
-      const listResult = await listHandler({ query: { date: '2026-04-01' } }, {});
-      const detailResult = await detailHandler({ params: { file: 'governance-traces-1.json' } }, reply);
-      const deleteResult = await deleteHandler({ params: { file: 'governance-traces-1.json' } }, reply);
+      const listResult = await listHandler({ query: { date: '2026-04-01', page: '1', pageSize: '10' } }, {});
+      const detailResult = await detailHandler({ params: { file: 'governance-traces-1.json.gz' } }, reply);
+      const deleteResult = await deleteHandler({ params: { file: 'governance-traces-1.json.gz' } }, reply);
 
       expect(listResult.archives).toHaveLength(1);
-      expect(detailResult.file).toBe('governance-traces-1.json');
+      expect(listResult.archives[0].compressed).toBe(true);
+      expect(detailResult.file).toBe('governance-traces-1.json.gz');
       expect(detailResult.traces).toHaveLength(1);
       expect(deleteResult).toEqual({
         success: true,
-        file: 'governance-traces-1.json',
+        file: 'governance-traces-1.json.gz',
       });
     } finally {
       governanceTraceStore.listArchives = originalListArchives as any;

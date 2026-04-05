@@ -129,13 +129,14 @@ describe('governance trace', () => {
       }
 
       const active = JSON.parse(readFileSync(persistFile, 'utf-8'));
-      const archives = readdirSync(archiveDir).filter((file) => file.endsWith('.json'));
+      const archives = readdirSync(archiveDir).filter((file) => file.endsWith('.json.gz'));
 
       expect(active).toHaveLength(2);
       expect(active[0].requestId).toBe('req-archive-5');
       expect(active[1].requestId).toBe('req-archive-4');
       expect(archives.length).toBeLessThanOrEqual(2);
       expect(store.list()).toHaveLength(2);
+      expect(store.listArchives()[0].compressed).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -170,9 +171,14 @@ describe('governance trace', () => {
       const filtered = store.listArchives({
         date: new Date(target.startedAt ?? 0).toISOString().slice(0, 10),
       });
+      const paged = store.listArchives({
+        page: 1,
+        pageSize: 1,
+      });
       const traces = store.getArchivedTraces(target.file);
 
       expect(filtered.some((item) => item.file === target.file)).toBe(true);
+      expect(paged).toHaveLength(1);
       expect(traces.length).toBeGreaterThan(0);
       expect(store.deleteArchive(target.file)).toBe(true);
       expect(store.getArchivedTraces(target.file)).toEqual([]);

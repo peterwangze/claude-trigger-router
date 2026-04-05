@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
 import { LRUCache } from 'lru-cache';
 import { dirname, join } from 'path';
+import { gunzipSync, gzipSync } from 'zlib';
 import { GOVERNANCE_TRACE_ARCHIVE_DIR, GOVERNANCE_TRACE_FILE } from '../constants';
 import { IGovernanceTrace } from './types';
 
@@ -19,6 +20,7 @@ export interface IGovernanceTraceStoreOptions {
   activePersistLimit?: number;
   archiveDir?: string;
   retainArchiveFiles?: number;
+  compressArchives?: boolean;
 }
 
 export interface IGovernanceTraceArchiveRecord {
@@ -27,6 +29,7 @@ export interface IGovernanceTraceArchiveRecord {
   traceCount: number;
   startedAt?: number;
   endedAt?: number;
+  compressed: boolean;
 }
 
 export class GovernanceTraceStore {
@@ -36,6 +39,7 @@ export class GovernanceTraceStore {
   private activePersistLimit: number;
   private archiveDir?: string;
   private retainArchiveFiles: number;
+  private compressArchives: boolean;
 
   constructor(options: IGovernanceTraceStoreOptions = {}) {
     const max = options.max ?? 500;
@@ -49,6 +53,7 @@ export class GovernanceTraceStore {
     this.activePersistLimit = options.activePersistLimit ?? 200;
     this.archiveDir = options.archiveDir ?? GOVERNANCE_TRACE_ARCHIVE_DIR;
     this.retainArchiveFiles = options.retainArchiveFiles ?? 5;
+    this.compressArchives = options.compressArchives ?? true;
     this.loadFromDisk();
   }
 
@@ -115,13 +120,15 @@ export class GovernanceTraceStore {
   listArchives(filters?: {
     date?: string;
     limit?: number;
+    page?: number;
+    pageSize?: number;
   }): IGovernanceTraceArchiveRecord[] {
     if (!this.archiveDir || !existsSync(this.archiveDir)) {
       return [];
     }
 
     let records = readdirSync(this.archiveDir)
-      .filter((file) => file.endsWith('.json'))
+      .filter((file) => file.endsWith('.json') || file.endsWith('.json.gz'))
       .sort()
       .reverse()
       .map((file) => this.readArchiveRecord(file))
@@ -135,7 +142,13 @@ export class GovernanceTraceStore {
       });
     }
 
-    if (filters?.limit && filters.limit > 0) {
+    const pageSize = filters?.pageSize && filters.pageSize > 0 ? filters.pageSize : undefined;
+    const page = filters?.page && filters.page > 0 ? filters.page : 1;
+
+    if (pageSize) {
+      const start = (page - 1) * pageSize;
+      records = records.slice(start, start + pageSize);
+    } else if (filters?.limit && filters.limit > 0) {
       records = records.slice(0, filters.limit);
     }
 
@@ -153,7 +166,7 @@ export class GovernanceTraceStore {
     }
 
     try {
-      return JSON.parse(readFileSync(filePath, 'utf-8')) as IGovernanceTrace[];
+      return this.readArchiveFile(filePath);
     } catch {
       return [];
     }
@@ -188,13 +201,12 @@ export class GovernanceTraceStore {
 
       if (this.archiveDir && existsSync(this.archiveDir)) {
         const archiveFiles = readdirSync(this.archiveDir)
-          .filter((file) => file.endsWith('.json'))
+          .filter((file) => file.endsWith('.json') || file.endsWith('.json.gz'))
           .sort()
           .reverse();
 
         for (const file of archiveFiles) {
-          const content = readFileSync(join(this.archiveDir, file), 'utf-8');
-          traces.push(...(JSON.parse(content) as IGovernanceTrace[]));
+          traces.push(...this.readArchiveFile(join(this.archiveDir, file)));
         }
       }
 
@@ -245,8 +257,16 @@ export class GovernanceTraceStore {
     }
 
     mkdirSync(this.archiveDir, { recursive: true });
-    const filename = `governance-traces-${Date.now()}.json`;
-    writeFileSync(join(this.archiveDir, filename), JSON.stringify(traces, null, 2), 'utf-8');
+    const filename = this.compressArchives
+      ? `governance-traces-${Date.now()}.json.gz`
+      : `governance-traces-${Date.now()}.json`;
+    const filePath = join(this.archiveDir, filename);
+    const content = JSON.stringify(traces, null, 2);
+    if (this.compressArchives) {
+      writeFileSync(filePath, gzipSync(Buffer.from(content, 'utf-8')));
+      return;
+    }
+    writeFileSync(filePath, content, 'utf-8');
   }
 
   private readArchiveRecord(file: string): IGovernanceTraceArchiveRecord | null {
@@ -256,7 +276,7 @@ export class GovernanceTraceStore {
 
     const filePath = join(this.archiveDir, file);
     try {
-      const traces = JSON.parse(readFileSync(filePath, 'utf-8')) as IGovernanceTrace[];
+      const traces = this.readArchiveFile(filePath);
       const startedAtValues = traces.map((trace) => trace.startedAt).filter((value) => typeof value === 'number');
       return {
         file,
@@ -264,6 +284,7 @@ export class GovernanceTraceStore {
         traceCount: traces.length,
         startedAt: startedAtValues.length ? Math.min(...startedAtValues) : undefined,
         endedAt: startedAtValues.length ? Math.max(...startedAtValues) : undefined,
+        compressed: file.endsWith('.gz'),
       };
     } catch {
       return null;
@@ -276,7 +297,7 @@ export class GovernanceTraceStore {
     }
 
     const archiveFiles = readdirSync(this.archiveDir)
-      .filter((file) => file.endsWith('.json'))
+      .filter((file) => file.endsWith('.json') || file.endsWith('.json.gz'))
       .sort()
       .reverse();
 
@@ -290,9 +311,17 @@ export class GovernanceTraceStore {
       return;
     }
 
-    for (const file of readdirSync(this.archiveDir).filter((item) => item.endsWith('.json'))) {
+    for (const file of readdirSync(this.archiveDir).filter((item) => item.endsWith('.json') || item.endsWith('.json.gz'))) {
       rmSync(join(this.archiveDir, file), { force: true });
     }
+  }
+
+  private readArchiveFile(filePath: string): IGovernanceTrace[] {
+    if (filePath.endsWith('.gz')) {
+      const content = gunzipSync(readFileSync(filePath)).toString('utf-8');
+      return JSON.parse(content) as IGovernanceTrace[];
+    }
+    return JSON.parse(readFileSync(filePath, 'utf-8')) as IGovernanceTrace[];
   }
 }
 
