@@ -48,6 +48,16 @@ export const GOVERNANCE_TRACE_FILE = join(CONFIG_DIR, 'governance-traces.json');
 export const GOVERNANCE_TRACE_ARCHIVE_DIR = join(CONFIG_DIR, 'governance-trace-archives');
 
 /**
+ * Governance metrics 导出历史文件
+ */
+export const GOVERNANCE_EXPORT_HISTORY_FILE = join(CONFIG_DIR, 'governance-metrics-export-history.json');
+
+/**
+ * Governance metrics 快照目录
+ */
+export const GOVERNANCE_SNAPSHOT_DIR = join(CONFIG_DIR, 'governance-metric-snapshots');
+
+/**
  * 默认配置
  */
 export const DEFAULT_CONFIG = {

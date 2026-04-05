@@ -45,7 +45,7 @@ vi.mock('@musistudio/llms', () => {
 });
 
 import { createServer } from './server';
-import { governanceTraceStore } from './governance';
+import { governanceMetricsExportStore, governanceTraceStore } from './governance';
 import { normalizeAndValidateConfig } from './utils/config';
 
 describe('createServer /api/config', () => {
@@ -70,6 +70,7 @@ describe('createServer /api/config', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     governanceTraceStore.clear();
+    governanceMetricsExportStore.clear();
     mockBackupConfigFile.mockResolvedValue(null);
     mockWriteConfigFile.mockResolvedValue(undefined);
     mockReadConfigFile.mockResolvedValue({});
@@ -361,6 +362,56 @@ describe('createServer /api/config', () => {
     expect(result).toContain('summary,totalTraces,1');
   });
 
+  it('records manual governance metric snapshots and exposes export history', async () => {
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['sticky'],
+      stickyHit: true,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1_000,
+    });
+
+    const server = createServer({});
+    const createSnapshotHandler = server.app.routes.get('POST /api/governance/metrics/snapshots');
+    const listExportsHandler = server.app.routes.get('GET /api/governance/metrics/exports');
+
+    const snapshotResult = await createSnapshotHandler({
+      body: {
+        format: 'json',
+        windowMs: 8_000,
+        now: 8_000,
+      },
+    }, {});
+    const exportsResult = await listExportsHandler({}, {});
+
+    expect(snapshotResult.success).toBe(true);
+    expect(snapshotResult.export.kind).toBe('manual');
+    expect(exportsResult.exports).toHaveLength(1);
+  });
+
+  it('registers scheduled governance metric snapshots', async () => {
+    const server = createServer({});
+    const scheduleHandler = server.app.routes.get('POST /api/governance/metrics/schedules');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await scheduleHandler({
+      body: {
+        intervalMs: 1000,
+        format: 'csv',
+        windowMs: 3_600_000,
+      },
+    }, reply);
+
+    expect(result.success).toBe(true);
+    expect(result.schedule.intervalMs).toBe(1000);
+    expect(result.schedule.format).toBe('csv');
+  });
+
   it('accepts custom anomaly threshold query parameters', async () => {
     governanceTraceStore.add({
       requestId: 'trace-1',
@@ -417,6 +468,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/governance/traces');
     expect(html).toContain('/api/governance/metrics');
     expect(html).toContain('/api/governance/metrics/export');
+    expect(html).toContain('/api/governance/metrics/exports');
     expect(html).toContain('metricsGrid');
     expect(html).toContain('anomalyList');
     expect(html).toContain('bucketGrid');

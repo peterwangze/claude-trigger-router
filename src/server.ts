@@ -8,7 +8,12 @@ import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig } from "./utils";
 import { log } from "./utils/log";
 import { SERVICE_NAME } from "./service-health";
-import { governanceTraceStore, getGovernanceMetricsReport, exportGovernanceMetricsReport } from "./governance";
+import {
+  governanceTraceStore,
+  getGovernanceMetricsReport,
+  exportGovernanceMetricsReport,
+  governanceMetricsExportStore,
+} from "./governance";
 
 /**
  * 创建服务器
@@ -105,6 +110,50 @@ export const createServer = (config: any): Server => {
       `attachment; filename="governance-metrics.${format}"`
     );
     return reply.send(content);
+  });
+
+  server.app.get("/api/governance/metrics/exports", async () => {
+    return {
+      exports: governanceMetricsExportStore.listHistory(),
+      schedules: governanceMetricsExportStore.listSchedules(),
+    };
+  });
+
+  server.app.post("/api/governance/metrics/snapshots", async (req: any) => {
+    const format = String(req.body?.format || 'json').toLowerCase() === 'csv' ? 'csv' : 'json';
+    const result = governanceMetricsExportStore.createSnapshot(
+      readGovernanceMetricsQuery(req.body ?? {}),
+      format,
+      'manual'
+    );
+
+    return {
+      success: true,
+      export: result.record,
+    };
+  });
+
+  server.app.post("/api/governance/metrics/schedules", async (req: any, reply: any) => {
+    const intervalMs = Number(req.body?.intervalMs);
+    if (!Number.isFinite(intervalMs) || intervalMs < 1000) {
+      reply.code(400);
+      return {
+        success: false,
+        message: 'intervalMs must be at least 1000 ms',
+      };
+    }
+
+    const format = String(req.body?.format || 'json').toLowerCase() === 'csv' ? 'csv' : 'json';
+    const schedule = governanceMetricsExportStore.startSchedule(
+      intervalMs,
+      readGovernanceMetricsQuery(req.body ?? {}),
+      format
+    );
+
+    return {
+      success: true,
+      schedule,
+    };
   });
 
   server.app.get("/api/governance/traces/:requestId", async (req: any, reply: any) => {
@@ -238,7 +287,7 @@ export const createServer = (config: any): Server => {
       `<input id="limit" placeholder="limit" value="20">` +
       `<button id="refreshBtn">刷新</button>` +
       `</div>` +
-      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/metrics</code> 与 <code>/api/governance/metrics/export</code></div>` +
+      `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
       `<div id="metricsGrid" class="stats">` +
       `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
       `<div class="stat"><span class="muted">Sticky hit rate</span><strong>-</strong></div>` +
@@ -296,6 +345,8 @@ export const createServer = (config: any): Server => {
       `<li><code>POST /api/config</code> — 保存配置</li>` +
       `<li><code>GET /api/transformers</code> — 查看已加载 transformer</li>` +
       `<li><code>POST /api/restart</code> — 重启服务</li>` +
+      `<li><code>POST /api/governance/metrics/snapshots</code> — 生成一次治理指标快照</li>` +
+      `<li><code>POST /api/governance/metrics/schedules</code> — 注册定时快照任务</li>` +
       `</ul>` +
       `</div>` +
       `<script>` +

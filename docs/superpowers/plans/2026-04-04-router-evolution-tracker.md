@@ -143,6 +143,8 @@
 - 历史 trace 会归档到 `~/.claude-trigger-router/governance-trace-archives/`，并按保留数量自动清理旧归档
 - anomaly 检测已支持动态基线与细粒度阈值参数，可按窗口场景调整灵敏度
 - `GET /api/governance/metrics` 与导出接口现可通过 query 自定义 min sample、rate 和 latency 阈值
+- 新增导出历史记录与定时快照调度能力
+- 支持 `GET /api/governance/metrics/exports`、`POST /api/governance/metrics/snapshots`、`POST /api/governance/metrics/schedules`
 
 ## 下次更新时应补充的内容
 
