@@ -949,6 +949,12 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/models/compiled');
     expect(html).toContain('/api/models/compiled/preview');
     expect(html).toContain('Draft Config Preview');
+    expect(html).toContain('draftSummaryGrid');
+    expect(html).toContain('Trigger rules');
+    expect(html).toContain('Patterns');
+    expect(html).toContain('Smart candidates');
+    expect(html).toContain('Cascade levels');
+    expect(html).toContain('Model refs');
     expect(html).toContain('Routing Controls');
     expect(html).toContain('TriggerRouter');
     expect(html).toContain('SmartRouter');
@@ -1017,6 +1023,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('loadConfigDraft');
     expect(html).toContain('previewConfigDraft');
     expect(html).toContain('renderModelsForm');
+    expect(html).toContain('renderDraftSummary');
     expect(html).toContain('extractModelsFromForm');
     expect(html).toContain('buildDraftPayloadFromForm');
     expect(html).toContain('renderConfigControlForms');

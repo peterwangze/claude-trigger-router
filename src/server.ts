@@ -636,6 +636,14 @@ export const createServer = (config: any): Server => {
       `<button id="previewConfigDraftBtn" type="button">预览 compiled models</button>` +
       `<span id="draftPreviewStatus" class="muted">尚未预览配置草稿</span>` +
       `</div>` +
+      `<div id="draftSummaryGrid" class="stats">` +
+      `<div class="stat"><span class="muted">Models</span><strong>0</strong></div>` +
+      `<div class="stat"><span class="muted">Trigger rules</span><strong>0</strong></div>` +
+      `<div class="stat"><span class="muted">Patterns</span><strong>0</strong></div>` +
+      `<div class="stat"><span class="muted">Smart candidates</span><strong>0</strong></div>` +
+      `<div class="stat"><span class="muted">Cascade levels</span><strong>0</strong></div>` +
+      `<div class="stat"><span class="muted">Model refs</span><strong>0</strong></div>` +
+      `</div>` +
       `<div class="control-grid">` +
       `<div><label>Router default (modelId)</label><input id="draftRouterDefault" placeholder="例如 sonnet"></div>` +
       `<div><label>Models count</label><input id="draftModelsCount" value="0" readonly></div>` +
@@ -848,6 +856,7 @@ export const createServer = (config: any): Server => {
       `const detailHint=document.getElementById('detailHint');` +
       `const draftPreviewStatus=document.getElementById('draftPreviewStatus');` +
       `const configDraftEditor=document.getElementById('configDraftEditor');` +
+      `const draftSummaryGrid=document.getElementById('draftSummaryGrid');` +
       `const modelsFormGrid=document.getElementById('modelsFormGrid');` +
       `const draftRouterDefault=document.getElementById('draftRouterDefault');` +
       `const draftModelsCount=document.getElementById('draftModelsCount');` +
@@ -911,6 +920,22 @@ export const createServer = (config: any): Server => {
       `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
       `function getModelIdSuggestionsMarkup(idPrefix){` +
       `  return '<datalist id=\"'+idPrefix+'\">'+knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('')+'</datalist>';` +
+      `}` +
+      `function renderDraftSummary(config){` +
+      `  const models=Array.isArray(config?.Models) ? config.Models : [];` +
+      `  const triggerRules=Array.isArray(config?.TriggerRouter?.rules) ? config.TriggerRouter.rules : [];` +
+      `  const patternCount=triggerRules.reduce((sum,rule)=>sum + (Array.isArray(rule.patterns) ? rule.patterns.length : 0),0);` +
+      `  const smartCandidates=Array.isArray(config?.SmartRouter?.candidates) ? config.SmartRouter.candidates : [];` +
+      `  const cascadeLevels=Array.isArray(config?.Governance?.cascade?.levels) ? config.Governance.cascade.levels : [];` +
+      `  const modelRefCount=[config?.Router?.default, config?.TriggerRouter?.intent_model, config?.SmartRouter?.router_model, config?.Governance?.sticky?.alignment?.summarizer_model, config?.Governance?.semantic?.classifier_model, config?.Governance?.shadow?.verifier_model].filter(v=>typeof v === 'string' && v.trim()).length + triggerRules.filter(rule=>rule?.model).length + smartCandidates.filter(item=>item?.model).length + cascadeLevels.reduce((sum,level)=>sum + (level?.from ? 1 : 0) + (level?.to ? 1 : 0), 0);` +
+      `  draftSummaryGrid.innerHTML=[` +
+      "    ['Models', models.length]," +
+      "    ['Trigger rules', triggerRules.length]," +
+      "    ['Patterns', patternCount]," +
+      "    ['Smart candidates', smartCandidates.length]," +
+      "    ['Cascade levels', cascadeLevels.length]," +
+      "    ['Model refs', modelRefCount]" +
+      `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
       `}` +
       `function updateTopLevelModelSuggestionLists(){` +
       `  const markup=knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('');` +
@@ -1099,6 +1124,7 @@ export const createServer = (config: any): Server => {
       `    const payload=buildDraftPayloadFromForm();` +
       `    currentDraftConfig=payload;` +
       `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
+      `    renderDraftSummary(payload);` +
       `    draftPreviewStatus.textContent='已同步 Models 表单到 JSON 草稿';` +
       `  } catch (error) {` +
       `    draftPreviewStatus.textContent='同步失败：'+error.message;` +
@@ -1123,6 +1149,7 @@ export const createServer = (config: any): Server => {
       `  if(payload.Router?.default){ draftRouterDefault.value=payload.Router.default; }` +
       `  renderConfigControlForms(payload);` +
       `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
+      `  renderDraftSummary(payload);` +
       `  draftPreviewStatus.textContent='已将建议模型应用到 '+path+'，可重新预览验证';` +
       `}` +
       `function renderCompiledDiff(diff){` +
@@ -1199,6 +1226,7 @@ export const createServer = (config: any): Server => {
       `  renderConfigControlForms(currentDraftConfig);` +
       `  draftRouterDefault.value=currentDraftConfig.Router?.default || '';` +
       `  configDraftEditor.value=JSON.stringify(data,null,2);` +
+      `  renderDraftSummary(currentDraftConfig);` +
       `  draftPreviewStatus.textContent='已载入当前配置，可通过 Models 表单或 JSON 草稿编辑';` +
       `}` +
       `async function previewConfigDraft(){` +
