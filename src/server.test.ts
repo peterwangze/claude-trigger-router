@@ -1043,6 +1043,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('renderDraftValidation');
     expect(html).toContain("text.startsWith('Models')");
     expect(html).toContain("text.startsWith('TriggerRouter')");
+    expect(html).toContain('extractPath');
+    expect(html).toContain('<code>');
     expect(html).toContain('draftPresets');
     expect(html).toContain('applyDraftPreset');
     expect(html).toContain('renderDraftPresetGuide');

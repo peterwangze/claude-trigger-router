@@ -979,14 +979,15 @@ export const createServer = (config: any): Server => {
       `function renderDraftValidation(errors){` +
       `  const list=Array.isArray(errors) ? errors.filter(Boolean) : [];` +
       `  if(!list.length){ draftValidationList.innerHTML='<div class="alert info"><strong>No validation issues</strong><div class="muted">当前草稿未发现集中展示的问题</div></div>'; return; }` +
+      `  const extractPath=(text)=>{ const match=String(text).match(/^(Models(?:\\[[0-9]+\\])?(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|Router(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|TriggerRouter(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|SmartRouter(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|Governance(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?)/); return match ? match[1] : ''; };` +
       `  const grouped=list.reduce((acc,item)=>{` +
       `    const text=String(item);` +
       `    const bucket=text.startsWith('Models') ? 'Models' : text.startsWith('Router') ? 'Router' : text.startsWith('TriggerRouter') ? 'TriggerRouter' : text.startsWith('SmartRouter') ? 'SmartRouter' : text.startsWith('Governance') ? 'Governance' : text.startsWith('JSON parse error') ? 'Draft JSON' : 'Other';` +
       `    acc[bucket]=acc[bucket] || [];` +
-      `    acc[bucket].push(text);` +
+      `    acc[bucket].push({ text, path: extractPath(text) });` +
       `    return acc;` +
       `  }, {});` +
-      `  draftValidationList.innerHTML=Object.entries(grouped).map(([bucket,items])=>'<div class="alert warn"><strong>'+esc(bucket)+'</strong><div>'+items.slice(0,4).map(item=>'<div>'+esc(item)+'</div>').join('')+'</div></div>').join('');` +
+      `  draftValidationList.innerHTML=Object.entries(grouped).map(([bucket,items])=>'<div class="alert warn"><strong>'+esc(bucket)+'</strong><div>'+items.slice(0,4).map(item=>'<div>'+(item.path ? ('<code>'+esc(item.path)+'</code> ') : '')+esc(item.text)+'</div>').join('')+'</div></div>').join('');` +
       `}` +
       `function renderDraftPresetGuide(){` +
       `  draftPresetList.innerHTML=Object.entries(draftPresets).map(([key,preset])=>'<div class="alert info"><strong>'+esc(preset.label || key)+'</strong><div>'+esc(preset.description || '')+'</div><div class="muted">影响范围：'+esc((preset.affects || []).join(' / '))+'</div></div>').join('');` +
