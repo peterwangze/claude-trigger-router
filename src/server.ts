@@ -987,7 +987,28 @@ export const createServer = (config: any): Server => {
       `    acc[bucket].push({ text, path: extractPath(text) });` +
       `    return acc;` +
       `  }, {});` +
-      `  draftValidationList.innerHTML=Object.entries(grouped).map(([bucket,items])=>'<div class="alert warn"><strong>'+esc(bucket)+'</strong><div>'+items.slice(0,4).map(item=>'<div>'+(item.path ? ('<code>'+esc(item.path)+'</code> ') : '')+esc(item.text)+'</div>').join('')+'</div></div>').join('');` +
+      `  draftValidationList.innerHTML=Object.entries(grouped).map(([bucket,items])=>'<div class="alert warn"><strong>'+esc(bucket)+'</strong><div>'+items.slice(0,4).map(item=>'<div>'+(item.path ? ('<button type="button" class="pill" data-validation-path=\"'+esc(item.path)+'\">'+esc(item.path)+'</button> ') : '')+esc(item.text)+'</div>').join('')+'</div></div>').join('');` +
+      `}` +
+      `function findValidationTarget(path){` +
+      `  if(!path){ return null; }` +
+      `  if(path.startsWith('Models')){ return modelsFormGrid; }` +
+      `  if(path === 'Router.default'){ return draftRouterDefault; }` +
+      `  if(path.startsWith('TriggerRouter.intent_model')){ return triggerIntentModel; }` +
+      `  if(path.startsWith('TriggerRouter.rules[')){ return triggerRulesList; }` +
+      `  if(path.startsWith('SmartRouter.router_model')){ return smartRouterModel; }` +
+      `  if(path.startsWith('SmartRouter.candidates[')){ return smartCandidatesList; }` +
+      `  if(path.startsWith('Governance.cascade.levels[')){ return governanceCascadeLevelsList; }` +
+      `  if(path.startsWith('Governance.sticky.alignment')){ return governanceSummarizerModel; }` +
+      `  if(path.startsWith('Governance.semantic')){ return governanceClassifierModel; }` +
+      `  if(path.startsWith('Governance.shadow')){ return governanceVerifierModel; }` +
+      `  if(path.startsWith('Governance')){ return governanceEnabled; }` +
+      `  return null;` +
+      `}` +
+      `function jumpToValidationPath(path){` +
+      `  const target=findValidationTarget(path);` +
+      `  if(!target || typeof target.scrollIntoView !== 'function'){ return; }` +
+      `  target.scrollIntoView({ behavior:'smooth', block:'center' });` +
+      `  if(typeof target.focus === 'function'){ target.focus({ preventScroll:true }); }` +
       `}` +
       `function renderDraftPresetGuide(){` +
       `  draftPresetList.innerHTML=Object.entries(draftPresets).map(([key,preset])=>'<div class="alert info"><strong>'+esc(preset.label || key)+'</strong><div>'+esc(preset.description || '')+'</div><div class="muted">影响范围：'+esc((preset.affects || []).join(' / '))+'</div></div>').join('');` +
@@ -1339,6 +1360,7 @@ export const createServer = (config: any): Server => {
       `governanceCascadeLevelsList.addEventListener('change',()=>syncDraftEditorFromForm());` +
       `governanceCascadeLevelsList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-cascade-level]'); if(!btn){ return; } const next=extractCascadeLevelsFromForm().filter((_,index)=>index!==Number(btn.dataset.removeCascadeLevel)); renderCascadeLevelsList(next); syncDraftEditorFromForm(); });` +
       `referenceImpactTableBody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-apply-reference-path]'); if(!btn){ return; } applyReferenceSuggestion(btn.dataset.applyReferencePath, btn.dataset.applyReferenceModel); });` +
+      `draftValidationList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-validation-path]'); if(!btn){ return; } jumpToValidationPath(btn.dataset.validationPath); });` +
       `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
       `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
       `function renderMetrics(metrics){` +

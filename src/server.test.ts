@@ -954,6 +954,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Preset guide');
     expect(html).toContain('Validation Summary');
     expect(html).toContain('draftValidationList');
+    expect(html).toContain('data-validation-path');
     expect(html).toContain('No validation issues');
     expect(html).toContain('TriggerRouter');
     expect(html).toContain('SmartRouter');
@@ -1044,7 +1045,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain("text.startsWith('Models')");
     expect(html).toContain("text.startsWith('TriggerRouter')");
     expect(html).toContain('extractPath');
-    expect(html).toContain('<code>');
+    expect(html).toContain('findValidationTarget');
+    expect(html).toContain('jumpToValidationPath');
+    expect(html).toContain('scrollIntoView');
     expect(html).toContain('draftPresets');
     expect(html).toContain('applyDraftPreset');
     expect(html).toContain('renderDraftPresetGuide');
