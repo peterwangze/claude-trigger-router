@@ -219,6 +219,7 @@ Models:
 - `/ui` 的 `Validation Summary` 现在会同时显示 errors 和 warnings，并区分 `repair first` / `review before save`
 - `/ui` 现已支持直接从草稿区点击 `保存配置`，保存后会继续显示 warning，避免“能保存但预期不清楚”
 - `/ui` 的 Models 表单现在已提供 `Reasoning/Tool/Image support` 和 `Vendor hint` 显式控件，普通场景下不再需要直接手改 `metadata` JSON
+- 对常见 capability warning，`/ui` 现在也会提供首轮快捷修正动作，例如直接移除会被忽略的 `thinking`，或恢复默认 capability
 
 ### 1.1 Legacy Providers
 

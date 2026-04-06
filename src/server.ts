@@ -1027,11 +1027,16 @@ export const createServer = (config: any): Server => {
       `  const summary='<div class="alert info"><div class="row"><strong>Validation summary</strong><span class="pill">'+esc(errorList.length)+' errors / '+esc(warningList.length)+' warnings</span></div><div class="muted">'+(errorList.length ? '请优先修复 errors，再决定是否接受 warnings。' : '当前无阻断错误，可按需处理 warnings。')+'</div></div>';` +
       `  draftValidationList.innerHTML=summary + Object.entries(grouped).map(([bucket,items])=>{ const hasError=items.some(item=>item.severity==='error'); const levelClass=hasError ? 'warn' : 'info'; const actionLabel=hasError ? 'repair first' : 'review before save'; return '<div class="alert '+levelClass+'"><div class="row"><strong>'+esc(bucket)+'</strong><span class="pill">'+esc(items.length)+' issues</span></div><div class="muted">'+esc(actionLabel)+'</div><div>'+items.slice(0,4).map(item=>'<div>'+(item.path ? ('<button type="button" class="pill" data-validation-path=\"'+esc(item.path)+'\">'+esc(item.path)+'</button> ') : '')+'<span class=\"pill\">'+esc(item.severity==='error' ? 'error' : 'warning')+'</span> '+esc(item.text)+'</div>').join('')+'</div></div>'; }).join('');` +
       `}` +
+      `function getCapabilityWarningActionLabel(code){` +
+      `  if(code==='thinking_ignored'){ return '移除 thinking'; }` +
+      `  if(code==='tools_text_fallback' || code==='images_text_fallback'){ return '恢复默认 capability'; }` +
+      `  return '';` +
+      `}` +
       `function renderCapabilityWarnings(report){` +
       `  const entries=Array.isArray(report?.entries) ? report.entries : [];` +
       `  if(!entries.length){ capabilityWarningsList.innerHTML='<div class="alert info"><strong>No capability warnings</strong><div class="muted">当前 compiled models 未发现需要额外提示的能力降级</div></div>'; return; }` +
       `  const summary=report?.summary || {};` +
-      `  capabilityWarningsList.innerHTML='<div class="alert info"><strong>Capability warning summary</strong><div class="muted">warn '+esc(summary.warn ?? 0)+' / info '+esc(summary.info ?? 0)+' / total '+esc(summary.total ?? entries.length)+'</div></div>' + entries.map(item=>'<div class="alert '+esc(item.level === 'warn' ? 'warn' : 'info')+'"><div class="row"><strong>'+esc(item.code || item.level || 'warning')+'</strong><span class="pill">'+esc(item.modelId || '-').trim()+'</span></div><div>'+(item.path ? ('<button type="button" class="pill" data-validation-path=\"'+esc(item.path)+'\">'+esc(item.path)+'</button> ') : '')+esc(item.message || '')+'</div></div>').join('');` +
+      `  capabilityWarningsList.innerHTML='<div class="alert info"><strong>Capability warning summary</strong><div class="muted">warn '+esc(summary.warn ?? 0)+' / info '+esc(summary.info ?? 0)+' / total '+esc(summary.total ?? entries.length)+'</div></div>' + entries.map(item=>{ const actionLabel=getCapabilityWarningActionLabel(item.code); return '<div class="alert '+esc(item.level === 'warn' ? 'warn' : 'info')+'"><div class="row"><strong>'+esc(item.code || item.level || 'warning')+'</strong><span class="pill">'+esc(item.modelId || '-').trim()+'</span></div><div>'+(item.path ? ('<button type="button" class="pill" data-validation-path=\"'+esc(item.path)+'\">'+esc(item.path)+'</button> ') : '')+esc(item.message || '')+'</div>'+(actionLabel ? ('<div class=\"row\" style=\"margin-top:.5rem\"><button type=\"button\" data-apply-warning-path=\"'+esc(item.path || '')+'\" data-apply-warning-code=\"'+esc(item.code || '')+'\">'+esc(actionLabel)+'</button></div>') : '')+'</div>'; }).join('');` +
       `}` +
       `function findValidationTarget(path){` +
       `  if(!path){ return null; }` +
@@ -1315,6 +1320,41 @@ export const createServer = (config: any): Server => {
       `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='已将建议模型应用到 '+path+'，可重新预览验证';` +
       `}` +
+      `function applyCapabilityWarningSuggestion(path,code){` +
+      `  const payload=JSON.parse(JSON.stringify(currentDraftConfig || {}));` +
+      `  const tokens=String(path || '').replace(/\[(\d+)\]/g,'.$1').split('.').filter(Boolean);` +
+      `  if(!tokens.length){ draftPreviewStatus.textContent='暂不支持自动修复该 warning'; return; }` +
+      `  let cursor=payload;` +
+      `  for(let i=0;i<tokens.length-1;i++){ if(cursor == null){ break; } cursor=cursor[tokens[i]]; }` +
+      `  const lastToken=tokens[tokens.length-1];` +
+      `  if(code==='thinking_ignored'){` +
+      `    if(cursor && Object.prototype.hasOwnProperty.call(cursor,lastToken)){ delete cursor[lastToken]; }` +
+      `  } else if(code==='tools_text_fallback' || code==='images_text_fallback'){` +
+      `    if(cursor && Object.prototype.hasOwnProperty.call(cursor,lastToken)){ delete cursor[lastToken]; }` +
+      `    if(cursor && !Object.keys(cursor).length){` +
+      `      const parentTokens=tokens.slice(0,-1);` +
+      `      const maybeMetadataKey=parentTokens[parentTokens.length-1];` +
+      `      if(maybeMetadataKey==='metadata'){` +
+      `        let parentCursor=payload;` +
+      `        for(let i=0;i<parentTokens.length-1;i++){ if(parentCursor == null){ break; } parentCursor=parentCursor[parentTokens[i]]; }` +
+      `        if(parentCursor && Object.prototype.hasOwnProperty.call(parentCursor,'metadata')){ delete parentCursor.metadata; }` +
+      `      }` +
+      `    }` +
+      `  } else {` +
+      `    draftPreviewStatus.textContent='暂不支持自动修复该 warning';` +
+      `    return;` +
+      `  }` +
+      `  currentDraftConfig=payload;` +
+      `  renderModelsForm(payload.Models || []);` +
+      `  renderConfigControlForms(payload);` +
+      `  draftRouterDefault.value=payload.Router?.default || '';` +
+      `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
+      `  renderDraftSummary(payload);` +
+      `  renderDraftValidation([],[]);` +
+      `  renderCapabilityWarnings();` +
+      `  renderDraftPreviewMeta();` +
+      `  draftPreviewStatus.textContent='已应用 warning 修正：'+code+'，可重新预览验证';` +
+      `}` +
       `function renderCompiledDiff(diff){` +
       `  const summary=diff?.summary || {};` +
       `  compiledDiffSummary.innerHTML=[` +
@@ -1478,7 +1518,7 @@ export const createServer = (config: any): Server => {
       `governanceCascadeLevelsList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-cascade-level]'); if(!btn){ return; } const next=extractCascadeLevelsFromForm().filter((_,index)=>index!==Number(btn.dataset.removeCascadeLevel)); renderCascadeLevelsList(next); syncDraftEditorFromForm(); });` +
       `referenceImpactTableBody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-apply-reference-path]'); if(!btn){ return; } applyReferenceSuggestion(btn.dataset.applyReferencePath, btn.dataset.applyReferenceModel); });` +
       `draftValidationList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-validation-path]'); if(!btn){ return; } jumpToValidationPath(btn.dataset.validationPath); });` +
-      `capabilityWarningsList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-validation-path]'); if(!btn){ return; } jumpToValidationPath(btn.dataset.validationPath); });` +
+      `capabilityWarningsList.addEventListener('click',(e)=>{ const applyBtn=e.target.closest('button[data-apply-warning-path]'); if(applyBtn){ applyCapabilityWarningSuggestion(applyBtn.dataset.applyWarningPath, applyBtn.dataset.applyWarningCode); return; } const btn=e.target.closest('button[data-validation-path]'); if(!btn){ return; } jumpToValidationPath(btn.dataset.validationPath); });` +
       `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
       `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
       `function renderMetrics(metrics){` +

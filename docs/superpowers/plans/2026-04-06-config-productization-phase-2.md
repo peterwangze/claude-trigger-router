@@ -260,3 +260,11 @@
 - `Metadata (advanced JSON)` 仍保留，作为高级扩展入口
 - 用户现在可以直接在表单中配置 capability hint，再配合 warning 面板查看效果
 - 当前 remaining gap 主要是 setup CLI 仍未提供对这些 capability 字段的专门问答路径
+
+### 阶段 2K：warning 快捷修正首轮落地
+
+- `/ui` Capability Warnings 面板现已支持首轮快捷修正动作
+- `thinking_ignored` 可直接一键移除当前模型的 `thinking`
+- `tools_text_fallback / images_text_fallback` 可直接恢复默认 capability，而不是手动改 metadata
+- warning 已开始从“只读提示”演进到“可操作修正入口”
+- 当前 remaining gap 主要是 setup CLI 仍未提供 capability 字段的专门问答路径

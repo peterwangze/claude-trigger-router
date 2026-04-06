@@ -194,6 +194,9 @@
 - 已完成 capability 显式表单控件首轮：`/ui` Models 表单已可直接编辑 `supports_reasoning / supports_tools / supports_images / vendor_hint`
 - capability 常见编辑路径已从“纯 metadata JSON”进一步收敛到显式字段 + advanced JSON 兜底
 - 当前 remaining gap 已继续收敛为“setup CLI 尚未提供 capability 字段的专门引导与快捷编辑”
+- 已完成 warning 快捷修正首轮：`/ui` Capability Warnings 面板现已可直接修正常见 capability 冲突
+- `thinking_ignored / tools_text_fallback / images_text_fallback` 现已从只读 warning 升级为可操作入口
+- 当前 remaining gap 已继续收敛为“setup CLI 仍缺 capability 专门问答路径，以及更复杂 warning 的修正策略”
 
 ## 下次更新时应补充的内容
 

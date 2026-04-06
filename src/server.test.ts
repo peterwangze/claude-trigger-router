@@ -1064,6 +1064,12 @@ describe('createServer /api/config', () => {
     expect(html).toContain('capabilityWarningsList');
     expect(html).toContain('No capability warnings');
     expect(html).toContain('renderCapabilityWarnings');
+    expect(html).toContain('getCapabilityWarningActionLabel');
+    expect(html).toContain('applyCapabilityWarningSuggestion');
+    expect(html).toContain('data-apply-warning-path');
+    expect(html).toContain('data-apply-warning-code');
+    expect(html).toContain('移除 thinking');
+    expect(html).toContain('恢复默认 capability');
     expect(html).toContain('TriggerRouter');
     expect(html).toContain('SmartRouter');
     expect(html).toContain('Governance');

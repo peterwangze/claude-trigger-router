@@ -256,13 +256,14 @@ app request
 - `normalizeAndValidateConfig(...)` 与 `ctr setup` 现也会透出这些 warning，使 capability 风险不再只停留在 compiled preview 层
 - `/ui` 的 Validation Summary 与保存流程现已开始按 severity 展示 errors / warnings，warning 进入日常编辑主路径
 - `/ui` 的 Models 表单现已提供 capability 显式控件，降低直接编辑 `metadata` JSON 的门槛
+- `/ui` 的 Capability Warnings 面板现已开始提供快捷修正动作，warning 正从只读提示演进为可操作入口
 
 当前仍未完成的部分：
 
 - `router` 与上游最终出站执行层虽然已通过协议分发入口衔接，但 capability 仍处于首轮显式化阶段
 - 对图片、音频、结构化输出等更复杂消息块的覆盖仍需继续扩展
 - 对 OpenAI Responses、音频/视频多模态、结构化输出 schema 等更细粒度接口差异仍需单独抽象
-- warning 虽已进入 repair/save UI，但与自动 repair 建议、setup CLI capability 引导仍未完全联动
+- warning 虽已进入 repair/save UI，但 setup CLI capability 引导与更复杂的多步修正策略仍未完全联动
 
 ## 8. setup、配置文件、/ui 的统一策略
 
