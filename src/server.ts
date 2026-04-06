@@ -634,8 +634,11 @@ export const createServer = (config: any): Server => {
       `<button id="loadConfigDraftBtn" type="button">载入当前配置</button>` +
       `<button id="addModelDraftBtn" type="button">新增 Model</button>` +
       `<button id="applyBalancedPresetBtn" type="button">应用平衡预设</button>` +
+      `<button id="previewBalancedPresetBtn" type="button">预览平衡预设</button>` +
       `<button id="applyFastPresetBtn" type="button">应用快速预设</button>` +
+      `<button id="previewFastPresetBtn" type="button">预览快速预设</button>` +
       `<button id="applyGovernancePresetBtn" type="button">应用治理预设</button>` +
+      `<button id="previewGovernancePresetBtn" type="button">预览治理预设</button>` +
       `<button id="syncDraftJsonBtn" type="button">同步 JSON 草稿</button>` +
       `<button id="previewConfigDraftBtn" type="button">预览 compiled models</button>` +
       `<span id="draftPreviewStatus" class="muted">尚未预览配置草稿</span>` +
@@ -1387,25 +1390,40 @@ export const createServer = (config: any): Server => {
       "    ['Avg latency', fmt(metrics.averageLatencyMs)+' ms']" +
       `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
       `}` +
-      `function applyDraftPreset(presetName){` +
+      `function buildPresetPayload(presetName){` +
       `  const preset=draftPresets[presetName];` +
-      `  if(!preset){ return; }` +
+      `  if(!preset){ return null; }` +
       `  const overwriteMode=draftPresetMode.value === 'replace';` +
-      `  if(overwriteMode){ renderModelsForm(currentDraftConfig.Models || []); renderTriggerRulesList([]); renderSmartCandidatesList([]); renderCascadeLevelsList([]); triggerEnabled.checked=false; triggerIntentEnabled.checked=false; triggerIntentModel.value=''; smartEnabled.checked=false; smartRouterModel.value=''; governanceEnabled.checked=false; governanceAlignmentEnabled.checked=false; governanceSummarizerModel.value=''; governanceSemanticEnabled.checked=false; governanceClassifierModel.value=''; governanceShadowEnabled.checked=false; governanceVerifierModel.value=''; }` +
-      `  if(preset.routerDefault){ draftRouterDefault.value=resolvePresetModelId(preset.routerDefault); }` +
-      `  if(preset.triggerEnabled !== undefined){ triggerEnabled.checked=Boolean(preset.triggerEnabled); }` +
-      `  if(preset.triggerRules){ renderTriggerRulesList(preset.triggerRules.map(rule=>({ ...rule, model: resolvePresetModelId(rule.model) }))); }` +
-      `  if(preset.smartEnabled !== undefined){ smartEnabled.checked=Boolean(preset.smartEnabled); }` +
-      `  if(preset.smartCandidates){ renderSmartCandidatesList(preset.smartCandidates.map(item=>({ ...item, model: resolvePresetModelId(item.model) }))); }` +
-      `  if(preset.governanceEnabled !== undefined){ governanceEnabled.checked=Boolean(preset.governanceEnabled); }` +
-      `  if(preset.governanceAlignmentEnabled !== undefined){ governanceAlignmentEnabled.checked=Boolean(preset.governanceAlignmentEnabled); }` +
-      `  if(preset.governanceSemanticEnabled !== undefined){ governanceSemanticEnabled.checked=Boolean(preset.governanceSemanticEnabled); }` +
-      `  if(preset.governanceShadowEnabled !== undefined){ governanceShadowEnabled.checked=Boolean(preset.governanceShadowEnabled); }` +
-      `  if(preset.governanceSummarizerModel !== undefined){ governanceSummarizerModel.value=resolvePresetModelId(preset.governanceSummarizerModel); }` +
-      `  if(preset.governanceClassifierModel !== undefined){ governanceClassifierModel.value=resolvePresetModelId(preset.governanceClassifierModel); }` +
-      `  if(preset.governanceVerifierModel !== undefined){ governanceVerifierModel.value=resolvePresetModelId(preset.governanceVerifierModel); }` +
-      `  syncDraftEditorFromForm();` +
-      `  draftPreviewStatus.textContent='已应用预设：'+presetName+'（'+(overwriteMode ? 'overwrite' : 'append / merge')+'）';` +
+      `  const payload=buildDraftPayloadFromForm();` +
+      `  if(overwriteMode){ delete payload.TriggerRouter; delete payload.SmartRouter; delete payload.Governance; }` +
+      `  if(preset.routerDefault){ payload.Router={ ...(payload.Router || {}), default: resolvePresetModelId(preset.routerDefault) }; }` +
+      `  if(preset.triggerEnabled !== undefined || preset.triggerRules){ payload.TriggerRouter={ ...(payload.TriggerRouter || {}), enabled: preset.triggerEnabled !== undefined ? Boolean(preset.triggerEnabled) : Boolean(payload.TriggerRouter?.enabled), analysis_scope: payload.TriggerRouter?.analysis_scope || 'last_message', llm_intent_recognition: payload.TriggerRouter?.llm_intent_recognition || false, intent_model: payload.TriggerRouter?.intent_model || '', rules: preset.triggerRules ? preset.triggerRules.map(rule=>({ ...rule, model: resolvePresetModelId(rule.model) })) : (payload.TriggerRouter?.rules || []) }; }` +
+      `  if(preset.smartEnabled !== undefined || preset.smartCandidates){ payload.SmartRouter={ ...(payload.SmartRouter || {}), enabled: preset.smartEnabled !== undefined ? Boolean(preset.smartEnabled) : Boolean(payload.SmartRouter?.enabled), router_model: payload.SmartRouter?.router_model || '', fallback: payload.SmartRouter?.fallback || 'default', candidates: preset.smartCandidates ? preset.smartCandidates.map(item=>({ ...item, model: resolvePresetModelId(item.model) })) : (payload.SmartRouter?.candidates || []), cache_ttl: payload.SmartRouter?.cache_ttl, max_tokens: payload.SmartRouter?.max_tokens }; }` +
+      `  if(preset.governanceEnabled !== undefined || preset.governanceAlignmentEnabled !== undefined || preset.governanceSemanticEnabled !== undefined || preset.governanceShadowEnabled !== undefined || preset.governanceSummarizerModel !== undefined || preset.governanceClassifierModel !== undefined || preset.governanceVerifierModel !== undefined){ payload.Governance={ ...(payload.Governance || {}), enabled: preset.governanceEnabled !== undefined ? Boolean(preset.governanceEnabled) : Boolean(payload.Governance?.enabled), sticky:{ ...((payload.Governance && payload.Governance.sticky) || {}), alignment:{ ...(((payload.Governance && payload.Governance.sticky && payload.Governance.sticky.alignment) || {})), enabled: preset.governanceAlignmentEnabled !== undefined ? Boolean(preset.governanceAlignmentEnabled) : Boolean(payload.Governance?.sticky?.alignment?.enabled), summarizer_model: preset.governanceSummarizerModel !== undefined ? resolvePresetModelId(preset.governanceSummarizerModel) : (payload.Governance?.sticky?.alignment?.summarizer_model || '') } }, semantic:{ ...((payload.Governance && payload.Governance.semantic) || {}), enabled: preset.governanceSemanticEnabled !== undefined ? Boolean(preset.governanceSemanticEnabled) : Boolean(payload.Governance?.semantic?.enabled), mode:(payload.Governance?.semantic?.mode || 'classifier'), classifier_model: preset.governanceClassifierModel !== undefined ? resolvePresetModelId(preset.governanceClassifierModel) : (payload.Governance?.semantic?.classifier_model || '') }, shadow:{ ...((payload.Governance && payload.Governance.shadow) || {}), enabled: preset.governanceShadowEnabled !== undefined ? Boolean(preset.governanceShadowEnabled) : Boolean(payload.Governance?.shadow?.enabled), verifier_model: preset.governanceVerifierModel !== undefined ? resolvePresetModelId(preset.governanceVerifierModel) : (payload.Governance?.shadow?.verifier_model || '') } }; }` +
+      `  return payload;` +
+      `}` +
+      `function applyDraftPreset(presetName){` +
+      `  const payload=buildPresetPayload(presetName);` +
+      `  if(!payload){ return; }` +
+      `  currentDraftConfig=payload;` +
+      `  renderModelsForm(payload.Models || []);` +
+      `  renderConfigControlForms(payload);` +
+      `  draftRouterDefault.value=payload.Router?.default || '';` +
+      `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
+      `  renderDraftSummary(payload);` +
+      `  renderDraftValidation([]);` +
+      `  draftPreviewStatus.textContent='已应用预设：'+presetName+'（'+(draftPresetMode.value === 'replace' ? 'overwrite' : 'append / merge')+'）';` +
+      `}` +
+      `async function previewDraftPreset(presetName){` +
+      `  const payload=buildPresetPayload(presetName);` +
+      `  if(!payload){ return; }` +
+      `  draftPreviewStatus.textContent='预览预设中：'+presetName;` +
+      `  const res=await fetch('/api/models/compiled/preview',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });` +
+      `  const data=await res.json();` +
+      `  if(!res.ok){ renderDraftValidation(data.errors || [data.message || 'unknown error']); renderCompiledDiff(); renderReferenceImpact(data.referenceImpact); draftPreviewStatus.textContent='预设预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error'); return; }` +
+      `  renderDraftValidation([]);` +
+      `  renderCompiledModels(data);` +
+      `  draftPreviewStatus.textContent='已预览预设：'+presetName+'（未写回草稿）';` +
       `}` +
       `function renderRanking(target,entries,emptyLabel){` +
       `  if(!entries || !entries.length){ target.innerHTML='<li><span class="muted">'+esc(emptyLabel)+'</span><strong>0</strong></li>'; return; }` +
@@ -1567,8 +1585,11 @@ export const createServer = (config: any): Server => {
       `document.getElementById('loadConfigDraftBtn').addEventListener('click',loadConfigDraft);` +
       `document.getElementById('addModelDraftBtn').addEventListener('click',addDraftModel);` +
       `document.getElementById('applyBalancedPresetBtn').addEventListener('click',()=>applyDraftPreset('balanced'));` +
+      `document.getElementById('previewBalancedPresetBtn').addEventListener('click',()=>previewDraftPreset('balanced'));` +
       `document.getElementById('applyFastPresetBtn').addEventListener('click',()=>applyDraftPreset('fast'));` +
+      `document.getElementById('previewFastPresetBtn').addEventListener('click',()=>previewDraftPreset('fast'));` +
       `document.getElementById('applyGovernancePresetBtn').addEventListener('click',()=>applyDraftPreset('governance'));` +
+      `document.getElementById('previewGovernancePresetBtn').addEventListener('click',()=>previewDraftPreset('governance'));` +
       `document.getElementById('addTriggerRuleBtn').addEventListener('click',addTriggerRule);` +
       `document.getElementById('addSmartCandidateBtn').addEventListener('click',addSmartCandidate);` +
       `document.getElementById('addCascadeLevelBtn').addEventListener('click',addCascadeLevel);` +

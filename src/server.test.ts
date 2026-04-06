@@ -965,8 +965,11 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Cascade levels');
     expect(html).toContain('Model refs');
     expect(html).toContain('applyBalancedPresetBtn');
+    expect(html).toContain('previewBalancedPresetBtn');
     expect(html).toContain('applyFastPresetBtn');
+    expect(html).toContain('previewFastPresetBtn');
     expect(html).toContain('applyGovernancePresetBtn');
+    expect(html).toContain('previewGovernancePresetBtn');
     expect(html).toContain('draftPresetMode');
     expect(html).toContain('draftPresetModeHint');
     expect(html).toContain('append / merge');
@@ -1058,6 +1061,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('activeValidationHighlight');
     expect(html).toContain('draftPresets');
     expect(html).toContain('applyDraftPreset');
+    expect(html).toContain('buildPresetPayload');
+    expect(html).toContain('previewDraftPreset');
     expect(html).toContain('renderDraftPresetGuide');
     expect(html).toContain('renderDraftPresetModeHint');
     expect(html).toContain('resolvePresetModelId');
