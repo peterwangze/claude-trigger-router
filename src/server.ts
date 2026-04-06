@@ -1031,9 +1031,23 @@ export const createServer = (config: any): Server => {
       `  const overwriteMode=draftPresetMode.value === 'replace';` +
       `  draftPresetModeHint.textContent=overwriteMode ? 'overwrite 会重置 TriggerRouter / SmartRouter / Governance 相关表单，再应用预设' : 'append / merge 会尽量保留当前草稿，仅补充预设相关字段';` +
       `}` +
+      `function deriveActualAffectedAreas(preview){` +
+      `  const areas=new Set();` +
+      `  const diff=preview?.diff || {};` +
+      `  const impact=preview?.referenceImpact || {};` +
+      `  if((diff.providerChanges || []).length || (diff.modelChanges || []).length){ areas.add('Models'); }` +
+      `  (impact.entries || []).forEach((entry)=>{` +
+      `    const path=String(entry.path || '');` +
+      `    if(path.startsWith('Router.')){ areas.add('Router'); }` +
+      `    else if(path.startsWith('TriggerRouter.')){ areas.add('TriggerRouter'); }` +
+      `    else if(path.startsWith('SmartRouter.')){ areas.add('SmartRouter'); }` +
+      `    else if(path.startsWith('Governance.')){ areas.add('Governance'); }` +
+      `  });` +
+      `  return Array.from(areas);` +
+      `}` +
       `function renderDraftPreviewMeta(meta){` +
       `  if(!meta){ draftPreviewMeta.innerHTML='<div class="alert info"><strong>Draft preview mode</strong><div class="muted">当前显示为草稿编辑视图，预设 dry-run 会在这里提示影响范围。</div></div>'; return; }` +
-      `  draftPreviewMeta.innerHTML='<div class="alert info"><strong>'+esc(meta.title || 'Preset dry-run')+'</strong><div>'+esc(meta.description || '')+'</div><div class="muted">模式：'+esc(meta.mode || '-')+' · 影响范围：'+esc((meta.affects || []).join(' / ') || '-')}</div></div>';` +
+      `  draftPreviewMeta.innerHTML='<div class="alert info"><strong>'+esc(meta.title || 'Preset dry-run')+'</strong><div>'+esc(meta.description || '')+'</div><div class="muted">模式：'+esc(meta.mode || '-')+' · 预设声明影响范围：'+esc((meta.affects || []).join(' / ') || '-')</div><div class="muted">实际预览命中区域：'+esc((meta.actualAffects || []).join(' / ') || '-')</div></div>';` +
       `}` +
       `function renderDraftPresetGuide(){` +
       `  draftPresetList.innerHTML=Object.entries(draftPresets).map(([key,preset])=>'<div class="alert info"><strong>'+esc(preset.label || key)+'</strong><div>'+esc(preset.description || '')+'</div><div class="muted">影响范围：'+esc((preset.affects || []).join(' / '))+'</div></div>').join('');` +
@@ -1434,13 +1448,14 @@ export const createServer = (config: any): Server => {
       `  if(!payload){ return; }` +
       `  const preset=draftPresets[presetName];` +
       `  const modeLabel=draftPresetMode.value === 'replace' ? 'overwrite' : 'append / merge';` +
-      `  renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 仅预览，不会写回当前草稿。', affects:preset?.affects || [], mode:modeLabel });` +
+      `  renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 仅预览，不会写回当前草稿。', affects:preset?.affects || [], actualAffects:[], mode:modeLabel });` +
       `  draftPreviewStatus.textContent='预览预设中：'+presetName;` +
       `  const res=await fetch('/api/models/compiled/preview',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });` +
       `  const data=await res.json();` +
-      `  if(!res.ok){ renderDraftValidation(data.errors || [data.message || 'unknown error']); renderCompiledDiff(); renderReferenceImpact(data.referenceImpact); draftPreviewStatus.textContent='预设预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error'); return; }` +
+      `  if(!res.ok){ renderDraftValidation(data.errors || [data.message || 'unknown error']); renderCompiledDiff(); renderReferenceImpact(data.referenceImpact); renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 预览失败，以下为当前预览尝试命中的区域。', affects:preset?.affects || [], actualAffects:deriveActualAffectedAreas(data), mode:modeLabel }); draftPreviewStatus.textContent='预设预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error'); return; }` +
       `  renderDraftValidation([]);` +
       `  renderCompiledModels(data);` +
+      `  renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 仅预览，不会写回当前草稿。', affects:preset?.affects || [], actualAffects:deriveActualAffectedAreas(data), mode:modeLabel });` +
       `  draftPreviewStatus.textContent='已预览预设：'+presetName+'（未写回草稿）';` +
       `}` +
       `function renderRanking(target,entries,emptyLabel){` +
