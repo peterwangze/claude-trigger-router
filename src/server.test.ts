@@ -951,7 +951,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Draft Config Preview');
     expect(html).toContain('draftSummaryGrid');
     expect(html).toContain('draftPresetList');
+    expect(html).toContain('draftPreviewMeta');
     expect(html).toContain('Preset guide');
+    expect(html).toContain('Draft preview mode');
     expect(html).toContain('Validation Summary');
     expect(html).toContain('draftValidationList');
     expect(html).toContain('data-validation-path');
@@ -1063,6 +1065,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('applyDraftPreset');
     expect(html).toContain('buildPresetPayload');
     expect(html).toContain('previewDraftPreset');
+    expect(html).toContain('renderDraftPreviewMeta');
     expect(html).toContain('renderDraftPresetGuide');
     expect(html).toContain('renderDraftPresetModeHint');
     expect(html).toContain('resolvePresetModelId');

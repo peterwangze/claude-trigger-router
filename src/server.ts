@@ -650,6 +650,9 @@ export const createServer = (config: any): Server => {
       `<div id="draftPresetList" class="alert-list">` +
       `<div class="alert info"><strong>Preset guide</strong><div class="muted">选择预设前可先查看其会覆盖的区域与推荐用途</div></div>` +
       `</div>` +
+      `<div id="draftPreviewMeta" class="alert-list">` +
+      `<div class="alert info"><strong>Draft preview mode</strong><div class="muted">当前显示为草稿编辑视图，预设 dry-run 会在这里提示影响范围。</div></div>` +
+      `</div>` +
       `<div id="draftSummaryGrid" class="stats">` +
       `<div class="stat"><span class="muted">Models</span><strong>0</strong></div>` +
       `<div class="stat"><span class="muted">Trigger rules</span><strong>0</strong></div>` +
@@ -878,6 +881,7 @@ export const createServer = (config: any): Server => {
       `const draftPresetMode=document.getElementById('draftPresetMode');` +
       `const draftPresetModeHint=document.getElementById('draftPresetModeHint');` +
       `const draftPresetList=document.getElementById('draftPresetList');` +
+      `const draftPreviewMeta=document.getElementById('draftPreviewMeta');` +
       `const draftValidationList=document.getElementById('draftValidationList');` +
       `const configDraftEditor=document.getElementById('configDraftEditor');` +
       `const draftSummaryGrid=document.getElementById('draftSummaryGrid');` +
@@ -1026,6 +1030,10 @@ export const createServer = (config: any): Server => {
       `function renderDraftPresetModeHint(){` +
       `  const overwriteMode=draftPresetMode.value === 'replace';` +
       `  draftPresetModeHint.textContent=overwriteMode ? 'overwrite 会重置 TriggerRouter / SmartRouter / Governance 相关表单，再应用预设' : 'append / merge 会尽量保留当前草稿，仅补充预设相关字段';` +
+      `}` +
+      `function renderDraftPreviewMeta(meta){` +
+      `  if(!meta){ draftPreviewMeta.innerHTML='<div class="alert info"><strong>Draft preview mode</strong><div class="muted">当前显示为草稿编辑视图，预设 dry-run 会在这里提示影响范围。</div></div>'; return; }` +
+      `  draftPreviewMeta.innerHTML='<div class="alert info"><strong>'+esc(meta.title || 'Preset dry-run')+'</strong><div>'+esc(meta.description || '')+'</div><div class="muted">模式：'+esc(meta.mode || '-')+' · 影响范围：'+esc((meta.affects || []).join(' / ') || '-')}</div></div>';` +
       `}` +
       `function renderDraftPresetGuide(){` +
       `  draftPresetList.innerHTML=Object.entries(draftPresets).map(([key,preset])=>'<div class="alert info"><strong>'+esc(preset.label || key)+'</strong><div>'+esc(preset.description || '')+'</div><div class="muted">影响范围：'+esc((preset.affects || []).join(' / '))+'</div></div>').join('');` +
@@ -1219,6 +1227,7 @@ export const createServer = (config: any): Server => {
       `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `    renderDraftSummary(payload);` +
       `    renderDraftValidation([]);` +
+      `    renderDraftPreviewMeta();` +
       `    draftPreviewStatus.textContent='已同步 Models 表单到 JSON 草稿';` +
       `  } catch (error) {` +
       `    draftPreviewStatus.textContent='同步失败：'+error.message;` +
@@ -1245,6 +1254,7 @@ export const createServer = (config: any): Server => {
       `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `  renderDraftSummary(payload);` +
       `  renderDraftValidation([]);` +
+      `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='已将建议模型应用到 '+path+'，可重新预览验证';` +
       `}` +
       `function renderCompiledDiff(diff){` +
@@ -1323,6 +1333,7 @@ export const createServer = (config: any): Server => {
       `  configDraftEditor.value=JSON.stringify(data,null,2);` +
       `  renderDraftSummary(currentDraftConfig);` +
       `  renderDraftValidation([]);` +
+      `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='已载入当前配置，可通过 Models 表单或 JSON 草稿编辑';` +
       `}` +
       `async function previewConfigDraft(){` +
@@ -1332,6 +1343,7 @@ export const createServer = (config: any): Server => {
       `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `  } catch (error) {` +
       `    renderDraftValidation(['JSON parse error: '+error.message]);` +
+      `    renderDraftPreviewMeta();` +
       `    draftPreviewStatus.textContent='草稿解析失败：'+error.message;` +
       `    return;` +
       `  }` +
@@ -1347,10 +1359,12 @@ export const createServer = (config: any): Server => {
       `    renderDraftValidation(data.errors || [data.message || 'unknown error']);` +
       `    renderCompiledDiff();` +
       `    renderReferenceImpact(data.referenceImpact);` +
+      `    renderDraftPreviewMeta();` +
       `    return;` +
       `  }` +
       `  renderDraftValidation([]);` +
       `  renderCompiledModels(data);` +
+      `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='预览完成：已按草稿配置刷新 compiled models';` +
       `}` +
       `function addDraftModel(){` +
@@ -1412,11 +1426,15 @@ export const createServer = (config: any): Server => {
       `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `  renderDraftSummary(payload);` +
       `  renderDraftValidation([]);` +
+      `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='已应用预设：'+presetName+'（'+(draftPresetMode.value === 'replace' ? 'overwrite' : 'append / merge')+'）';` +
       `}` +
       `async function previewDraftPreset(presetName){` +
       `  const payload=buildPresetPayload(presetName);` +
       `  if(!payload){ return; }` +
+      `  const preset=draftPresets[presetName];` +
+      `  const modeLabel=draftPresetMode.value === 'replace' ? 'overwrite' : 'append / merge';` +
+      `  renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 仅预览，不会写回当前草稿。', affects:preset?.affects || [], mode:modeLabel });` +
       `  draftPreviewStatus.textContent='预览预设中：'+presetName;` +
       `  const res=await fetch('/api/models/compiled/preview',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });` +
       `  const data=await res.json();` +
@@ -1602,6 +1620,7 @@ export const createServer = (config: any): Server => {
       `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
       `renderDraftPresetGuide();` +
       `renderDraftPresetModeHint();` +
+      `renderDraftPreviewMeta();` +
       `loadConfigDraft();` +
       `loadCompiledModels();` +
       `loadExports();` +
