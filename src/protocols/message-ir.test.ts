@@ -284,4 +284,77 @@ describe('message IR', () => {
       ],
     });
   });
+
+  it('falls back tool and image content to plain text when capabilities disable them', () => {
+    const upstream = buildUpstreamRequest({
+      model: 'gpt-5-mini',
+      interface: 'openai',
+      capabilities: {
+        thinking: {
+          supported: true,
+        },
+        tools: false,
+        images: false,
+        systemMessageStyle: 'openai',
+      },
+      request: {
+        model: 'model__fast,gpt-5-mini',
+        messages: [
+          {
+            role: 'assistant',
+            content: [
+              { type: 'tool_use', id: 'call-1', name: 'search', input: { query: 'router' } },
+            ],
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'abc' } },
+              { type: 'tool_result', tool_use_id: 'call-1', content: { ok: true } },
+            ],
+          },
+        ],
+        tools: [
+          {
+            name: 'search',
+            description: 'Search docs',
+            input_schema: {
+              type: 'object',
+            },
+          },
+        ],
+        tool_choice: {
+          type: 'tool',
+          name: 'search',
+        },
+      },
+    });
+
+    expect(upstream.diagnostics).toEqual([
+      'images_text_fallback',
+      'tools_text_fallback',
+    ]);
+    expect(upstream.body).toEqual({
+      model: 'gpt-5-mini',
+      messages: [
+        {
+          role: 'assistant',
+          content: '[Tool call omitted because the target model does not support tools] search({"query":"router"})',
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: '[Image content omitted because the target model does not support image input.]',
+            },
+            {
+              type: 'text',
+              text: '[Tool result preserved as plain text] {"ok":true}',
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

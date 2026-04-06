@@ -251,13 +251,14 @@ app request
 - 编译后的 `modelMap` 已开始显式产出 `capabilities`，用于表达 reasoning / tools / images / system message style
 - `Models[].metadata` 当前可用来声明 `supports_reasoning / supports_tools / supports_images` 等 capability hint
 - 协议分发阶段已开始消费 capability：对于 `thinking.supported=false` 的模型，会自动忽略请求中的 thinking 并记录 diagnostics
+- 对 `tools/images unsupported` 的模型，协议分发现已提供首轮文本降级，而不是继续静默透传不兼容消息块
 
 当前仍未完成的部分：
 
 - `router` 与上游最终出站执行层虽然已通过协议分发入口衔接，但 capability 仍处于首轮显式化阶段
 - 对图片、音频、结构化输出等更复杂消息块的覆盖仍需继续扩展
 - 对 OpenAI Responses、音频/视频多模态、结构化输出 schema 等更细粒度接口差异仍需单独抽象
-- 对 `tools/images` 不支持场景的运行时降级与用户侧解释仍需继续补齐
+- capability diagnostics 还未完全接入 `/ui` 与配置校验 warning 面板
 
 ## 8. setup、配置文件、/ui 的统一策略
 

@@ -26,6 +26,7 @@
 - `interface`
 - `model`
 - `thinking` 可选
+- `metadata` 可选
 
 其中 `thinking` 新路径优先推荐直接写单个档位：
 
@@ -37,6 +38,12 @@
 - `high`
 
 如果你需要显式传 `budget_tokens` 等细粒度参数，仍然可以继续写对象。
+
+如果你还想告诉路由层“这个模型虽然兼容某类接口，但并不支持某些能力”，可以补充：
+
+- `metadata.supports_reasoning`
+- `metadata.supports_tools`
+- `metadata.supports_images`
 
 ## 新旧配置对照
 
@@ -250,6 +257,9 @@ GET /api/models/compiled
 - `SmartRouter` 使用 `modelId`
 - Governance 关键模型字段使用 `modelId`
 - `thinking` 运行时映射
+- `metadata` capability hint 编译
+- 对 `thinking unsupported` 的自动忽略
+- 对 `tools/images unsupported` 的文本降级
 - setup 默认输出 `Models`
 - legacy `Providers` 自动迁移辅助
 
@@ -257,6 +267,7 @@ GET /api/models/compiled
 
 - `Providers` 仍然兼容，不会立刻移除
 - `protocol=openai` 只代表协议大类，不代表所有供应商行为完全一致
+- `metadata` 当前主要是 capability hint，不是完整的供应商插件能力系统
 - 自动派生的 `modelId` 命名是稳定可用的，但不一定是你最终最想要的人类可读命名
 
 ## 建议

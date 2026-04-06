@@ -179,6 +179,9 @@
 - 已完成 capability 首轮显式化：compiled `modelMap` 现会产出 `capabilities`，并支持通过 `Models[].metadata` 声明 reasoning / tools / images 能力提示
 - 协议分发已开始消费 compiled capabilities：对 `thinking.supported=false` 的模型会自动忽略 thinking，并记录 capability diagnostics
 - `/api/models/compiled`、`/api/models/compiled/preview` 与 `/ui` compiled model map 现可直接查看 capability 描述，便于校准“接口类型 != 实际能力”的差异
+- 已完成 capability 运行时降级首轮：对 `supports_tools=false` 的模型会移除工具定义并把 tool call/result 降级为普通文本
+- 已完成图片能力降级首轮：对 `supports_images=false` 的模型会把图片块降级为说明性文本，而不是继续透传不兼容内容
+- README 与迁移指南已补充 capability hint 和降级行为说明，当前用户文档已开始覆盖“接口兼容 != 能力完全一致”的实际使用心智
 
 ## 下次更新时应补充的内容
 

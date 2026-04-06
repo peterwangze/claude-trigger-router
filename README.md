@@ -178,12 +178,35 @@ Models:
 | `interface` | 接口兼容类型，当前支持 `openai` / `anthropic` |
 | `model` | 目标模型名 |
 | `thinking` | 可选。推荐直接写 `off / auto / on / low / medium / high`；需要精细控制时仍可写对象 |
+| `metadata` | 可选。用于声明能力提示，如 `supports_reasoning` / `supports_tools` / `supports_images` |
 
 兼容说明：
 
 - 新配置优先推荐 `api` / `key` / `interface`
 - 旧字段 `api_base_url` / `api_key` / `protocol` 仍然兼容，迁移阶段无需一次性重写
 - 新配置优先推荐把 `thinking` 写成单个档位字符串；旧对象写法仍兼容
+
+能力提示示例：
+
+```yaml
+Models:
+  - id: vision_disabled
+    api: "https://api.example.com/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "vendor/text-only"
+    metadata:
+      supports_reasoning: false
+      supports_tools: false
+      supports_images: false
+```
+
+说明：
+
+- `metadata.supports_reasoning: false` 时，路由在协议分发阶段会自动忽略请求中的 `thinking`
+- `metadata.supports_tools: false` 时，工具定义和 tool call/result 会退化为普通文本上下文
+- `metadata.supports_images: false` 时，图片块会退化为说明性文本，而不是直接透传
+- 可通过 `GET /api/models/compiled` 或 `/ui` 中的 compiled model map 查看最终 capability 编译结果
 
 ### 1.1 Legacy Providers
 

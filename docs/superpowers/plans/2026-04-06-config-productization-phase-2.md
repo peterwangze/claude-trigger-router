@@ -220,3 +220,11 @@
 - 主请求协议分发会读取 compiled capabilities，对不支持 reasoning 的模型自动忽略 thinking，并记录 capability diagnostics
 - `/api/models/compiled` 与 `/api/models/compiled/preview` 现可直接查看每个 modelId 的 capability 描述
 - 当前仍属于“能力描述先显式化”的阶段，tools/images 的更强运行时降级与用户提示仍待后续补齐
+
+### 阶段 2F：capability 运行时降级首轮落地
+
+- 协议分发现会对 `supports_tools=false` 的模型移除 `tools` / `tool_choice`
+- tool call / tool result 会自动降级为普通文本上下文，而不是继续按工具协议透传
+- 协议分发现会对 `supports_images=false` 的模型把图片块降级为说明性文本
+- 保留 capability diagnostics，便于日志与后续 `/ui` 可视化继续接入
+- README 与 `docs/models-migration-guide.md` 已同步补充 capability hint 与降级行为说明
