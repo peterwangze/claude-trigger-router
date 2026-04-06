@@ -17,6 +17,23 @@ export interface ICompiledModelRegistry {
   modelMap: Record<string, ICompiledModelRef>;
 }
 
+export interface ICompiledCapabilityWarningEntry {
+  path: string;
+  modelId: string;
+  level: 'info' | 'warn';
+  code: string;
+  message: string;
+}
+
+export interface ICompiledCapabilityWarningReport {
+  entries: ICompiledCapabilityWarningEntry[];
+  summary: {
+    total: number;
+    warn: number;
+    info: number;
+  };
+}
+
 function inferTransformer(protocol: 'openai' | 'anthropic'): any {
   if (protocol === 'openai') {
     return {
@@ -167,4 +184,64 @@ export function isKnownModelReference(config: IAppConfig, ref?: string): boolean
 
   const registry = buildModelRegistry(config);
   return Boolean(registry.modelMap[ref]);
+}
+
+export function collectCapabilityWarnings(
+  config: Partial<IAppConfig>,
+  registry?: ICompiledModelRegistry
+): ICompiledCapabilityWarningReport {
+  const entries: ICompiledCapabilityWarningEntry[] = [];
+  const models = Array.isArray(config?.Models) ? config.Models : [];
+  const resolvedRegistry = registry ?? buildModelRegistry(config as IAppConfig);
+
+  models.forEach((model, index) => {
+    const modelId = typeof model?.id === 'string' ? model.id.trim() : '';
+    if (!modelId) {
+      return;
+    }
+
+    const compiledModel = resolvedRegistry.modelMap?.[modelId];
+    if (!compiledModel) {
+      return;
+    }
+
+    if (model?.thinking && compiledModel.capabilities?.thinking?.supported === false) {
+      entries.push({
+        path: `Models[${index}].thinking`,
+        modelId,
+        level: 'warn',
+        code: 'thinking_ignored',
+        message: `Models[${index}].thinking is configured, but model "${modelId}" disables reasoning. Runtime requests will ignore thinking.`,
+      });
+    }
+
+    if (model?.metadata?.supports_tools === false) {
+      entries.push({
+        path: `Models[${index}].metadata.supports_tools`,
+        modelId,
+        level: 'info',
+        code: 'tools_text_fallback',
+        message: `Models[${index}].metadata.supports_tools disables tools for model "${modelId}". Tool definitions and tool call/result blocks will fall back to plain text.`,
+      });
+    }
+
+    if (model?.metadata?.supports_images === false) {
+      entries.push({
+        path: `Models[${index}].metadata.supports_images`,
+        modelId,
+        level: 'info',
+        code: 'images_text_fallback',
+        message: `Models[${index}].metadata.supports_images disables image input for model "${modelId}". Image blocks will fall back to plain text descriptions.`,
+      });
+    }
+  });
+
+  return {
+    entries,
+    summary: {
+      total: entries.length,
+      warn: entries.filter((entry) => entry.level === 'warn').length,
+      info: entries.filter((entry) => entry.level === 'info').length,
+    },
+  };
 }

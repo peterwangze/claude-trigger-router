@@ -45,6 +45,7 @@ export type SetupCurrentConfig =
       format: ConfigFormat;
       config: IAppConfig;
       errors: [];
+      warnings: string[];
     }
   | {
       kind: 'invalid';
@@ -52,6 +53,7 @@ export type SetupCurrentConfig =
       format: ConfigFormat;
       config: IAppConfig;
       errors: string[];
+      warnings: string[];
     }
   | {
       kind: 'parse_error';
@@ -85,6 +87,7 @@ function normalizeCurrentConfig(result: RawCurrentConfigResult): SetupCurrentCon
       format: result.format,
       config: normalized.config,
       errors: [],
+      warnings: normalized.warnings,
     };
   }
 
@@ -94,6 +97,7 @@ function normalizeCurrentConfig(result: RawCurrentConfigResult): SetupCurrentCon
     format: result.format,
     config: normalized.config,
     errors: normalized.errors,
+    warnings: normalized.warnings,
   };
 }
 

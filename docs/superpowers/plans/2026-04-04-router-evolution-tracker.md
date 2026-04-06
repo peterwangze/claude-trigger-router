@@ -185,6 +185,9 @@
 - 已完成 capability warning 可视化首轮：`/api/models/compiled`、`/api/models/compiled/preview` 和 `/ui` 现可展示 `thinking_ignored / tools_text_fallback / images_text_fallback`
 - `/ui` Draft Config Preview 已可直接显示 Capability Warnings，并支持跳转到对应配置路径
 - 当前 remaining gap 已从“warning 不可见”收敛到“warning 尚未进入统一配置校验通道”
+- 已完成统一配置 warning 通道首轮：`normalizeAndValidateConfig(...)` 现会返回 `warnings`
+- `ctr setup` 在复用现有配置或保存新配置时，已会提示 capability warning，不再只在 compiled preview 中暴露
+- 当前 remaining gap 已进一步收敛为“warning 还未在 repair/save UI 中按 severity 与 action 分层展示”
 
 ## 下次更新时应补充的内容
 

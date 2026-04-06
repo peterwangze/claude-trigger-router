@@ -19,7 +19,7 @@ import {
   DEFAULT_SMART_ROUTER_CONFIG,
 } from '../constants';
 import { IAppConfig, ITriggerConfig } from '../trigger/types';
-import { isKnownModelReference } from '../models/compile';
+import { collectCapabilityWarnings, isKnownModelReference } from '../models/compile';
 import { getModelApi, getModelInterface, getModelKey, normalizeModelEndpointConfig, toExternalModelConfig } from '../models/schema';
 import { logError, logWarn } from './log';
 
@@ -430,6 +430,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
 export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
   config: IAppConfig;
   errors: string[];
+  warnings: string[];
 } {
   const normalizedConfig = deepMerge(
     {
@@ -458,6 +459,7 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
   return {
     config: normalizedConfig,
     errors: validateConfig(normalizedConfig),
+    warnings: collectCapabilityWarnings(normalizedConfig).entries.map((entry) => entry.message),
   };
 }
 
@@ -509,6 +511,10 @@ export async function initConfig(): Promise<IAppConfig> {
     console.error(`  Reference:   https://github.com/peterwangze/claude-trigger-router#configuration`);
     console.error(`${divider}\n`);
     throw new Error('Invalid configuration');
+  }
+
+  if (result.warnings.length > 0) {
+    result.warnings.forEach((warning) => logWarn(`[ConfigWarning] ${warning}`));
   }
 
   return result.config;

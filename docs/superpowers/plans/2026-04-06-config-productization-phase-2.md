@@ -236,3 +236,11 @@
 - `/ui` Draft Config Preview 已新增 `Capability Warnings` 面板
 - warning 支持从面板直接跳转到对应配置路径，便于在草稿表单中修正
 - 当前 warning 仍属于编译/预览期提示，尚未接入统一的配置校验 warnings 通道
+
+### 阶段 2H：统一配置 warning 通道首轮落地
+
+- `normalizeAndValidateConfig(...)` 现已返回 `warnings`
+- warning 与 capability warning 已开始共享同一套来源，减少重复规则分叉
+- `ctr setup` 在复用现有配置或保存新配置时，现会主动输出这些非致命 warning
+- `/api/models/compiled`、`/api/models/compiled/preview`、`POST /api/config` 现也会返回 `warnings`
+- 当前 warning 已进入配置与 setup 主通道，但 repair / save UI 仍未完全按 severity 分层展示

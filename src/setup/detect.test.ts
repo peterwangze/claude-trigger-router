@@ -50,6 +50,7 @@ describe('detectSetupEnvironment', () => {
       expect(result.currentConfig.path).toBe('/config.yaml');
       expect(result.currentConfig.config.Router.default).toBe('openrouter,anthropic/claude-sonnet-4');
       expect(result.currentConfig.errors).toEqual([]);
+      expect(result.currentConfig.warnings).toEqual([]);
     }
   });
 
@@ -72,6 +73,44 @@ describe('detectSetupEnvironment', () => {
     if (result.currentConfig.kind === 'invalid') {
       expect(result.currentConfig.errors).toContain('Providers is required and must be a non-empty array');
       expect(result.currentConfig.errors).toContain('Router.default is required');
+      expect(result.currentConfig.warnings).toEqual([]);
+    }
+  });
+
+  it('keeps non-fatal capability warnings on valid current config', async () => {
+    const result = await detectSetupEnvironment({
+      readCurrentConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/config.yaml',
+        format: 'yaml',
+        config: {
+          Models: [
+            {
+              id: 'restricted',
+              api: 'https://api.example.com/v1/chat/completions',
+              key: 'sk-test',
+              interface: 'openai',
+              model: 'vendor/text-only',
+              thinking: 'high',
+              metadata: {
+                supports_reasoning: false,
+              },
+            },
+          ],
+          Router: {
+            default: 'restricted',
+          },
+        },
+      }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+    });
+
+    expect(result.currentConfig.kind).toBe('valid');
+    if (result.currentConfig.kind === 'valid') {
+      expect(result.currentConfig.warnings).toEqual([
+        'Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.',
+      ]);
     }
   });
 

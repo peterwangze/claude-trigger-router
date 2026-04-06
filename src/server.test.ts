@@ -199,6 +199,7 @@ describe('createServer /api/config', () => {
       warn: 0,
       info: 0,
     });
+    expect(result.warnings).toEqual([]);
   });
 
   it('previews compiled Models registry for a draft config without saving', async () => {
@@ -332,6 +333,7 @@ describe('createServer /api/config', () => {
       warn: 0,
       info: 0,
     });
+    expect(result.warnings).toEqual([]);
     expect(mockWriteConfigFile).not.toHaveBeenCalled();
     expect(mockBackupConfigFile).not.toHaveBeenCalled();
   });
@@ -395,6 +397,11 @@ describe('createServer /api/config', () => {
         }),
       ])
     );
+    expect(result.warnings).toEqual([
+      'Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.',
+      'Models[0].metadata.supports_tools disables tools for model "restricted". Tool definitions and tool call/result blocks will fall back to plain text.',
+      'Models[0].metadata.supports_images disables image input for model "restricted". Image blocks will fall back to plain text descriptions.',
+    ]);
   });
 
   it('rejects invalid compiled Models draft preview', async () => {
@@ -1246,6 +1253,7 @@ describe('createServer /api/config', () => {
     expect(result.success).toBe(false);
     expect(result.message).toBe('Invalid configuration');
     expect(result.errors).toContain('Providers is required and must be a non-empty array');
+    expect(result.warnings).toEqual([]);
     expect(mockBackupConfigFile).not.toHaveBeenCalled();
     expect(mockWriteConfigFile).not.toHaveBeenCalled();
   });
@@ -1287,7 +1295,39 @@ describe('createServer /api/config', () => {
         Providers: requestBody.Providers,
       })
     );
-    expect(result).toEqual({ success: true, message: 'Config saved successfully' });
+    expect(result).toEqual({ success: true, message: 'Config saved successfully', warnings: [] });
+  });
+
+  it('returns warnings when saving a config with capability downgrade hints', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const requestBody = {
+      Router: { default: 'restricted' },
+      Models: [
+        {
+          id: 'restricted',
+          api: 'https://api.example.com/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'vendor/text-only',
+          thinking: 'high',
+          metadata: {
+            supports_reasoning: false,
+          },
+        },
+      ],
+    };
+
+    const result = await handler({ body: requestBody }, reply);
+
+    expect(reply.code).not.toHaveBeenCalled();
+    expect(result.warnings).toEqual([
+      'Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.',
+    ]);
   });
 
   it('does not persist TriggerRouter when user did not configure it', async () => {

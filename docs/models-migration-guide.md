@@ -249,6 +249,11 @@ GET /api/models/compiled
 - 最终内部 `providerName / modelName` 是否符合预期
 - 是否存在 `thinking` 被忽略、`tools/images` 会降级为文本等 capability warning
 
+补充说明：
+
+- `normalizeAndValidateConfig(...)` 现在除了 `errors` 之外，也会返回非致命 `warnings`
+- `ctr setup` 会显示这些 warning，因此即使配置可以继续使用，你也能提前知道运行时可能发生的 capability 降级
+
 ## 当前兼容边界
 
 当前版本已经支持：

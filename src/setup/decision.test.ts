@@ -26,6 +26,7 @@ describe('decideSetupBranch', () => {
           Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
         },
         errors: [],
+        warnings: [],
       }),
       currentConfigAction: 'reuse',
     });
@@ -45,6 +46,7 @@ describe('decideSetupBranch', () => {
             Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
           },
           errors: [],
+          warnings: [],
         },
         {
           kind: 'found',
@@ -71,6 +73,7 @@ describe('decideSetupBranch', () => {
             Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
           },
           errors: [],
+          warnings: [],
         },
         {
           kind: 'found',
@@ -96,6 +99,7 @@ describe('decideSetupBranch', () => {
           Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
         },
         errors: [],
+        warnings: [],
       }),
       currentConfigAction: 'overwrite',
     });
@@ -128,6 +132,7 @@ describe('decideSetupBranch', () => {
           Router: { default: '' },
         },
         errors: ['Router.default is required'],
+        warnings: [],
       }),
       currentConfigAction: 'repair',
     });
@@ -147,6 +152,7 @@ describe('decideSetupBranch', () => {
             Router: { default: '' },
           },
           errors: ['Router.default is required'],
+          warnings: [],
         },
         {
           kind: 'found',
@@ -173,6 +179,7 @@ describe('decideSetupBranch', () => {
             Router: { default: '' },
           },
           errors: ['Router.default is required'],
+          warnings: [],
         },
         {
           kind: 'found',
@@ -258,6 +265,7 @@ describe('decideSetupBranch', () => {
             Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
           },
           errors: [],
+          warnings: [],
         }),
         currentConfigAction: 'repair',
       })
@@ -310,6 +318,7 @@ describe('decideSetupBranch', () => {
               Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
             },
             errors: [],
+            warnings: [],
           },
           {
             kind: 'read_error',
@@ -360,6 +369,7 @@ describe('decideSetupBranch', () => {
           Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
         },
         errors: [],
+        warnings: [],
       }),
       currentConfigAction: 'cancel',
     });
@@ -379,6 +389,7 @@ describe('decideSetupBranch', () => {
             Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
           },
           errors: [],
+          warnings: [],
         }),
         currentConfigAction: 'cancel',
         legacyConfigAction: 'migrate',

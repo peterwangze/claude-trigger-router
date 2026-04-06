@@ -424,4 +424,32 @@ describe('normalizeAndValidateConfig governance', () => {
       effort: 'high',
     });
   });
+
+  it('returns non-fatal capability warnings for unsupported runtime hints', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'restricted' },
+      Models: [
+        {
+          id: 'restricted',
+          api: 'https://api.example.com/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'vendor/text-only',
+          thinking: 'high',
+          metadata: {
+            supports_reasoning: false,
+            supports_tools: false,
+            supports_images: false,
+          },
+        },
+      ],
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([
+      'Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.',
+      'Models[0].metadata.supports_tools disables tools for model "restricted". Tool definitions and tool call/result blocks will fall back to plain text.',
+      'Models[0].metadata.supports_images disables image input for model "restricted". Image blocks will fall back to plain text descriptions.',
+    ]);
+  });
 });

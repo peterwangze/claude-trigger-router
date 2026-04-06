@@ -143,4 +143,55 @@ describe('runSetupCli', () => {
     expect(writeConfig).not.toHaveBeenCalled();
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
   });
+
+  it('surfaces current config warnings during setup reuse flow', async () => {
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+    const io = {
+      choose: vi.fn().mockResolvedValue('reuse'),
+      input: vi.fn(),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/tmp/config.yaml',
+        format: 'yaml',
+        config: {
+          Models: [
+            {
+              id: 'restricted',
+              api: 'https://api.example.com/v1/chat/completions',
+              key: 'sk-test',
+              interface: 'openai',
+              model: 'vendor/text-only',
+              thinking: 'high',
+              metadata: {
+                supports_reasoning: false,
+              },
+            },
+          ],
+          Router: {
+            default: 'restricted',
+          },
+        },
+      }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'self_healthy', port: 3456 }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig: vi.fn(),
+      executeStart: vi.fn().mockResolvedValue(undefined),
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth: vi.fn().mockResolvedValue(true),
+      enterClaudeCode,
+      io,
+    });
+
+    expect(io.info).toHaveBeenCalledWith('检测到现有可用配置。');
+    expect(io.info).toHaveBeenCalledWith(
+      '当前配置提示：Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.'
+    );
+    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+  });
 });

@@ -323,10 +323,16 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
       }
       if (currentConfig.kind === 'valid') {
         deps.io.info('检测到现有可用配置。');
+        if (currentConfig.warnings.length > 0) {
+          deps.io.info(`当前配置提示：${currentConfig.warnings.join('; ')}`);
+        }
         return (await deps.io.choose('选择下一步', ['reuse', 'overwrite', 'cancel'])) as 'reuse' | 'overwrite' | 'cancel';
       }
       if (currentConfig.kind === 'invalid') {
         deps.io.info(`当前配置校验失败：${currentConfig.errors.join('; ')}`);
+        if (currentConfig.warnings.length > 0) {
+          deps.io.info(`当前配置提示：${currentConfig.warnings.join('; ')}`);
+        }
         return (await deps.io.choose('选择下一步', ['repair', 'overwrite', 'cancel'])) as 'repair' | 'overwrite' | 'cancel';
       }
 
@@ -349,7 +355,7 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
     mapConfigErrorsToRepairFields,
     persistConfig: async ({ config, currentConfigPath, hasExistingConfig }) => {
       const normalized = normalizeAndValidateConfig(config as any);
-      return persistSetupConfig({
+      const persisted = await persistSetupConfig({
         config: normalized.config,
         currentConfigPath,
         hasExistingConfig,
@@ -357,6 +363,10 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
         backupCurrentConfig: deps.backupCurrentConfig,
         writeConfig: deps.writeConfig,
       });
+      if (normalized.warnings.length > 0) {
+        deps.io.info(`配置提示：${normalized.warnings.join('; ')}`);
+      }
+      return persisted;
     },
     ensureServiceReady: async ({ configChanged, detectedService, reloadSupported }) => {
       const action = decideServiceAction({

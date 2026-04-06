@@ -14,7 +14,7 @@ import {
   exportGovernanceMetricsReport,
   governanceMetricsExportStore,
 } from "./governance";
-import { buildModelRegistry } from "./models/compile";
+import { buildModelRegistry, collectCapabilityWarnings } from "./models/compile";
 
 type CompiledProviderView = {
   name: string;
@@ -33,23 +33,6 @@ type ModelReferenceEntry = {
   path: string;
   value: string;
   referenceType: "modelId" | "legacy";
-};
-
-type CapabilityWarningEntry = {
-  path: string;
-  modelId: string;
-  level: "info" | "warn";
-  code: string;
-  message: string;
-};
-
-type CapabilityWarningReport = {
-  entries: CapabilityWarningEntry[];
-  summary: {
-    total: number;
-    warn: number;
-    info: number;
-  };
 };
 
 function toCompiledRegistryView(config: any): CompiledRegistryView {
@@ -171,62 +154,6 @@ function analyzeModelReferenceImpact(config: any, nextCompiled: CompiledRegistry
   };
 }
 
-function analyzeCapabilityWarnings(config: any, compiled: CompiledRegistryView): CapabilityWarningReport {
-  const entries: CapabilityWarningEntry[] = [];
-  const models = Array.isArray(config?.Models) ? config.Models : [];
-
-  models.forEach((model: any, index: number) => {
-    const modelId = typeof model?.id === "string" ? model.id.trim() : "";
-    if (!modelId) {
-      return;
-    }
-
-    const compiledModel = compiled.modelMap?.[modelId];
-    if (!compiledModel) {
-      return;
-    }
-
-    if (model?.thinking && compiledModel.capabilities?.thinking?.supported === false) {
-      entries.push({
-        path: `Models[${index}].thinking`,
-        modelId,
-        level: "warn",
-        code: "thinking_ignored",
-        message: `Model "${modelId}" has thinking configured, but its capability hint disables reasoning. Runtime requests will ignore thinking.`,
-      });
-    }
-
-    if (model?.metadata?.supports_tools === false) {
-      entries.push({
-        path: `Models[${index}].metadata.supports_tools`,
-        modelId,
-        level: "info",
-        code: "tools_text_fallback",
-        message: `Model "${modelId}" disables tools. Tool definitions and tool call/result blocks will fall back to plain text.`,
-      });
-    }
-
-    if (model?.metadata?.supports_images === false) {
-      entries.push({
-        path: `Models[${index}].metadata.supports_images`,
-        modelId,
-        level: "info",
-        code: "images_text_fallback",
-        message: `Model "${modelId}" disables image input. Image blocks will fall back to plain text descriptions.`,
-      });
-    }
-  });
-
-  return {
-    entries,
-    summary: {
-      total: entries.length,
-      warn: entries.filter((entry) => entry.level === "warn").length,
-      info: entries.filter((entry) => entry.level === "info").length,
-    },
-  };
-}
-
 function diffCompiledRegistry(base: CompiledRegistryView, next: CompiledRegistryView) {
   const providerNames = Array.from(new Set([
     ...base.providers.map((item) => item.name),
@@ -339,11 +266,13 @@ export const createServer = (config: any): Server => {
   });
 
   server.app.get("/api/models/compiled", async () => {
-    const normalized = normalizeAndValidateConfig(config.initialConfig ?? {}).config;
+    const normalizedResult = normalizeAndValidateConfig(config.initialConfig ?? {});
+    const normalized = normalizedResult.config;
     const compiled = toCompiledRegistryView(normalized);
     return {
       ...compiled,
-      capabilityWarnings: analyzeCapabilityWarnings(normalized, compiled),
+      capabilityWarnings: collectCapabilityWarnings(normalized),
+      warnings: normalizedResult.warnings,
     };
   });
 
@@ -364,7 +293,8 @@ export const createServer = (config: any): Server => {
         message: "Invalid configuration preview",
         errors: result.errors,
         referenceImpact: rawCompiled ? analyzeModelReferenceImpact(rawConfig, rawCompiled) : undefined,
-        capabilityWarnings: rawCompiled ? analyzeCapabilityWarnings(rawConfig, rawCompiled) : undefined,
+        capabilityWarnings: rawCompiled ? collectCapabilityWarnings(rawConfig) : undefined,
+        warnings: result.warnings,
       };
     }
 
@@ -377,7 +307,8 @@ export const createServer = (config: any): Server => {
       normalizedConfig: result.config,
       diff: diffCompiledRegistry(currentCompiled, previewCompiled),
       referenceImpact: analyzeModelReferenceImpact(result.config, previewCompiled),
-      capabilityWarnings: analyzeCapabilityWarnings(result.config, previewCompiled),
+      capabilityWarnings: collectCapabilityWarnings(result.config),
+      warnings: result.warnings,
     };
   });
 
@@ -596,6 +527,7 @@ export const createServer = (config: any): Server => {
         success: false,
         message: "Invalid configuration",
         errors: result.errors,
+        warnings: result.warnings,
       };
     }
 
@@ -606,7 +538,7 @@ export const createServer = (config: any): Server => {
     }
 
     await writeConfigFile(result.config);
-    return { success: true, message: "Config saved successfully" };
+    return { success: true, message: "Config saved successfully", warnings: result.warnings };
   });
 
   // 重启服务 API
