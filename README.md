@@ -216,6 +216,8 @@ Models:
 - `metadata.supports_images: false` 时，图片块会退化为说明性文本，而不是直接透传
 - 可通过 `GET /api/models/compiled` 或 `/ui` 中的 compiled model map 查看最终 capability 编译结果
 - `/ui` 的 Draft Config Preview 现在会额外显示 `Capability Warnings`，方便在保存前看到哪些配置会触发运行时降级
+- `/ui` 的 `Validation Summary` 现在会同时显示 errors 和 warnings，并区分 `repair first` / `review before save`
+- `/ui` 现已支持直接从草稿区点击 `保存配置`，保存后会继续显示 warning，避免“能保存但预期不清楚”
 
 ### 1.1 Legacy Providers
 
@@ -349,11 +351,11 @@ ctr code
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `GET` | `/api/config` | 读取当前配置 |
-| `POST` | `/api/config` | 保存配置；保存前会先校验 |
+| `POST` | `/api/config` | 保存配置；保存前会先校验，并返回 `errors / warnings` |
 | `GET` | `/api/health` | 健康检查与服务签名 |
 | `GET` | `/api/transformers` | 查看已加载 transformer |
 | `POST` | `/api/restart` | 重启服务 |
-| `GET` | `/ui` | 管理 API 说明页，不是完整 Web UI |
+| `GET` | `/ui` | 配置草稿预览、warning 检查和治理观测工作台 |
 
 ## 示例能力与非主线能力
 
@@ -365,7 +367,14 @@ ctr code
 
 ### `/ui`
 
-`/ui` 目前只是管理 API 的说明页，不是完整可操作的 Web 控制台。
+`/ui` 现在已经具备轻量工作台能力，适合做这些事：
+
+- 预览草稿配置的 compiled models 结果
+- 查看 errors / warnings / capability warnings
+- 直接保存当前草稿配置
+- 查看治理 traces、metrics、archives
+
+它仍然不是一个“完整产品化后台”，但已经不再只是静态说明页。
 
 ## 高级 / 预留配置说明
 
@@ -417,6 +426,7 @@ ctr start --daemon
 - `Providers` 为空
 - `Router.default` 缺失
 - `TriggerRouter` / `SmartRouter` 里引用了不存在的模型
+- `warnings` 不会阻止保存，但会提示 capability 降级，例如 `thinking` 被忽略或 `tools/images` 会退化为文本
 
 ### TriggerRouter 没命中
 

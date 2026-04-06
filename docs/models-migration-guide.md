@@ -253,6 +253,7 @@ GET /api/models/compiled
 
 - `normalizeAndValidateConfig(...)` 现在除了 `errors` 之外，也会返回非致命 `warnings`
 - `ctr setup` 会显示这些 warning，因此即使配置可以继续使用，你也能提前知道运行时可能发生的 capability 降级
+- `/ui` 的草稿预览和保存流程现在也会显示这些 warning，并把 `error` 与 `warning` 分层展示
 
 ## 当前兼容边界
 

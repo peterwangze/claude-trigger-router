@@ -654,6 +654,7 @@ export const createServer = (config: any): Server => {
       `<button id="previewGovernancePresetBtn" type="button">预览治理预设</button>` +
       `<button id="syncDraftJsonBtn" type="button">同步 JSON 草稿</button>` +
       `<button id="previewConfigDraftBtn" type="button">预览 compiled models</button>` +
+      `<button id="saveConfigDraftBtn" type="button">保存配置</button>` +
       `<span id="draftPreviewStatus" class="muted">尚未预览配置草稿</span>` +
       `</div>` +
       `<div class="control-grid">` +
@@ -675,7 +676,7 @@ export const createServer = (config: any): Server => {
       `<div class="stat"><span class="muted">Model refs</span><strong>0</strong></div>` +
       `</div>` +
       `<div class="subpanel">` +
-      `<div class="row"><strong>Validation Summary</strong><span class="muted">集中显示当前草稿的关键校验问题</span></div>` +
+      `<div class="row"><strong>Validation Summary</strong><span class="muted">集中显示当前草稿的错误与 warning，并区分修复优先级</span></div>` +
       `<div id="draftValidationList" class="alert-list">` +
       `<div class="alert info"><strong>No validation issues</strong><div class="muted">预览前会在这里汇总草稿问题</div></div>` +
       `</div>` +
@@ -1011,18 +1012,20 @@ export const createServer = (config: any): Server => {
       "    ['Model refs', modelRefCount]" +
       `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
       `}` +
-      `function renderDraftValidation(errors){` +
-      `  const list=Array.isArray(errors) ? errors.filter(Boolean) : [];` +
-      `  if(!list.length){ draftValidationList.innerHTML='<div class="alert info"><strong>No validation issues</strong><div class="muted">当前草稿未发现集中展示的问题</div></div>'; return; }` +
+      `function renderDraftValidation(errors,warnings){` +
+      `  const errorList=Array.isArray(errors) ? errors.filter(Boolean) : [];` +
+      `  const warningList=Array.isArray(warnings) ? warnings.filter(Boolean) : [];` +
+      `  if(!errorList.length && !warningList.length){ draftValidationList.innerHTML='<div class="alert info"><strong>No validation issues</strong><div class="muted">当前草稿未发现集中展示的问题</div></div>'; return; }` +
       `  const extractPath=(text)=>{ const match=String(text).match(/^(Models(?:\\[[0-9]+\\])?(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|Router(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|TriggerRouter(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|SmartRouter(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|Governance(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?)/); return match ? match[1] : ''; };` +
-      `  const grouped=list.reduce((acc,item)=>{` +
-      `    const text=String(item);` +
+      `  const grouped=[...errorList.map(item=>({ text:String(item), severity:'error' })), ...warningList.map(item=>({ text:String(item), severity:'warning' }))].reduce((acc,item)=>{` +
+      `    const text=item.text;` +
       `    const bucket=text.startsWith('Models') ? 'Models' : text.startsWith('Router') ? 'Router' : text.startsWith('TriggerRouter') ? 'TriggerRouter' : text.startsWith('SmartRouter') ? 'SmartRouter' : text.startsWith('Governance') ? 'Governance' : text.startsWith('JSON parse error') ? 'Draft JSON' : 'Other';` +
       `    acc[bucket]=acc[bucket] || [];` +
-      `    acc[bucket].push({ text, path: extractPath(text) });` +
+      `    acc[bucket].push({ text, path: extractPath(text), severity:item.severity });` +
       `    return acc;` +
       `  }, {});` +
-      `  draftValidationList.innerHTML=Object.entries(grouped).map(([bucket,items])=>'<div class="alert warn"><div class="row"><strong>'+esc(bucket)+'</strong><span class="pill">'+esc(items.length)+' issues</span></div><div>'+items.slice(0,4).map(item=>'<div>'+(item.path ? ('<button type="button" class="pill" data-validation-path=\"'+esc(item.path)+'\">'+esc(item.path)+'</button> ') : '')+esc(item.text)+'</div>').join('')+'</div></div>').join('');` +
+      `  const summary='<div class="alert info"><div class="row"><strong>Validation summary</strong><span class="pill">'+esc(errorList.length)+' errors / '+esc(warningList.length)+' warnings</span></div><div class="muted">'+(errorList.length ? '请优先修复 errors，再决定是否接受 warnings。' : '当前无阻断错误，可按需处理 warnings。')+'</div></div>';` +
+      `  draftValidationList.innerHTML=summary + Object.entries(grouped).map(([bucket,items])=>{ const hasError=items.some(item=>item.severity==='error'); const levelClass=hasError ? 'warn' : 'info'; const actionLabel=hasError ? 'repair first' : 'review before save'; return '<div class="alert '+levelClass+'"><div class="row"><strong>'+esc(bucket)+'</strong><span class="pill">'+esc(items.length)+' issues</span></div><div class="muted">'+esc(actionLabel)+'</div><div>'+items.slice(0,4).map(item=>'<div>'+(item.path ? ('<button type="button" class="pill" data-validation-path=\"'+esc(item.path)+'\">'+esc(item.path)+'</button> ') : '')+'<span class=\"pill\">'+esc(item.severity==='error' ? 'error' : 'warning')+'</span> '+esc(item.text)+'</div>').join('')+'</div></div>'; }).join('');` +
       `}` +
       `function renderCapabilityWarnings(report){` +
       `  const entries=Array.isArray(report?.entries) ? report.entries : [];` +
@@ -1268,7 +1271,7 @@ export const createServer = (config: any): Server => {
       `    currentDraftConfig=payload;` +
       `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `    renderDraftSummary(payload);` +
-      `    renderDraftValidation([]);` +
+      `    renderDraftValidation([],[]);` +
       `    renderCapabilityWarnings();` +
       `    renderDraftPreviewMeta();` +
       `    draftPreviewStatus.textContent='已同步 Models 表单到 JSON 草稿';` +
@@ -1296,7 +1299,7 @@ export const createServer = (config: any): Server => {
       `  renderConfigControlForms(payload);` +
       `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `  renderDraftSummary(payload);` +
-      `  renderDraftValidation([]);` +
+      `  renderDraftValidation([],[]);` +
       `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='已将建议模型应用到 '+path+'，可重新预览验证';` +
       `}` +
@@ -1377,7 +1380,7 @@ export const createServer = (config: any): Server => {
       `  draftRouterDefault.value=currentDraftConfig.Router?.default || '';` +
       `  configDraftEditor.value=JSON.stringify(data,null,2);` +
       `  renderDraftSummary(currentDraftConfig);` +
-      `  renderDraftValidation([]);` +
+      `  renderDraftValidation([],[]);` +
       `  renderCapabilityWarnings();` +
       `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='已载入当前配置，可通过 Models 表单或 JSON 草稿编辑';` +
@@ -1388,7 +1391,7 @@ export const createServer = (config: any): Server => {
       `    payload=buildDraftPayloadFromForm();` +
       `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `  } catch (error) {` +
-      `    renderDraftValidation(['JSON parse error: '+error.message]);` +
+      `    renderDraftValidation(['JSON parse error: '+error.message],[]);` +
       `    renderCapabilityWarnings();` +
       `    renderDraftPreviewMeta();` +
       `    draftPreviewStatus.textContent='草稿解析失败：'+error.message;` +
@@ -1403,17 +1406,40 @@ export const createServer = (config: any): Server => {
       `  const data=await res.json();` +
       `  if(!res.ok){` +
       `    draftPreviewStatus.textContent='预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error');` +
-      `    renderDraftValidation(data.errors || [data.message || 'unknown error']);` +
+      `    renderDraftValidation(data.errors || [data.message || 'unknown error'], data.warnings || []);` +
       `    renderCapabilityWarnings(data.capabilityWarnings);` +
       `    renderCompiledDiff();` +
       `    renderReferenceImpact(data.referenceImpact);` +
       `    renderDraftPreviewMeta();` +
       `    return;` +
       `  }` +
-      `  renderDraftValidation([]);` +
+      `  renderDraftValidation([], data.warnings || []);` +
       `  renderCompiledModels(data);` +
       `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='预览完成：已按草稿配置刷新 compiled models';` +
+      `}` +
+      `async function saveConfigDraft(){` +
+      `  let payload;` +
+      `  try {` +
+      `    payload=buildDraftPayloadFromForm();` +
+      `    configDraftEditor.value=JSON.stringify(payload,null,2);` +
+      `  } catch (error) {` +
+      `    renderDraftValidation(['JSON parse error: '+error.message],[]);` +
+      `    renderCapabilityWarnings();` +
+      `    draftPreviewStatus.textContent='保存失败：'+error.message;` +
+      `    return;` +
+      `  }` +
+      `  draftPreviewStatus.textContent='保存配置中...';` +
+      `  const res=await fetch('/api/config',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });` +
+      `  const data=await res.json();` +
+      `  renderDraftValidation(data.errors || [], data.warnings || []);` +
+      `  if(!res.ok){` +
+      `    draftPreviewStatus.textContent='保存失败：'+((data.errors || []).join('; ') || data.message || 'unknown error');` +
+      `    return;` +
+      `  }` +
+      `  currentDraftConfig=payload;` +
+      `  await loadCompiledModels();` +
+      `  draftPreviewStatus.textContent='已保存配置'+((data.warnings || []).length ? ('（含 '+data.warnings.length+' 条 warning）') : '');` +
       `}` +
       `function addDraftModel(){` +
       `  const nextModels=extractModelsFromForm();` +
@@ -1474,7 +1500,7 @@ export const createServer = (config: any): Server => {
       `  draftRouterDefault.value=payload.Router?.default || '';` +
       `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
       `  renderDraftSummary(payload);` +
-      `  renderDraftValidation([]);` +
+      `  renderDraftValidation([],[]);` +
       `  renderCapabilityWarnings();` +
       `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='已应用预设：'+presetName+'（'+(draftPresetMode.value === 'replace' ? 'overwrite' : 'append / merge')+'）';` +
@@ -1488,8 +1514,8 @@ export const createServer = (config: any): Server => {
       `  draftPreviewStatus.textContent='预览预设中：'+presetName;` +
       `  const res=await fetch('/api/models/compiled/preview',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });` +
       `  const data=await res.json();` +
-      `  if(!res.ok){ renderDraftValidation(data.errors || [data.message || 'unknown error']); renderCapabilityWarnings(data.capabilityWarnings); renderCompiledDiff(); renderReferenceImpact(data.referenceImpact); renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 预览失败，以下为当前预览尝试命中的区域。', affects:preset?.affects || [], actualAffects:deriveActualAffectedAreas(data), mode:modeLabel }); draftPreviewStatus.textContent='预设预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error'); return; }` +
-      `  renderDraftValidation([]);` +
+      `  if(!res.ok){ renderDraftValidation(data.errors || [data.message || 'unknown error'], data.warnings || []); renderCapabilityWarnings(data.capabilityWarnings); renderCompiledDiff(); renderReferenceImpact(data.referenceImpact); renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 预览失败，以下为当前预览尝试命中的区域。', affects:preset?.affects || [], actualAffects:deriveActualAffectedAreas(data), mode:modeLabel }); draftPreviewStatus.textContent='预设预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error'); return; }` +
+      `  renderDraftValidation([], data.warnings || []);` +
       `  renderCompiledModels(data);` +
       `  renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 仅预览，不会写回当前草稿。', affects:preset?.affects || [], actualAffects:deriveActualAffectedAreas(data), mode:modeLabel });` +
       `  draftPreviewStatus.textContent='已预览预设：'+presetName+'（未写回草稿）';` +
@@ -1541,6 +1567,7 @@ export const createServer = (config: any): Server => {
       `  compiledModelsStatus.textContent='加载 compiled models 中...';` +
       `  const res=await fetch('/api/models/compiled');` +
       `  const data=await res.json();` +
+      `  renderDraftValidation([], data.warnings || []);` +
       `  renderCompiledModels(data);` +
       `  renderCompiledDiff();` +
       `  renderReferenceImpact();` +
@@ -1664,6 +1691,7 @@ export const createServer = (config: any): Server => {
       `document.getElementById('addCascadeLevelBtn').addEventListener('click',addCascadeLevel);` +
       `document.getElementById('syncDraftJsonBtn').addEventListener('click',syncDraftEditorFromForm);` +
       `document.getElementById('previewConfigDraftBtn').addEventListener('click',previewConfigDraft);` +
+      `document.getElementById('saveConfigDraftBtn').addEventListener('click',saveConfigDraft);` +
       `draftPresetMode.addEventListener('change',renderDraftPresetModeHint);` +
       `document.getElementById('createSnapshotBtn').addEventListener('click',createSnapshot);` +
       `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +

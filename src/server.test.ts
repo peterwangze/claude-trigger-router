@@ -1057,6 +1057,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('draftValidationList');
     expect(html).toContain('data-validation-path');
     expect(html).toContain('No validation issues');
+    expect(html).toContain('错误与 warning，并区分修复优先级');
+    expect(html).toContain('repair first');
+    expect(html).toContain('review before save');
     expect(html).toContain('Capability Warnings');
     expect(html).toContain('capabilityWarningsList');
     expect(html).toContain('No capability warnings');
@@ -1149,9 +1152,11 @@ describe('createServer /api/config', () => {
     expect(html).toContain('configDraftEditor');
     expect(html).toContain('loadConfigDraftBtn');
     expect(html).toContain('previewConfigDraftBtn');
+    expect(html).toContain('saveConfigDraftBtn');
     expect(html).toContain('draftPreviewStatus');
     expect(html).toContain('loadConfigDraft');
     expect(html).toContain('previewConfigDraft');
+    expect(html).toContain('saveConfigDraft');
     expect(html).toContain('renderModelsForm');
     expect(html).toContain('thinking_profile');
     expect(html).toContain('renderDraftSummary');

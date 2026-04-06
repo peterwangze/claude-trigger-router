@@ -244,3 +244,11 @@
 - `ctr setup` 在复用现有配置或保存新配置时，现会主动输出这些非致命 warning
 - `/api/models/compiled`、`/api/models/compiled/preview`、`POST /api/config` 现也会返回 `warnings`
 - 当前 warning 已进入配置与 setup 主通道，但 repair / save UI 仍未完全按 severity 分层展示
+
+### 阶段 2I：repair/save UI warning 分层首轮落地
+
+- `/ui` Draft Config Preview 的 `Validation Summary` 现已同时显示 errors 和 warnings
+- 当前 UI 会按 `repair first` / `review before save` 区分修复优先级
+- `/ui` 现已支持直接保存当前草稿配置，并在保存后继续展示 warning
+- warning 不再只停留在 preview API 或 setup CLI，而是进入日常可视化编辑主路径
+- 当前 remaining gap 主要是 warning 尚未与自动 repair 建议进一步联动

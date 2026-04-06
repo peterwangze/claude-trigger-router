@@ -254,13 +254,14 @@ app request
 - 对 `tools/images unsupported` 的模型，协议分发现已提供首轮文本降级，而不是继续静默透传不兼容消息块
 - `/api/models/compiled`、`/api/models/compiled/preview` 与 `/ui` 现已开始暴露 capability warning，帮助用户在保存前看到潜在降级行为
 - `normalizeAndValidateConfig(...)` 与 `ctr setup` 现也会透出这些 warning，使 capability 风险不再只停留在 compiled preview 层
+- `/ui` 的 Validation Summary 与保存流程现已开始按 severity 展示 errors / warnings，warning 进入日常编辑主路径
 
 当前仍未完成的部分：
 
 - `router` 与上游最终出站执行层虽然已通过协议分发入口衔接，但 capability 仍处于首轮显式化阶段
 - 对图片、音频、结构化输出等更复杂消息块的覆盖仍需继续扩展
 - 对 OpenAI Responses、音频/视频多模态、结构化输出 schema 等更细粒度接口差异仍需单独抽象
-- warning 已进入统一配置通道，但 repair/save UI 仍未完全按 severity 与 actionability 分层展示
+- warning 虽已进入 repair/save UI，但与自动 repair 建议、表单级 capability 控件仍未完全联动
 
 ## 8. setup、配置文件、/ui 的统一策略
 

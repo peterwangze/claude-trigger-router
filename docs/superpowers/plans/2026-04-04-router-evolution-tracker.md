@@ -188,6 +188,9 @@
 - 已完成统一配置 warning 通道首轮：`normalizeAndValidateConfig(...)` 现会返回 `warnings`
 - `ctr setup` 在复用现有配置或保存新配置时，已会提示 capability warning，不再只在 compiled preview 中暴露
 - 当前 remaining gap 已进一步收敛为“warning 还未在 repair/save UI 中按 severity 与 action 分层展示”
+- 已完成 repair/save UI warning 分层首轮：`Validation Summary` 已可同时显示 errors 与 warnings，并区分 `repair first / review before save`
+- `/ui` 现已支持直接保存当前草稿配置，warning 已进入日常可视化编辑主路径
+- 当前 remaining gap 已继续收敛为“warning 尚未与自动 repair 建议和专用 capability 表单控件深度联动”
 
 ## 下次更新时应补充的内容
 
