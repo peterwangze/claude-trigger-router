@@ -995,7 +995,7 @@ export const createServer = (config: any): Server => {
       `    acc[bucket].push({ text, path: extractPath(text) });` +
       `    return acc;` +
       `  }, {});` +
-      `  draftValidationList.innerHTML=Object.entries(grouped).map(([bucket,items])=>'<div class="alert warn"><strong>'+esc(bucket)+'</strong><div>'+items.slice(0,4).map(item=>'<div>'+(item.path ? ('<button type="button" class="pill" data-validation-path=\"'+esc(item.path)+'\">'+esc(item.path)+'</button> ') : '')+esc(item.text)+'</div>').join('')+'</div></div>').join('');` +
+      `  draftValidationList.innerHTML=Object.entries(grouped).map(([bucket,items])=>'<div class="alert warn"><div class="row"><strong>'+esc(bucket)+'</strong><span class="pill">'+esc(items.length)+' issues</span></div><div>'+items.slice(0,4).map(item=>'<div>'+(item.path ? ('<button type="button" class="pill" data-validation-path=\"'+esc(item.path)+'\">'+esc(item.path)+'</button> ') : '')+esc(item.text)+'</div>').join('')+'</div></div>').join('');` +
       `}` +
       `function findValidationTarget(path){` +
       `  if(!path){ return null; }` +

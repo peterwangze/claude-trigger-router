@@ -1050,6 +1050,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain("text.startsWith('Models')");
     expect(html).toContain("text.startsWith('TriggerRouter')");
     expect(html).toContain('extractPath');
+    expect(html).toContain('issues</span>');
     expect(html).toContain('findValidationTarget');
     expect(html).toContain('jumpToValidationPath');
     expect(html).toContain('scrollIntoView');
