@@ -248,12 +248,16 @@ app request
 - `/v1/messages` 主请求链路在选模后会先归一化为 `message IR`
 - 已新增统一分发入口 `src/protocols/index.ts`，再按目标模型 `interface` 输出上游请求体
 - OpenAI-compatible 目标模型当前已支持把 Anthropic 风格的 tool use / tool result 请求转换为 OpenAI chat `tool_calls` / `tool` 消息
+- 编译后的 `modelMap` 已开始显式产出 `capabilities`，用于表达 reasoning / tools / images / system message style
+- `Models[].metadata` 当前可用来声明 `supports_reasoning / supports_tools / supports_images` 等 capability hint
+- 协议分发阶段已开始消费 capability：对于 `thinking.supported=false` 的模型，会自动忽略请求中的 thinking 并记录 diagnostics
 
 当前仍未完成的部分：
 
-- `router` 与上游最终出站执行层虽然已通过协议分发入口衔接，但复杂能力仍未完全沉淀为独立 capability 层
+- `router` 与上游最终出站执行层虽然已通过协议分发入口衔接，但 capability 仍处于首轮显式化阶段
 - 对图片、音频、结构化输出等更复杂消息块的覆盖仍需继续扩展
 - 对 OpenAI Responses、音频/视频多模态、结构化输出 schema 等更细粒度接口差异仍需单独抽象
+- 对 `tools/images` 不支持场景的运行时降级与用户侧解释仍需继续补齐
 
 ## 8. setup、配置文件、/ui 的统一策略
 

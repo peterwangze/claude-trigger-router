@@ -1,4 +1,4 @@
-import { IAppConfig, IModelEndpointConfig, IModelThinkingConfig, IProvider } from '../trigger/types';
+import { IAppConfig, ICompiledModelCapabilities, IModelEndpointConfig, IModelThinkingConfig, IProvider } from '../trigger/types';
 import { getModelApi, getModelInterface, getModelKey, normalizeModelEndpointConfig } from './schema';
 
 export interface ICompiledModelRef {
@@ -8,6 +8,7 @@ export interface ICompiledModelRef {
   interface?: 'openai' | 'anthropic';
   protocol: 'openai' | 'anthropic';
   thinking?: IModelThinkingConfig;
+  capabilities: ICompiledModelCapabilities;
   source: 'models' | 'providers';
 }
 
@@ -24,6 +25,23 @@ function inferTransformer(protocol: 'openai' | 'anthropic'): any {
   }
 
   return undefined;
+}
+
+function buildCompiledCapabilities(
+  item: Pick<IModelEndpointConfig, 'thinking' | 'metadata'>,
+  modelInterface: 'openai' | 'anthropic'
+): ICompiledModelCapabilities {
+  const reasoningSupported = item.metadata?.supports_reasoning !== false;
+
+  return {
+    thinking: {
+      supported: reasoningSupported,
+      ...(reasoningSupported ? (item.thinking ?? {}) : {}),
+    },
+    tools: item.metadata?.supports_tools !== false,
+    images: item.metadata?.supports_images !== false,
+    systemMessageStyle: modelInterface,
+  };
 }
 
 export function compileModelsToProviders(models: IModelEndpointConfig[]): IProvider[] {
@@ -53,6 +71,7 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
         interface: modelInterface,
         protocol: modelInterface,
         thinking: item.thinking,
+        capabilities: buildCompiledCapabilities(item, modelInterface),
         source: 'models',
       };
       return result;
@@ -73,6 +92,14 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
         modelName: model,
         interface: 'openai',
         protocol: 'openai',
+        capabilities: {
+          thinking: {
+            supported: true,
+          },
+          tools: true,
+          images: true,
+          systemMessageStyle: 'openai',
+        },
         source: 'providers',
       };
     }

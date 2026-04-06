@@ -186,6 +186,14 @@ describe('message IR', () => {
     const upstream = buildUpstreamRequest({
       model: 'gpt-5-mini',
       interface: 'openai',
+      capabilities: {
+        thinking: {
+          supported: true,
+        },
+        tools: true,
+        images: true,
+        systemMessageStyle: 'openai',
+      },
       request: {
         model: 'model__fast,gpt-5-mini',
         max_tokens: 128,
@@ -238,6 +246,41 @@ describe('message IR', () => {
             },
           },
         },
+      ],
+    });
+  });
+
+  it('drops thinking when compiled capabilities mark reasoning unsupported', () => {
+    const upstream = buildUpstreamRequest({
+      model: 'gpt-5-mini',
+      interface: 'openai',
+      capabilities: {
+        thinking: {
+          supported: false,
+        },
+        tools: true,
+        images: true,
+        systemMessageStyle: 'openai',
+      },
+      request: {
+        model: 'model__fast,gpt-5-mini',
+        max_tokens: 128,
+        messages: [
+          { role: 'user', content: 'hello' },
+        ],
+        thinking: {
+          type: 'enabled',
+          effort: 'high',
+        },
+      },
+    });
+
+    expect(upstream.diagnostics).toEqual(['thinking_ignored']);
+    expect(upstream.body).toEqual({
+      model: 'gpt-5-mini',
+      max_completion_tokens: 128,
+      messages: [
+        { role: 'user', content: 'hello' },
       ],
     });
   });

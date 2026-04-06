@@ -197,6 +197,7 @@ function diffCompiledRegistry(base: CompiledRegistryView, next: CompiledRegistry
       before?.modelName !== after?.modelName ? "modelName" : null,
       before?.protocol !== after?.protocol ? "protocol" : null,
       JSON.stringify(before?.thinking ?? {}) !== JSON.stringify(after?.thinking ?? {}) ? "thinking" : null,
+      JSON.stringify(before?.capabilities ?? {}) !== JSON.stringify(after?.capabilities ?? {}) ? "capabilities" : null,
       before?.source !== after?.source ? "source" : null,
     ].filter(Boolean);
     return fields.length ? [{ type: "changed", modelId, before, after, fields }] : [];
@@ -756,10 +757,10 @@ export const createServer = (config: any): Server => {
       `</table>` +
       `</div>` +
       `<div class="panel" style="margin-bottom:0">` +
-      `<div class="row"><strong>Model map</strong><span class="muted">modelId 到内部 provider/model 与 thinking 配置</span></div>` +
+      `<div class="row"><strong>Model map</strong><span class="muted">modelId 到内部 provider/model、thinking 与 capability 配置</span></div>` +
       `<table id="compiledModelMapTable" class="management-table">` +
-      `<thead><tr><th>Model ID</th><th>Internal target</th><th>Protocol</th><th>Thinking</th><th>Source</th></tr></thead>` +
-      `<tbody><tr><td colspan="5" class="muted">Loading model map...</td></tr></tbody>` +
+      `<thead><tr><th>Model ID</th><th>Internal target</th><th>Protocol</th><th>Thinking</th><th>Capabilities</th><th>Source</th></tr></thead>` +
+      `<tbody><tr><td colspan="6" class="muted">Loading model map...</td></tr></tbody>` +
       `</table>` +
       `</div>` +
       `</div>` +
@@ -1332,8 +1333,9 @@ export const createServer = (config: any): Server => {
       `    '<td><code>'+esc(item.providerName || '-')+'</code><div class="muted">'+esc(item.modelName || '-')+'</div></td>' +` +
       `    '<td>'+esc(item.protocol || '-')+'</td>' +` +
       `    '<td><code>'+esc(JSON.stringify(item.thinking || { mode: 'off' }))+'</code></td>' +` +
+      `    '<td><code>'+esc(JSON.stringify(item.capabilities || {}))+'</code></td>' +` +
       `    '<td>'+esc(item.source || '-')+'</td>' +` +
-      `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No compiled model map</td></tr>';` +
+      `  '</tr>').join('') : '<tr><td colspan="6" class="muted">No compiled model map</td></tr>';` +
       `  if(data.diff){ renderCompiledDiff(data.diff); }` +
       `  if(data.referenceImpact){ renderReferenceImpact(data.referenceImpact); }` +
       `  renderConfigControlForms(currentDraftConfig);` +

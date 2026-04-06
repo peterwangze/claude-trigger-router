@@ -211,3 +211,12 @@
 - 运行时仍保留原始 Anthropic 风格请求体，供 response governance、agent tool 回放和递归自调用继续复用
 - 当前主路径已覆盖文本、图片、tool call、tool result 与 thinking 的统一转换
 - 复杂块类型（如音频、结构化输出专用字段）仍待后续阶段继续扩展
+
+### 阶段 2E：编译期 capability 描述首轮落地
+
+- `buildModelRegistry` 现已为每个 `modelId` 生成 `capabilities`
+- 当前 capability 首轮覆盖：`thinking.supported`、`tools`、`images`、`systemMessageStyle`
+- `Models[].metadata` 已可声明 `supports_reasoning / supports_tools / supports_images`
+- 主请求协议分发会读取 compiled capabilities，对不支持 reasoning 的模型自动忽略 thinking，并记录 capability diagnostics
+- `/api/models/compiled` 与 `/api/models/compiled/preview` 现可直接查看每个 modelId 的 capability 描述
+- 当前仍属于“能力描述先显式化”的阶段，tools/images 的更强运行时降级与用户提示仍待后续补齐

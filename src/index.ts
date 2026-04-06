@@ -290,12 +290,19 @@ async function run(options: RunOptions = {}) {
           model: compiledModel.modelName,
           interface: compiledModel.interface,
           request: originalBody,
+          capabilities: compiledModel.capabilities,
         });
 
         req.originalRequestBody = originalBody;
         req.messageIR = upstream.ir;
         req.upstreamRequestBody = upstream.body;
         req.upstreamInterface = compiledModel.interface;
+        req.protocolDiagnostics = upstream.diagnostics;
+        if (upstream.diagnostics.length) {
+          logWarn(
+            `[ProtocolDispatch] Model "${compiledModel.id}" reported capability diagnostics: ${upstream.diagnostics.join(', ')}`
+          );
+        }
         req.body = {
           ...upstream.body,
           model: req.body.model,

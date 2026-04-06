@@ -66,6 +66,15 @@ describe('model compile', () => {
       thinking: {
         mode: 'auto',
       },
+      capabilities: {
+        thinking: {
+          supported: true,
+          mode: 'auto',
+        },
+        tools: true,
+        images: true,
+        systemMessageStyle: 'openai',
+      },
       source: 'models',
     });
   });
@@ -90,6 +99,14 @@ describe('model compile', () => {
       modelName: 'anthropic/claude-sonnet-4',
       interface: 'openai',
       protocol: 'openai',
+      capabilities: {
+        thinking: {
+          supported: true,
+        },
+        tools: true,
+        images: true,
+        systemMessageStyle: 'openai',
+      },
       source: 'providers',
     });
   });
@@ -133,6 +150,47 @@ describe('model compile', () => {
     expect(registry.modelMap.reasoner?.thinking).toEqual({
       mode: 'on',
       effort: 'high',
+    });
+    expect(registry.modelMap.reasoner?.capabilities).toEqual({
+      thinking: {
+        supported: true,
+        mode: 'on',
+        effort: 'high',
+      },
+      tools: true,
+      images: true,
+      systemMessageStyle: 'openai',
+    });
+  });
+
+  it('builds capability hints from metadata overrides', () => {
+    const registry = buildModelRegistry({
+      Providers: [],
+      Router: { default: 'restricted' },
+      Models: [
+        {
+          id: 'restricted',
+          api: 'https://api.example.com/v1/messages',
+          key: 'sk-test',
+          interface: 'anthropic',
+          model: 'vendor/restricted',
+          thinking: 'high',
+          metadata: {
+            supports_reasoning: false,
+            supports_tools: false,
+            supports_images: false,
+          },
+        },
+      ],
+    } as any);
+
+    expect(registry.modelMap.restricted?.capabilities).toEqual({
+      thinking: {
+        supported: false,
+      },
+      tools: false,
+      images: false,
+      systemMessageStyle: 'anthropic',
     });
   });
 });

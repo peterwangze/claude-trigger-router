@@ -176,6 +176,9 @@
 - 已完成第二阶段下一步主链接入：`/v1/messages` 主请求在选模后会先归一化为 `message IR`，再按目标模型 `interface` 分发到 OpenAI / Anthropic 上游请求体
 - 已新增 `src/protocols/index.ts` 作为主请求协议分发入口，主路径已覆盖文本、图片、tool call、tool result 与 thinking 的统一转换
 - 当前 remaining gap 主要集中在更复杂块类型与更细粒度上游能力差异抽象，不再是主请求链路完全缺失 message IR
+- 已完成 capability 首轮显式化：compiled `modelMap` 现会产出 `capabilities`，并支持通过 `Models[].metadata` 声明 reasoning / tools / images 能力提示
+- 协议分发已开始消费 compiled capabilities：对 `thinking.supported=false` 的模型会自动忽略 thinking，并记录 capability diagnostics
+- `/api/models/compiled`、`/api/models/compiled/preview` 与 `/ui` compiled model map 现可直接查看 capability 描述，便于校准“接口类型 != 实际能力”的差异
 
 ## 下次更新时应补充的内容
 

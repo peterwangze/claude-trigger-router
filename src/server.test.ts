@@ -183,6 +183,15 @@ describe('createServer /api/config', () => {
       thinking: {
         mode: 'auto',
       },
+      capabilities: {
+        thinking: {
+          supported: true,
+          mode: 'auto',
+        },
+        tools: true,
+        images: true,
+        systemMessageStyle: 'openai',
+      },
       source: 'models',
     });
   });
@@ -248,6 +257,15 @@ describe('createServer /api/config', () => {
       protocol: 'openai',
       thinking: {
         mode: 'off',
+      },
+      capabilities: {
+        thinking: {
+          supported: true,
+          mode: 'off',
+        },
+        tools: true,
+        images: true,
+        systemMessageStyle: 'openai',
       },
       source: 'models',
     });

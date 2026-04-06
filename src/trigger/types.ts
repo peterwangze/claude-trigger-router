@@ -197,6 +197,19 @@ export interface IModelEndpointMetadata {
   vendor_hint?: string;
   supports_tools?: boolean;
   supports_reasoning?: boolean;
+  supports_images?: boolean;
+}
+
+export interface ICompiledModelCapabilities {
+  thinking: {
+    supported: boolean;
+    mode?: 'off' | 'auto' | 'on';
+    effort?: 'low' | 'medium' | 'high';
+    budget_tokens?: number;
+  };
+  tools: boolean;
+  images: boolean;
+  systemMessageStyle: 'openai' | 'anthropic';
 }
 
 export interface IModelEndpointConfig {
