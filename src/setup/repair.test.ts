@@ -18,6 +18,15 @@ describe('getRepairFields', () => {
     expect(result).toEqual(['apiKey', 'apiBaseUrl']);
   });
 
+  it('maps Models alias credential errors to repair fields', () => {
+    const result = getRepairFields([
+      'Models[0].key is required',
+      'Models[0].api is required',
+    ]);
+
+    expect(result).toEqual(['apiKey', 'apiBaseUrl']);
+  });
+
   it('deduplicates repeated field mappings and preserves first-seen order', () => {
     const result = getRepairFields([
       'Providers[0].api_key is required',

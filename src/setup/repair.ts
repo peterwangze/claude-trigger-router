@@ -5,11 +5,11 @@ function mapRepairField(error: string): SetupRepairField {
     return 'defaultModel';
   }
 
-  if (/^Providers\[\d+\]\.api_key is required$/.test(error)) {
+  if (/^(Providers\[\d+\]\.api_key|Models\[\d+\]\.key) is required$/.test(error)) {
     return 'apiKey';
   }
 
-  if (/^Providers\[\d+\]\.api_base_url is required$/.test(error)) {
+  if (/^(Providers\[\d+\]\.api_base_url|Models\[\d+\]\.api) is required$/.test(error)) {
     return 'apiBaseUrl';
   }
 

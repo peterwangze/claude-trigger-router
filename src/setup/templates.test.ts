@@ -8,21 +8,27 @@ describe('setup templates', () => {
     it('should return openrouter preset with correct api_base_url', () => {
       const preset = getProviderPreset('openrouter');
       expect(preset).toBeDefined();
+      expect(preset?.api).toBe('https://openrouter.ai/api/v1/chat/completions');
       expect(preset?.api_base_url).toBe('https://openrouter.ai/api/v1/chat/completions');
+      expect(preset?.interface).toBe('openai');
       expect(preset?.protocol).toBe('openai');
     });
 
     it('should return deepseek preset with correct api_base_url', () => {
       const preset = getProviderPreset('deepseek');
       expect(preset).toBeDefined();
+      expect(preset?.api).toBe('https://api.deepseek.com/chat/completions');
       expect(preset?.api_base_url).toBe('https://api.deepseek.com/chat/completions');
+      expect(preset?.interface).toBe('openai');
       expect(preset?.protocol).toBe('openai');
     });
 
     it('should return openai-compatible preset with generic OpenAI URL', () => {
       const preset = getProviderPreset('openai-compatible');
       expect(preset).toBeDefined();
+      expect(preset?.api).toBe('https://api.openai.com/v1/chat/completions');
       expect(preset?.api_base_url).toBe('https://api.openai.com/v1/chat/completions');
+      expect(preset?.interface).toBe('openai');
       expect(preset?.protocol).toBe('openai');
     });
 
@@ -54,6 +60,7 @@ describe('setup templates', () => {
       const config = buildMinimalConfig(input);
       expect(config.Models).toHaveLength(1);
       expect(config.Models?.[0].id).toBe('my-provider');
+      expect(config.Models?.[0].key).toBe('sk-test');
       expect(config.Models?.[0].api_key).toBe('sk-test');
       expect(config.Models?.[0].model).toBe('model-1');
     });
@@ -85,6 +92,9 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
+      expect(config.Models?.[0].api).toBe(
+        'https://openrouter.ai/api/v1/chat/completions'
+      );
       expect(config.Models?.[0].api_base_url).toBe(
         'https://openrouter.ai/api/v1/chat/completions'
       );
@@ -102,6 +112,9 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
+      expect(config.Models?.[0].api).toBe(
+        'https://custom.api.com/v1/chat/completions'
+      );
       expect(config.Models?.[0].api_base_url).toBe(
         'https://custom.api.com/v1/chat/completions'
       );
@@ -119,6 +132,7 @@ describe('setup templates', () => {
         ],
       });
 
+      expect(config.Models?.[0].api).toBeUndefined();
       expect(config.Models?.[0].api_base_url).toBeUndefined();
     });
 
@@ -164,6 +178,7 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
+      expect(config.Models?.[0].interface).toBe('openai');
       expect(config.Models?.[0].protocol).toBe('openai');
     });
 
@@ -180,6 +195,9 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
+      expect(config.Models?.[0].api).toBe(
+        'https://my-custom-url.com/v1/chat/completions'
+      );
       expect(config.Models?.[0].api_base_url).toBe(
         'https://my-custom-url.com/v1/chat/completions'
       );
@@ -197,6 +215,7 @@ describe('setup templates', () => {
         ],
       };
       const config = buildMinimalConfig(input);
+      expect(config.Models?.[0].api).toBeUndefined();
       expect(config.Models?.[0].api_base_url).toBeUndefined();
     });
 
@@ -229,19 +248,23 @@ describe('setup templates', () => {
 
       models.push('deepseek-reasoner');
       if (config.Models?.[0]) {
+        config.Models[0].interface = 'anthropic';
         config.Models[0].protocol = 'anthropic';
       }
 
       expect(config.Models?.[0].model).toEqual('deepseek-chat');
+      expect(getProviderPreset('deepseek')?.interface).toEqual('openai');
       expect(getProviderPreset('deepseek')?.protocol).toEqual('openai');
     });
 
     it('should return a cloned preset instead of leaking shared preset references', () => {
       const preset = getProviderPreset('deepseek');
       if (preset) {
+        preset.interface = 'anthropic';
         preset.protocol = 'anthropic';
       }
 
+      expect(getProviderPreset('deepseek')?.interface).toEqual('openai');
       expect(getProviderPreset('deepseek')?.protocol).toEqual('openai');
     });
   });

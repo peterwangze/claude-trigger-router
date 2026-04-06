@@ -1,9 +1,11 @@
 import { IAppConfig, IModelEndpointConfig, IModelThinkingConfig, IProvider } from '../trigger/types';
+import { getModelApi, getModelInterface, getModelKey, normalizeModelEndpointConfig } from './schema';
 
 export interface ICompiledModelRef {
   id: string;
   providerName: string;
   modelName: string;
+  interface?: 'openai' | 'anthropic';
   protocol: 'openai' | 'anthropic';
   thinking?: IModelThinkingConfig;
   source: 'models' | 'providers';
@@ -25,24 +27,31 @@ function inferTransformer(protocol: 'openai' | 'anthropic'): any {
 }
 
 export function compileModelsToProviders(models: IModelEndpointConfig[]): IProvider[] {
-  return models.map((item) => ({
+  return models.map((rawItem) => {
+    const item = normalizeModelEndpointConfig(rawItem);
+    const modelInterface = getModelInterface(item) || 'openai';
+    return {
     name: `model__${item.id}`,
-    api_base_url: item.api_base_url,
-    api_key: item.api_key,
+    api_base_url: getModelApi(item),
+    api_key: getModelKey(item),
     models: [item.model],
-    transformer: inferTransformer(item.protocol),
-  }));
+    transformer: inferTransformer(modelInterface),
+  };
+  });
 }
 
 export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
   if (Array.isArray(config.Models) && config.Models.length > 0) {
     const providers = compileModelsToProviders(config.Models);
-    const modelMap = config.Models.reduce<Record<string, ICompiledModelRef>>((result, item) => {
+    const modelMap = config.Models.reduce<Record<string, ICompiledModelRef>>((result, rawItem) => {
+      const item = normalizeModelEndpointConfig(rawItem);
+      const modelInterface = getModelInterface(item) || 'openai';
       result[item.id] = {
         id: item.id,
         providerName: `model__${item.id}`,
         modelName: item.model,
-        protocol: item.protocol,
+        interface: modelInterface,
+        protocol: modelInterface,
         thinking: item.thinking,
         source: 'models',
       };
@@ -62,6 +71,7 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
         id: `${provider.name},${model}`,
         providerName: provider.name,
         modelName: model,
+        interface: 'openai',
         protocol: 'openai',
         source: 'providers',
       };

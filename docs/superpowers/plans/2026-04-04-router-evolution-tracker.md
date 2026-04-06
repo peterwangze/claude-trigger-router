@@ -168,6 +168,8 @@
 - 后续需把“统一 provider 协议抽象 + 最简模型配置参数 + 路由统一消息转换”纳入正式路线图
 - 已补充配置产品化第二阶段计划：`docs/superpowers/plans/2026-04-06-config-productization-phase-2.md`
 - 已补充统一模型配置与消息协议转换设计：`docs/superpowers/specs/2026-04-06-unified-model-config-design.md`
+- 已完成第二阶段首个兼容实现：`Models` 新增 `api` / `key` / `interface` 公共字段，并保持旧字段兼容
+- `ctr setup`、配置保存和 `/ui` 草稿入口已开始切换到新的公共字段命名
 
 ## 下次更新时应补充的内容
 

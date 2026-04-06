@@ -713,7 +713,7 @@ export const createServer = (config: any): Server => {
       `<div id="modelsFormGrid" class="models-form-grid">` +
       `<div class="panel" style="margin-bottom:0"><span class="muted">No draft models loaded yet</span></div>` +
       `</div>` +
-      `<textarea id="configDraftEditor" style="width:100%;min-height:240px;margin-top:.75rem;padding:.75rem;border-radius:12px;border:1px solid #d1d5db;font:12px/1.5 ui-monospace,SFMono-Regular,monospace" spellcheck="false" placeholder='{"Models":[{"id":"sonnet","api_base_url":"https://...","api_key":"sk-...","protocol":"openai","model":"anthropic/claude-sonnet-4"}]}'></textarea>` +
+      `<textarea id="configDraftEditor" style="width:100%;min-height:240px;margin-top:.75rem;padding:.75rem;border-radius:12px;border:1px solid #d1d5db;font:12px/1.5 ui-monospace,SFMono-Regular,monospace" spellcheck="false" placeholder='{"Models":[{"id":"sonnet","api":"https://...","key":"sk-...","interface":"openai","model":"anthropic/claude-sonnet-4"}]}'></textarea>` +
       `<div class="subpanel">` +
       `<div class="row"><strong>Preview Diff</strong><span class="muted">对比当前运行配置与草稿配置的 compiled model 变化</span></div>` +
       `<div id="compiledDiffSummary" class="diff-summary">` +
@@ -942,11 +942,11 @@ export const createServer = (config: any): Server => {
       `  governance:{ label:'治理预设', description:'打开治理核心能力，并填入 summarizer/classifier/verifier 示例模型。', affects:['Governance.enabled','Governance.sticky.alignment','Governance.semantic','Governance.shadow'], governanceEnabled:true, governanceAlignmentEnabled:true, governanceSemanticEnabled:true, governanceShadowEnabled:true, governanceSummarizerModel:'sonnet', governanceClassifierModel:'sonnet', governanceVerifierModel:'haiku' }` +
       `};` +
       `const modelProviderTemplates={` +
-      `  openai:{ label:'OpenAI', protocol:'openai', api_base_url:'https://api.openai.com/v1/chat/completions', default_model:'gpt-5', model_examples:['gpt-5','gpt-5-mini','gpt-4.1'] },` +
-      `  anthropic:{ label:'Anthropic', protocol:'anthropic', api_base_url:'https://api.anthropic.com/v1/messages', default_model:'claude-sonnet-4-5', model_examples:['claude-sonnet-4-5','claude-opus-4-1','claude-3-5-haiku-latest'] },` +
-      `  openrouter:{ label:'OpenRouter', protocol:'openai', api_base_url:'https://openrouter.ai/api/v1/chat/completions', default_model:'anthropic/claude-sonnet-4', model_examples:['anthropic/claude-sonnet-4','openai/gpt-5','google/gemini-2.5-pro'] },` +
-      `  deepseek:{ label:'DeepSeek', protocol:'openai', api_base_url:'https://api.deepseek.com/chat/completions', default_model:'deepseek-chat', model_examples:['deepseek-chat','deepseek-reasoner'] },` +
-      `  siliconflow:{ label:'SiliconFlow', protocol:'openai', api_base_url:'https://api.siliconflow.cn/v1/chat/completions', default_model:'Qwen/Qwen3-32B', model_examples:['Qwen/Qwen3-32B','deepseek-ai/DeepSeek-V3','THUDM/GLM-4-9B-Chat'] }` +
+      `  openai:{ label:'OpenAI', interface:'openai', api:'https://api.openai.com/v1/chat/completions', default_model:'gpt-5', model_examples:['gpt-5','gpt-5-mini','gpt-4.1'] },` +
+      `  anthropic:{ label:'Anthropic', interface:'anthropic', api:'https://api.anthropic.com/v1/messages', default_model:'claude-sonnet-4-5', model_examples:['claude-sonnet-4-5','claude-opus-4-1','claude-3-5-haiku-latest'] },` +
+      `  openrouter:{ label:'OpenRouter', interface:'openai', api:'https://openrouter.ai/api/v1/chat/completions', default_model:'anthropic/claude-sonnet-4', model_examples:['anthropic/claude-sonnet-4','openai/gpt-5','google/gemini-2.5-pro'] },` +
+      `  deepseek:{ label:'DeepSeek', interface:'openai', api:'https://api.deepseek.com/chat/completions', default_model:'deepseek-chat', model_examples:['deepseek-chat','deepseek-reasoner'] },` +
+      `  siliconflow:{ label:'SiliconFlow', interface:'openai', api:'https://api.siliconflow.cn/v1/chat/completions', default_model:'Qwen/Qwen3-32B', model_examples:['Qwen/Qwen3-32B','deepseek-ai/DeepSeek-V3','THUDM/GLM-4-9B-Chat'] }` +
       `};` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
@@ -1065,10 +1065,10 @@ export const createServer = (config: any): Server => {
       `    '<div class="model-card-grid">' +` +
       `      '<div><label>Provider template</label><div class="row"><select data-field=\"provider_template\" data-index=\"'+index+'\"><option value=\"\">custom</option>'+Object.entries(modelProviderTemplates).map(([key,item])=>'<option value=\"'+esc(key)+'\"'+(model.provider_template === key ? ' selected' : '')+'>'+esc(item.label)+'</option>').join('')+'</select><button type="button" data-apply-template=\"'+index+'\">应用</button></div></div>' +` +
       `      '<div><label>ID</label><input data-field=\"id\" data-index=\"'+index+'\" value=\"'+esc(model.id || '')+'\" placeholder=\"sonnet\"></div>' +` +
-      `      '<div><label>Protocol</label><select data-field=\"protocol\" data-index=\"'+index+'\"><option value=\"openai\"'+((model.protocol || 'openai') === 'openai' ? ' selected' : '')+'>openai</option><option value=\"anthropic\"'+(model.protocol === 'anthropic' ? ' selected' : '')+'>anthropic</option></select></div>' +` +
+      `      '<div><label>Interface</label><select data-field=\"interface\" data-index=\"'+index+'\"><option value=\"openai\"'+(((model.interface || model.protocol || 'openai') === 'openai') ? ' selected' : '')+'>openai</option><option value=\"anthropic\"'+(((model.interface || model.protocol) === 'anthropic') ? ' selected' : '')+'>anthropic</option></select></div>' +` +
       `      '<div><label>Model</label><input data-field=\"model\" data-index=\"'+index+'\" list=\"modelSuggestions'+index+'\" value=\"'+esc(model.model || '')+'\" placeholder=\"'+esc(modelProviderTemplates[model.provider_template || 'openrouter']?.default_model || 'anthropic/claude-sonnet-4')+'\"><datalist id=\"modelSuggestions'+index+'\">'+((modelProviderTemplates[model.provider_template || '']?.model_examples || []).map(item=>'<option value=\"'+esc(item)+'\"></option>').join(''))+'</datalist><div class="muted">例如：'+esc((modelProviderTemplates[model.provider_template || '']?.model_examples || ['anthropic/claude-sonnet-4']).join(' / '))+'</div></div>' +` +
-      `      '<div><label>API base URL</label><input data-field=\"api_base_url\" data-index=\"'+index+'\" value=\"'+esc(model.api_base_url || '')+'\" placeholder=\"https://...\"></div>' +` +
-      `      '<div><label>API key</label><input data-field=\"api_key\" data-index=\"'+index+'\" value=\"'+esc(model.api_key || '')+'\" placeholder=\"sk-...\"></div>' +` +
+      `      '<div><label>API</label><input data-field=\"api\" data-index=\"'+index+'\" value=\"'+esc(model.api || model.api_base_url || '')+'\" placeholder=\"https://...\"></div>' +` +
+      `      '<div><label>Key</label><input data-field=\"key\" data-index=\"'+index+'\" value=\"'+esc(model.key || model.api_key || '')+'\" placeholder=\"sk-...\"></div>' +` +
       `      '<div><label>Thinking mode</label><select data-field=\"thinking_mode\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"off\"'+(model.thinking?.mode === 'off' ? ' selected' : '')+'>off</option><option value=\"auto\"'+(model.thinking?.mode === 'auto' ? ' selected' : '')+'>auto</option><option value=\"on\"'+(model.thinking?.mode === 'on' ? ' selected' : '')+'>on</option></select></div>' +` +
       `      '<div><label>Thinking effort</label><select data-field=\"thinking_effort\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"low\"'+(model.thinking?.effort === 'low' ? ' selected' : '')+'>low</option><option value=\"medium\"'+(model.thinking?.effort === 'medium' ? ' selected' : '')+'>medium</option><option value=\"high\"'+(model.thinking?.effort === 'high' ? ' selected' : '')+'>high</option></select></div>' +` +
       `      '<div><label>Thinking budget</label><input data-field=\"thinking_budget_tokens\" data-index=\"'+index+'\" value=\"'+esc(model.thinking?.budget_tokens || '')+'\" placeholder=\"1024\"></div>' +` +
@@ -1093,9 +1093,9 @@ export const createServer = (config: any): Server => {
       `    if(budget) thinking.budget_tokens=Number(budget);` +
       `    const model={` +
       `      id:(read('id')?.value || '').trim(),` +
-      `      api_base_url:(read('api_base_url')?.value || '').trim(),` +
-      `      api_key:(read('api_key')?.value || '').trim(),` +
-      `      protocol:(read('protocol')?.value || '').trim(),` +
+      `      api:(read('api')?.value || '').trim(),` +
+      `      key:(read('key')?.value || '').trim(),` +
+      `      interface:(read('interface')?.value || '').trim(),` +
       `      model:(read('model')?.value || '').trim(),` +
       `    };` +
       `    if(providerTemplate){ model.provider_template=providerTemplate; }` +
@@ -1110,11 +1110,11 @@ export const createServer = (config: any): Server => {
       `  const templateKey=(card.querySelector('[data-field=\"provider_template\"][data-index=\"'+index+'\"]')?.value || '').trim();` +
       `  const template=modelProviderTemplates[templateKey];` +
       `  if(!template){ return; }` +
-      `  const protocol=card.querySelector('[data-field=\"protocol\"][data-index=\"'+index+'\"]');` +
-      `  const apiBaseUrl=card.querySelector('[data-field=\"api_base_url\"][data-index=\"'+index+'\"]');` +
+      `  const modelInterface=card.querySelector('[data-field=\"interface\"][data-index=\"'+index+'\"]');` +
+      `  const apiBaseUrl=card.querySelector('[data-field=\"api\"][data-index=\"'+index+'\"]');` +
       `  const modelInput=card.querySelector('[data-field=\"model\"][data-index=\"'+index+'\"]');` +
-      `  if(protocol){ protocol.value=template.protocol; }` +
-      `  if(apiBaseUrl && !apiBaseUrl.value.trim()){ apiBaseUrl.value=template.api_base_url; } else if(apiBaseUrl){ apiBaseUrl.value=template.api_base_url; }` +
+      `  if(modelInterface){ modelInterface.value=template.interface || template.protocol; }` +
+      `  if(apiBaseUrl && !apiBaseUrl.value.trim()){ apiBaseUrl.value=template.api || template.api_base_url; } else if(apiBaseUrl){ apiBaseUrl.value=template.api || template.api_base_url; }` +
       `  if(modelInput){ modelInput.placeholder=template.default_model || modelInput.placeholder; if(!modelInput.value.trim() && template.default_model){ modelInput.value=template.default_model; } }` +
       `  const nextModels=extractModelsFromForm();` +
       `  if(nextModels[index]){ nextModels[index]={ ...nextModels[index], provider_template: templateKey }; }` +
@@ -1383,7 +1383,7 @@ export const createServer = (config: any): Server => {
       `}` +
       `function addDraftModel(){` +
       `  const nextModels=extractModelsFromForm();` +
-      `  nextModels.push({ protocol:'openai', thinking:{ mode:'auto' } });` +
+      `  nextModels.push({ interface:'openai', thinking:{ mode:'auto' } });` +
       `  renderModelsForm(nextModels);` +
       `  syncDraftEditorFromForm();` +
       `}` +

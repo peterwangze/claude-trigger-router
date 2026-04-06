@@ -150,9 +150,9 @@
 
 | 里程碑 | 目标 | 状态 |
 |--------|------|------|
-| P2-M1 | 第二阶段问题定义与术语收敛 | pending |
-| P2-M2 | 统一模型入口 schema 设计完成 | pending |
-| P2-M3 | 接口类型 / thinking 抽象设计完成 | pending |
+| P2-M1 | 第二阶段问题定义与术语收敛 | done |
+| P2-M2 | 统一模型入口 schema 设计完成 | in_progress |
+| P2-M3 | 接口类型 / thinking 抽象设计完成 | in_progress |
 | P2-M4 | message IR 与协议转换设计完成 | pending |
 | P2-M5 | setup / `/ui` / config 迁移方案完成 | pending |
 | P2-M6 | 第一轮实现与回归测试完成 | pending |

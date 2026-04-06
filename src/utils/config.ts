@@ -20,6 +20,7 @@ import {
 } from '../constants';
 import { IAppConfig, ITriggerConfig } from '../trigger/types';
 import { isKnownModelReference } from '../models/compile';
+import { getModelApi, getModelInterface, getModelKey, normalizeModelEndpointConfig, toExternalModelConfig } from '../models/schema';
 import { logError, logWarn } from './log';
 
 /**
@@ -154,18 +155,19 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
           ids.add(item.id.trim());
         }
 
-        if (!item.api_base_url?.trim()) {
-          errors.push(`Models[${index}].api_base_url is required`);
+        if (!getModelApi(item)) {
+          errors.push(`Models[${index}].api is required`);
         }
 
-        if (!item.api_key?.trim()) {
-          errors.push(`Models[${index}].api_key is required`);
+        if (!getModelKey(item)) {
+          errors.push(`Models[${index}].key is required`);
         }
 
-        if (!item.protocol) {
-          errors.push(`Models[${index}].protocol is required`);
-        } else if (!['openai', 'anthropic'].includes(item.protocol)) {
-          errors.push(`Models[${index}].protocol must be either "openai" or "anthropic"`);
+        const modelInterface = getModelInterface(item);
+        if (!modelInterface) {
+          errors.push(`Models[${index}].interface is required`);
+        } else if (!['openai', 'anthropic'].includes(modelInterface)) {
+          errors.push(`Models[${index}].interface must be either "openai" or "anthropic"`);
         }
 
         if (!item.model?.trim()) {
@@ -450,24 +452,7 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
   }
 
   if (config.Models) {
-    normalizedConfig.Models = config.Models.map((item) => ({
-      ...item,
-      id: item.id?.trim() ?? '',
-      api_base_url: item.api_base_url?.trim() ?? '',
-      api_key: item.api_key?.trim() ?? '',
-      protocol: item.protocol,
-      model: item.model?.trim() ?? '',
-      thinking: item.thinking
-        ? {
-            ...item.thinking,
-          }
-        : undefined,
-      metadata: item.metadata
-        ? {
-            ...item.metadata,
-          }
-        : undefined,
-    }));
+    normalizedConfig.Models = config.Models.map((item) => normalizeModelEndpointConfig(item));
   }
 
   return {
@@ -554,11 +539,15 @@ export async function writeConfigFile(config: IAppConfig): Promise<void> {
   const targetFile = useJson ? CONFIG_FILE_JSON : (hasYml && !hasYaml ? CONFIG_FILE_YML : CONFIG_FILE);
 
   let content: string;
+  const externalConfig = {
+    ...config,
+    Models: config.Models?.map((item) => toExternalModelConfig(item)),
+  };
 
   if (useJson) {
-    content = JSON.stringify(config, null, 2);
+    content = JSON.stringify(externalConfig, null, 2);
   } else {
-    content = yaml.dump(config, {
+    content = yaml.dump(externalConfig, {
       indent: 2,
       lineWidth: -1,
       noRefs: true,

@@ -21,9 +21,9 @@
 
 最小模型接入项通常是：
 
-- `api_base_url`
-- `api_key`
-- `protocol`
+- `api`
+- `key`
+- `interface`
 - `model`
 - `thinking` 可选
 
@@ -52,15 +52,15 @@ Router:
 ```yaml
 Models:
   - id: sonnet
-    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
-    api_key: "sk-xxx"
-    protocol: "openai"
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
     model: "anthropic/claude-sonnet-4"
 
   - id: opus
-    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
-    api_key: "sk-xxx"
-    protocol: "openai"
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
     model: "anthropic/claude-opus-4"
 
 Router:
@@ -73,11 +73,16 @@ Router:
 | 旧字段 | 新字段 |
 |------|------|
 | `Providers[].name` | `Models[].id` 的命名参考，不再必须直接暴露 |
-| `Providers[].api_base_url` | `Models[].api_base_url` |
-| `Providers[].api_key` | `Models[].api_key` |
+| `Providers[].api_base_url` | `Models[].api` |
+| `Providers[].api_key` | `Models[].key` |
 | `Providers[].models[]` | 拆成多个 `Models[].model` |
-| `Providers[].transformer` | 改为 `Models[].protocol`，由系统推导 |
+| `Providers[].transformer` | 改为 `Models[].interface`，由系统推导 |
 | `provider,model` | `modelId` |
+
+兼容说明：
+
+- 当前版本会优先写出 `api` / `key` / `interface`
+- 旧字段 `api_base_url` / `api_key` / `protocol` 仍然兼容，并会在加载时自动归一化
 
 ## Router / Trigger / SmartRouter 的迁移方法
 

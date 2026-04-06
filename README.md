@@ -80,9 +80,9 @@ ctr init
 ```yaml
 Models:
   - id: sonnet
-    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
-    api_key: "sk-xxx"
-    protocol: "openai"
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
     model: "anthropic/claude-sonnet-4"
 
 Router:
@@ -161,9 +161,9 @@ ctr code
 ```yaml
 Models:
   - id: sonnet
-    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
-    api_key: "sk-xxx"
-    protocol: "openai"
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
     model: "anthropic/claude-sonnet-4"
     thinking:
       mode: "auto"
@@ -174,11 +174,16 @@ Models:
 | 字段 | 说明 |
 |------|------|
 | `id` | 模型接入项标识，在 Router / TriggerRouter / SmartRouter / Governance 中直接引用 |
-| `api_base_url` | 上游 API 地址 |
-| `api_key` | 对应模型接入项的密钥 |
-| `protocol` | 接口协议类型，当前支持 `openai` / `anthropic` |
+| `api` | 上游 API 地址 |
+| `key` | 对应模型接入项的密钥 |
+| `interface` | 接口兼容类型，当前支持 `openai` / `anthropic` |
 | `model` | 目标模型名 |
 | `thinking` | 可选。模型级 thinking 配置，运行时会自动映射到请求 |
+
+兼容说明：
+
+- 新配置优先推荐 `api` / `key` / `interface`
+- 旧字段 `api_base_url` / `api_key` / `protocol` 仍然兼容，迁移阶段无需一次性重写
 
 ### 1.1 Legacy Providers
 

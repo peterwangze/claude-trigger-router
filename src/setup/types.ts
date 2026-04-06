@@ -14,9 +14,11 @@ export type ProviderPresetKey = 'openrouter' | 'deepseek' | 'openai-compatible' 
  */
 export interface IProviderPreset {
   /** API 基础 URL（custom 可能为空） */
+  api?: string;
   api_base_url?: string;
 
   /** 协议类型 */
+  interface?: 'openai' | 'anthropic';
   protocol?: 'openai' | 'anthropic';
 }
 
@@ -33,8 +35,11 @@ export interface ISetupProviderDraft {
 
 export interface ISetupModelDraft {
   id: string;
+  key?: string;
   api_key: string;
+  api?: string;
   api_base_url?: string;
+  interface?: 'openai' | 'anthropic';
   protocol?: 'openai' | 'anthropic';
   model: string;
   thinking?: {

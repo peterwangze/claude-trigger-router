@@ -86,8 +86,11 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
   const models = providers.flatMap((provider, providerIndex) =>
     (provider.models.length ? provider.models : ['']).map((model) => ({
       id: toModelId(provider.name, model, providerIndex),
+      api: provider.api_base_url,
       api_base_url: provider.api_base_url,
+      key: provider.api_key,
       api_key: provider.api_key,
+      interface: inferProtocolFromApiBaseUrl(provider.api_base_url),
       protocol: inferProtocolFromApiBaseUrl(provider.api_base_url),
       model,
     }))

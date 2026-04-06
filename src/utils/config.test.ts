@@ -269,9 +269,9 @@ describe('normalizeAndValidateConfig governance', () => {
       Models: [
         {
           id: 'sonnet',
-          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
-          api_key: 'sk-test',
-          protocol: 'openai',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
           model: 'anthropic/claude-sonnet-4',
           thinking: {
             mode: 'auto',
@@ -283,6 +283,9 @@ describe('normalizeAndValidateConfig governance', () => {
     expect(result.errors).toEqual([]);
     expect(result.config.Models).toHaveLength(1);
     expect(result.config.Models?.[0].id).toBe('sonnet');
+    expect(result.config.Models?.[0].api).toBe('https://openrouter.ai/api/v1/chat/completions');
+    expect(result.config.Models?.[0].key).toBe('sk-test');
+    expect(result.config.Models?.[0].interface).toBe('openai');
   });
 
   it('validates Models fields and uniqueness', () => {
@@ -291,9 +294,9 @@ describe('normalizeAndValidateConfig governance', () => {
       Models: [
         {
           id: 'sonnet',
-          api_base_url: '',
-          api_key: '',
-          protocol: 'invalid' as any,
+          api: '',
+          key: '',
+          interface: 'invalid' as any,
           model: '',
           thinking: {
             mode: 'wrong' as any,
@@ -303,17 +306,17 @@ describe('normalizeAndValidateConfig governance', () => {
         },
         {
           id: 'sonnet',
-          api_base_url: 'https://example.com',
-          api_key: 'sk-test',
-          protocol: 'openai',
+          api: 'https://example.com',
+          key: 'sk-test',
+          interface: 'openai',
           model: 'model-a',
         },
       ],
     });
 
-    expect(result.errors).toContain('Models[0].api_base_url is required');
-    expect(result.errors).toContain('Models[0].api_key is required');
-    expect(result.errors).toContain('Models[0].protocol must be either "openai" or "anthropic"');
+    expect(result.errors).toContain('Models[0].api is required');
+    expect(result.errors).toContain('Models[0].key is required');
+    expect(result.errors).toContain('Models[0].interface must be either "openai" or "anthropic"');
     expect(result.errors).toContain('Models[0].model is required');
     expect(result.errors).toContain('Models[0].thinking.mode must be one of "off", "auto", "on"');
     expect(result.errors).toContain('Models[0].thinking.effort must be one of "low", "medium", "high"');
@@ -327,16 +330,16 @@ describe('normalizeAndValidateConfig governance', () => {
       Models: [
         {
           id: 'sonnet',
-          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
-          api_key: 'sk-test',
-          protocol: 'openai',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
           model: 'anthropic/claude-sonnet-4',
         },
         {
           id: 'opus',
-          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
-          api_key: 'sk-test',
-          protocol: 'openai',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
           model: 'anthropic/claude-opus-4',
         },
       ],
@@ -371,5 +374,32 @@ describe('normalizeAndValidateConfig governance', () => {
     } as any);
 
     expect(result.errors).toEqual([]);
+  });
+
+  it('normalizes legacy Models keys into the new public aliases', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          protocol: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+      ],
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.Models?.[0]).toEqual(
+      expect.objectContaining({
+        api: 'https://openrouter.ai/api/v1/chat/completions',
+        api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+        key: 'sk-test',
+        api_key: 'sk-test',
+        interface: 'openai',
+        protocol: 'openai',
+      })
+    );
   });
 });

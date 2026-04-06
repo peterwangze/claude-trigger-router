@@ -178,6 +178,7 @@ describe('createServer /api/config', () => {
       id: 'sonnet',
       providerName: 'model__sonnet',
       modelName: 'anthropic/claude-sonnet-4',
+      interface: 'openai',
       protocol: 'openai',
       thinking: {
         mode: 'auto',
@@ -243,6 +244,7 @@ describe('createServer /api/config', () => {
       id: 'haiku',
       providerName: 'model__haiku',
       modelName: 'anthropic/claude-3.5-haiku',
+      interface: 'openai',
       protocol: 'openai',
       thinking: {
         mode: 'off',

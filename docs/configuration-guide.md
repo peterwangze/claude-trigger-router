@@ -33,9 +33,9 @@ ctr init
 ```yaml
 Models:
   - id: sonnet
-    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
-    api_key: "sk-xxx"
-    protocol: "openai"
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
     model: "anthropic/claude-sonnet-4"
 
 Router:

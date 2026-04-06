@@ -146,7 +146,10 @@ describe('TriggerRouter', () => {
       await router.route(req as any);
 
       expect(selectSpy).toHaveBeenCalledWith(
-        req,
+        expect.objectContaining({
+          body: req.body,
+          appConfig: config,
+        }),
         config.TriggerRouter,
         3456,
         config.SmartRouter,

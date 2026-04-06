@@ -199,9 +199,12 @@ export interface IModelEndpointMetadata {
 
 export interface IModelEndpointConfig {
   id: string;
-  api_base_url: string;
-  api_key: string;
-  protocol: 'openai' | 'anthropic';
+  api?: string;
+  api_base_url?: string;
+  key?: string;
+  api_key?: string;
+  interface?: 'openai' | 'anthropic';
+  protocol?: 'openai' | 'anthropic';
   model: string;
   thinking?: IModelThinkingConfig;
   metadata?: IModelEndpointMetadata;

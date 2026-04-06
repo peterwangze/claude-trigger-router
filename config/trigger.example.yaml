@@ -10,23 +10,23 @@ LOG_LEVEL: "debug"
 # 1) Models：推荐优先使用的简化模型接入配置
 Models:
   - id: sonnet
-    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
-    api_key: "sk-xxx"
-    protocol: "openai"
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
     model: "anthropic/claude-sonnet-4"
     thinking:
       mode: "auto"
 
   - id: opus
-    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
-    api_key: "sk-xxx"
-    protocol: "openai"
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
     model: "anthropic/claude-opus-4"
 
   - id: deepseek_reasoner
-    api_base_url: "https://api.deepseek.com/chat/completions"
-    api_key: "sk-xxx"
-    protocol: "openai"
+    api: "https://api.deepseek.com/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
     model: "deepseek-reasoner"
     thinking:
       mode: "on"
@@ -34,9 +34,9 @@ Models:
       budget_tokens: 2048
 
   - id: ollama_qwen
-    api_base_url: "http://localhost:11434/v1/chat/completions"
-    api_key: "ollama"
-    protocol: "openai"
+    api: "http://localhost:11434/v1/chat/completions"
+    key: "ollama"
+    interface: "openai"
     model: "qwen2.5-coder:latest"
     thinking:
       mode: "off"

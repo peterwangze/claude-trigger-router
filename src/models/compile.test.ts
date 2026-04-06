@@ -6,16 +6,16 @@ describe('model compile', () => {
     const providers = compileModelsToProviders([
       {
         id: 'sonnet',
-        api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
-        api_key: 'sk-test',
-        protocol: 'openai',
+        api: 'https://openrouter.ai/api/v1/chat/completions',
+        key: 'sk-test',
+        interface: 'openai',
         model: 'anthropic/claude-sonnet-4',
       },
       {
         id: 'opus',
-        api_base_url: 'https://api.anthropic.com/v1/messages',
-        api_key: 'sk-ant',
-        protocol: 'anthropic',
+        api: 'https://api.anthropic.com/v1/messages',
+        key: 'sk-ant',
+        interface: 'anthropic',
         model: 'claude-opus-4-1',
       },
     ]);
@@ -45,9 +45,9 @@ describe('model compile', () => {
       Models: [
         {
           id: 'sonnet',
-          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
-          api_key: 'sk-test',
-          protocol: 'openai',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
           model: 'anthropic/claude-sonnet-4',
           thinking: {
             mode: 'auto',
@@ -61,6 +61,7 @@ describe('model compile', () => {
       id: 'sonnet',
       providerName: 'model__sonnet',
       modelName: 'anthropic/claude-sonnet-4',
+      interface: 'openai',
       protocol: 'openai',
       thinking: {
         mode: 'auto',
@@ -87,8 +88,29 @@ describe('model compile', () => {
       id: 'openrouter,anthropic/claude-sonnet-4',
       providerName: 'openrouter',
       modelName: 'anthropic/claude-sonnet-4',
+      interface: 'openai',
       protocol: 'openai',
       source: 'providers',
+    });
+  });
+
+  it('accepts legacy model field names via alias normalization', () => {
+    const providers = compileModelsToProviders([
+      {
+        id: 'legacy-sonnet',
+        api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+        api_key: 'sk-legacy',
+        protocol: 'openai',
+        model: 'anthropic/claude-sonnet-4',
+      },
+    ]);
+
+    expect(providers[0]).toEqual({
+      name: 'model__legacy-sonnet',
+      api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+      api_key: 'sk-legacy',
+      models: ['anthropic/claude-sonnet-4'],
+      transformer: { use: ['openrouter'] },
     });
   });
 });

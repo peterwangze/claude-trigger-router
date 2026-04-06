@@ -22,8 +22,11 @@ describe('migrateLegacyConfig', () => {
         Models: [
           {
             id: 'openrouter_anthropic_claude_sonnet_4',
+            api: 'https://openrouter.ai/api/v1/chat/completions',
             api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            key: 'sk-test',
             api_key: 'sk-test',
+            interface: 'openai',
             protocol: 'openai',
             model: 'anthropic/claude-sonnet-4',
           },
@@ -68,6 +71,7 @@ describe('migrateLegacyConfig', () => {
       default: 'openrouter,anthropic/claude-sonnet-4',
     });
 
+    expect(result.draft.Models?.[0]?.key).toBe('');
     expect(result.draft.Models?.[0]?.api_key).toBe('');
     expect(result.needsCompletion).toBe(true);
     expect(result.missingFields).toEqual(['apiKey']);

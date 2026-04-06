@@ -11,15 +11,21 @@ import { IProviderPreset, IMinimalConfigInput, ISetupConfigDraft, ISetupModelDra
  */
 const PROVIDER_PRESETS: Record<ProviderPresetKey, IProviderPreset> = {
   openrouter: {
+    api: 'https://openrouter.ai/api/v1/chat/completions',
     api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+    interface: 'openai',
     protocol: 'openai',
   },
   deepseek: {
+    api: 'https://api.deepseek.com/chat/completions',
     api_base_url: 'https://api.deepseek.com/chat/completions',
+    interface: 'openai',
     protocol: 'openai',
   },
   'openai-compatible': {
+    api: 'https://api.openai.com/v1/chat/completions',
     api_base_url: 'https://api.openai.com/v1/chat/completions',
+    interface: 'openai',
     protocol: 'openai',
   },
   custom: {
@@ -39,7 +45,9 @@ export function getProviderPreset(key: ProviderPresetKey): IProviderPreset | und
   }
 
   return {
+    api: preset.api,
     api_base_url: preset.api_base_url,
+    interface: preset.interface,
     protocol: preset.protocol,
   };
 }
@@ -54,8 +62,10 @@ export function buildMinimalConfig(input: IMinimalConfigInput): ISetupConfigDraf
     const preset = p.preset ? getProviderPreset(p.preset) : undefined;
     const modelDraft: ISetupModelDraft = {
       id: p.name,
+      key: p.api_key,
       api_key: p.api_key,
       model: p.models[0] ?? '',
+      interface: preset?.interface ?? 'openai',
       protocol: preset?.protocol ?? 'openai',
     };
 
@@ -63,6 +73,7 @@ export function buildMinimalConfig(input: IMinimalConfigInput): ISetupConfigDraf
     const presetApiBaseUrl = preset?.api_base_url?.trim();
     const apiBaseUrl = explicitApiBaseUrl || presetApiBaseUrl;
     if (apiBaseUrl) {
+      modelDraft.api = apiBaseUrl;
       modelDraft.api_base_url = apiBaseUrl;
     }
 
