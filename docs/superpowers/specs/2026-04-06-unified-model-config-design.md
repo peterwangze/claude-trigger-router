@@ -252,13 +252,14 @@ app request
 - `Models[].metadata` 当前可用来声明 `supports_reasoning / supports_tools / supports_images` 等 capability hint
 - 协议分发阶段已开始消费 capability：对于 `thinking.supported=false` 的模型，会自动忽略请求中的 thinking 并记录 diagnostics
 - 对 `tools/images unsupported` 的模型，协议分发现已提供首轮文本降级，而不是继续静默透传不兼容消息块
+- `/api/models/compiled`、`/api/models/compiled/preview` 与 `/ui` 现已开始暴露 capability warning，帮助用户在保存前看到潜在降级行为
 
 当前仍未完成的部分：
 
 - `router` 与上游最终出站执行层虽然已通过协议分发入口衔接，但 capability 仍处于首轮显式化阶段
 - 对图片、音频、结构化输出等更复杂消息块的覆盖仍需继续扩展
 - 对 OpenAI Responses、音频/视频多模态、结构化输出 schema 等更细粒度接口差异仍需单独抽象
-- capability diagnostics 还未完全接入 `/ui` 与配置校验 warning 面板
+- capability warning 还未接入统一的配置校验 warnings 通道，也还没有更细粒度 severity 策略
 
 ## 8. setup、配置文件、/ui 的统一策略
 

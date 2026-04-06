@@ -207,6 +207,7 @@ Models:
 - `metadata.supports_tools: false` 时，工具定义和 tool call/result 会退化为普通文本上下文
 - `metadata.supports_images: false` 时，图片块会退化为说明性文本，而不是直接透传
 - 可通过 `GET /api/models/compiled` 或 `/ui` 中的 compiled model map 查看最终 capability 编译结果
+- `/ui` 的 Draft Config Preview 现在会额外显示 `Capability Warnings`，方便在保存前看到哪些配置会触发运行时降级
 
 ### 1.1 Legacy Providers
 

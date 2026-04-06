@@ -240,12 +240,14 @@ GET /api/models/compiled
 
 - 编译后的内部 `providers`
 - `modelMap`
+- `capabilityWarnings`
 
 可直接用于排查：
 
 - `modelId` 是否存在
 - `protocol` 是否正确
 - 最终内部 `providerName / modelName` 是否符合预期
+- 是否存在 `thinking` 被忽略、`tools/images` 会降级为文本等 capability warning
 
 ## 当前兼容边界
 

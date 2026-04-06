@@ -194,6 +194,11 @@ describe('createServer /api/config', () => {
       },
       source: 'models',
     });
+    expect(result.capabilityWarnings.summary).toEqual({
+      total: 0,
+      warn: 0,
+      info: 0,
+    });
   });
 
   it('previews compiled Models registry for a draft config without saving', async () => {
@@ -322,8 +327,74 @@ describe('createServer /api/config', () => {
         }),
       }),
     ]);
+    expect(result.capabilityWarnings.summary).toEqual({
+      total: 0,
+      warn: 0,
+      info: 0,
+    });
     expect(mockWriteConfigFile).not.toHaveBeenCalled();
     expect(mockBackupConfigFile).not.toHaveBeenCalled();
+  });
+
+  it('reports capability warnings in compiled preview results', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/models/compiled/preview');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      body: {
+        Models: [
+          {
+            id: 'restricted',
+            api: 'https://api.example.com/v1/chat/completions',
+            key: 'sk-preview',
+            interface: 'openai',
+            model: 'vendor/text-only',
+            thinking: 'high',
+            metadata: {
+              supports_reasoning: false,
+              supports_tools: false,
+              supports_images: false,
+            },
+          },
+        ],
+        Router: {
+          default: 'restricted',
+        },
+      },
+    }, reply);
+
+    expect(reply.code).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    expect(result.capabilityWarnings.summary).toEqual({
+      total: 3,
+      warn: 1,
+      info: 2,
+    });
+    expect(result.capabilityWarnings.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'Models[0].thinking',
+          modelId: 'restricted',
+          level: 'warn',
+          code: 'thinking_ignored',
+        }),
+        expect.objectContaining({
+          path: 'Models[0].metadata.supports_tools',
+          modelId: 'restricted',
+          level: 'info',
+          code: 'tools_text_fallback',
+        }),
+        expect.objectContaining({
+          path: 'Models[0].metadata.supports_images',
+          modelId: 'restricted',
+          level: 'info',
+          code: 'images_text_fallback',
+        }),
+      ])
+    );
   });
 
   it('rejects invalid compiled Models draft preview', async () => {
@@ -979,6 +1050,10 @@ describe('createServer /api/config', () => {
     expect(html).toContain('draftValidationList');
     expect(html).toContain('data-validation-path');
     expect(html).toContain('No validation issues');
+    expect(html).toContain('Capability Warnings');
+    expect(html).toContain('capabilityWarningsList');
+    expect(html).toContain('No capability warnings');
+    expect(html).toContain('renderCapabilityWarnings');
     expect(html).toContain('TriggerRouter');
     expect(html).toContain('SmartRouter');
     expect(html).toContain('Governance');

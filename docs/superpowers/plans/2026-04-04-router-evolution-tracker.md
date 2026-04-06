@@ -182,6 +182,9 @@
 - 已完成 capability 运行时降级首轮：对 `supports_tools=false` 的模型会移除工具定义并把 tool call/result 降级为普通文本
 - 已完成图片能力降级首轮：对 `supports_images=false` 的模型会把图片块降级为说明性文本，而不是继续透传不兼容内容
 - README 与迁移指南已补充 capability hint 和降级行为说明，当前用户文档已开始覆盖“接口兼容 != 能力完全一致”的实际使用心智
+- 已完成 capability warning 可视化首轮：`/api/models/compiled`、`/api/models/compiled/preview` 和 `/ui` 现可展示 `thinking_ignored / tools_text_fallback / images_text_fallback`
+- `/ui` Draft Config Preview 已可直接显示 Capability Warnings，并支持跳转到对应配置路径
+- 当前 remaining gap 已从“warning 不可见”收敛到“warning 尚未进入统一配置校验通道”
 
 ## 下次更新时应补充的内容
 

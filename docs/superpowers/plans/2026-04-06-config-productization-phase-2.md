@@ -228,3 +228,11 @@
 - 协议分发现会对 `supports_images=false` 的模型把图片块降级为说明性文本
 - 保留 capability diagnostics，便于日志与后续 `/ui` 可视化继续接入
 - README 与 `docs/models-migration-guide.md` 已同步补充 capability hint 与降级行为说明
+
+### 阶段 2G：capability warning 可视化首轮落地
+
+- `/api/models/compiled` 与 `/api/models/compiled/preview` 现会返回 `capabilityWarnings`
+- warning 当前覆盖：`thinking_ignored`、`tools_text_fallback`、`images_text_fallback`
+- `/ui` Draft Config Preview 已新增 `Capability Warnings` 面板
+- warning 支持从面板直接跳转到对应配置路径，便于在草稿表单中修正
+- 当前 warning 仍属于编译/预览期提示，尚未接入统一的配置校验 warnings 通道
