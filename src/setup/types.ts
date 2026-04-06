@@ -42,7 +42,7 @@ export interface ISetupModelDraft {
   interface?: 'openai' | 'anthropic';
   protocol?: 'openai' | 'anthropic';
   model: string;
-  thinking?: {
+  thinking?: 'off' | 'auto' | 'on' | 'low' | 'medium' | 'high' | {
     mode?: 'off' | 'auto' | 'on';
     effort?: 'low' | 'medium' | 'high';
     budget_tokens?: number;

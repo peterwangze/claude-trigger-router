@@ -113,4 +113,26 @@ describe('model compile', () => {
       transformer: { use: ['openrouter'] },
     });
   });
+
+  it('normalizes thinking aliases before building compiled registry', () => {
+    const registry = buildModelRegistry({
+      Providers: [],
+      Router: { default: 'reasoner' },
+      Models: [
+        {
+          id: 'reasoner',
+          api: 'https://api.deepseek.com/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'deepseek-reasoner',
+          thinking: 'high',
+        },
+      ],
+    } as any);
+
+    expect(registry.modelMap.reasoner?.thinking).toEqual({
+      mode: 'on',
+      effort: 'high',
+    });
+  });
 });

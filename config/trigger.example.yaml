@@ -14,8 +14,7 @@ Models:
     key: "sk-xxx"
     interface: "openai"
     model: "anthropic/claude-sonnet-4"
-    thinking:
-      mode: "auto"
+    thinking: "auto"
 
   - id: opus
     api: "https://openrouter.ai/api/v1/chat/completions"
@@ -28,18 +27,14 @@ Models:
     key: "sk-xxx"
     interface: "openai"
     model: "deepseek-reasoner"
-    thinking:
-      mode: "on"
-      effort: "high"
-      budget_tokens: 2048
+    thinking: "high"
 
   - id: ollama_qwen
     api: "http://localhost:11434/v1/chat/completions"
     key: "ollama"
     interface: "openai"
     model: "qwen2.5-coder:latest"
-    thinking:
-      mode: "off"
+    thinking: "off"
 
 # 2) Router：推荐直接引用 model id
 Router:

@@ -27,6 +27,17 @@
 - `model`
 - `thinking` 可选
 
+其中 `thinking` 新路径优先推荐直接写单个档位：
+
+- `off`
+- `auto`
+- `on`
+- `low`
+- `medium`
+- `high`
+
+如果你需要显式传 `budget_tokens` 等细粒度参数，仍然可以继续写对象。
+
 ## 新旧配置对照
 
 ### 旧写法

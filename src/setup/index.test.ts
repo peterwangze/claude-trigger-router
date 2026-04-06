@@ -98,4 +98,49 @@ describe('runSetupCli', () => {
     expect(writeConfig).not.toHaveBeenCalled();
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
   });
+
+  it('preserves string thinking aliases when reusing current Models config', async () => {
+    const writeConfig = vi.fn();
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/tmp/config.yaml',
+        format: 'yaml',
+        config: {
+          Models: [
+            {
+              id: 'sonnet',
+              key: 'sk-test',
+              api: 'https://openrouter.ai/api/v1/chat/completions',
+              interface: 'openai',
+              model: 'anthropic/claude-sonnet-4',
+              thinking: 'auto',
+            },
+          ],
+          Router: {
+            default: 'sonnet',
+          },
+        },
+      }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'self_healthy', port: 3456 }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig,
+      executeStart: vi.fn().mockResolvedValue(undefined),
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth: vi.fn().mockResolvedValue(true),
+      enterClaudeCode,
+      io: {
+        choose: vi.fn().mockResolvedValue('reuse'),
+        input: vi.fn(),
+        info: vi.fn(),
+      },
+    });
+
+    expect(writeConfig).not.toHaveBeenCalled();
+    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+  });
 });

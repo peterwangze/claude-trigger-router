@@ -170,6 +170,7 @@
 - 已补充统一模型配置与消息协议转换设计：`docs/superpowers/specs/2026-04-06-unified-model-config-design.md`
 - 已完成第二阶段首个兼容实现：`Models` 新增 `api` / `key` / `interface` 公共字段，并保持旧字段兼容
 - `ctr setup`、配置保存和 `/ui` 草稿入口已开始切换到新的公共字段命名
+- 已完成 thinking 公共抽象首轮落地：支持 `off / auto / on / low / medium / high` 档位字符串，并在内部归一化为结构化配置
 
 ## 下次更新时应补充的内容
 

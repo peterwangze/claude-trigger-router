@@ -205,7 +205,11 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
           interface: model.interface ?? model.protocol,
           protocol: model.protocol,
           model: model.model ?? '',
-          thinking: model.thinking ? { ...model.thinking } : undefined,
+          thinking: typeof model.thinking === 'string'
+            ? model.thinking
+            : model.thinking
+              ? { ...model.thinking }
+              : undefined,
         }))
       : derivedModels,
     Router: {

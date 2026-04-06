@@ -402,4 +402,26 @@ describe('normalizeAndValidateConfig governance', () => {
       })
     );
   });
+
+  it('accepts simplified thinking aliases and normalizes them internally', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+          thinking: 'high',
+        },
+      ],
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.Models?.[0].thinking).toEqual({
+      mode: 'on',
+      effort: 'high',
+    });
+  });
 });

@@ -1069,6 +1069,7 @@ export const createServer = (config: any): Server => {
       `      '<div><label>Model</label><input data-field=\"model\" data-index=\"'+index+'\" list=\"modelSuggestions'+index+'\" value=\"'+esc(model.model || '')+'\" placeholder=\"'+esc(modelProviderTemplates[model.provider_template || 'openrouter']?.default_model || 'anthropic/claude-sonnet-4')+'\"><datalist id=\"modelSuggestions'+index+'\">'+((modelProviderTemplates[model.provider_template || '']?.model_examples || []).map(item=>'<option value=\"'+esc(item)+'\"></option>').join(''))+'</datalist><div class="muted">例如：'+esc((modelProviderTemplates[model.provider_template || '']?.model_examples || ['anthropic/claude-sonnet-4']).join(' / '))+'</div></div>' +` +
       `      '<div><label>API</label><input data-field=\"api\" data-index=\"'+index+'\" value=\"'+esc(model.api || model.api_base_url || '')+'\" placeholder=\"https://...\"></div>' +` +
       `      '<div><label>Key</label><input data-field=\"key\" data-index=\"'+index+'\" value=\"'+esc(model.key || model.api_key || '')+'\" placeholder=\"sk-...\"></div>' +` +
+      `      '<div><label>Thinking</label><select data-field=\"thinking_profile\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"off\"'+(((model.thinking === 'off') || model.thinking?.mode === 'off') ? ' selected' : '')+'>off</option><option value=\"auto\"'+(((model.thinking === 'auto') || model.thinking?.mode === 'auto') ? ' selected' : '')+'>auto</option><option value=\"on\"'+(((model.thinking === 'on') || (model.thinking?.mode === 'on' && !model.thinking?.effort)) ? ' selected' : '')+'>on</option><option value=\"low\"'+(((model.thinking === 'low') || (model.thinking?.mode === 'on' && model.thinking?.effort === 'low' && !model.thinking?.budget_tokens)) ? ' selected' : '')+'>low</option><option value=\"medium\"'+(((model.thinking === 'medium') || (model.thinking?.mode === 'on' && model.thinking?.effort === 'medium' && !model.thinking?.budget_tokens)) ? ' selected' : '')+'>medium</option><option value=\"high\"'+(((model.thinking === 'high') || (model.thinking?.mode === 'on' && model.thinking?.effort === 'high' && !model.thinking?.budget_tokens)) ? ' selected' : '')+'>high</option><option value=\"custom\"'+(((typeof model.thinking === 'object') && model.thinking && model.thinking.budget_tokens) ? ' selected' : '')+'>custom</option></select></div>' +` +
       `      '<div><label>Thinking mode</label><select data-field=\"thinking_mode\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"off\"'+(model.thinking?.mode === 'off' ? ' selected' : '')+'>off</option><option value=\"auto\"'+(model.thinking?.mode === 'auto' ? ' selected' : '')+'>auto</option><option value=\"on\"'+(model.thinking?.mode === 'on' ? ' selected' : '')+'>on</option></select></div>' +` +
       `      '<div><label>Thinking effort</label><select data-field=\"thinking_effort\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"low\"'+(model.thinking?.effort === 'low' ? ' selected' : '')+'>low</option><option value=\"medium\"'+(model.thinking?.effort === 'medium' ? ' selected' : '')+'>medium</option><option value=\"high\"'+(model.thinking?.effort === 'high' ? ' selected' : '')+'>high</option></select></div>' +` +
       `      '<div><label>Thinking budget</label><input data-field=\"thinking_budget_tokens\" data-index=\"'+index+'\" value=\"'+esc(model.thinking?.budget_tokens || '')+'\" placeholder=\"1024\"></div>' +` +
@@ -1084,6 +1085,7 @@ export const createServer = (config: any): Server => {
       `    const metadataRaw=(read('metadata')?.value || '').trim();` +
       `    let metadata;` +
       `    if(metadataRaw){ metadata=JSON.parse(metadataRaw); }` +
+      `    const thinkingProfile=(read('thinking_profile')?.value || '').trim();` +
       `    const thinking={};` +
       `    const mode=(read('thinking_mode')?.value || '').trim();` +
       `    const effort=(read('thinking_effort')?.value || '').trim();` +
@@ -1099,7 +1101,7 @@ export const createServer = (config: any): Server => {
       `      model:(read('model')?.value || '').trim(),` +
       `    };` +
       `    if(providerTemplate){ model.provider_template=providerTemplate; }` +
-      `    if(Object.keys(thinking).length){ model.thinking=thinking; }` +
+      `    if(thinkingProfile && thinkingProfile !== 'custom'){ model.thinking=thinkingProfile; } else if(Object.keys(thinking).length){ model.thinking=thinking; }` +
       `    if(metadata !== undefined){ model.metadata=metadata; }` +
       `    return model;` +
       `  });` +
@@ -1383,7 +1385,7 @@ export const createServer = (config: any): Server => {
       `}` +
       `function addDraftModel(){` +
       `  const nextModels=extractModelsFromForm();` +
-      `  nextModels.push({ interface:'openai', thinking:{ mode:'auto' } });` +
+      `  nextModels.push({ interface:'openai', thinking:'auto' });` +
       `  renderModelsForm(nextModels);` +
       `  syncDraftEditorFromForm();` +
       `}` +

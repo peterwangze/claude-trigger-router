@@ -1,4 +1,4 @@
-import { IModelEndpointConfig } from '../trigger/types';
+import { IModelEndpointConfig, IModelThinkingConfig, TModelThinkingAlias } from '../trigger/types';
 
 export type ModelInterface = 'openai' | 'anthropic';
 
@@ -12,6 +12,57 @@ export function getModelKey(item: Partial<IModelEndpointConfig>): string {
 
 export function getModelInterface(item: Partial<IModelEndpointConfig>): ModelInterface | undefined {
   return item.interface || item.protocol;
+}
+
+export function normalizeThinkingConfig(
+  thinking?: IModelEndpointConfig['thinking']
+): IModelThinkingConfig | undefined {
+  if (!thinking) {
+    return undefined;
+  }
+
+  if (typeof thinking === 'string') {
+    if (thinking === 'low' || thinking === 'medium' || thinking === 'high') {
+      return {
+        mode: 'on',
+        effort: thinking,
+      };
+    }
+
+    return {
+      mode: thinking,
+    };
+  }
+
+  return {
+    ...thinking,
+  };
+}
+
+export function toThinkingAlias(
+  thinking?: IModelThinkingConfig
+): TModelThinkingAlias | IModelThinkingConfig | undefined {
+  if (!thinking) {
+    return undefined;
+  }
+
+  if (thinking.budget_tokens !== undefined) {
+    return {
+      ...thinking,
+    };
+  }
+
+  if (thinking.mode === 'on' && thinking.effort && !thinking.budget_tokens) {
+    return thinking.effort;
+  }
+
+  if (thinking.mode && !thinking.effort) {
+    return thinking.mode;
+  }
+
+  return {
+    ...thinking,
+  };
 }
 
 export function normalizeModelEndpointConfig(item: Partial<IModelEndpointConfig>): IModelEndpointConfig {
@@ -29,11 +80,7 @@ export function normalizeModelEndpointConfig(item: Partial<IModelEndpointConfig>
     interface: modelInterface,
     protocol: modelInterface,
     model: item.model?.trim() ?? '',
-    thinking: item.thinking
-      ? {
-          ...item.thinking,
-        }
-      : undefined,
+    thinking: normalizeThinkingConfig(item.thinking),
     metadata: item.metadata
       ? {
           ...item.metadata,
@@ -50,7 +97,7 @@ export function toExternalModelConfig(item: Partial<IModelEndpointConfig>) {
     key: normalized.api_key,
     interface: normalized.protocol,
     model: normalized.model,
-    thinking: normalized.thinking,
+    thinking: toThinkingAlias(normalized.thinking as IModelThinkingConfig | undefined),
     metadata: normalized.metadata,
   };
 }

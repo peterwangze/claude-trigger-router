@@ -178,3 +178,20 @@
 - 衔接 `docs/superpowers/plans/2026-04-06-router-progress-calibration.md`
 - 作为“配置产品化”主线的第二阶段计划
 - 详细设计见：`docs/superpowers/specs/2026-04-06-unified-model-config-design.md`
+
+## 10. 2026-04-06 阶段推进记录
+
+已完成的第二阶段子阶段：
+
+### 阶段 2A：统一模型入口字段别名
+
+- `Models` 已支持 `api` / `key` / `interface`
+- 旧字段 `api_base_url` / `api_key` / `protocol` 仍兼容
+- setup、配置保存和 `/ui` 草稿入口已开始切换到新命名
+
+### 阶段 2B：thinking 公共抽象首轮落地
+
+- `thinking` 已支持字符串档位：`off / auto / on / low / medium / high`
+- 内部仍统一归一化为结构化 thinking 配置
+- 配置写回优先输出更简洁的 thinking 字符串
+- setup / `/ui` 已开始使用面向用户的 thinking 档位表达

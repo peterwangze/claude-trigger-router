@@ -1053,6 +1053,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('loadConfigDraft');
     expect(html).toContain('previewConfigDraft');
     expect(html).toContain('renderModelsForm');
+    expect(html).toContain('thinking_profile');
     expect(html).toContain('renderDraftSummary');
     expect(html).toContain('renderDraftValidation');
     expect(html).toContain("text.startsWith('Models')");

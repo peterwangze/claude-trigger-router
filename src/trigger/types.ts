@@ -190,6 +190,8 @@ export interface IModelThinkingConfig {
   budget_tokens?: number;
 }
 
+export type TModelThinkingAlias = 'off' | 'auto' | 'on' | 'low' | 'medium' | 'high';
+
 export interface IModelEndpointMetadata {
   label?: string;
   vendor_hint?: string;
@@ -206,7 +208,7 @@ export interface IModelEndpointConfig {
   interface?: 'openai' | 'anthropic';
   protocol?: 'openai' | 'anthropic';
   model: string;
-  thinking?: IModelThinkingConfig;
+  thinking?: IModelThinkingConfig | TModelThinkingAlias;
   metadata?: IModelEndpointMetadata;
 }
 

@@ -165,8 +165,7 @@ Models:
     key: "sk-xxx"
     interface: "openai"
     model: "anthropic/claude-sonnet-4"
-    thinking:
-      mode: "auto"
+    thinking: "auto"
 ```
 
 常用字段：
@@ -178,12 +177,13 @@ Models:
 | `key` | 对应模型接入项的密钥 |
 | `interface` | 接口兼容类型，当前支持 `openai` / `anthropic` |
 | `model` | 目标模型名 |
-| `thinking` | 可选。模型级 thinking 配置，运行时会自动映射到请求 |
+| `thinking` | 可选。推荐直接写 `off / auto / on / low / medium / high`；需要精细控制时仍可写对象 |
 
 兼容说明：
 
 - 新配置优先推荐 `api` / `key` / `interface`
 - 旧字段 `api_base_url` / `api_key` / `protocol` 仍然兼容，迁移阶段无需一次性重写
+- 新配置优先推荐把 `thinking` 写成单个档位字符串；旧对象写法仍兼容
 
 ### 1.1 Legacy Providers
 
