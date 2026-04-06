@@ -166,6 +166,8 @@
 - 将配置易用性工作正式视为并行主线，而不是治理主线之外的零散优化
 - 配置产品化当前已包含 `Models` 抽象、setup 生成 models 配置、provider template、`/ui` 草稿编辑、引用影响分析、修复建议、preset merge/dry-run/summary 等能力
 - 后续需把“统一 provider 协议抽象 + 最简模型配置参数 + 路由统一消息转换”纳入正式路线图
+- 已补充配置产品化第二阶段计划：`docs/superpowers/plans/2026-04-06-config-productization-phase-2.md`
+- 已补充统一模型配置与消息协议转换设计：`docs/superpowers/specs/2026-04-06-unified-model-config-design.md`
 
 ## 下次更新时应补充的内容
 
