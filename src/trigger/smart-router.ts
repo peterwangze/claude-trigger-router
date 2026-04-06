@@ -7,6 +7,8 @@
 import { LRUCache } from 'lru-cache';
 import { ISmartRouterConfig } from './types';
 import { logError, logWarn } from '../utils/log';
+import { createSingleUserTextIR } from '../protocols/message-ir';
+import { toAnthropicMessagesRequest } from '../protocols/anthropic';
 
 /**
  * SmartRouter 选择结果
@@ -135,11 +137,13 @@ export class SmartRouterSelector {
           'Content-Type': 'application/json',
           ...(apiKey ? { 'x-api-key': apiKey } : {}),
         },
-        body: JSON.stringify({
-          model: config.router_model,
-          max_tokens: config.max_tokens ?? 256,
-          messages: [{ role: 'user', content: prompt }],
-        }),
+        body: JSON.stringify(
+          toAnthropicMessagesRequest({
+            model: config.router_model,
+            max_tokens: config.max_tokens ?? 256,
+            ir: createSingleUserTextIR(prompt),
+          })
+        ),
         ...(timeoutMs && timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
       });
 

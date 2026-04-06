@@ -6,6 +6,8 @@
 
 import { ISemanticRouterConfig } from './types';
 import { logError, logWarn } from '../utils/log';
+import { createSingleUserTextIR } from '../protocols/message-ir';
+import { toAnthropicMessagesRequest } from '../protocols/anthropic';
 
 export interface ISemanticIntentResult {
   intent: string;
@@ -156,16 +158,13 @@ Return JSON only:
           'Content-Type': 'application/json',
           ...(apiKey ? { 'x-api-key': apiKey } : {}),
         },
-        body: JSON.stringify({
-          model: config.classifier_model,
-          max_tokens: 128,
-          messages: [
-            {
-              role: 'user',
-              content: this.buildClassifierPrompt(text, config.prototypes),
-            },
-          ],
-        }),
+        body: JSON.stringify(
+          toAnthropicMessagesRequest({
+            model: config.classifier_model,
+            max_tokens: 128,
+            ir: createSingleUserTextIR(this.buildClassifierPrompt(text, config.prototypes)),
+          })
+        ),
         ...(timeoutMs && timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
       });
 

@@ -171,6 +171,8 @@
 - 已完成第二阶段首个兼容实现：`Models` 新增 `api` / `key` / `interface` 公共字段，并保持旧字段兼容
 - `ctr setup`、配置保存和 `/ui` 草稿入口已开始切换到新的公共字段命名
 - 已完成 thinking 公共抽象首轮落地：支持 `off / auto / on / low / medium / high` 档位字符串，并在内部归一化为结构化配置
+- 已完成 message IR 与协议适配边界首轮落地：新增 `src/protocols/message-ir.ts`、`src/protocols/anthropic.ts`、`src/protocols/openai.ts`
+- SmartRouter、Context Alignment、Semantic Router、Shadow Supervisor、Image Agent 的内部请求组装已开始复用 message IR
 
 ## 下次更新时应补充的内容
 

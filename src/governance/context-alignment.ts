@@ -6,6 +6,8 @@
 
 import { IContextAlignmentConfig } from './types';
 import { logError, logWarn } from '../utils/log';
+import { createSingleUserTextIR } from '../protocols/message-ir';
+import { toAnthropicMessagesRequest } from '../protocols/anthropic';
 
 const CONTEXT_ALIGNMENT_PROMPT = `You are a technical handoff assistant.
 Summarize the current task so a different model can continue the work without losing context.
@@ -59,16 +61,13 @@ export class ContextAlignmentService {
           'Content-Type': 'application/json',
           ...(apiKey ? { 'x-api-key': apiKey } : {}),
         },
-        body: JSON.stringify({
-          model: config.summarizer_model,
-          max_tokens: config.max_summary_tokens ?? 256,
-          messages: [
-            {
-              role: 'user',
-              content: this.buildPrompt(text, previousModel, nextModel),
-            },
-          ],
-        }),
+        body: JSON.stringify(
+          toAnthropicMessagesRequest({
+            model: config.summarizer_model,
+            max_tokens: config.max_summary_tokens ?? 256,
+            ir: createSingleUserTextIR(this.buildPrompt(text, previousModel, nextModel)),
+          })
+        ),
         ...(timeoutMs && timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
       });
 

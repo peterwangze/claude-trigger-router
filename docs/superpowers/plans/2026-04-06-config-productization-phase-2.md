@@ -153,7 +153,7 @@
 | P2-M1 | 第二阶段问题定义与术语收敛 | done |
 | P2-M2 | 统一模型入口 schema 设计完成 | in_progress |
 | P2-M3 | 接口类型 / thinking 抽象设计完成 | in_progress |
-| P2-M4 | message IR 与协议转换设计完成 | pending |
+| P2-M4 | message IR 与协议转换设计完成 | in_progress |
 | P2-M5 | setup / `/ui` / config 迁移方案完成 | pending |
 | P2-M6 | 第一轮实现与回归测试完成 | pending |
 
@@ -195,3 +195,10 @@
 - 内部仍统一归一化为结构化 thinking 配置
 - 配置写回优先输出更简洁的 thinking 字符串
 - setup / `/ui` 已开始使用面向用户的 thinking 档位表达
+
+### 阶段 2C：message IR 与协议适配边界首轮落地
+
+- 已新增 `src/protocols/message-ir.ts`
+- 已新增 `src/protocols/anthropic.ts` 和 `src/protocols/openai.ts`
+- SmartRouter、Context Alignment、Semantic Router、Shadow Supervisor、Image Agent 的内部自调用请求已开始通过 message IR 组装
+- 当前仍属于“内部治理与辅助链路先接入”，主请求链路与完整上游协议转换尚未完全切换

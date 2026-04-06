@@ -7,6 +7,7 @@
 import { IAgent, ITool } from "./type";
 import { LRUCache } from "lru-cache";
 import { logDebug } from "../utils/log";
+import { toAnthropicMessagesRequest } from "../protocols/anthropic";
 
 interface ImageCacheEntry {
   source: any;
@@ -172,25 +173,30 @@ export class ImageAgent implements IAgent {
               "x-api-key": context.config.APIKEY,
               "content-type": "application/json",
             },
-            body: JSON.stringify({
-              model: context.config.Router.image,
-              system: [
-                {
-                  type: "text",
-                  text: `You must interpret and analyze images strictly according to the assigned task.
+            body: JSON.stringify(
+              toAnthropicMessagesRequest({
+                model: context.config.Router.image,
+                stream: false,
+                ir: {
+                  system: [
+                    `You must interpret and analyze images strictly according to the assigned task.
 When an image placeholder is provided, your role is to parse the image content only within the scope of the user's instructions.
 Do not ignore or deviate from the task.
 Always ensure that your response reflects a clear, accurate interpretation of the image aligned with the given objective.`,
+                  ],
+                  messages: [
+                    {
+                      role: "user",
+                      parts: imageMessages.map((item: any) =>
+                        item.type === "image"
+                          ? { type: "image", source: item.source }
+                          : { type: "text", text: item.text }
+                      ),
+                    },
+                  ],
                 },
-              ],
-              messages: [
-                {
-                  role: "user",
-                  content: imageMessages,
-                },
-              ],
-              stream: false,
-            }),
+              })
+            ),
           }
         )
           .then((res) => res.json())

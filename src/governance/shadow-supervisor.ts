@@ -7,6 +7,8 @@
 import { IShadowSupervisorConfig } from './types';
 import { IFailureEvidence } from './cascade-gate';
 import { logError, logWarn } from '../utils/log';
+import { createSingleUserTextIR } from '../protocols/message-ir';
+import { toAnthropicMessagesRequest } from '../protocols/anthropic';
 
 export interface IShadowAuditResult {
   triggered: boolean;
@@ -132,16 +134,13 @@ export class ShadowSupervisor {
           'Content-Type': 'application/json',
           ...(apiKey ? { 'x-api-key': apiKey } : {}),
         },
-        body: JSON.stringify({
-          model: config.verifier_model,
-          max_tokens: 128,
-          messages: [
-            {
-              role: 'user',
-              content: this.buildVerifierPrompt(text),
-            },
-          ],
-        }),
+        body: JSON.stringify(
+          toAnthropicMessagesRequest({
+            model: config.verifier_model,
+            max_tokens: 128,
+            ir: createSingleUserTextIR(this.buildVerifierPrompt(text)),
+          })
+        ),
         ...(timeoutMs && timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
       });
 
