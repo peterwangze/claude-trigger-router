@@ -202,3 +202,12 @@
 - 已新增 `src/protocols/anthropic.ts` 和 `src/protocols/openai.ts`
 - SmartRouter、Context Alignment、Semantic Router、Shadow Supervisor、Image Agent 的内部自调用请求已开始通过 message IR 组装
 - 当前仍属于“内部治理与辅助链路先接入”，主请求链路与完整上游协议转换尚未完全切换
+
+### 阶段 2D：主请求链路接入 message IR 与协议分发
+
+- `/v1/messages` 主请求在选模后会先归一化为 `message IR`
+- 已新增统一协议分发入口 `src/protocols/index.ts`
+- 主请求会基于目标模型 `interface` 显式转换为 OpenAI / Anthropic 上游请求体
+- 运行时仍保留原始 Anthropic 风格请求体，供 response governance、agent tool 回放和递归自调用继续复用
+- 当前主路径已覆盖文本、图片、tool call、tool result 与 thinking 的统一转换
+- 复杂块类型（如音频、结构化输出专用字段）仍待后续阶段继续扩展

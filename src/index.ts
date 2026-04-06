@@ -30,9 +30,18 @@ import { EventEmitter } from "node:events";
 import { triggerRouter } from "./trigger";
 import { createStream } from 'rotating-file-stream';
 import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, governStreamingResponse, sessionStateStore } from "./governance";
-import { resolveModelReference } from "./models/compile";
+import { getCompiledModelRef, resolveModelReference } from "./models/compile";
+import { buildUpstreamRequest } from "./protocols";
 
 const event = new EventEmitter();
+
+function cloneRequestBody<T>(value: T): T {
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+
+  return JSON.parse(JSON.stringify(value));
+}
 
 /**
  * 初始化 Claude 配置
@@ -273,6 +282,25 @@ async function run(options: RunOptions = {}) {
         config,
         event,
       });
+
+      const compiledModel = getCompiledModelRef(config, req.body?.model);
+      if (compiledModel?.interface && req.body?.messages) {
+        const originalBody = cloneRequestBody(req.body);
+        const upstream = buildUpstreamRequest({
+          model: compiledModel.modelName,
+          interface: compiledModel.interface,
+          request: originalBody,
+        });
+
+        req.originalRequestBody = originalBody;
+        req.messageIR = upstream.ir;
+        req.upstreamRequestBody = upstream.body;
+        req.upstreamInterface = compiledModel.interface;
+        req.body = {
+          ...upstream.body,
+          model: req.body.model,
+        };
+      }
     }
   });
 
@@ -283,6 +311,10 @@ async function run(options: RunOptions = {}) {
 
   // 响应处理
   server.addHook("onSend", (req: any, reply: any, payload: any, done: any) => {
+    if (req.originalRequestBody) {
+      req.body = req.originalRequestBody;
+    }
+
     if (req.sessionId && req.url.startsWith("/v1/messages")) {
       if (payload instanceof ReadableStream) {
         if (req.agents) {

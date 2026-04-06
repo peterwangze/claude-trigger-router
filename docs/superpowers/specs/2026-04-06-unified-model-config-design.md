@@ -240,17 +240,20 @@ app request
 
 ### 7.1 2026-04-06 首轮实现状态
 
-当前已经完成第一轮基础落地：
+当前已经完成两轮基础落地：
 
 - 新增 `src/protocols/message-ir.ts` 作为统一消息中间表示
 - 新增 `src/protocols/anthropic.ts` 与 `src/protocols/openai.ts` 作为协议适配边界
 - SmartRouter、Context Alignment、Semantic Router、Shadow Supervisor、Image Agent 的内部请求构造已开始通过这些边界完成
+- `/v1/messages` 主请求链路在选模后会先归一化为 `message IR`
+- 已新增统一分发入口 `src/protocols/index.ts`，再按目标模型 `interface` 输出上游请求体
+- OpenAI-compatible 目标模型当前已支持把 Anthropic 风格的 tool use / tool result 请求转换为 OpenAI chat `tool_calls` / `tool` 消息
 
 当前仍未完成的部分：
 
-- 主请求链路尚未完全改为“先 message IR，再统一协议转换”
-- `router` 与上游最终出站请求之间还没有完全解耦为独立协议层
+- `router` 与上游最终出站执行层虽然已通过协议分发入口衔接，但复杂能力仍未完全沉淀为独立 capability 层
 - 对图片、音频、结构化输出等更复杂消息块的覆盖仍需继续扩展
+- 对 OpenAI Responses、音频/视频多模态、结构化输出 schema 等更细粒度接口差异仍需单独抽象
 
 ## 8. setup、配置文件、/ui 的统一策略
 

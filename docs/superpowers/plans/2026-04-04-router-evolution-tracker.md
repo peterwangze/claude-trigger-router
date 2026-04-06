@@ -173,6 +173,9 @@
 - 已完成 thinking 公共抽象首轮落地：支持 `off / auto / on / low / medium / high` 档位字符串，并在内部归一化为结构化配置
 - 已完成 message IR 与协议适配边界首轮落地：新增 `src/protocols/message-ir.ts`、`src/protocols/anthropic.ts`、`src/protocols/openai.ts`
 - SmartRouter、Context Alignment、Semantic Router、Shadow Supervisor、Image Agent 的内部请求组装已开始复用 message IR
+- 已完成第二阶段下一步主链接入：`/v1/messages` 主请求在选模后会先归一化为 `message IR`，再按目标模型 `interface` 分发到 OpenAI / Anthropic 上游请求体
+- 已新增 `src/protocols/index.ts` 作为主请求协议分发入口，主路径已覆盖文本、图片、tool call、tool result 与 thinking 的统一转换
+- 当前 remaining gap 主要集中在更复杂块类型与更细粒度上游能力差异抽象，不再是主请求链路完全缺失 message IR
 
 ## 下次更新时应补充的内容
 
