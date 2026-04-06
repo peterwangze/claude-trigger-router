@@ -25,6 +25,8 @@ interface ISetupIO {
   info: (message: string) => void;
 }
 
+type TCapabilityChoice = '默认' | '支持' | '禁用';
+
 interface IRunSetupCliDeps {
   readCurrentConfig: () => Promise<RawCurrentConfigResult>;
   readLegacyConfig: () => Promise<RawLegacyConfigResult>;
@@ -169,6 +171,63 @@ function mapConfigErrorsToRepairFields(errors: string[]) {
     : { mode: 'repair' as const, fields };
 }
 
+function toCapabilityBoolean(choice: TCapabilityChoice): boolean | undefined {
+  if (choice === '支持') {
+    return true;
+  }
+  if (choice === '禁用') {
+    return false;
+  }
+  return undefined;
+}
+
+function applyCapabilityMetadata(model: any, metadata?: Record<string, unknown>) {
+  if (!metadata || !Object.keys(metadata).length) {
+    delete model.metadata;
+    return model;
+  }
+
+  model.metadata = {
+    ...(model.metadata ?? {}),
+    ...metadata,
+  };
+
+  if (!Object.keys(model.metadata || {}).length) {
+    delete model.metadata;
+  }
+
+  return model;
+}
+
+async function promptCapabilityMetadata(io: ISetupIO, currentMetadata?: Record<string, unknown>) {
+  const vendorHint = await io.input('Vendor hint（可选）', String(currentMetadata?.vendor_hint ?? ''));
+  const reasoningChoice = await io.choose('Reasoning support', ['默认', '支持', '禁用']) as TCapabilityChoice;
+  const toolChoice = await io.choose('Tool support', ['默认', '支持', '禁用']) as TCapabilityChoice;
+  const imageChoice = await io.choose('Image support', ['默认', '支持', '禁用']) as TCapabilityChoice;
+
+  const nextMetadata: Record<string, unknown> = {};
+  if (vendorHint.trim()) {
+    nextMetadata.vendor_hint = vendorHint.trim();
+  }
+
+  const reasoning = toCapabilityBoolean(reasoningChoice);
+  if (reasoning !== undefined) {
+    nextMetadata.supports_reasoning = reasoning;
+  }
+
+  const tools = toCapabilityBoolean(toolChoice);
+  if (tools !== undefined) {
+    nextMetadata.supports_tools = tools;
+  }
+
+  const images = toCapabilityBoolean(imageChoice);
+  if (images !== undefined) {
+    nextMetadata.supports_images = images;
+  }
+
+  return nextMetadata;
+}
+
 function toDraftFromConfig(config: any): ISetupConfigDraft {
   const derivedModels = !Array.isArray(config?.Models) && Array.isArray(config?.Providers)
     ? config.Providers.flatMap((provider: any) =>
@@ -210,6 +269,7 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
             : model.thinking
               ? { ...model.thinking }
               : undefined,
+          metadata: model.metadata ? { ...model.metadata } : undefined,
         }))
       : derivedModels,
     Router: {
@@ -231,8 +291,9 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
   const apiBaseUrl = preset === 'custom' ? await io.input('API Base URL') : await io.input('API Base URL（留空使用预设）', '');
   const apiKey = await io.input('API Key');
   const model = await io.input('默认模型');
+  const capabilityMode = await io.choose('是否配置 capability 提示', ['保持默认', '配置 capability 提示']);
 
-  return buildMinimalConfig({
+  const draft = buildMinimalConfig({
     providers: [
       {
         name: providerName,
@@ -244,6 +305,13 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
     ],
     defaultModel: providerName,
   });
+
+  if (capabilityMode === '配置 capability 提示' && draft.Models?.[0]) {
+    const metadata = await promptCapabilityMetadata(io, draft.Models[0].metadata);
+    applyCapabilityMetadata(draft.Models[0], metadata);
+  }
+
+  return draft;
 }
 
 async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]; io: ISetupIO }): Promise<ISetupConfigDraft> {
@@ -285,6 +353,11 @@ async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]
         api_base_url: provider.api_base_url || apiBaseUrl,
       }));
     }
+  }
+
+  if (input.fields.includes('capabilityHints') && draft.Models?.[0]) {
+    const metadata = await promptCapabilityMetadata(input.io, draft.Models[0].metadata);
+    applyCapabilityMetadata(draft.Models[0], metadata);
   }
 
   return draft;

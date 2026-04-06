@@ -44,4 +44,14 @@ describe('getRepairFields', () => {
 
     expect(result).toEqual(['manualReview']);
   });
+
+  it('maps capability warnings to capabilityHints repair field', () => {
+    const result = getRepairFields([
+      'Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.',
+      'Models[0].metadata.supports_tools disables tools for model "restricted". Tool definitions and tool call/result blocks will fall back to plain text.',
+      'Models[0].metadata.supports_images disables image input for model "restricted". Image blocks will fall back to plain text descriptions.',
+    ]);
+
+    expect(result).toEqual(['capabilityHints']);
+  });
 });

@@ -10,7 +10,7 @@ describe('runSetupCli', () => {
     const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
 
     const io = {
-      choose: vi.fn().mockResolvedValueOnce('openrouter'),
+      choose: vi.fn().mockResolvedValueOnce('openrouter').mockResolvedValueOnce('保持默认'),
       input: vi
         .fn()
         .mockResolvedValueOnce('openrouter')
@@ -53,6 +53,60 @@ describe('runSetupCli', () => {
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+  });
+
+  it('supports guided capability hints during fresh setup', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('openrouter')
+        .mockResolvedValueOnce('配置 capability 提示')
+        .mockResolvedValueOnce('禁用')
+        .mockResolvedValueOnce('禁用')
+        .mockResolvedValueOnce('支持'),
+      input: vi
+        .fn()
+        .mockResolvedValueOnce('openrouter')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('sk-test')
+        .mockResolvedValueOnce('anthropic/claude-sonnet-4')
+        .mockResolvedValueOnce('openrouter'),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig,
+      executeStart,
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Models: [
+          expect.objectContaining({
+            metadata: {
+              vendor_hint: 'openrouter',
+              supports_reasoning: false,
+              supports_tools: false,
+              supports_images: true,
+            },
+          }),
+        ],
+      })
+    );
   });
 
   it('reuses a valid current config without rewriting it', async () => {

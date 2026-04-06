@@ -197,6 +197,9 @@
 - 已完成 warning 快捷修正首轮：`/ui` Capability Warnings 面板现已可直接修正常见 capability 冲突
 - `thinking_ignored / tools_text_fallback / images_text_fallback` 现已从只读 warning 升级为可操作入口
 - 当前 remaining gap 已继续收敛为“setup CLI 仍缺 capability 专门问答路径，以及更复杂 warning 的修正策略”
+- 已完成 setup CLI capability 引导首轮：`ctr setup` 现已支持直接采集 `Vendor hint / Reasoning support / Tool support / Image support`
+- invalid config repair 流程现也会把 capability warning 一并纳入 repair 字段映射
+- 当前 remaining gap 已继续收敛为“多模型 capability 分别引导与更复杂 warning 修正策略仍未完全联动”
 
 ## 下次更新时应补充的内容
 

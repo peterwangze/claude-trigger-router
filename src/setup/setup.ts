@@ -78,7 +78,10 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
       throw new Error('repair_current requires invalid current config');
     }
 
-    const repairPlan = deps.mapConfigErrorsToRepairFields(detection.currentConfig.errors);
+    const repairPlan = deps.mapConfigErrorsToRepairFields([
+      ...detection.currentConfig.errors,
+      ...detection.currentConfig.warnings,
+    ]);
     if (repairPlan.mode === 'manualReview') {
       throw new Error('manual review is required for current config');
     }

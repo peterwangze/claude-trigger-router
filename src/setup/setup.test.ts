@@ -308,6 +308,62 @@ describe('runSetup', () => {
     });
   });
 
+  it('includes capability warnings when deriving repair fields for invalid config', async () => {
+    const repairedDraft = createDraft();
+    const invalidConfig = {
+      Models: [
+        {
+          id: 'restricted',
+          api: 'https://api.example.com/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'vendor/text-only',
+          thinking: 'high',
+          metadata: {
+            supports_reasoning: false,
+          },
+        },
+      ],
+      Router: {
+        default: 'restricted',
+      },
+    } as unknown as ISetupConfigDraft;
+    const { deps } = createDeps({
+      detectSetupEnvironment: vi.fn().mockResolvedValue({
+        currentConfig: {
+          kind: 'invalid',
+          path: '/tmp/config.yaml',
+          format: 'yaml',
+          config: invalidConfig,
+          errors: ['Router.default is required'],
+          warnings: ['Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.'],
+        },
+        legacyConfig: { kind: 'missing' },
+        detectedService: { kind: 'self_unhealthy', port: 3456 },
+      }),
+      chooseCurrentConfigAction: vi.fn().mockResolvedValue('repair'),
+      mapConfigErrorsToRepairFields: vi.fn().mockReturnValue({
+        mode: 'repair',
+        fields: ['defaultModel', 'capabilityHints'],
+      }),
+      buildRepairConfig: vi.fn().mockResolvedValue(invalidConfig),
+      completeDraft: vi.fn().mockResolvedValue(repairedDraft),
+      ensureServiceReady: vi.fn().mockResolvedValue({
+        action: 'restart',
+        healthChecked: true,
+      }),
+    });
+
+    const { runSetup } = await import('./setup');
+
+    await runSetup(deps as any);
+
+    expect(deps.mapConfigErrorsToRepairFields).toHaveBeenCalledWith([
+      'Router.default is required',
+      'Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.',
+    ]);
+  });
+
   it('rebuilds from parse error without entering repair-field mapping', async () => {
     const rebuiltDraft = createDraft();
     const { deps } = createDeps({

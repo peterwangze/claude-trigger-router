@@ -268,3 +268,11 @@
 - `tools_text_fallback / images_text_fallback` 可直接恢复默认 capability，而不是手动改 metadata
 - warning 已开始从“只读提示”演进到“可操作修正入口”
 - 当前 remaining gap 主要是 setup CLI 仍未提供 capability 字段的专门问答路径
+
+### 阶段 2L：setup CLI capability 引导首轮落地
+
+- `ctr setup` 现已支持在 fresh init 阶段直接填写 capability hint
+- 当前向导已覆盖 `Vendor hint / Reasoning support / Tool support / Image support`
+- invalid config repair 流程现也会把 capability warning 一并纳入 repair 字段映射
+- capability 常见配置已不再只依赖 `/ui` 表单或 warning 回看
+- 当前 remaining gap 主要是 setup CLI 仍未对多模型 capability 分别提供更细粒度引导

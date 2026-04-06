@@ -73,6 +73,13 @@ ctr setup
 
 `ctr setup` 现在也会先把这些 warning 提示出来，帮助你在进入 Claude Code 前先校准配置预期。
 
+如果你希望在初始化时就把 capability hint 一起配好，`ctr setup` 现在也支持在向导里直接填写：
+
+- `Vendor hint`
+- `Reasoning support`
+- `Tool support`
+- `Image support`
+
 如果你更喜欢先复制模板再手动编辑，也可以改用：
 
 ```bash

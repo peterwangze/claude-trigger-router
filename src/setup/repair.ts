@@ -1,4 +1,4 @@
-export type SetupRepairField = 'defaultModel' | 'apiKey' | 'apiBaseUrl' | 'manualReview';
+export type SetupRepairField = 'defaultModel' | 'apiKey' | 'apiBaseUrl' | 'capabilityHints' | 'manualReview';
 
 function mapRepairField(error: string): SetupRepairField {
   if (error === 'Router.default is required') {
@@ -11,6 +11,14 @@ function mapRepairField(error: string): SetupRepairField {
 
   if (/^(Providers\[\d+\]\.api_base_url|Models\[\d+\]\.api) is required$/.test(error)) {
     return 'apiBaseUrl';
+  }
+
+  if (
+    /^Models\[\d+\]\.thinking is configured, but model ".+" disables reasoning\./.test(error) ||
+    /^Models\[\d+\]\.metadata\.supports_tools disables tools/.test(error) ||
+    /^Models\[\d+\]\.metadata\.supports_images disables image input/.test(error)
+  ) {
+    return 'capabilityHints';
   }
 
   return 'manualReview';

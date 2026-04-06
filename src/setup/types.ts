@@ -47,6 +47,13 @@ export interface ISetupModelDraft {
     effort?: 'low' | 'medium' | 'high';
     budget_tokens?: number;
   };
+  metadata?: {
+    vendor_hint?: string;
+    supports_reasoning?: boolean;
+    supports_tools?: boolean;
+    supports_images?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 /** setup 期间生成的配置草稿 */
