@@ -218,6 +218,7 @@ Models:
 - `/ui` 的 Draft Config Preview 现在会额外显示 `Capability Warnings`，方便在保存前看到哪些配置会触发运行时降级
 - `/ui` 的 `Validation Summary` 现在会同时显示 errors 和 warnings，并区分 `repair first` / `review before save`
 - `/ui` 现已支持直接从草稿区点击 `保存配置`，保存后会继续显示 warning，避免“能保存但预期不清楚”
+- `/ui` 的 Models 表单现在已提供 `Reasoning/Tool/Image support` 和 `Vendor hint` 显式控件，普通场景下不再需要直接手改 `metadata` JSON
 
 ### 1.1 Legacy Providers
 

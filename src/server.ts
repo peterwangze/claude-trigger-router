@@ -1102,7 +1102,11 @@ export const createServer = (config: any): Server => {
       `      '<div><label>Thinking mode</label><select data-field=\"thinking_mode\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"off\"'+(model.thinking?.mode === 'off' ? ' selected' : '')+'>off</option><option value=\"auto\"'+(model.thinking?.mode === 'auto' ? ' selected' : '')+'>auto</option><option value=\"on\"'+(model.thinking?.mode === 'on' ? ' selected' : '')+'>on</option></select></div>' +` +
       `      '<div><label>Thinking effort</label><select data-field=\"thinking_effort\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"low\"'+(model.thinking?.effort === 'low' ? ' selected' : '')+'>low</option><option value=\"medium\"'+(model.thinking?.effort === 'medium' ? ' selected' : '')+'>medium</option><option value=\"high\"'+(model.thinking?.effort === 'high' ? ' selected' : '')+'>high</option></select></div>' +` +
       `      '<div><label>Thinking budget</label><input data-field=\"thinking_budget_tokens\" data-index=\"'+index+'\" value=\"'+esc(model.thinking?.budget_tokens || '')+'\" placeholder=\"1024\"></div>' +` +
-      `      '<div style=\"grid-column:1/-1\"><label>Metadata (JSON)</label><textarea data-field=\"metadata\" data-index=\"'+index+'\" placeholder=\"{\\\"vendor\\\":\\\"openrouter\\\"}\">'+esc(model.metadata ? JSON.stringify(model.metadata, null, 2) : '')+'</textarea></div>' +` +
+      `      '<div><label>Vendor hint</label><input data-field=\"vendor_hint\" data-index=\"'+index+'\" value=\"'+esc(model.metadata?.vendor_hint || '')+'\" placeholder=\"openrouter\"></div>' +` +
+      `      '<div><label>Reasoning support</label><select data-field=\"supports_reasoning\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"true\"'+(model.metadata?.supports_reasoning === true ? ' selected' : '')+'>supported</option><option value=\"false\"'+(model.metadata?.supports_reasoning === false ? ' selected' : '')+'>disabled</option></select></div>' +` +
+      `      '<div><label>Tool support</label><select data-field=\"supports_tools\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"true\"'+(model.metadata?.supports_tools === true ? ' selected' : '')+'>supported</option><option value=\"false\"'+(model.metadata?.supports_tools === false ? ' selected' : '')+'>disabled</option></select></div>' +` +
+      `      '<div><label>Image support</label><select data-field=\"supports_images\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"true\"'+(model.metadata?.supports_images === true ? ' selected' : '')+'>supported</option><option value=\"false\"'+(model.metadata?.supports_images === false ? ' selected' : '')+'>disabled</option></select></div>' +` +
+      `      '<div style=\"grid-column:1/-1\"><label>Metadata (advanced JSON)</label><textarea data-field=\"metadata\" data-index=\"'+index+'\" placeholder=\"{\\\"label\\\":\\\"Balanced profile\\\"}\">'+esc(model.metadata ? JSON.stringify(model.metadata, null, 2) : '')+'</textarea><div class="muted">普通 capability 建议优先使用上面的显式字段；这里保留给高级扩展元数据。</div></div>' +` +
       `    '</div>' +` +
       `  '</div>').join('');` +
       `}` +
@@ -1113,8 +1117,12 @@ export const createServer = (config: any): Server => {
       `    const providerTemplate=(read('provider_template')?.value || '').trim();` +
       `    const metadataRaw=(read('metadata')?.value || '').trim();` +
       `    let metadata;` +
-      `    if(metadataRaw){ metadata=JSON.parse(metadataRaw); }` +
+      `    if(metadataRaw){ metadata=JSON.parse(metadataRaw); } else { metadata={}; }` +
       `    const thinkingProfile=(read('thinking_profile')?.value || '').trim();` +
+      `    const vendorHint=(read('vendor_hint')?.value || '').trim();` +
+      `    const supportsReasoning=(read('supports_reasoning')?.value || '').trim();` +
+      `    const supportsTools=(read('supports_tools')?.value || '').trim();` +
+      `    const supportsImages=(read('supports_images')?.value || '').trim();` +
       `    const thinking={};` +
       `    const mode=(read('thinking_mode')?.value || '').trim();` +
       `    const effort=(read('thinking_effort')?.value || '').trim();` +
@@ -1129,9 +1137,13 @@ export const createServer = (config: any): Server => {
       `      interface:(read('interface')?.value || '').trim(),` +
       `      model:(read('model')?.value || '').trim(),` +
       `    };` +
+      `    if(vendorHint){ metadata.vendor_hint=vendorHint; } else if(metadata && Object.prototype.hasOwnProperty.call(metadata,'vendor_hint')){ delete metadata.vendor_hint; }` +
+      `    if(supportsReasoning){ metadata.supports_reasoning=supportsReasoning === 'true'; } else if(metadata && Object.prototype.hasOwnProperty.call(metadata,'supports_reasoning')){ delete metadata.supports_reasoning; }` +
+      `    if(supportsTools){ metadata.supports_tools=supportsTools === 'true'; } else if(metadata && Object.prototype.hasOwnProperty.call(metadata,'supports_tools')){ delete metadata.supports_tools; }` +
+      `    if(supportsImages){ metadata.supports_images=supportsImages === 'true'; } else if(metadata && Object.prototype.hasOwnProperty.call(metadata,'supports_images')){ delete metadata.supports_images; }` +
       `    if(providerTemplate){ model.provider_template=providerTemplate; }` +
       `    if(thinkingProfile && thinkingProfile !== 'custom'){ model.thinking=thinkingProfile; } else if(Object.keys(thinking).length){ model.thinking=thinking; }` +
-      `    if(metadata !== undefined){ model.metadata=metadata; }` +
+      `    if(metadata !== undefined && Object.keys(metadata).length){ model.metadata=metadata; }` +
       `    return model;` +
       `  });` +
       `}` +

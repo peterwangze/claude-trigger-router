@@ -252,3 +252,11 @@
 - `/ui` 现已支持直接保存当前草稿配置，并在保存后继续展示 warning
 - warning 不再只停留在 preview API 或 setup CLI，而是进入日常可视化编辑主路径
 - 当前 remaining gap 主要是 warning 尚未与自动 repair 建议进一步联动
+
+### 阶段 2J：capability 显式表单控件首轮落地
+
+- `/ui` Models 表单现已新增 `Vendor hint`、`Reasoning support`、`Tool support`、`Image support`
+- capability 常见编辑路径已从原先的纯 `metadata` JSON 输入，收敛为显式字段
+- `Metadata (advanced JSON)` 仍保留，作为高级扩展入口
+- 用户现在可以直接在表单中配置 capability hint，再配合 warning 面板查看效果
+- 当前 remaining gap 主要是 setup CLI 仍未提供对这些 capability 字段的专门问答路径

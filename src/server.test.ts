@@ -1159,6 +1159,14 @@ describe('createServer /api/config', () => {
     expect(html).toContain('saveConfigDraft');
     expect(html).toContain('renderModelsForm');
     expect(html).toContain('thinking_profile');
+    expect(html).toContain('vendor_hint');
+    expect(html).toContain('supports_reasoning');
+    expect(html).toContain('supports_tools');
+    expect(html).toContain('supports_images');
+    expect(html).toContain('Reasoning support');
+    expect(html).toContain('Tool support');
+    expect(html).toContain('Image support');
+    expect(html).toContain('Metadata (advanced JSON)');
     expect(html).toContain('renderDraftSummary');
     expect(html).toContain('renderDraftValidation');
     expect(html).toContain("text.startsWith('Models')");

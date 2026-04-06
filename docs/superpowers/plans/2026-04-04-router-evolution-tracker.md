@@ -191,6 +191,9 @@
 - 已完成 repair/save UI warning 分层首轮：`Validation Summary` 已可同时显示 errors 与 warnings，并区分 `repair first / review before save`
 - `/ui` 现已支持直接保存当前草稿配置，warning 已进入日常可视化编辑主路径
 - 当前 remaining gap 已继续收敛为“warning 尚未与自动 repair 建议和专用 capability 表单控件深度联动”
+- 已完成 capability 显式表单控件首轮：`/ui` Models 表单已可直接编辑 `supports_reasoning / supports_tools / supports_images / vendor_hint`
+- capability 常见编辑路径已从“纯 metadata JSON”进一步收敛到显式字段 + advanced JSON 兜底
+- 当前 remaining gap 已继续收敛为“setup CLI 尚未提供 capability 字段的专门引导与快捷编辑”
 
 ## 下次更新时应补充的内容
 
