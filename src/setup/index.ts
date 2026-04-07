@@ -26,6 +26,7 @@ interface ISetupIO {
 }
 
 type TCapabilityChoice = '默认' | '支持' | '禁用';
+type TCapabilityEditChoice = '保持当前值' | '编辑 capability';
 
 interface IRunSetupCliDeps {
   readCurrentConfig: () => Promise<RawCurrentConfigResult>;
@@ -228,6 +229,23 @@ async function promptCapabilityMetadata(io: ISetupIO, currentMetadata?: Record<s
   return nextMetadata;
 }
 
+async function promptCapabilityMetadataForDraft(draft: ISetupConfigDraft, io: ISetupIO) {
+  if (!draft.Models?.length) {
+    return;
+  }
+
+  for (const model of draft.Models) {
+    const modelLabel = model.id || model.model || 'unnamed-model';
+    const editChoice = await io.choose(`是否配置模型 ${modelLabel} 的 capability 提示`, ['保持当前值', '编辑 capability']) as TCapabilityEditChoice;
+    if (editChoice !== '编辑 capability') {
+      continue;
+    }
+
+    const metadata = await promptCapabilityMetadata(io, model.metadata);
+    applyCapabilityMetadata(model, metadata);
+  }
+}
+
 function toDraftFromConfig(config: any): ISetupConfigDraft {
   const derivedModels = !Array.isArray(config?.Models) && Array.isArray(config?.Providers)
     ? config.Providers.flatMap((provider: any) =>
@@ -307,8 +325,7 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
   });
 
   if (capabilityMode === '配置 capability 提示' && draft.Models?.[0]) {
-    const metadata = await promptCapabilityMetadata(io, draft.Models[0].metadata);
-    applyCapabilityMetadata(draft.Models[0], metadata);
+    await promptCapabilityMetadataForDraft(draft, io);
   }
 
   return draft;
@@ -356,8 +373,7 @@ async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]
   }
 
   if (input.fields.includes('capabilityHints') && draft.Models?.[0]) {
-    const metadata = await promptCapabilityMetadata(input.io, draft.Models[0].metadata);
-    applyCapabilityMetadata(draft.Models[0], metadata);
+    await promptCapabilityMetadataForDraft(draft, input.io);
   }
 
   return draft;

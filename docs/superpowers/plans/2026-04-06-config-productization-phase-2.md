@@ -276,3 +276,10 @@
 - invalid config repair 流程现也会把 capability warning 一并纳入 repair 字段映射
 - capability 常见配置已不再只依赖 `/ui` 表单或 warning 回看
 - 当前 remaining gap 主要是 setup CLI 仍未对多模型 capability 分别提供更细粒度引导
+
+### 阶段 2M：setup 多模型 capability 引导首轮落地
+
+- `ctr setup` 在 repair / migrate 等多模型草稿场景下，现会逐个模型询问是否编辑 capability hint
+- capability 提示已不再局限于单模型 first-use 路径
+- setup repair 现可围绕 capability warning 继续补全 capability 元数据，而不是只停留在只读提示
+- 当前 remaining gap 主要是更复杂 warning 仍缺少 setup 侧快捷修正模板

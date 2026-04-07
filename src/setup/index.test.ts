@@ -66,6 +66,7 @@ describe('runSetupCli', () => {
         .fn()
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('配置 capability 提示')
+        .mockResolvedValueOnce('编辑 capability')
         .mockResolvedValueOnce('禁用')
         .mockResolvedValueOnce('禁用')
         .mockResolvedValueOnce('支持'),
@@ -245,6 +246,92 @@ describe('runSetupCli', () => {
     expect(io.info).toHaveBeenCalledWith('检测到现有可用配置。');
     expect(io.info).toHaveBeenCalledWith(
       '当前配置提示：Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.'
+    );
+    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+  });
+
+  it('supports capability repair prompts across draft models during setup repair flow', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('repair')
+        .mockResolvedValueOnce('编辑 capability')
+        .mockResolvedValueOnce('禁用')
+        .mockResolvedValueOnce('支持')
+        .mockResolvedValueOnce('默认')
+        .mockResolvedValueOnce('保持当前值'),
+      input: vi
+        .fn()
+        .mockResolvedValueOnce('vendor/restricted')
+        .mockResolvedValueOnce('openrouter'),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/tmp/config.yaml',
+        format: 'yaml',
+        config: {
+          Models: [
+            {
+              id: 'restricted',
+              api: 'https://api.example.com/v1/chat/completions',
+              key: 'sk-test',
+              interface: 'openai',
+              model: 'vendor/restricted',
+              thinking: 'high',
+              metadata: {
+                supports_reasoning: false,
+              },
+            },
+            {
+              id: 'balanced',
+              api: 'https://api.openai.com/v1/chat/completions',
+              key: 'sk-test',
+              interface: 'openai',
+              model: 'gpt-5-mini',
+            },
+          ],
+          Router: {},
+        },
+      }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue('/tmp/config.backup.yaml'),
+      writeConfig,
+      executeStart: vi.fn().mockResolvedValue(undefined),
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth: vi.fn().mockResolvedValue(true),
+      enterClaudeCode,
+      io,
+    });
+
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Router: {
+          default: 'restricted',
+        },
+        Models: [
+          expect.objectContaining({
+            id: 'restricted',
+            model: 'vendor/restricted',
+            metadata: {
+              vendor_hint: 'openrouter',
+              supports_reasoning: false,
+              supports_tools: true,
+            },
+          }),
+          expect.objectContaining({
+            id: 'balanced',
+            model: 'gpt-5-mini',
+          }),
+        ],
+      })
     );
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
   });

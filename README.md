@@ -80,6 +80,8 @@ ctr setup
 - `Tool support`
 - `Image support`
 
+如果当前 draft 里有多个模型，setup 也会逐个模型询问是否需要编辑这些 capability 提示。
+
 如果你更喜欢先复制模板再手动编辑，也可以改用：
 
 ```bash

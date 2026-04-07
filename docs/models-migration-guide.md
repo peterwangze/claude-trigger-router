@@ -257,6 +257,7 @@ GET /api/models/compiled
 - `/ui` 的 Models 表单现在也提供 `supports_reasoning / supports_tools / supports_images / vendor_hint` 的显式编辑控件，普通场景无需再直接编辑 `metadata` JSON
 - 对部分 warning，`/ui` 现在还会提供快捷修正动作，便于先把明显的 capability 配置冲突修到可接受状态
 - `ctr setup` 现在也支持在初始化向导里直接填写这些 capability hint，不必等到保存后再通过 warning 回头修
+- 如果迁移草稿里包含多个模型，`ctr setup` 现在也会逐个模型询问是否需要编辑 capability hint
 
 ## 当前兼容边界
 

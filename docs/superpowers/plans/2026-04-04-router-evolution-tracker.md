@@ -200,6 +200,9 @@
 - 已完成 setup CLI capability 引导首轮：`ctr setup` 现已支持直接采集 `Vendor hint / Reasoning support / Tool support / Image support`
 - invalid config repair 流程现也会把 capability warning 一并纳入 repair 字段映射
 - 当前 remaining gap 已继续收敛为“多模型 capability 分别引导与更复杂 warning 修正策略仍未完全联动”
+- 已完成 setup 多模型 capability 引导首轮：repair / migrate 的多模型草稿场景下，setup 现会逐个模型询问 capability hint
+- capability 采集已不再局限于单模型 first-use 路径
+- 当前 remaining gap 已继续收敛为“更复杂 warning 的 setup 修正模板与多步策略仍未完善”
 
 ## 下次更新时应补充的内容
 
