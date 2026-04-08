@@ -968,10 +968,34 @@ export const createServer = (config: any): Server => {
       `  governance:{ label:'治理预设', description:'打开治理核心能力，并填入 summarizer/classifier/verifier 示例模型。', affects:['Governance.enabled','Governance.sticky.alignment','Governance.semantic','Governance.shadow'], governanceEnabled:true, governanceAlignmentEnabled:true, governanceSemanticEnabled:true, governanceShadowEnabled:true, governanceSummarizerModel:'sonnet', governanceClassifierModel:'sonnet', governanceVerifierModel:'haiku' }` +
       `};` +
       `const modelProviderTemplates=${toInlineScriptJson(getUiProviderTemplates())};` +
+      `const defaultProviderTemplateKey='openrouter';` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
       `function fmt(v){return Number(v || 0).toFixed(2);}` +
       `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
+      `function inferProviderTemplateKey(model){` +
+      `  const explicit=String(model?.provider_template || '').trim();` +
+      `  if(explicit && modelProviderTemplates[explicit]){ return explicit; }` +
+      `  const api=String(model?.api || model?.api_base_url || '').trim().toLowerCase();` +
+      `  const modelInterface=String(model?.interface || model?.protocol || '').trim().toLowerCase();` +
+      `  const exactMatch=Object.entries(modelProviderTemplates).find(([,item])=>String(item.api || '').trim().toLowerCase()===api && String(item.interface || '').trim().toLowerCase()===modelInterface);` +
+      `  if(exactMatch){ return exactMatch[0]; }` +
+      `  if(api.includes('api.anthropic.com/v1/messages') || modelInterface === 'anthropic'){ return 'anthropic'; }` +
+      `  if(api.includes('openrouter.ai')){ return 'openrouter'; }` +
+      `  if(api.includes('deepseek.com')){ return 'deepseek'; }` +
+      `  if(api.includes('siliconflow.cn')){ return 'siliconflow'; }` +
+      `  if(api.includes('api.openai.com')){ return 'openai-compatible'; }` +
+      `  return '';` +
+      `}` +
+      `function getProviderTemplateContext(model){` +
+      `  const templateKey=inferProviderTemplateKey(model) || defaultProviderTemplateKey;` +
+      `  return { templateKey, template:modelProviderTemplates[templateKey] || modelProviderTemplates[defaultProviderTemplateKey] || {} };` +
+      `}` +
+      `function createDraftModelFromTemplate(templateKey){` +
+      `  const resolvedKey=(templateKey && modelProviderTemplates[templateKey]) ? templateKey : defaultProviderTemplateKey;` +
+      `  const template=modelProviderTemplates[resolvedKey] || {};` +
+      `  return { provider_template:resolvedKey, id:template.suggested_id || '', api:template.api || '', interface:template.interface || 'openai', model:template.default_model || '', thinking:template.default_thinking || 'auto' };` +
+      `}` +
       `function getModelIdSuggestionsMarkup(idPrefix){` +
       `  return '<datalist id=\"'+idPrefix+'\">'+knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('')+'</datalist>';` +
       `}` +
@@ -1093,26 +1117,26 @@ export const createServer = (config: any): Server => {
       `  const list=Array.isArray(models) ? models : [];` +
       `  draftModelsCount.value=String(list.length);` +
       `  if(!list.length){ modelsFormGrid.innerHTML='<div class="panel" style="margin-bottom:0"><span class="muted">No draft models loaded yet</span></div>'; return; }` +
-      `  modelsFormGrid.innerHTML=list.map((model,index)=>'<div class="model-card" data-model-card=\"'+index+'\">' +` +
+      `  modelsFormGrid.innerHTML=list.map((model,index)=>{ const templateContext=getProviderTemplateContext(model); const template=templateContext.template; return '<div class="model-card" data-model-card=\"'+index+'\">' +` +
       `    '<div class="model-card-header"><strong>Model #'+(index+1)+'</strong><button type="button" data-remove-model=\"'+index+'\">删除</button></div>' +` +
       `    '<div class="model-card-grid">' +` +
       `      '<div><label>Provider template</label><div class="row"><select data-field=\"provider_template\" data-index=\"'+index+'\"><option value=\"\">custom</option>'+Object.entries(modelProviderTemplates).map(([key,item])=>'<option value=\"'+esc(key)+'\"'+(model.provider_template === key ? ' selected' : '')+'>'+esc(item.label)+'</option>').join('')+'</select><button type="button" data-apply-template=\"'+index+'\">应用</button></div></div>' +` +
-      `      '<div><label>ID</label><input data-field=\"id\" data-index=\"'+index+'\" value=\"'+esc(model.id || '')+'\" placeholder=\"sonnet\"></div>' +` +
+      `      '<div><label>ID</label><input data-field=\"id\" data-index=\"'+index+'\" value=\"'+esc(model.id || '')+'\" placeholder=\"'+esc(template.suggested_id || 'sonnet')+'\"><div class="muted">建议模板：'+esc(template.label || templateContext.templateKey || 'custom')+'</div></div>' +` +
       `      '<div><label>Interface</label><select data-field=\"interface\" data-index=\"'+index+'\"><option value=\"openai\"'+(((model.interface || model.protocol || 'openai') === 'openai') ? ' selected' : '')+'>openai</option><option value=\"anthropic\"'+(((model.interface || model.protocol) === 'anthropic') ? ' selected' : '')+'>anthropic</option></select></div>' +` +
-      `      '<div><label>Model</label><input data-field=\"model\" data-index=\"'+index+'\" list=\"modelSuggestions'+index+'\" value=\"'+esc(model.model || '')+'\" placeholder=\"'+esc(modelProviderTemplates[model.provider_template || 'openrouter']?.default_model || 'anthropic/claude-sonnet-4')+'\"><datalist id=\"modelSuggestions'+index+'\">'+((modelProviderTemplates[model.provider_template || '']?.model_examples || []).map(item=>'<option value=\"'+esc(item)+'\"></option>').join(''))+'</datalist><div class="muted">例如：'+esc((modelProviderTemplates[model.provider_template || '']?.model_examples || ['anthropic/claude-sonnet-4']).join(' / '))+'</div></div>' +` +
-      `      '<div><label>API</label><input data-field=\"api\" data-index=\"'+index+'\" value=\"'+esc(model.api || model.api_base_url || '')+'\" placeholder=\"https://...\"></div>' +` +
-      `      '<div><label>Key</label><input data-field=\"key\" data-index=\"'+index+'\" value=\"'+esc(model.key || model.api_key || '')+'\" placeholder=\"sk-...\"></div>' +` +
+      `      '<div><label>Model</label><input data-field=\"model\" data-index=\"'+index+'\" list=\"modelSuggestions'+index+'\" value=\"'+esc(model.model || '')+'\" placeholder=\"'+esc(template.default_model || 'anthropic/claude-sonnet-4')+'\"><datalist id=\"modelSuggestions'+index+'\">'+((template.model_examples || []).map(item=>'<option value=\"'+esc(item)+'\"></option>').join(''))+'</datalist><div class="muted">例如：'+esc((template.model_examples || ['anthropic/claude-sonnet-4']).join(' / '))+'</div></div>' +` +
+      `      '<div><label>API</label><input data-field=\"api\" data-index=\"'+index+'\" value=\"'+esc(model.api || model.api_base_url || '')+'\" placeholder=\"'+esc(template.api || 'https://...')+'\"></div>' +` +
+      `      '<div><label>Key</label><input data-field=\"key\" data-index=\"'+index+'\" value=\"'+esc(model.key || model.api_key || '')+'\" placeholder=\"'+esc(template.key_placeholder || 'sk-...')+'\"></div>' +` +
       `      '<div><label>Thinking</label><select data-field=\"thinking_profile\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"off\"'+(((model.thinking === 'off') || model.thinking?.mode === 'off') ? ' selected' : '')+'>off</option><option value=\"auto\"'+(((model.thinking === 'auto') || model.thinking?.mode === 'auto') ? ' selected' : '')+'>auto</option><option value=\"on\"'+(((model.thinking === 'on') || (model.thinking?.mode === 'on' && !model.thinking?.effort)) ? ' selected' : '')+'>on</option><option value=\"low\"'+(((model.thinking === 'low') || (model.thinking?.mode === 'on' && model.thinking?.effort === 'low' && !model.thinking?.budget_tokens)) ? ' selected' : '')+'>low</option><option value=\"medium\"'+(((model.thinking === 'medium') || (model.thinking?.mode === 'on' && model.thinking?.effort === 'medium' && !model.thinking?.budget_tokens)) ? ' selected' : '')+'>medium</option><option value=\"high\"'+(((model.thinking === 'high') || (model.thinking?.mode === 'on' && model.thinking?.effort === 'high' && !model.thinking?.budget_tokens)) ? ' selected' : '')+'>high</option><option value=\"custom\"'+(((typeof model.thinking === 'object') && model.thinking && model.thinking.budget_tokens) ? ' selected' : '')+'>custom</option></select></div>' +` +
       `      '<div><label>Thinking mode</label><select data-field=\"thinking_mode\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"off\"'+(model.thinking?.mode === 'off' ? ' selected' : '')+'>off</option><option value=\"auto\"'+(model.thinking?.mode === 'auto' ? ' selected' : '')+'>auto</option><option value=\"on\"'+(model.thinking?.mode === 'on' ? ' selected' : '')+'>on</option></select></div>' +` +
       `      '<div><label>Thinking effort</label><select data-field=\"thinking_effort\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"low\"'+(model.thinking?.effort === 'low' ? ' selected' : '')+'>low</option><option value=\"medium\"'+(model.thinking?.effort === 'medium' ? ' selected' : '')+'>medium</option><option value=\"high\"'+(model.thinking?.effort === 'high' ? ' selected' : '')+'>high</option></select></div>' +` +
       `      '<div><label>Thinking budget</label><input data-field=\"thinking_budget_tokens\" data-index=\"'+index+'\" value=\"'+esc(model.thinking?.budget_tokens || '')+'\" placeholder=\"1024\"></div>' +` +
-      `      '<div><label>Vendor hint</label><input data-field=\"vendor_hint\" data-index=\"'+index+'\" value=\"'+esc(model.metadata?.vendor_hint || '')+'\" placeholder=\"openrouter\"></div>' +` +
+      `      '<div><label>Vendor hint</label><input data-field=\"vendor_hint\" data-index=\"'+index+'\" value=\"'+esc(model.metadata?.vendor_hint || '')+'\" placeholder=\"'+esc(template.vendor_hint || 'openrouter')+'\"></div>' +` +
       `      '<div><label>Reasoning support</label><select data-field=\"supports_reasoning\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"true\"'+(model.metadata?.supports_reasoning === true ? ' selected' : '')+'>supported</option><option value=\"false\"'+(model.metadata?.supports_reasoning === false ? ' selected' : '')+'>disabled</option></select></div>' +` +
       `      '<div><label>Tool support</label><select data-field=\"supports_tools\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"true\"'+(model.metadata?.supports_tools === true ? ' selected' : '')+'>supported</option><option value=\"false\"'+(model.metadata?.supports_tools === false ? ' selected' : '')+'>disabled</option></select></div>' +` +
       `      '<div><label>Image support</label><select data-field=\"supports_images\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"true\"'+(model.metadata?.supports_images === true ? ' selected' : '')+'>supported</option><option value=\"false\"'+(model.metadata?.supports_images === false ? ' selected' : '')+'>disabled</option></select></div>' +` +
       `      '<div style=\"grid-column:1/-1\"><label>Metadata (advanced JSON)</label><textarea data-field=\"metadata\" data-index=\"'+index+'\" placeholder=\"{\\\"label\\\":\\\"Balanced profile\\\"}\">'+esc(model.metadata ? JSON.stringify(model.metadata, null, 2) : '')+'</textarea><div class="muted">普通 capability 建议优先使用上面的显式字段；这里保留给高级扩展元数据。</div></div>' +` +
       `    '</div>' +` +
-      `  '</div>').join('');` +
+      `  '</div>'; }).join('');` +
       `}` +
       `function extractModelsFromForm(){` +
       `  const cards=Array.from(modelsFormGrid.querySelectorAll('[data-model-card]'));` +
@@ -1163,6 +1187,14 @@ export const createServer = (config: any): Server => {
       `  if(modelInterface){ modelInterface.value=template.interface || template.protocol; }` +
       `  if(apiBaseUrl && !apiBaseUrl.value.trim()){ apiBaseUrl.value=template.api || template.api_base_url; } else if(apiBaseUrl){ apiBaseUrl.value=template.api || template.api_base_url; }` +
       `  if(modelInput){ modelInput.placeholder=template.default_model || modelInput.placeholder; if(!modelInput.value.trim() && template.default_model){ modelInput.value=template.default_model; } }` +
+      `  const modelIdInput=card.querySelector('[data-field=\"id\"][data-index=\"'+index+'\"]');` +
+      `  if(modelIdInput){ modelIdInput.placeholder=template.suggested_id || modelIdInput.placeholder; if(!modelIdInput.value.trim() && template.suggested_id){ modelIdInput.value=template.suggested_id; } }` +
+      `  const keyInput=card.querySelector('[data-field=\"key\"][data-index=\"'+index+'\"]');` +
+      `  if(keyInput && template.key_placeholder){ keyInput.placeholder=template.key_placeholder; }` +
+      `  const vendorHintInput=card.querySelector('[data-field=\"vendor_hint\"][data-index=\"'+index+'\"]');` +
+      `  if(vendorHintInput && template.vendor_hint){ vendorHintInput.placeholder=template.vendor_hint; }` +
+      `  const thinkingProfile=card.querySelector('[data-field=\"thinking_profile\"][data-index=\"'+index+'\"]');` +
+      `  if(thinkingProfile && !thinkingProfile.value && template.default_thinking){ thinkingProfile.value=template.default_thinking; }` +
       `  const nextModels=extractModelsFromForm();` +
       `  if(nextModels[index]){ nextModels[index]={ ...nextModels[index], provider_template: templateKey }; }` +
       `  renderModelsForm(nextModels);` +
@@ -1494,7 +1526,7 @@ export const createServer = (config: any): Server => {
       `}` +
       `function addDraftModel(){` +
       `  const nextModels=extractModelsFromForm();` +
-      `  nextModels.push({ interface:'openai', thinking:'auto' });` +
+      `  nextModels.push(createDraftModelFromTemplate(defaultProviderTemplateKey));` +
       `  renderModelsForm(nextModels);` +
       `  syncDraftEditorFromForm();` +
       `}` +

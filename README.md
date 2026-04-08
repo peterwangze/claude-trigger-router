@@ -248,6 +248,8 @@ Models:
 - 保存当前草稿配置
 - 对部分 warning 执行快捷修正
 
+`/ui` 的新增模型卡片和 Provider template 现在也共用同一份 preset 目录，不同模板会带出各自的默认模型、示例项和 placeholder。
+
 适合用来做配置校准，但主线配置入口仍然建议优先用 `ctr setup` 或直接编辑配置文件。
 
 ## 旧配置迁移

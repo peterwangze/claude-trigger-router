@@ -122,6 +122,12 @@ setup 内置的 provider 预设目前是：
 - 保存当前草稿配置
 - 对部分 warning 做快捷修正
 
+补充说明：
+
+- `/ui` 新增模型卡片时，会先按默认 preset 填入一组可直接修改的起始值
+- 当你切换不同 Provider template 时，`ID / Model / API / Key / Vendor hint` 的 placeholder 和 suggestions 会跟随对应 preset 切换
+- Anthropic、OpenAI-compatible、SiliconFlow 等模板的默认模型和示例项现在会明确区分，不再共用同一套兜底文案
+
 ## 4. capability hint 怎么配
 
 如果你知道某个模型虽然走某种接口协议，但能力上有限制，可以在 `metadata` 里声明提示：

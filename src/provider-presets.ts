@@ -16,6 +16,10 @@ export interface IProviderPresetDefinition {
   protocol?: 'openai' | 'anthropic';
   default_model?: string;
   model_examples?: string[];
+  suggested_id?: string;
+  key_placeholder?: string;
+  vendor_hint?: string;
+  default_thinking?: 'off' | 'auto' | 'on' | 'low' | 'medium' | 'high';
   surfaces: ProviderPresetSurface[];
 }
 
@@ -28,6 +32,10 @@ const PROVIDER_PRESETS: Record<ProviderPresetKey, IProviderPresetDefinition> = {
     protocol: 'openai',
     default_model: 'anthropic/claude-sonnet-4',
     model_examples: ['anthropic/claude-sonnet-4', 'openai/gpt-5', 'google/gemini-2.5-pro'],
+    suggested_id: 'sonnet',
+    key_placeholder: 'sk-or-...',
+    vendor_hint: 'openrouter',
+    default_thinking: 'auto',
     surfaces: ['setup', 'ui'],
   },
   deepseek: {
@@ -38,6 +46,10 @@ const PROVIDER_PRESETS: Record<ProviderPresetKey, IProviderPresetDefinition> = {
     protocol: 'openai',
     default_model: 'deepseek-chat',
     model_examples: ['deepseek-chat', 'deepseek-reasoner'],
+    suggested_id: 'deepseek_chat',
+    key_placeholder: 'sk-...',
+    vendor_hint: 'deepseek',
+    default_thinking: 'auto',
     surfaces: ['setup', 'ui'],
   },
   'openai-compatible': {
@@ -48,6 +60,10 @@ const PROVIDER_PRESETS: Record<ProviderPresetKey, IProviderPresetDefinition> = {
     protocol: 'openai',
     default_model: 'gpt-5',
     model_examples: ['gpt-5', 'gpt-5-mini', 'gpt-4.1'],
+    suggested_id: 'openai_main',
+    key_placeholder: 'sk-...',
+    vendor_hint: 'openai-compatible',
+    default_thinking: 'auto',
     surfaces: ['setup', 'ui'],
   },
   anthropic: {
@@ -58,6 +74,10 @@ const PROVIDER_PRESETS: Record<ProviderPresetKey, IProviderPresetDefinition> = {
     protocol: 'anthropic',
     default_model: 'claude-sonnet-4-5',
     model_examples: ['claude-sonnet-4-5', 'claude-opus-4-1', 'claude-3-5-haiku-latest'],
+    suggested_id: 'claude',
+    key_placeholder: 'sk-ant-...',
+    vendor_hint: 'anthropic',
+    default_thinking: 'auto',
     surfaces: ['setup', 'ui'],
   },
   siliconflow: {
@@ -68,6 +88,10 @@ const PROVIDER_PRESETS: Record<ProviderPresetKey, IProviderPresetDefinition> = {
     protocol: 'openai',
     default_model: 'Qwen/Qwen3-32B',
     model_examples: ['Qwen/Qwen3-32B', 'deepseek-ai/DeepSeek-V3', 'THUDM/GLM-4-9B-Chat'],
+    suggested_id: 'siliconflow_main',
+    key_placeholder: 'sk-...',
+    vendor_hint: 'siliconflow',
+    default_thinking: 'auto',
     surfaces: ['setup', 'ui'],
   },
   custom: {
@@ -104,6 +128,10 @@ export function getUiProviderTemplates() {
       api: preset.api,
       default_model: preset.default_model,
       model_examples: preset.model_examples ? [...preset.model_examples] : [],
+      suggested_id: preset.suggested_id,
+      key_placeholder: preset.key_placeholder,
+      vendor_hint: preset.vendor_hint,
+      default_thinking: preset.default_thinking,
     };
     return result;
   }, {});

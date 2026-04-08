@@ -15,13 +15,23 @@ describe('provider preset catalog', () => {
   });
 
   it('returns ui templates from the shared catalog', () => {
-    expect(Object.keys(getUiProviderTemplates())).toEqual([
+    const templates = getUiProviderTemplates();
+
+    expect(Object.keys(templates)).toEqual([
       'openrouter',
       'deepseek',
       'openai-compatible',
       'anthropic',
       'siliconflow',
     ]);
+    expect(templates.anthropic).toEqual(
+      expect.objectContaining({
+        suggested_id: 'claude',
+        key_placeholder: 'sk-ant-...',
+        vendor_hint: 'anthropic',
+        default_thinking: 'auto',
+      })
+    );
   });
 
   it('clones preset data instead of leaking shared references', () => {
