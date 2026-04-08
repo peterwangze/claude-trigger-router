@@ -216,9 +216,10 @@ Governance:
 - `openrouter`
 - `deepseek`
 - `openai-compatible`
+- `anthropic`
 - `custom`
 
-如果你迁的是 Anthropic 官方接口，可以走 `custom`，并手动设置：
+其中 `anthropic` 预设会直接带入：
 
 - `api: https://api.anthropic.com/v1/messages`
 - `interface: anthropic`

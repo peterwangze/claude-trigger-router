@@ -32,6 +32,15 @@ describe('setup templates', () => {
       expect(preset?.protocol).toBe('openai');
     });
 
+    it('should return anthropic preset with Anthropic messages URL', () => {
+      const preset = getProviderPreset('anthropic');
+      expect(preset).toBeDefined();
+      expect(preset?.api).toBe('https://api.anthropic.com/v1/messages');
+      expect(preset?.api_base_url).toBe('https://api.anthropic.com/v1/messages');
+      expect(preset?.interface).toBe('anthropic');
+      expect(preset?.protocol).toBe('anthropic');
+    });
+
     it('should return custom preset without default URL', () => {
       const preset = getProviderPreset('custom');
       expect(preset).toBeDefined();
@@ -180,6 +189,24 @@ describe('setup templates', () => {
       const config = buildMinimalConfig(input);
       expect(config.Models?.[0].interface).toBe('openai');
       expect(config.Models?.[0].protocol).toBe('openai');
+    });
+
+    it('should apply the anthropic preset protocol and API URL', () => {
+      const config = buildMinimalConfig({
+        providers: [
+          {
+            name: 'anthropic',
+            preset: 'anthropic',
+            api_key: 'sk-ant',
+            models: ['claude-sonnet-4-5'],
+          },
+        ],
+      });
+
+      expect(config.Models?.[0].api).toBe('https://api.anthropic.com/v1/messages');
+      expect(config.Models?.[0].api_base_url).toBe('https://api.anthropic.com/v1/messages');
+      expect(config.Models?.[0].interface).toBe('anthropic');
+      expect(config.Models?.[0].protocol).toBe('anthropic');
     });
 
     it('should handle custom preset without forcing default URL', () => {

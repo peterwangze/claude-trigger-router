@@ -92,12 +92,13 @@ setup 内置的 provider 预设目前是：
 - `openrouter`
 - `deepseek`
 - `openai-compatible`
+- `anthropic`
 - `custom`
 
-如果需要 Anthropic 官方接口，当前可直接使用 `custom`，把：
+其中：
 
-- `api` 设为 `https://api.anthropic.com/v1/messages`
-- `interface` 设为 `anthropic`
+- 选择 `anthropic` 时，会默认带入 `https://api.anthropic.com/v1/messages`
+- 选择 `custom` 时，需要你自己填写 `API Base URL`
 
 ### `POST /api/config`
 

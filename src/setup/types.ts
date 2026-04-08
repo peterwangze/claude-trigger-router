@@ -7,7 +7,7 @@
 /**
  * Provider preset 类型
  */
-export type ProviderPresetKey = 'openrouter' | 'deepseek' | 'openai-compatible' | 'custom';
+export type ProviderPresetKey = 'openrouter' | 'deepseek' | 'openai-compatible' | 'anthropic' | 'custom';
 
 /**
  * Provider 预设配置

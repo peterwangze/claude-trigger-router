@@ -110,6 +110,59 @@ describe('runSetupCli', () => {
     );
   });
 
+  it('supports the anthropic preset during fresh setup', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+
+    const io = {
+      choose: vi.fn().mockResolvedValueOnce('anthropic').mockResolvedValueOnce('保持默认'),
+      input: vi
+        .fn()
+        .mockResolvedValueOnce('anthropic')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('sk-ant')
+        .mockResolvedValueOnce('claude-sonnet-4-5'),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig,
+      executeStart,
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Models: [
+          expect.objectContaining({
+            id: 'anthropic',
+            api_key: 'sk-ant',
+            api_base_url: 'https://api.anthropic.com/v1/messages',
+            model: 'claude-sonnet-4-5',
+            protocol: 'anthropic',
+            interface: 'anthropic',
+          }),
+        ],
+        Router: {
+          default: 'anthropic',
+        },
+      })
+    );
+    expect(executeStart).toHaveBeenCalledTimes(1);
+    expect(verifyHealth).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+  });
+
   it('reuses a valid current config without rewriting it', async () => {
     const writeConfig = vi.fn();
     const enterClaudeCode = vi.fn().mockResolvedValue(undefined);

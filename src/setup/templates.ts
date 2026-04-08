@@ -28,6 +28,12 @@ const PROVIDER_PRESETS: Record<ProviderPresetKey, IProviderPreset> = {
     interface: 'openai',
     protocol: 'openai',
   },
+  anthropic: {
+    api: 'https://api.anthropic.com/v1/messages',
+    api_base_url: 'https://api.anthropic.com/v1/messages',
+    interface: 'anthropic',
+    protocol: 'anthropic',
+  },
   custom: {
     // custom 不设置默认 URL，必须由用户提供
   },

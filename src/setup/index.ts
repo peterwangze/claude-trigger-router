@@ -17,7 +17,7 @@ import { detectSetupEnvironment, RawCurrentConfigResult, RawLegacyConfigResult }
 import { buildMinimalConfig } from './templates';
 import { persistSetupConfig } from './persist';
 import { runSetup } from './setup';
-import { ISetupConfigDraft } from './types';
+import { ISetupConfigDraft, ProviderPresetKey } from './types';
 
 interface ISetupIO {
   choose: (message: string, options: string[]) => Promise<string>;
@@ -304,8 +304,9 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
 }
 
 async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
-  const preset = await io.choose('选择 provider 预设', ['openrouter', 'deepseek', 'openai-compatible', 'custom']);
-  const providerName = await io.input('Provider 名称', preset === 'openai-compatible' ? 'openai-compatible' : preset);
+  const presetOptions: ProviderPresetKey[] = ['openrouter', 'deepseek', 'openai-compatible', 'anthropic', 'custom'];
+  const preset = await io.choose('选择 provider 预设', presetOptions) as ProviderPresetKey;
+  const providerName = await io.input('Provider 名称', preset);
   const apiBaseUrl = preset === 'custom' ? await io.input('API Base URL') : await io.input('API Base URL（留空使用预设）', '');
   const apiKey = await io.input('API Key');
   const model = await io.input('默认模型');
@@ -317,7 +318,7 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
         name: providerName,
         api_key: apiKey,
         models: [model],
-        preset: preset as 'openrouter' | 'deepseek' | 'openai-compatible' | 'custom',
+        preset,
         api_base_url: apiBaseUrl,
       },
     ],
