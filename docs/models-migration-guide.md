@@ -1,51 +1,55 @@
 # Models 配置迁移指南
 
-这份文档专门说明如何从旧版 `Providers + provider,model` 配置迁移到新版 `Models + modelId` 配置。
+这份文档说明如何从旧版 `Providers + provider,model` 迁移到新版 `Models + modelId`。
 
-如果你是新用户，建议直接从 `README.md` 和 `config/trigger.example.yaml` 的 `Models` 示例开始；如果你已经有一份稳定运行的旧配置，这份文档就是迁移说明。
+如果你是新用户，建议直接从 `README.md` 或 `config/trigger.example.yaml` 的 `Models` 示例开始；如果你已经有稳定运行的旧配置，这份文档就是迁移说明。
 
-## 为什么要迁移到 Models
+## 1. 迁移目标
 
-旧配置的主要问题是：
+迁移后，你应该得到这样的使用方式：
 
-- 需要先理解 `Providers`
-- 需要在路由字段里手写 `provider,model`
-- 需要知道什么时候该配 `transformer`
-- 同一个 endpoint 下有多个模型时，配置可读性会快速下降
+- 每个模型接入项只配置接入信息
+- 路由层统一引用 `Models[].id`
+- 消息协议转换由路由层自动完成
 
-新版 `Models` 的目标是：
+新的模型配置主线是：
 
-- 每个模型接入项只关心“这个模型怎么连”
-- 路由层统一引用 `modelId`
-- 协议转换由系统自动处理
+| 字段 | 说明 |
+|------|------|
+| `id` | 模型标识 |
+| `api` | 接口地址 |
+| `key` | API Key |
+| `interface` | 接口类型，`openai` 或 `anthropic` |
+| `model` | 目标模型名 |
+| `thinking` | 可选思考档位 |
+| `metadata` | 可选 capability hint |
 
-最小模型接入项通常是：
+注意：用户经常会把“最少要配置什么”理解成 `api / key / interface / thinking` 四项，但在当前实现里，真正能唯一确定一个可用模型接入项的最小集合仍然是：
 
+- `id`
 - `api`
 - `key`
 - `interface`
 - `model`
-- `thinking` 可选
-- `metadata` 可选
 
-其中 `thinking` 新路径优先推荐直接写单个档位：
+其中 `thinking` 只是可选增强项。
 
-- `off`
-- `auto`
-- `on`
-- `low`
-- `medium`
-- `high`
+## 2. 为什么从 Providers 迁到 Models
 
-如果你需要显式传 `budget_tokens` 等细粒度参数，仍然可以继续写对象。
+旧配置的主要成本是：
 
-如果你还想告诉路由层“这个模型虽然兼容某类接口，但并不支持某些能力”，可以补充：
+- 需要先理解 `Providers`
+- 路由字段里要重复写 `provider,model`
+- 不同上游协议差异暴露给了使用者
 
-- `metadata.supports_reasoning`
-- `metadata.supports_tools`
-- `metadata.supports_images`
+新配置的主要收益是：
 
-## 新旧配置对照
+- 路由字段统一引用 `modelId`
+- 新旧上游协议都通过 `interface` 收敛
+- `thinking` 和 capability hint 有统一入口
+- setup、保存、预览、运行时使用同一套归一化与校验逻辑
+
+## 3. 新旧配置对照
 
 ### 旧写法
 
@@ -86,23 +90,24 @@ Router:
   think: "opus"
 ```
 
-## 字段映射关系
+## 4. 字段映射关系
 
-| 旧字段 | 新字段 |
-|------|------|
-| `Providers[].name` | `Models[].id` 的命名参考，不再必须直接暴露 |
-| `Providers[].api_base_url` | `Models[].api` |
-| `Providers[].api_key` | `Models[].key` |
-| `Providers[].models[]` | 拆成多个 `Models[].model` |
-| `Providers[].transformer` | 改为 `Models[].interface`，由系统推导 |
-| `provider,model` | `modelId` |
+| 旧字段 | 新字段 | 说明 |
+|--------|--------|------|
+| `Providers[].api_base_url` | `Models[].api` | 统一为新字段名 |
+| `Providers[].api_key` | `Models[].key` | 统一为新字段名 |
+| `Providers[].models[]` | `Models[].model` | 每个模型拆成一个接入项 |
+| `Providers[].transformer` | `Models[].interface` | 转成用户可理解的接口类型 |
+| `protocol` | `interface` | 旧命名仍兼容，但新文档统一使用 `interface` |
+| `provider,model` | `modelId` | 路由层统一引用方式 |
 
-兼容说明：
+兼容性说明：
 
-- 当前版本会优先写出 `api` / `key` / `interface`
-- 旧字段 `api_base_url` / `api_key` / `protocol` 仍然兼容，并会在加载时自动归一化
+- 当前版本仍兼容旧字段 `api_base_url / api_key / protocol`
+- 归一化后会同步补齐新旧字段，以保证运行时兼容
+- 对外文档与新配置模板统一以 `api / key / interface` 为准
 
-## Router / Trigger / SmartRouter 的迁移方法
+## 5. 路由字段怎么迁
 
 ### Router
 
@@ -161,12 +166,14 @@ SmartRouter:
   router_model: "sonnet"
   candidates:
     - model: "sonnet"
+      description: "通用编程"
     - model: "deepseek_reasoner"
+      description: "复杂推理"
 ```
 
-## Governance 模型字段的迁移方法
+### Governance
 
-这些字段现在也支持 `modelId`：
+这些字段也推荐统一改成 `modelId`：
 
 - `Governance.sticky.alignment.summarizer_model`
 - `Governance.cascade.levels[].from`
@@ -191,104 +198,127 @@ Governance:
     verifier_model: "sonnet"
 ```
 
-## setup 现在会做什么
+## 6. `ctr setup` 现在会做什么
 
-`ctr setup` 现在默认生成 `Models` 配置。
+`ctr setup` 当前会优先走 `Models` 主线。
 
 如果检测到旧配置：
 
-- setup 会尽量从旧 `Providers` 自动派生 `Models`
-- 同时把旧 `Router.default = provider,model` 转成 `Router.default = modelId`
+- 会读取当前项目配置
+- 会检测旧 `~/.ccr/config.yaml`
+- 会尝试把旧 `Providers` 派生成 `Models`
+- 会把部分 `provider,model` 引用改写成 `modelId`
+- 会在缺字段时提示补齐
+- 会输出 `warnings`
 
-注意：
+当前 setup 预设是：
 
-- 旧配置不会被立即删除
-- 迁移是“生成新的 draft”，不是强制破坏旧配置
+- `openrouter`
+- `deepseek`
+- `openai-compatible`
+- `custom`
 
-## 自动迁移目前的规则
+如果你迁的是 Anthropic 官方接口，可以走 `custom`，并手动设置：
 
-系统当前会按这些规则从旧 `Providers` 派生 `Models`：
+- `api: https://api.anthropic.com/v1/messages`
+- `interface: anthropic`
+
+## 7. 自动迁移的当前规则
+
+旧 `Providers` 转 `Models` 时，当前实现遵循这些规则：
 
 - 一个旧 provider 下的每个 model，都会生成一个 `Models[]` 项
 - `id` 会按 `provider_model` 风格派生
-- `protocol` 目前按 endpoint 粗略判断：
+- `api_base_url` 会映射到 `api`
+- `api_key` 会映射到 `key`
+- `interface` 会根据 endpoint 粗略推断
   - 包含 `/v1/messages` -> `anthropic`
   - 其他默认 -> `openai`
-- `transformer` 不再直接迁移，而是交给运行时根据 `protocol` 推导
 
-## 推荐迁移顺序
+同时，为了兼容现有运行时，归一化后内部仍会保留：
 
-建议不要一次性把所有配置一起改完，推荐顺序：
+- `api_base_url`
+- `api_key`
+- `protocol`
 
-1. 先把 `Providers` 对应地展开成 `Models`
+但这些已经不再是推荐的用户主配置入口。
+
+## 8. capability hint 与 warning
+
+迁移后你可以继续补充 capability hint：
+
+```yaml
+Models:
+  - id: restricted
+    api: "https://api.example.com/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "vendor/text-only"
+    thinking: "high"
+    metadata:
+      supports_reasoning: false
+      supports_tools: false
+      supports_images: false
+```
+
+当前 warning 行为：
+
+- 不支持 reasoning 时，`thinking` 会被忽略
+- 不支持 tools 时，tool 定义和 tool call/result 会退化为文本
+- 不支持 images 时，图片输入会退化为文本
+
+warning 会出现在：
+
+- `ctr setup`
+- `POST /api/config`
+- `GET /api/models/compiled`
+- `GET /api/models/compiled/preview`
+- `/ui`
+
+## 9. 推荐迁移顺序
+
+建议按下面顺序做，最稳妥：
+
+1. 先把 `Providers` 展开成 `Models`
 2. 再把 `Router.*` 改成引用 `modelId`
 3. 再改 `TriggerRouter.rules[].model`
 4. 再改 `SmartRouter.router_model / candidates[].model`
 5. 最后改 Governance 里的模型引用
 
-这样如果中间某一步出问题，回退和排查都更容易。
+这样即使中间出问题，也更容易回退和排查。
 
-## 迁移后的排查方法
+## 10. 迁移后怎么验
 
-如果你想确认 `modelId` 最终会被编译成什么内部模型引用，可以用：
+### 用 `/api/models/compiled`
 
-```bash
-GET /api/models/compiled
-```
-
-这个接口会返回：
-
-- 编译后的内部 `providers`
-- `modelMap`
-- `capabilityWarnings`
-
-可直接用于排查：
+它可以帮助你确认：
 
 - `modelId` 是否存在
-- `protocol` 是否正确
-- 最终内部 `providerName / modelName` 是否符合预期
-- 是否存在 `thinking` 被忽略、`tools/images` 会降级为文本等 capability warning
+- 编译后的内部 provider / model 映射是否正确
+- `interface` 是否符合预期
+- capability warning 是否符合预期
 
-补充说明：
+### 用 `/ui`
 
-- `normalizeAndValidateConfig(...)` 现在除了 `errors` 之外，也会返回非致命 `warnings`
-- `ctr setup` 会显示这些 warning，因此即使配置可以继续使用，你也能提前知道运行时可能发生的 capability 降级
-- `/ui` 的草稿预览和保存流程现在也会显示这些 warning，并把 `error` 与 `warning` 分层展示
-- `/ui` 的 Models 表单现在也提供 `supports_reasoning / supports_tools / supports_images / vendor_hint` 的显式编辑控件，普通场景无需再直接编辑 `metadata` JSON
-- 对部分 warning，`/ui` 现在还会提供快捷修正动作，便于先把明显的 capability 配置冲突修到可接受状态
-- `ctr setup` 现在也支持在初始化向导里直接填写这些 capability hint，不必等到保存后再通过 warning 回头修
-- 如果迁移草稿里包含多个模型，`ctr setup` 现在也会逐个模型询问是否需要编辑 capability hint
+你可以直接：
 
-## 当前兼容边界
+- 预览当前草稿的 compiled models
+- 查看 `errors / warnings / capabilityWarnings`
+- 在保存前做修正
+
+## 11. 当前兼容边界
 
 当前版本已经支持：
 
 - `Models`
-- `Router` 使用 `modelId`
-- `TriggerRouter` 使用 `modelId`
-- `SmartRouter` 使用 `modelId`
-- Governance 关键模型字段使用 `modelId`
-- `thinking` 运行时映射
-- `metadata` capability hint 编译
-- 对 `thinking unsupported` 的自动忽略
-- 对 `tools/images unsupported` 的文本降级
-- setup 默认输出 `Models`
-- legacy `Providers` 自动迁移辅助
+- `Router / TriggerRouter / SmartRouter / Governance` 使用 `modelId`
+- `thinking` 字符串档位与对象写法
+- capability hint 编译
+- capability warning 输出
+- setup 迁移旧 `ccr` 配置
 
-但仍有这些边界：
+当前仍需注意：
 
-- `Providers` 仍然兼容，不会立刻移除
-- `protocol=openai` 只代表协议大类，不代表所有供应商行为完全一致
-- `metadata` 当前主要是 capability hint，不是完整的供应商插件能力系统
-- 自动派生的 `modelId` 命名是稳定可用的，但不一定是你最终最想要的人类可读命名
-
-## 建议
-
-如果你已经有稳定运行的旧配置：
-
-- 先不要硬删 `Providers`
-- 先平移出一版 `Models`
-- 用 `/api/models/compiled` 对照确认
-- 验证通过后，再逐步把路由字段从 `provider,model` 改成 `modelId`
-
-这样迁移成本最低，也最安全。
+- `Providers` 还没有被移除，只是降级为兼容层
+- `interface=openai` 只表示协议兼容，不表示所有服务商行为完全一致
+- `modelId` 自动派生规则稳定可用，但不一定是最终最适合你团队的命名

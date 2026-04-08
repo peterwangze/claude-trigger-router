@@ -1,53 +1,11 @@
 # Claude Trigger Router
 
-> 面向 Claude Code 的本地模型路由代理。你可以把 TriggerRouter（规则路由）、SmartRouter（智能路由）和基础 Router 组合起来，把不同任务分发给更合适的模型。
+面向 Claude Code 的本地模型路由代理。它接管 Claude Code 发出的上游请求，再按你的规则和路由策略分发到不同模型。
 
-## 它解决什么问题
+核心目标只有两件事：
 
-Claude Code 默认只会请求一个上游模型；而实际工作里，不同任务往往适合不同能力：
-
-- 架构设计想用更强的规划模型
-- 代码审查想用更稳的分析模型
-- 复杂推理想用专门的 reasoning 模型
-- 日常小任务又希望更快、更便宜
-
-Claude Trigger Router 作为本地 HTTP 代理运行在 `http://127.0.0.1:3456`，拦截 Claude Code 发出的请求，再按你的配置决定最终转给哪个模型接入项。
-
-```text
-Claude Code
-    │  ANTHROPIC_BASE_URL=http://127.0.0.1:3456
-    ▼
-Claude Trigger Router
-    │
-    ├─ TriggerRouter 命中“架构设计” ──→ 架构模型
-    ├─ TriggerRouter 命中“代码审查” ──→ 审查模型
-    ├─ SmartRouter 智能判断        ──→ 候选模型中最合适的一项
-    ├─ Token 超过阈值             ──→ 长上下文模型
-    └─ 其他请求                  ──→ Router.default
-```
-
-Claude Code 本身不需要改造，仍然像平常一样工作。
-
-## 核心能力
-
-- `TriggerRouter`：按关键词 / 正则 / 优先级把请求路由到指定模型
-- `SmartRouter`：当规则没命中时，用一个路由模型从候选模型中做智能选择
-- `Router`：提供 `default`、`think`、`longContext`、`webSearch`、`background` 等基础分流能力
-- CLI：提供 `ctr setup/init/start/stop/restart/status/code`，方便初始化、启动和接入 Claude Code
-- 管理 API：支持读取配置、保存配置、查看 transformer、重启服务
-
-## 环境要求
-
-| 依赖 | 版本要求 | 说明 |
-|------|----------|------|
-| Node.js | 18+ | 运行本工具 |
-| Claude Code CLI | 最新版 | 由本路由器代理 |
-
-安装 Claude Code CLI：
-
-```bash
-npm install -g @anthropic-ai/claude-code
-```
+- 让你用 `Models[].id` 管理模型，而不是到处手写 `provider,model`
+- 让你只关心模型接入信息，消息格式转换由路由层统一处理
 
 ## 快速开始
 
@@ -57,42 +15,119 @@ npm install -g @anthropic-ai/claude-code
 npm install -g @peterwangze/claude-trigger-router
 ```
 
-### 2. 运行首次使用向导
+### 2. 运行初始化向导
 
 ```bash
 ctr setup
 ```
 
-`ctr setup` 会检查当前配置、识别可迁移的旧 `ccr` 配置，在需要时询问 provider / API Key / 默认模型，并默认生成更易用的 `Models` 配置抽象；配置可用后会自动拉起服务再进入 Claude Code。
+`ctr setup` 会：
 
-如果当前配置虽然“可用”但存在 capability 降级提示，例如：
+- 检查当前配置是否可复用
+- 检测旧版 `~/.ccr/config.yaml`
+- 尝试迁移成新的 `Models` 配置
+- 在需要时询问最少必要字段
+- 保存配置后启动服务并进入 Claude Code
 
-- 配了 `thinking`，但模型声明 `supports_reasoning: false`
-- 模型声明 `supports_tools: false`
-- 模型声明 `supports_images: false`
+### 3. 使用最小配置
 
-`ctr setup` 现在也会先把这些 warning 提示出来，帮助你在进入 Claude Code 前先校准配置预期。
-
-如果你希望在初始化时就把 capability hint 一起配好，`ctr setup` 现在也支持在向导里直接填写：
-
-- `Vendor hint`
-- `Reasoning support`
-- `Tool support`
-- `Image support`
-
-如果当前 draft 里有多个模型，setup 也会逐个模型询问是否需要编辑这些 capability 提示。
-
-如果你更喜欢先复制模板再手动编辑，也可以改用：
+如果你更喜欢手动编辑，也可以先执行：
 
 ```bash
 ctr init
 ```
 
-它会把示例配置复制到 `~/.claude-trigger-router/config.yaml`。
+然后把 `~/.claude-trigger-router/config.yaml` 调整为：
 
-### 3. 先跑最小可用配置
+```yaml
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+    thinking: "auto"
 
-如果你选择的是 `ctr init` 手动路径，可以把 `~/.claude-trigger-router/config.yaml` 改成这样：
+Router:
+  default: "sonnet"
+```
+
+### 4. 启动服务
+
+```bash
+ctr start
+```
+
+确认配置可用后，可改为后台运行：
+
+```bash
+ctr start --daemon
+```
+
+### 5. 启动 Claude Code
+
+```bash
+ctr code
+```
+
+`ctr code` 会检查目标端口上是否真的是 Claude Trigger Router，然后再注入 `ANTHROPIC_BASE_URL` 并拉起 Claude Code。
+
+## 新配置心智
+
+推荐始终从 `Models` 出发。每个模型接入项描述的是“这个模型怎么连”，而不是“内部 provider 怎么拼”。
+
+每个模型的最少必填字段是：
+
+| 字段 | 是否必填 | 说明 |
+|------|----------|------|
+| `id` | 必填 | 模型唯一标识，供 Router / TriggerRouter / SmartRouter / Governance 引用 |
+| `api` | 必填 | 上游接口地址 |
+| `key` | 必填 | 对应 API Key |
+| `interface` | 必填 | 接口类型，当前支持 `openai` / `anthropic` |
+| `model` | 必填 | 目标模型名 |
+| `thinking` | 可选 | 思考强度，推荐 `off / auto / on / low / medium / high` |
+
+额外可选项：
+
+- `metadata.vendor_hint`
+- `metadata.supports_reasoning`
+- `metadata.supports_tools`
+- `metadata.supports_images`
+
+兼容性说明：
+
+- 当前实现仍兼容旧字段 `api_base_url` / `api_key` / `protocol`
+- 保存和对外展示优先使用新字段 `api` / `key` / `interface`
+- `thinking` 既支持简写字符串，也支持 `{ mode, effort, budget_tokens }` 对象
+
+## 接口类型怎么选
+
+`interface` 只表示目标上游期望的消息协议类型，不等于“厂商名”。
+
+常见映射如下：
+
+| 场景 | `api` 示例 | `interface` |
+|------|------------|-------------|
+| OpenAI 官方 | `https://api.openai.com/v1/chat/completions` | `openai` |
+| Anthropic 官方 | `https://api.anthropic.com/v1/messages` | `anthropic` |
+| OpenRouter | `https://openrouter.ai/api/v1/chat/completions` | `openai` |
+| DeepSeek | `https://api.deepseek.com/chat/completions` | `openai` |
+| SiliconFlow / 本地兼容服务 | 对应兼容地址 | `openai` |
+
+路由层会按 `interface` 把统一消息转换成目标上游请求体。
+
+当前统一转换已覆盖：
+
+- 文本消息
+- 图片输入
+- tool call / tool result
+- `thinking`
+
+如果目标模型声明不支持某项能力，路由会做显式降级，并给出 warning。
+
+## 常见路由配置
+
+### 单模型
 
 ```yaml
 Models:
@@ -106,74 +141,7 @@ Router:
   default: "sonnet"
 ```
 
-### 4. 启动服务
-
-首次建议前台启动，方便确认配置是否正确：
-
-```bash
-ctr start
-```
-
-确认没问题后，再切后台模式：
-
-```bash
-ctr start --daemon
-```
-
-### 5. 启动 Claude Code
-
-```bash
-ctr code
-```
-
-`ctr code` 会先检查本地是否真的是 Claude Trigger Router 在监听目标端口，然后再设置 `ANTHROPIC_BASE_URL` 并启动 Claude Code。
-
-## 三种常见配置路径
-
-### 1. 最小单模型
-
-适合先跑通链路：
-
-- 一个 provider
-- 一个默认模型
-- 不启用 TriggerRouter
-- 不启用 SmartRouter
-
-### 2. 规则驱动多模型
-
-适合你已经明确知道“什么任务该去什么模型”：
-
-- `architecture` → 架构模型
-- `code_review` → 审查模型
-- `complex_reasoning` → 推理模型
-- 其他请求 → `Router.default`
-
-### 3. 规则 + 智能路由混合
-
-适合“少数场景强规则，其余场景让路由模型兜底选择”：
-
-- 先由 TriggerRouter 处理高置信度任务
-- 未命中时交给 SmartRouter 从候选模型中挑选
-- 再由基础 Router 处理长上下文 / thinking / web_search 等通用分流
-
-更完整的可复制模板见 `docs/configuration-guide.md`。
-
-### 4. 规则 + 治理增强混合
-
-适合你已经不只想“分流”，而是想让路由层具备会话连续性、失败升级和输出审计能力：
-
-- 先由 TriggerRouter 处理高置信度任务
-- Sticky Routing 尽量复用同会话最近稳定模型
-- Semantic Router 在规则没命中时补足意图识别
-- SmartRouter 继续作为候选模型兜底选择
-- Cascade Gate 在低质量输出或失败证据出现时自动升级
-- Shadow Supervisor 对可疑输出做异步审计与留痕
-
-## 配置结构
-
-### 1. Models
-
-推荐优先使用 `Models`。每个模型接入项只描述“这个模型怎么连”，不要求你理解 `transformer` 或手写 `provider,model`。
+### 规则路由
 
 ```yaml
 Models:
@@ -182,75 +150,16 @@ Models:
     key: "sk-xxx"
     interface: "openai"
     model: "anthropic/claude-sonnet-4"
-    thinking: "auto"
-```
 
-常用字段：
-
-| 字段 | 说明 |
-|------|------|
-| `id` | 模型接入项标识，在 Router / TriggerRouter / SmartRouter / Governance 中直接引用 |
-| `api` | 上游 API 地址 |
-| `key` | 对应模型接入项的密钥 |
-| `interface` | 接口兼容类型，当前支持 `openai` / `anthropic` |
-| `model` | 目标模型名 |
-| `thinking` | 可选。推荐直接写 `off / auto / on / low / medium / high`；需要精细控制时仍可写对象 |
-| `metadata` | 可选。用于声明能力提示，如 `supports_reasoning` / `supports_tools` / `supports_images` |
-
-兼容说明：
-
-- 新配置优先推荐 `api` / `key` / `interface`
-- 旧字段 `api_base_url` / `api_key` / `protocol` 仍然兼容，迁移阶段无需一次性重写
-- 新配置优先推荐把 `thinking` 写成单个档位字符串；旧对象写法仍兼容
-
-能力提示示例：
-
-```yaml
-Models:
-  - id: vision_disabled
-    api: "https://api.example.com/v1/chat/completions"
+  - id: opus
+    api: "https://openrouter.ai/api/v1/chat/completions"
     key: "sk-xxx"
     interface: "openai"
-    model: "vendor/text-only"
-    metadata:
-      supports_reasoning: false
-      supports_tools: false
-      supports_images: false
-```
+    model: "anthropic/claude-opus-4"
 
-说明：
+Router:
+  default: "sonnet"
 
-- `metadata.supports_reasoning: false` 时，路由在协议分发阶段会自动忽略请求中的 `thinking`
-- `metadata.supports_tools: false` 时，工具定义和 tool call/result 会退化为普通文本上下文
-- `metadata.supports_images: false` 时，图片块会退化为说明性文本，而不是直接透传
-- 可通过 `GET /api/models/compiled` 或 `/ui` 中的 compiled model map 查看最终 capability 编译结果
-- `/ui` 的 Draft Config Preview 现在会额外显示 `Capability Warnings`，方便在保存前看到哪些配置会触发运行时降级
-- `/ui` 的 `Validation Summary` 现在会同时显示 errors 和 warnings，并区分 `repair first` / `review before save`
-- `/ui` 现已支持直接从草稿区点击 `保存配置`，保存后会继续显示 warning，避免“能保存但预期不清楚”
-- `/ui` 的 Models 表单现在已提供 `Reasoning/Tool/Image support` 和 `Vendor hint` 显式控件，普通场景下不再需要直接手改 `metadata` JSON
-- 对常见 capability warning，`/ui` 现在也会提供首轮快捷修正动作，例如直接移除会被忽略的 `thinking`，或恢复默认 capability
-
-### 1.1 Legacy Providers
-
-旧版 `Providers` 仍然兼容，但更适合高级用户或历史配置迁移场景。新配置优先推荐 `Models`。
-
-### 2. Router 基础路由
-
-| 配置项 | 说明 |
-|--------|------|
-| `Router.default` | 必填。推荐直接写 `Models[].id`，旧 `provider,model` 仍兼容 |
-| `Router.background` | 后台任务模型 |
-| `Router.think` | 深度思考模型 |
-| `Router.longContext` | 长上下文模型 |
-| `Router.longContextThreshold` | 长上下文切换阈值 |
-| `Router.webSearch` | 网络搜索模型 |
-| `Router.image` | 图像分析扩展示例，不是主线路由必需项 |
-
-### 3. TriggerRouter
-
-`TriggerRouter` 适合“高确定性”路由。
-
-```yaml
 TriggerRouter:
   enabled: true
   analysis_scope: "last_message"
@@ -264,87 +173,100 @@ TriggerRouter:
       model: "opus"
 ```
 
-关键字段：
-
-| 字段 | 说明 |
-|------|------|
-| `enabled` | 是否启用 |
-| `analysis_scope` | `last_message` 或 `full_conversation` |
-| `llm_intent_recognition` | 可选，启用额外 LLM 意图识别 |
-| `intent_model` | 开启意图识别时使用的模型 |
-| `rules` | 路由规则列表 |
-
-规则字段：
-
-| 字段 | 说明 |
-|------|------|
-| `name` | 规则名称 |
-| `priority` | 数值越大优先级越高 |
-| `enabled` | 是否启用 |
-| `description` | 规则说明 |
-| `patterns` | `exact` 或 `regex` 模式 |
-| `model` | 命中后使用的模型。推荐写 `Models[].id` |
-
-### 4. SmartRouter
-
-`SmartRouter` 适合“规则写不完，但又不想所有请求都打到一个默认模型”的场景。
+### 规则 + 智能路由
 
 ```yaml
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+
+  - id: reasoner
+    api: "https://api.deepseek.com/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "deepseek-reasoner"
+    thinking: "high"
+
+Router:
+  default: "sonnet"
+  think: "reasoner"
+
 SmartRouter:
   enabled: true
   router_model: "sonnet"
   candidates:
     - model: "sonnet"
-      description: "通用编程、代码生成、日常调试"
-    - model: "deepseek_reasoner"
-      description: "复杂推理、严谨分析"
-    - model: "opus"
-      description: "架构设计、系统规划、长文档"
+      description: "通用编程与调试"
+    - model: "reasoner"
+      description: "复杂推理与严谨分析"
 ```
 
-| 配置项 | 说明 |
-|--------|------|
-| `enabled` | 是否启用 |
-| `router_model` | 用来做路由决策的模型 |
-| `candidates` | 候选模型列表，至少 2 个 |
-| `cache_ttl` | 决策缓存时间 |
-| `max_tokens` | 路由模型最大输出 token |
-| `fallback` | 预留字段，当前不建议依赖差异化行为 |
+完整示例见 `config/trigger.example.yaml`。
 
-### 5. Governance
+## warning 与 capability hint
 
-`Governance` 负责把这套路由器从“请求分流”增强到“模型治理”。它不会替代 `TriggerRouter` 或 `SmartRouter`，而是在其前后补充会话连续性、失败升级和输出审计能力。
+如果你已经知道某个模型不支持完整能力，可以在配置里显式声明：
 
-| 配置项 | 说明 |
-|--------|------|
-| `Governance.sticky` | 会话粘性路由；优先复用最近稳定模型 |
-| `Governance.sticky.alignment` | 模型切换时自动生成技术交接摘要并注入 system |
-| `Governance.cascade` | 失败证据检测与自动升级重投 |
-| `Governance.semantic` | 语义原型匹配；在规则没命中时补充意图识别 |
-| `Governance.shadow` | 对可疑输出做异步审计和 trace 留痕 |
-| `Governance.observability.anomaly_thresholds` | 为治理观测设置正式的异常阈值默认值，并作为 `/ui` 调参初始值 |
+```yaml
+Models:
+  - id: restricted
+    api: "https://api.example.com/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "vendor/text-only"
+    thinking: "high"
+    metadata:
+      supports_reasoning: false
+      supports_tools: false
+      supports_images: false
+```
 
-## 路由优先级
+当前行为：
 
-一次请求会按大致如下顺序确定最终模型：
+- `supports_reasoning: false` 时，请求里的 `thinking` 会被忽略
+- `supports_tools: false` 时，工具定义和 tool call/result 会退化为文本
+- `supports_images: false` 时，图片块会退化为文本说明
 
-1. `TriggerRouter.rules[].model`
-2. `Governance.sticky`
-3. `Governance.semantic`
-4. `SmartRouter.candidates[].model`
-5. `Router.longContext`
-6. 子代理模型标签
-7. `Router.background`
-8. `Router.think`
-9. `Router.webSearch`
-10. `CUSTOM_ROUTER_PATH`
-11. `Router.default`
+这些信息会出现在：
 
-这意味着：如果 TriggerRouter 已经命中，后面的 Sticky / Semantic / SmartRouter 不会再介入；而 Governance 里的 `cascade` 与 `shadow` 属于执行后治理，会在响应阶段介入。
+- `ctr setup` 的配置提示
+- `POST /api/config` 返回的 `warnings`
+- `GET /api/models/compiled`
+- `/ui` 的 Draft Config Preview 和 Capability Warnings
 
-## CLI 与管理 API
+## `/ui` 可以做什么
 
-### CLI
+访问 `http://127.0.0.1:3456/ui` 后，可以直接：
+
+- 编辑 `Models` 草稿
+- 预览 compiled model map
+- 查看 `errors / warnings / capabilityWarnings`
+- 保存当前草稿配置
+- 对部分 warning 执行快捷修正
+
+适合用来做配置校准，但主线配置入口仍然建议优先用 `ctr setup` 或直接编辑配置文件。
+
+## 旧配置迁移
+
+如果你还在使用旧的 `Providers + provider,model` 配置：
+
+- 当前版本仍然兼容旧格式
+- `ctr setup` 会优先尝试迁移旧 `ccr` 配置
+- 路由字段推荐逐步改成直接引用 `Models[].id`
+
+迁移后的核心变化是：
+
+- `provider,model` -> `modelId`
+- `api_base_url` -> `api`
+- `api_key` -> `key`
+- `protocol` -> `interface`
+
+详见 `docs/models-migration-guide.md`。
+
+## 常用命令
 
 ```bash
 ctr setup
@@ -357,122 +279,8 @@ ctr status
 ctr code
 ```
 
-### 管理 API
+## 推荐阅读
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| `GET` | `/api/config` | 读取当前配置 |
-| `POST` | `/api/config` | 保存配置；保存前会先校验，并返回 `errors / warnings` |
-| `GET` | `/api/health` | 健康检查与服务签名 |
-| `GET` | `/api/transformers` | 查看已加载 transformer |
-| `POST` | `/api/restart` | 重启服务 |
-| `GET` | `/ui` | 配置草稿预览、warning 检查和治理观测工作台 |
-
-## 示例能力与非主线能力
-
-### 图像路由
-
-项目里保留了 `Router.image` 与 image agent 相关能力，但它更适合作为扩展示例，而不是默认上手主线。
-
-如果你当前目标只是把 Claude Code 按“编程 / 审查 / 架构 / 推理”分工路由，可以先忽略它。
-
-### `/ui`
-
-`/ui` 现在已经具备轻量工作台能力，适合做这些事：
-
-- 预览草稿配置的 compiled models 结果
-- 查看 errors / warnings / capability warnings
-- 直接保存当前草稿配置
-- 查看治理 traces、metrics、archives
-
-它仍然不是一个“完整产品化后台”，但已经不再只是静态说明页。
-
-## 高级 / 预留配置说明
-
-下面这些字段目前不建议放进你的最小可用配置里：
-
-| 配置项 | 当前建议 |
-|--------|----------|
-| `API_TIMEOUT_MS` | 当前仅接线到 TriggerRouter 内部回环 LLM 调用（SmartRouter / intent detection），不影响 `ctr code` 探活或普通 provider 转发 |
-| `PROXY_URL` | 当前仓库里缺少明确的生效入口，建议视为预留字段 |
-| `NON_INTERACTIVE_MODE` | 当前未看到与 `ctr code` 或 Claude Code 行为的稳定映射，建议视为预留字段 |
-
-如果你需要的是“先稳定可用”，优先只配置：
-
-- `Models`
-- `Router.default`
-- `TriggerRouter.rules`
-- `SmartRouter`
-
-如果你要开始使用治理增强，再逐步打开：
-
-- `Governance.sticky`
-- `Governance.sticky.alignment`
-- `Governance.cascade`
-- `Governance.semantic`
-- `Governance.shadow`
-
-## 故障排查
-
-### `ctr code` 提示服务未运行
-
-先检查：
-
-```bash
-ctr status
-```
-
-如果还没启动：
-
-```bash
-ctr start --daemon
-```
-
-如果端口上跑着别的服务，`ctr code` 现在不会误判为本项目服务；请改用正确端口，或先停止占用该端口的服务。
-
-### 配置保存失败
-
-`POST /api/config` 现在会在保存前校验配置。常见原因：
-
-- `Providers` 为空
-- `Router.default` 缺失
-- `TriggerRouter` / `SmartRouter` 里引用了不存在的模型
-- `warnings` 不会阻止保存，但会提示 capability 降级，例如 `thinking` 被忽略或 `tools/images` 会退化为文本
-
-### TriggerRouter 没命中
-
-依次检查：
-
-- `TriggerRouter.enabled` 是否为 `true`
-- `rules[].enabled` 是否为 `true`
-- `analysis_scope` 是否与你的对话位置匹配
-- 关键词或正则是否真的覆盖了你的请求文本
-
-### SmartRouter 没生效
-
-依次检查：
-
-- `SmartRouter.enabled` 是否为 `true`
-- `router_model` 是否有效
-- `candidates` 是否至少有 2 个，并且都能解析到有效的模型接入项
-- 是否已经被更高优先级的 TriggerRouter 提前命中
-
-### Governance 没生效
-
-依次检查：
-
-- `Governance.enabled` 是否为 `true`
-- 对应子模块如 `sticky / semantic / cascade / shadow` 是否已单独启用
-- `sticky.alignment.summarizer_model`、`cascade.levels[].from/to` 等模型引用是否都能解析到有效模型
-- 当前请求是否真的满足该治理能力的触发条件
-
-## 配置指南
-
-更面向新手、可直接复制的配置模板见：`docs/configuration-guide.md`
-
-如果你正在从旧 `Providers` 配置迁移到新的 `Models` 配置，可进一步阅读：`docs/models-migration-guide.md`
-
-## 致谢
-
-- 基于 `claude-code-router` 的兼容配置思路扩展
-- 感谢所有提供多模型路由使用反馈的用户
+- 配置模板与分工建议：`docs/configuration-guide.md`
+- 旧配置迁移：`docs/models-migration-guide.md`
+- 完整示例：`config/trigger.example.yaml`

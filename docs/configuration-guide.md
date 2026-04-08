@@ -1,34 +1,234 @@
 # Claude Trigger Router 配置指南
 
-这份指南面向“想尽快把 Claude Code 跑起来，并且按模型能力做分工”的用户。
+这份文档面向已经准备开始长期使用 Claude Trigger Router 的用户。主线只有一条：
 
-如果你只想先跑通，请先看 `README.md` 里的最小配置；如果你想把多模型路由配顺，这份文档更合适。
+- 先把模型接入项收敛到 `Models`
+- 再让 `Router / TriggerRouter / SmartRouter / Governance` 全部引用 `Models[].id`
 
-如果你已经在使用旧版 `Providers + provider,model` 配置，建议同时阅读：`docs/models-migration-guide.md`
+如果你还在用旧版 `Providers + provider,model`，请同时阅读 `docs/models-migration-guide.md`。
 
-## 5 分钟上手
+## 1. 最小配置心智
 
-### 第一步：运行首次使用向导
+推荐把每个模型都理解成一个独立接入项：
 
-```bash
-ctr setup
+```yaml
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+    thinking: "auto"
+
+Router:
+  default: "sonnet"
 ```
 
-`ctr setup` 会检查当前配置、识别可迁移的旧 `ccr` 配置，并在需要时询问 provider、API Key 和默认模型。默认会生成更易用的 `Models` 配置抽象。配置可用后，它会自动准备服务并进入 Claude Code。
+其中：
 
-如果你更想先复制模板再手动编辑，也可以改用：
+| 字段 | 是否必填 | 说明 |
+|------|----------|------|
+| `id` | 必填 | 模型标识，供所有路由模块引用 |
+| `api` | 必填 | 上游接口地址 |
+| `key` | 必填 | API Key |
+| `interface` | 必填 | 接口类型，当前支持 `openai` / `anthropic` |
+| `model` | 必填 | 目标模型名 |
+| `thinking` | 可选 | 思考强度，推荐写字符串档位 |
 
-```bash
-ctr init
+推荐优先把 `thinking` 写成字符串：
+
+- `off`
+- `auto`
+- `on`
+- `low`
+- `medium`
+- `high`
+
+需要更细控制时，仍可写成：
+
+```yaml
+thinking:
+  mode: "on"
+  effort: "high"
+  budget_tokens: 2048
 ```
 
-默认会生成：
+## 2. `interface` 怎么选
 
-- `~/.claude-trigger-router/config.yaml`
+`interface` 是消息协议类型，不是厂商名。
 
-### 第二步：填一个可用模型接入项
+| 供应方 | `api` 示例 | `interface` |
+|--------|------------|-------------|
+| OpenAI 官方 | `https://api.openai.com/v1/chat/completions` | `openai` |
+| Anthropic 官方 | `https://api.anthropic.com/v1/messages` | `anthropic` |
+| OpenRouter | `https://openrouter.ai/api/v1/chat/completions` | `openai` |
+| DeepSeek | `https://api.deepseek.com/chat/completions` | `openai` |
+| 本地 / 自建兼容服务 | 对应兼容地址 | 按兼容协议填写 |
 
-如果你走的是 `ctr init` 手动路径，下面是最小可用示例：
+当前实现会基于 `interface` 统一把消息转换成目标上游格式，已覆盖：
+
+- 文本消息
+- 图片输入
+- tool call / tool result
+- `thinking`
+
+这意味着你在配置文件里不需要再显式关心内部 transformer 细节。
+
+## 3. setup、迁移和保存时的统一行为
+
+### `ctr setup`
+
+`ctr setup` 当前的主线路径是：
+
+- 检测现有配置是否可复用
+- 检测旧 `~/.ccr/config.yaml`
+- 尝试迁移为 `Models` 配置
+- 在缺字段时补齐最小必要输入
+- 保存前统一执行归一化和校验
+- 输出 `warnings`
+
+setup 内置的 provider 预设目前是：
+
+- `openrouter`
+- `deepseek`
+- `openai-compatible`
+- `custom`
+
+如果需要 Anthropic 官方接口，当前可直接使用 `custom`，把：
+
+- `api` 设为 `https://api.anthropic.com/v1/messages`
+- `interface` 设为 `anthropic`
+
+### `POST /api/config`
+
+保存配置前会统一：
+
+- 归一化旧字段与新字段
+- 校验必填项
+- 返回 `errors`
+- 返回非阻断 `warnings`
+
+### `/ui`
+
+`/ui` 适合做配置校准：
+
+- 编辑 `Models` 草稿
+- 预览 compiled model map
+- 查看 `errors / warnings / capabilityWarnings`
+- 保存当前草稿配置
+- 对部分 warning 做快捷修正
+
+## 4. capability hint 怎么配
+
+如果你知道某个模型虽然走某种接口协议，但能力上有限制，可以在 `metadata` 里声明提示：
+
+```yaml
+Models:
+  - id: restricted
+    api: "https://api.example.com/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "vendor/text-only"
+    metadata:
+      vendor_hint: "proxy-text-only"
+      supports_reasoning: false
+      supports_tools: false
+      supports_images: false
+```
+
+当前 capability hint 的作用：
+
+| 字段 | 运行时行为 |
+|------|------------|
+| `supports_reasoning: false` | 忽略 `thinking` 并给出 warning |
+| `supports_tools: false` | tool 定义和 tool call/result 退化为文本 |
+| `supports_images: false` | 图片输入退化为文本说明 |
+
+这些提示会出现在：
+
+- `ctr setup`
+- `POST /api/config`
+- `GET /api/models/compiled`
+- `GET /api/models/compiled/preview`
+- `/ui`
+
+## 5. 路由字段怎么引用模型
+
+### Router
+
+基础路由字段直接写 `modelId`：
+
+```yaml
+Router:
+  default: "sonnet"
+  think: "reasoner"
+  longContext: "opus"
+  background: "cheap_fast"
+  webSearch: "sonnet"
+```
+
+### TriggerRouter
+
+适合高确定性任务分流：
+
+```yaml
+TriggerRouter:
+  enabled: true
+  analysis_scope: "last_message"
+  rules:
+    - name: "architecture"
+      priority: 90
+      enabled: true
+      patterns:
+        - type: exact
+          keywords: ["架构设计", "system design"]
+      model: "opus"
+```
+
+### SmartRouter
+
+适合模糊任务自动分流：
+
+```yaml
+SmartRouter:
+  enabled: true
+  router_model: "sonnet"
+  candidates:
+    - model: "sonnet"
+      description: "通用编程与调试"
+    - model: "reasoner"
+      description: "复杂推理"
+    - model: "opus"
+      description: "架构设计与评审"
+```
+
+### Governance
+
+治理相关字段也可以直接写 `modelId`：
+
+```yaml
+Governance:
+  enabled: true
+  sticky:
+    enabled: true
+    alignment:
+      enabled: true
+      summarizer_model: "sonnet"
+
+  cascade:
+    enabled: true
+    levels:
+      - from: "sonnet"
+        to: "opus"
+
+  shadow:
+    enabled: true
+    verifier_model: "sonnet"
+```
+
+## 6. 三套推荐模板
+
+### 模板 A：最小单模型
 
 ```yaml
 Models:
@@ -42,213 +242,32 @@ Router:
   default: "sonnet"
 ```
 
-### 第三步：启动服务
-
-```bash
-ctr start
-```
-
-第一次建议前台跑，确认没有配置报错。
-
-### 第四步：启动 Claude Code
-
-```bash
-ctr code
-```
-
-如果能正常进入 Claude Code，会自动把请求走到本地路由器。
-
-## 怎么按“能力”给模型分工
-
-不要先从厂商名开始想，先从能力开始想。
-
-### 快速低成本
-
-适合：
-
-- 简单改字
-- 小范围重构
-- 低风险脚本生成
-- 日常问答
-
-常见放法：
-
-- `Router.background`
-- TriggerRouter 中的 `simple_task`
-- SmartRouter 的轻量候选项
-
-### 强推理
-
-适合：
-
-- 数学推导
-- 严谨分析
-- 多步逻辑判断
-- 难 bug 根因定位
-
-常见放法：
-
-- `Router.think`
-- TriggerRouter 中的 `complex_reasoning`
-- SmartRouter 的 reasoning 候选项
-
-### 强架构 / 强评审
-
-适合：
-
-- 系统设计
-- 技术方案比较
-- 代码审查
-- 风险评估
-- 迁移计划
-
-常见放法：
-
-- TriggerRouter 中的 `architecture`
-- TriggerRouter 中的 `code_review`
-- SmartRouter 的高质量候选项
-
-### 长上下文
-
-适合：
-
-- 超长代码库分析
-- 长文档生成
-- 长对话持续工作
-
-常见放法：
-
-- `Router.longContext`
-- `Router.longContextThreshold`
-
-## 什么时候用 TriggerRouter
-
-在这些场景里优先用 TriggerRouter：
-
-- 任务文本特征非常明确
-- 你能用几个关键词或正则稳定命中
-- 你希望可解释、可控、可复现
-
-典型例子：
-
-- 看到“代码审查”就切到评审模型
-- 看到“架构设计”就切到架构模型
-- 看到“深入分析”就切到推理模型
-
-优点：
-
-- 结果稳定
-- 可预测
-- 便于排查为什么命中
-
-缺点：
-
-- 规则要自己维护
-- 规则覆盖不到的场景会漏掉
-
-## 什么时候用 SmartRouter
-
-在这些场景里优先用 SmartRouter：
-
-- 任务类型多，但边界不清晰
-- 你不想写太多规则
-- 你已经有几类候选模型，想让一个路由模型来挑选
-
-优点：
-
-- 覆盖范围更宽
-- 对模糊任务更友好
-
-缺点：
-
-- 会多一次路由模型调用
-- 决策不像 TriggerRouter 那么直观
-
-最常见的组合方式是：
-
-- TriggerRouter 只处理少量高置信规则
-- SmartRouter 处理剩余大多数任务
-- Router.default 作为最终兜底
-
-## 什么时候打开 Governance
-
-如果你已经不满足于“把请求分给不同模型”，而是希望系统自己处理一部分连续性、失败升级和质量审计问题，就该开始用 `Governance`。
-
-推荐顺序不是一次性全开，而是分阶段打开：
-
-### 1. Sticky Routing
-
-- 同一任务经常跨多轮继续
-- 不希望模型在会话中来回切换
-
-### 2. Context Alignment
-
-- 必须切换模型，但希望新模型知道“之前做到哪一步了”
-
-### 3. Cascade Gate
-
-- 模型有时会输出占位符、空结果或失败日志
-- 希望系统自己升级一次更强模型重试
-
-### 4. Semantic Router
-
-- 规则越来越多
-- 用户表达不总能精确命中关键词
-
-### 5. Shadow Supervisor
-
-- 担心模型偷懒或产出低质量结果
-- 希望系统至少先把可疑结果记下来
-
-## 三套可直接复制的模板
-
-### 模板 1：最小单模型
-
-适合先跑通。
+### 模板 B：规则驱动多模型
 
 ```yaml
-Providers:
-  - name: openrouter
-    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
-    api_key: "sk-xxx"
-    models:
-      - "anthropic/claude-sonnet-4"
-    transformer:
-      use: ["openrouter"]
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+
+  - id: opus
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-opus-4"
+
+  - id: deepseek_reasoner
+    api: "https://api.deepseek.com/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "deepseek-reasoner"
+    thinking: "high"
 
 Router:
-  default: "openrouter,anthropic/claude-sonnet-4"
-```
-
-### 模板 2：规则驱动多模型
-
-适合你已经知道不同任务要用哪类模型。
-
-```yaml
-Providers:
-  - name: openrouter
-    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
-    api_key: "sk-xxx"
-    models:
-      - "anthropic/claude-sonnet-4"
-      - "anthropic/claude-opus-4"
-    transformer:
-      use: ["openrouter"]
-
-  - name: deepseek
-    api_base_url: "https://api.deepseek.com/chat/completions"
-    api_key: "sk-xxx"
-    models:
-      - "deepseek-chat"
-      - "deepseek-reasoner"
-    transformer:
-      use: ["deepseek"]
-      "deepseek-chat":
-        use: ["tooluse"]
-
-Router:
-  default: "openrouter,anthropic/claude-sonnet-4"
-  think: "deepseek,deepseek-reasoner"
+  default: "sonnet"
+  think: "deepseek_reasoner"
 
 TriggerRouter:
   enabled: true
@@ -260,15 +279,7 @@ TriggerRouter:
       patterns:
         - type: exact
           keywords: ["架构设计", "system design"]
-      model: "openrouter,anthropic/claude-opus-4"
-
-    - name: "code_review"
-      priority: 80
-      enabled: true
-      patterns:
-        - type: exact
-          keywords: ["代码审查", "code review"]
-      model: "openrouter,anthropic/claude-sonnet-4"
+      model: "opus"
 
     - name: "complex_reasoning"
       priority: 70
@@ -276,39 +287,36 @@ TriggerRouter:
       patterns:
         - type: exact
           keywords: ["深入分析", "reasoning"]
-      model: "deepseek,deepseek-reasoner"
+      model: "deepseek_reasoner"
 ```
 
-### 模板 3：规则 + 智能路由混合
-
-适合多数长期使用场景。
+### 模板 C：规则 + 智能路由混合
 
 ```yaml
-Providers:
-  - name: openrouter
-    api_base_url: "https://openrouter.ai/api/v1/chat/completions"
-    api_key: "sk-xxx"
-    models:
-      - "anthropic/claude-sonnet-4"
-      - "anthropic/claude-opus-4"
-    transformer:
-      use: ["openrouter"]
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
 
-  - name: deepseek
-    api_base_url: "https://api.deepseek.com/chat/completions"
-    api_key: "sk-xxx"
-    models:
-      - "deepseek-chat"
-      - "deepseek-reasoner"
-    transformer:
-      use: ["deepseek"]
-      "deepseek-chat":
-        use: ["tooluse"]
+  - id: opus
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-opus-4"
+
+  - id: deepseek_reasoner
+    api: "https://api.deepseek.com/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "deepseek-reasoner"
+    thinking: "high"
 
 Router:
-  default: "openrouter,anthropic/claude-sonnet-4"
-  think: "deepseek,deepseek-reasoner"
-  longContext: "openrouter,anthropic/claude-sonnet-4"
+  default: "sonnet"
+  think: "deepseek_reasoner"
+  longContext: "opus"
   longContextThreshold: 60000
 
 TriggerRouter:
@@ -321,179 +329,47 @@ TriggerRouter:
       patterns:
         - type: exact
           keywords: ["架构设计", "system design"]
-      model: "openrouter,anthropic/claude-opus-4"
+      model: "opus"
 
 SmartRouter:
   enabled: true
-  router_model: "openrouter,anthropic/claude-sonnet-4"
+  router_model: "sonnet"
   candidates:
-    - model: "openrouter,anthropic/claude-sonnet-4"
-      description: "通用编程、代码生成、调试"
-    - model: "deepseek,deepseek-reasoner"
+    - model: "sonnet"
+      description: "通用编程、代码生成、日常调试"
+    - model: "deepseek_reasoner"
       description: "复杂推理、严谨分析"
-    - model: "openrouter,anthropic/claude-opus-4"
-      description: "架构设计、规划、评审"
-  cache_ttl: 600000
-  max_tokens: 256
-  fallback: "default"
+    - model: "opus"
+      description: "架构设计、系统规划、复杂评审"
 ```
 
-### 模板 4：规则 + 智能 + 治理增强
+完整可复制版本见 `config/trigger.example.yaml`。
 
-适合已经准备长期使用，并且希望系统具备会话连续性、失败升级与质量审计能力。
+## 7. 常见问题
 
-```yaml
-Governance:
-  enabled: true
-
-  sticky:
-    enabled: true
-    session_ttl_ms: 3600000
-    alignment:
-      enabled: true
-      summarizer_model: "openrouter,anthropic/claude-sonnet-4"
-      max_summary_tokens: 256
-
-  cascade:
-    enabled: true
-    max_attempts: 2
-    triggers:
-      compile_failure: true
-      test_failure: true
-      placeholder_patterns:
-        - "TODO"
-        - "...rest of code"
-    levels:
-      - from: "openrouter,anthropic/claude-sonnet-4"
-        to: "openrouter,anthropic/claude-opus-4"
-        reasoning: "high"
-
-  semantic:
-    enabled: true
-    threshold: 0.2
-    prototypes:
-      architecture: "重构 系统 结构 模块 拆分 架构 设计"
-      code_review: "代码 审查 风险 评审 review"
-
-  shadow:
-    enabled: true
-    mode: "async_audit"
-    checks:
-      placeholder_patterns: true
-      length_anomaly: true
-      missing_code_block: true
-  observability:
-    anomaly_thresholds:
-      min_sample_size: 3
-      cascade_warn_rate: 0.4
-      shadow_warn_rate: 0.5
-      latency_warn_ms: 1500
-```
-
-## 常见错误与排查
-
-### 1. 配置格式错
-
-症状：
-
-- `ctr start` 启动失败
-- `POST /api/config` 返回 `Invalid configuration`
+### 配置保存失败
 
 优先检查：
 
-- 缩进是否正确
-- `Providers` 是否为空
-- `Router.default` 是否缺失
+- `Models[].id` 是否重复
+- `Models[].api / key / interface / model` 是否缺失
+- `Router.default` 是否存在
+- `TriggerRouter / SmartRouter / Governance` 是否引用了不存在的 `modelId`
 
-### 2. provider / model 引用错
+### warning 很多，但配置还能保存
 
-症状：
+这通常说明配置不是“非法”，而是“存在运行时降级风险”。最常见的情况：
 
-- 某条规则配置了模型，但运行时报找不到模型
-- SmartRouter 候选项不生效
+- `thinking` 会被忽略
+- tools 会退化为文本
+- images 会退化为文本
 
-优先检查：
+这类问题建议在 `/ui` 或 `GET /api/models/compiled` 中先确认。
 
-- `model` 写法是否为 `provider,model`
-- `provider` 名称是否与 `Providers[].name` 完全一致
-- `model` 是否存在于该 provider 的 `models` 列表中
+### 还可以继续使用 `Providers` 吗
 
-### 3. `ctr code` 连不到服务
+可以，但新配置不建议继续扩展在 `Providers` 上。当前更推荐：
 
-症状：
-
-- `ctr code` 提示目标端口上不是本服务
-- 明明有端口占用，但还是不能启动 Claude Code
-
-这通常说明：
-
-- 服务根本没启动
-- 启动在别的端口
-- 目标端口上跑的是别的 HTTP 服务
-
-先执行：
-
-```bash
-ctr status
-```
-
-再确认是否需要重新启动：
-
-```bash
-ctr start --daemon
-```
-
-### 4. TriggerRouter 没命中
-
-优先检查：
-
-- `TriggerRouter.enabled`
-- `rules[].enabled`
-- `analysis_scope`
-- 文本里是否真的出现了你配置的关键词
-- 正则是否写得过窄
-
-### 5. SmartRouter 没生效
-
-优先检查：
-
-- `SmartRouter.enabled`
-- `router_model`
-- `candidates` 是否至少 2 个
-- 请求是否已经被 TriggerRouter 提前命中
-
-### 6. Governance 没生效
-
-优先检查：
-
-- `Governance.enabled` 是否为 `true`
-- 子模块 `sticky / semantic / cascade / shadow` 是否分别启用
-- `sticky.alignment.summarizer_model` 是否能在 `Providers` 中找到
-- `cascade.levels[].from/to` 是否正确引用模型
-- 是否真的满足触发条件，例如 Sticky 需要相同 `sessionId` + 相同任务指纹，Cascade 需要失败证据
-
-## 不建议现在依赖的字段
-
-当前仓库里，这几个字段都不适合作为新手主线配置：
-
-- `PROXY_URL`
-- `API_TIMEOUT_MS`
-- `NON_INTERACTIVE_MODE`
-
-其中 `API_TIMEOUT_MS` 目前只影响 TriggerRouter 内部回环 LLM 调用（SmartRouter / intent detection），不影响 `ctr code` 探活或普通 provider 转发；另外两个字段仍缺少清晰、稳定、容易验证的主线接线证据。想先稳定使用的话，可以先不配。
-
-## Governance 配置建议
-
-如果你准备启用 Governance，建议按这个顺序渐进打开：
-
-1. 先开 `sticky`
-2. 再开 `sticky.alignment`
-3. 再开 `cascade`
-4. 然后开 `semantic`
-5. 最后开 `shadow`
-
-## 推荐阅读顺序
-
-1. 先按 `README.md` 跑最小配置
-2. 再复制本页三套模板中的一套
-3. 最后才补高级字段和扩展示例
+1. 把存量配置迁到 `Models`
+2. 让所有路由字段都引用 `modelId`
+3. 只把 `Providers` 作为兼容层保留
