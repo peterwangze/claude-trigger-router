@@ -26,7 +26,7 @@ ctr setup
 - 检查当前配置是否可复用
 - 检测旧版 `~/.ccr/config.yaml`
 - 尝试迁移成新的 `Models` 配置
-- 提供 `openrouter` / `deepseek` / `openai-compatible` / `anthropic` / `custom` 预设
+- 提供 `openrouter` / `deepseek` / `openai-compatible` / `anthropic` / `siliconflow` / `custom` 预设
 - 在需要时询问最少必要字段
 - 保存配置后启动服务并进入 Claude Code
 

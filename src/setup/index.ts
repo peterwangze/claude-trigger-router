@@ -6,6 +6,7 @@ import { stdin as input, stdout as output } from 'process';
 import yaml from 'js-yaml';
 
 import { CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from '../constants';
+import { listProviderPresetKeys } from '../provider-presets';
 import { run } from '../index';
 import { waitForService } from '../service-health';
 import { backupConfigFile, normalizeAndValidateConfig, writeConfigFile } from '../utils';
@@ -304,7 +305,7 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
 }
 
 async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
-  const presetOptions: ProviderPresetKey[] = ['openrouter', 'deepseek', 'openai-compatible', 'anthropic', 'custom'];
+  const presetOptions = listProviderPresetKeys('setup');
   const preset = await io.choose('选择 provider 预设', presetOptions) as ProviderPresetKey;
   const providerName = await io.input('Provider 名称', preset);
   const apiBaseUrl = preset === 'custom' ? await io.input('API Base URL') : await io.input('API Base URL（留空使用预设）', '');

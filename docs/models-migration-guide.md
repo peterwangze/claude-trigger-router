@@ -217,12 +217,18 @@ Governance:
 - `deepseek`
 - `openai-compatible`
 - `anthropic`
+- `siliconflow`
 - `custom`
 
 其中 `anthropic` 预设会直接带入：
 
 - `api: https://api.anthropic.com/v1/messages`
 - `interface: anthropic`
+
+`siliconflow` 预设会直接带入：
+
+- `api: https://api.siliconflow.cn/v1/chat/completions`
+- `interface: openai`
 
 ## 7. 自动迁移的当前规则
 

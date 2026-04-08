@@ -15,6 +15,7 @@ import {
   governanceMetricsExportStore,
 } from "./governance";
 import { buildModelRegistry, collectCapabilityWarnings } from "./models/compile";
+import { getUiProviderTemplates } from "./provider-presets";
 
 type CompiledProviderView = {
   name: string;
@@ -47,6 +48,10 @@ function toCompiledRegistryView(config: any): CompiledRegistryView {
     })),
     modelMap: registry.modelMap,
   };
+}
+
+function toInlineScriptJson(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 function collectModelReferences(config: any): ModelReferenceEntry[] {
@@ -962,13 +967,7 @@ export const createServer = (config: any): Server => {
       `  fast:{ label:'快速预设', description:'默认走轻量模型，并添加一条快速响应 TriggerRule。', affects:['Router.default','TriggerRouter.enabled','TriggerRouter.rules'], routerDefault:'haiku', triggerEnabled:true, triggerRules:[{ name:'quick-response', enabled:true, priority:20, model:'haiku', patterns:[{ type:'exact', keywords:['快速处理','快速回答'] }] }] },` +
       `  governance:{ label:'治理预设', description:'打开治理核心能力，并填入 summarizer/classifier/verifier 示例模型。', affects:['Governance.enabled','Governance.sticky.alignment','Governance.semantic','Governance.shadow'], governanceEnabled:true, governanceAlignmentEnabled:true, governanceSemanticEnabled:true, governanceShadowEnabled:true, governanceSummarizerModel:'sonnet', governanceClassifierModel:'sonnet', governanceVerifierModel:'haiku' }` +
       `};` +
-      `const modelProviderTemplates={` +
-      `  openai:{ label:'OpenAI', interface:'openai', api:'https://api.openai.com/v1/chat/completions', default_model:'gpt-5', model_examples:['gpt-5','gpt-5-mini','gpt-4.1'] },` +
-      `  anthropic:{ label:'Anthropic', interface:'anthropic', api:'https://api.anthropic.com/v1/messages', default_model:'claude-sonnet-4-5', model_examples:['claude-sonnet-4-5','claude-opus-4-1','claude-3-5-haiku-latest'] },` +
-      `  openrouter:{ label:'OpenRouter', interface:'openai', api:'https://openrouter.ai/api/v1/chat/completions', default_model:'anthropic/claude-sonnet-4', model_examples:['anthropic/claude-sonnet-4','openai/gpt-5','google/gemini-2.5-pro'] },` +
-      `  deepseek:{ label:'DeepSeek', interface:'openai', api:'https://api.deepseek.com/chat/completions', default_model:'deepseek-chat', model_examples:['deepseek-chat','deepseek-reasoner'] },` +
-      `  siliconflow:{ label:'SiliconFlow', interface:'openai', api:'https://api.siliconflow.cn/v1/chat/completions', default_model:'Qwen/Qwen3-32B', model_examples:['Qwen/Qwen3-32B','deepseek-ai/DeepSeek-V3','THUDM/GLM-4-9B-Chat'] }` +
-      `};` +
+      `const modelProviderTemplates=${toInlineScriptJson(getUiProviderTemplates())};` +
       `function esc(v){return String(v ?? '').replace(/[&<>"]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));}` +
       `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
       `function fmt(v){return Number(v || 0).toFixed(2);}` +

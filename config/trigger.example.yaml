@@ -1,5 +1,13 @@
 # Claude Trigger Router 配置示例
 # 复制到 ~/.claude-trigger-router/config.yaml 后，先替换 API Key 和模型名。
+#
+# 常见 provider preset（与 `ctr setup`、`/ui` Provider template 保持一致）：
+# - openrouter: https://openrouter.ai/api/v1/chat/completions
+# - deepseek: https://api.deepseek.com/chat/completions
+# - openai-compatible: https://api.openai.com/v1/chat/completions
+# - anthropic: https://api.anthropic.com/v1/messages
+# - siliconflow: https://api.siliconflow.cn/v1/chat/completions
+# - custom/local: 自定义兼容地址，例如 Ollama / vLLM / one-api
 
 HOST: "127.0.0.1"
 PORT: 3456

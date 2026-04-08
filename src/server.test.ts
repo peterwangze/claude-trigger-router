@@ -1148,6 +1148,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('applyProviderTemplate');
     expect(html).toContain('OpenRouter');
     expect(html).toContain('Anthropic');
+    expect(html).toContain('OpenAI-compatible');
+    expect(html).toContain('SiliconFlow');
     expect(html).toContain('default_model');
     expect(html).toContain('model_examples');
     expect(html).toContain('modelSuggestions');

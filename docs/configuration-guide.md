@@ -93,12 +93,15 @@ setup 内置的 provider 预设目前是：
 - `deepseek`
 - `openai-compatible`
 - `anthropic`
+- `siliconflow`
 - `custom`
 
 其中：
 
 - 选择 `anthropic` 时，会默认带入 `https://api.anthropic.com/v1/messages`
+- 选择 `siliconflow` 时，会默认带入 `https://api.siliconflow.cn/v1/chat/completions`
 - 选择 `custom` 时，需要你自己填写 `API Base URL`
+- `/ui` 的 Provider template 与 `ctr setup` 现在共用同一份预设目录，避免两边示例漂移
 
 ### `POST /api/config`
 

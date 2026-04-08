@@ -4,40 +4,8 @@
  * 提供配置模板和预设
  */
 
+import { getProviderPreset as getSharedProviderPreset } from '../provider-presets';
 import { IProviderPreset, IMinimalConfigInput, ISetupConfigDraft, ISetupModelDraft, ProviderPresetKey } from './types';
-
-/**
- * Provider 预设配置表
- */
-const PROVIDER_PRESETS: Record<ProviderPresetKey, IProviderPreset> = {
-  openrouter: {
-    api: 'https://openrouter.ai/api/v1/chat/completions',
-    api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
-    interface: 'openai',
-    protocol: 'openai',
-  },
-  deepseek: {
-    api: 'https://api.deepseek.com/chat/completions',
-    api_base_url: 'https://api.deepseek.com/chat/completions',
-    interface: 'openai',
-    protocol: 'openai',
-  },
-  'openai-compatible': {
-    api: 'https://api.openai.com/v1/chat/completions',
-    api_base_url: 'https://api.openai.com/v1/chat/completions',
-    interface: 'openai',
-    protocol: 'openai',
-  },
-  anthropic: {
-    api: 'https://api.anthropic.com/v1/messages',
-    api_base_url: 'https://api.anthropic.com/v1/messages',
-    interface: 'anthropic',
-    protocol: 'anthropic',
-  },
-  custom: {
-    // custom 不设置默认 URL，必须由用户提供
-  },
-};
 
 /**
  * 获取 Provider 预设配置
@@ -45,7 +13,7 @@ const PROVIDER_PRESETS: Record<ProviderPresetKey, IProviderPreset> = {
  * @returns 预设配置，不存在则返回 undefined
  */
 export function getProviderPreset(key: ProviderPresetKey): IProviderPreset | undefined {
-  const preset = PROVIDER_PRESETS[key];
+  const preset = getSharedProviderPreset(key);
   if (!preset) {
     return undefined;
   }

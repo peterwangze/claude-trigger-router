@@ -1,13 +1,11 @@
+import type { ProviderPresetKey } from '../provider-presets';
+
 /**
  * Setup Types
  *
  * setup 命令所需的类型定义
  */
-
-/**
- * Provider preset 类型
- */
-export type ProviderPresetKey = 'openrouter' | 'deepseek' | 'openai-compatible' | 'anthropic' | 'custom';
+export type { ProviderPresetKey } from '../provider-presets';
 
 /**
  * Provider 预设配置
