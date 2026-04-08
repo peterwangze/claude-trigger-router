@@ -15,6 +15,12 @@
 npm install -g @peterwangze/claude-trigger-router
 ```
 
+如果 npm registry 还没有同步到最新公开包，或者当前包尚未完成首次公开发布，可以先临时改用 GitHub 安装：
+
+```bash
+npm install -g github:peterwangze/claude-trigger-router
+```
+
 ### 2. 运行初始化向导
 
 ```bash
