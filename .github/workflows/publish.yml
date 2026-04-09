@@ -82,7 +82,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          if ! npm publish --access public --provenance 2>&1 | tee publish.log; then
+          if ! npm publish --access public 2>&1 | tee publish.log; then
             DETAILS="$(tail -n 50 publish.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')"
             echo "::error title=npm publish failed::${DETAILS}"
             exit 1
