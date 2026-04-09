@@ -79,7 +79,14 @@ jobs:
 
       - name: Publish to npm
         if: steps.npm_version.outputs.already_published != 'true'
-        run: npm publish --access public --provenance
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! npm publish --access public --provenance 2>&1 | tee publish.log; then
+            DETAILS="$(tail -n 50 publish.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')"
+            echo "::error title=npm publish failed::${DETAILS}"
+            exit 1
+          fi
 
       - name: Summarize publish result
         shell: bash
