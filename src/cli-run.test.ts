@@ -11,6 +11,8 @@ const mockProcessExit = vi.fn(() => {
   throw new Error('process.exit called');
 });
 const originalArgv = process.argv.slice();
+const originalFetch = global.fetch;
+const mockFetch = vi.fn();
 
 vi.mock('child_process', () => ({
   spawn: mockSpawn,
@@ -46,14 +48,17 @@ describe('runClaudeCode', () => {
     vi.clearAllMocks();
     process.env.CTR_SKIP_MAIN = '1';
     process.argv = [...originalArgv];
+    global.fetch = mockFetch as typeof fetch;
     mockInitializeClaudeConfig.mockResolvedValue(undefined);
     mockSpawn.mockReturnValue({ on: vi.fn() });
     mockIsServiceRunning.mockReturnValue(true);
     mockRunSetupCli.mockResolvedValue(undefined);
+    mockFetch.mockRejectedValue(new Error('network error'));
   });
 
   afterEach(() => {
     process.argv = [...originalArgv];
+    global.fetch = originalFetch;
   });
 
   it('prints setup in help and lists ctr setup first in examples', async () => {
@@ -76,8 +81,12 @@ describe('runClaudeCode', () => {
     logSpy.mockRestore();
   });
 
-  it('prints current package version and npm package page', async () => {
+  it('prints current and latest package version when npm registry lookup succeeds', async () => {
     process.argv = ['node', 'cli.ts', 'version'];
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ version: '1.0.3' }),
+    });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
     const { main } = await import('./cli');
@@ -85,7 +94,27 @@ describe('runClaudeCode', () => {
 
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
     expect(output).toContain('@peterwangze/claude-trigger-router');
-    expect(output).toContain('1.0.2');
+    expect(output).toContain('Version: 1.0.2');
+    expect(output).toContain('Latest: 1.0.3');
+    expect(output).toContain('Upgrade: npm install -g @peterwangze/claude-trigger-router@latest');
+    expect(output).toContain('https://www.npmjs.com/package/@peterwangze/claude-trigger-router');
+
+    logSpy.mockRestore();
+  });
+
+  it('keeps local version output when npm registry lookup fails', async () => {
+    process.argv = ['node', 'cli.ts', 'version'];
+    mockFetch.mockRejectedValue(new Error('network error'));
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('@peterwangze/claude-trigger-router');
+    expect(output).toContain('Version: 1.0.2');
+    expect(output).toContain('Latest: unavailable');
+    expect(output).not.toContain('Upgrade: npm install -g @peterwangze/claude-trigger-router@latest');
     expect(output).toContain('https://www.npmjs.com/package/@peterwangze/claude-trigger-router');
 
     logSpy.mockRestore();

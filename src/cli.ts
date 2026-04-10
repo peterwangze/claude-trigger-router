@@ -16,6 +16,7 @@ import { runSetupCli } from "./setup";
 
 const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
 const PACKAGE_PAGE_URL = "https://www.npmjs.com/package/@peterwangze/claude-trigger-router";
+const PACKAGE_REGISTRY_LATEST_URL = "https://registry.npmjs.org/@peterwangze%2Fclaude-trigger-router/latest";
 
 function getPackageInfo(): { name: string; version: string } {
   const content = readFileSync(PACKAGE_JSON_PATH, "utf-8");
@@ -135,11 +136,54 @@ Claude Trigger Router - 智能触发路由器
 `);
 }
 
-function printVersion() {
+async function getLatestPackageVersion(timeoutMs = 1500): Promise<string | null> {
+  try {
+    const response = await fetch(PACKAGE_REGISTRY_LATEST_URL, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = await response.json() as { version?: unknown };
+    return typeof payload.version === "string" ? payload.version : null;
+  } catch {
+    return null;
+  }
+}
+
+function isNewerVersion(current: string, latest: string): boolean {
+  const currentParts = current.split(".").map((part) => Number.parseInt(part, 10));
+  const latestParts = latest.split(".").map((part) => Number.parseInt(part, 10));
+  const length = Math.max(currentParts.length, latestParts.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const currentValue = Number.isFinite(currentParts[index]) ? currentParts[index] : 0;
+    const latestValue = Number.isFinite(latestParts[index]) ? latestParts[index] : 0;
+
+    if (latestValue > currentValue) {
+      return true;
+    }
+
+    if (latestValue < currentValue) {
+      return false;
+    }
+  }
+
+  return false;
+}
+
+async function printVersion() {
   const pkg = getPackageInfo();
+  const latestVersion = await getLatestPackageVersion();
 
   console.log(`Package: ${pkg.name}`);
   console.log(`Version: ${pkg.version}`);
+  console.log(`Latest: ${latestVersion ?? "unavailable"}`);
+  if (latestVersion && isNewerVersion(pkg.version, latestVersion)) {
+    console.log(`Upgrade: npm install -g ${pkg.name}@latest`);
+  }
   console.log(`NPM: ${PACKAGE_PAGE_URL}`);
 }
 
@@ -414,7 +458,7 @@ export async function main() {
       break;
 
     case "version":
-      printVersion();
+      await printVersion();
       break;
 
     case "upgrade":
