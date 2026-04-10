@@ -7,6 +7,10 @@
 import { getProviderPreset as getSharedProviderPreset } from '../provider-presets';
 import { IProviderPreset, IMinimalConfigInput, ISetupConfigDraft, ISetupModelDraft, ProviderPresetKey } from './types';
 
+type IModelIdAwareProviderInput = IMinimalConfigInput['providers'][number] & {
+  model_id?: string;
+};
+
 /**
  * 获取 Provider 预设配置
  * @param key 预设键名
@@ -32,10 +36,12 @@ export function getProviderPreset(key: ProviderPresetKey): IProviderPreset | und
  * @returns 完整的应用配置
  */
 export function buildMinimalConfig(input: IMinimalConfigInput): ISetupConfigDraft {
-  const models: ISetupModelDraft[] = input.providers.map((p) => {
+  const providers = input.providers as IModelIdAwareProviderInput[];
+
+  const models: ISetupModelDraft[] = providers.map((p) => {
     const preset = p.preset ? getProviderPreset(p.preset) : undefined;
     const modelDraft: ISetupModelDraft = {
-      id: p.name,
+      id: p.model_id?.trim() || p.name,
       key: p.api_key,
       api_key: p.api_key,
       model: p.models[0] ?? '',

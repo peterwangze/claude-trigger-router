@@ -10,9 +10,14 @@ describe('runSetupCli', () => {
     const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
 
     const io = {
-      choose: vi.fn().mockResolvedValueOnce('openrouter').mockResolvedValueOnce('保持默认'),
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('使用常见接入模板')
+        .mockResolvedValueOnce('openrouter')
+        .mockResolvedValueOnce('保持默认'),
       input: vi
         .fn()
+        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('')
         .mockResolvedValueOnce('sk-test')
@@ -38,7 +43,7 @@ describe('runSetupCli', () => {
       expect.objectContaining({
         Models: [
           expect.objectContaining({
-            id: 'openrouter',
+            id: 'sonnet',
             api_key: 'sk-test',
             api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
             model: 'anthropic/claude-sonnet-4',
@@ -46,10 +51,15 @@ describe('runSetupCli', () => {
           }),
         ],
         Router: {
-          default: 'openrouter',
+          default: 'sonnet',
         },
       })
     );
+    expect(io.input).toHaveBeenNthCalledWith(1, '默认模型 ID');
+    expect(io.choose).toHaveBeenNthCalledWith(1, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
+    expect(io.choose).toHaveBeenNthCalledWith(2, '选择 provider 预设', expect.any(Array));
+    expect(io.input).toHaveBeenNthCalledWith(2, 'Provider 名称', 'openrouter');
+    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
@@ -64,6 +74,7 @@ describe('runSetupCli', () => {
     const io = {
       choose: vi
         .fn()
+        .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('配置 capability 提示')
         .mockResolvedValueOnce('编辑 capability')
@@ -72,6 +83,7 @@ describe('runSetupCli', () => {
         .mockResolvedValueOnce('支持'),
       input: vi
         .fn()
+        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('')
         .mockResolvedValueOnce('sk-test')
@@ -117,15 +129,21 @@ describe('runSetupCli', () => {
     const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
 
     const io = {
-      choose: vi.fn().mockResolvedValueOnce('anthropic').mockResolvedValueOnce('保持默认'),
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('使用常见接入模板')
+        .mockResolvedValueOnce('anthropic')
+        .mockResolvedValueOnce('保持默认'),
       input: vi
         .fn()
+        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('anthropic')
         .mockResolvedValueOnce('')
         .mockResolvedValueOnce('sk-ant')
         .mockResolvedValueOnce('claude-sonnet-4-5'),
       info: vi.fn(),
     };
+
 
     await runSetupCli({
       readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
@@ -145,7 +163,7 @@ describe('runSetupCli', () => {
       expect.objectContaining({
         Models: [
           expect.objectContaining({
-            id: 'anthropic',
+            id: 'sonnet',
             api_key: 'sk-ant',
             api_base_url: 'https://api.anthropic.com/v1/messages',
             model: 'claude-sonnet-4-5',
@@ -154,18 +172,28 @@ describe('runSetupCli', () => {
           }),
         ],
         Router: {
-          default: 'anthropic',
+          default: 'sonnet',
         },
       })
     );
+    expect(io.input).toHaveBeenNthCalledWith(1, '默认模型 ID');
+    expect(io.choose).toHaveBeenNthCalledWith(1, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
+    expect(io.choose).toHaveBeenNthCalledWith(2, '选择 provider 预设', expect.any(Array));
+    expect(io.input).toHaveBeenNthCalledWith(2, 'Provider 名称', 'anthropic');
+    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
   });
 
-  it('reuses a valid current config without rewriting it', async () => {
+  it('offers direct reuse before reconfiguration when current config is valid', async () => {
     const writeConfig = vi.fn();
     const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+    const io = {
+      choose: vi.fn().mockResolvedValue('直接使用当前配置（推荐）'),
+      input: vi.fn(),
+      info: vi.fn(),
+    };
 
     await runSetupCli({
       readCurrentConfig: vi.fn().mockResolvedValue({
@@ -196,14 +224,66 @@ describe('runSetupCli', () => {
       executeRestart: vi.fn().mockResolvedValue(undefined),
       verifyHealth: vi.fn().mockResolvedValue(true),
       enterClaudeCode,
-      io: {
-        choose: vi.fn().mockResolvedValue('reuse'),
-        input: vi.fn(),
-        info: vi.fn(),
-      },
+      io,
     });
 
+    expect(io.info).toHaveBeenCalledWith('检测到当前 claude-trigger-router 配置已可用。');
+    expect(io.choose).toHaveBeenCalledWith(
+      '你想直接使用它，还是重新调整？',
+      ['直接使用当前配置（推荐）', '检查并调整当前配置', '放弃当前配置，重新开始']
+    );
     expect(writeConfig).not.toHaveBeenCalled();
+    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers migration as the recommended legacy action', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('迁移旧配置（推荐）'),
+      input: vi.fn(),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      readLegacyConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/tmp/.ccr/config.yaml',
+        config: {
+          providers: [
+            {
+              name: 'openrouter',
+              api_key: 'sk-test',
+              api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+              models: ['anthropic/claude-sonnet-4'],
+            },
+          ],
+          default: 'openrouter,anthropic/claude-sonnet-4',
+        },
+      }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig,
+      executeStart,
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(io.choose).toHaveBeenCalledWith(
+      '检测到旧 claude-code-router 配置。是否迁移为当前推荐配置？',
+      ['迁移旧配置（推荐）', '跳过迁移，手动新建']
+    );
+    expect(writeConfig).toHaveBeenCalled();
+    expect(executeStart).toHaveBeenCalledTimes(1);
+    expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
   });
 
@@ -255,7 +335,7 @@ describe('runSetupCli', () => {
   it('surfaces current config warnings during setup reuse flow', async () => {
     const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
     const io = {
-      choose: vi.fn().mockResolvedValue('reuse'),
+      choose: vi.fn().mockResolvedValue('直接使用当前配置（推荐）'),
       input: vi.fn(),
       info: vi.fn(),
     };
@@ -296,7 +376,7 @@ describe('runSetupCli', () => {
       io,
     });
 
-    expect(io.info).toHaveBeenCalledWith('检测到现有可用配置。');
+    expect(io.info).toHaveBeenCalledWith('检测到当前 claude-trigger-router 配置已可用。');
     expect(io.info).toHaveBeenCalledWith(
       '当前配置提示：Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.'
     );
