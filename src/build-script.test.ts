@@ -22,5 +22,15 @@ describe('build script', () => {
     expect(helpResult.status).toBe(0);
     expect(helpResult.stdout).toContain('Claude Trigger Router - 智能触发路由器');
     expect(helpResult.stdout).toContain('用法：ctr <命令> [选项]');
+    expect(helpResult.stdout).toContain('version     查看当前安装版本与包信息');
+    expect(helpResult.stdout).toContain('upgrade     查看升级到最新 npm 版本的指引');
+
+    const versionResult = spawnSync(process.execPath, ['dist/cli.js', 'version'], {
+      cwd: process.cwd(),
+      encoding: 'utf-8',
+    });
+    expect(versionResult.status).toBe(0);
+    expect(versionResult.stdout).toContain('@peterwangze/claude-trigger-router');
+    expect(versionResult.stdout).toContain('1.0.2');
   });
 });

@@ -279,6 +279,8 @@ Models:
 ```bash
 ctr setup
 ctr init
+ctr version
+ctr upgrade
 ctr start
 ctr start --daemon
 ctr stop

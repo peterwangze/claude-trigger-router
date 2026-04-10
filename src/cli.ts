@@ -14,6 +14,19 @@ import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CON
 import { waitForService } from "./service-health";
 import { runSetupCli } from "./setup";
 
+const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
+const PACKAGE_PAGE_URL = "https://www.npmjs.com/package/@peterwangze/claude-trigger-router";
+
+function getPackageInfo(): { name: string; version: string } {
+  const content = readFileSync(PACKAGE_JSON_PATH, "utf-8");
+  const pkg = JSON.parse(content) as { name?: string; version?: string };
+
+  return {
+    name: pkg.name ?? "@peterwangze/claude-trigger-router",
+    version: pkg.version ?? "unknown",
+  };
+}
+
 function getArgs(): string[] {
   return process.argv.slice(2);
 }
@@ -89,6 +102,8 @@ Claude Trigger Router - 智能触发路由器
   stop        停止后台服务
   restart     重启后台服务
   status      查看服务运行状态（PID、端口、启动时间）
+  version     查看当前安装版本与包信息
+  upgrade     查看升级到最新 npm 版本的指引
   code        通过路由器运行 Claude Code（需先启动服务）
   ui          打开管理 API 说明页（Web UI 开发中）
   help        显示此帮助信息
@@ -101,6 +116,8 @@ Claude Trigger Router - 智能触发路由器
 使用示例：
   ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置
   ctr init                 # 初始化最小配置模板
+  ctr version              # 查看当前安装版本
+  ctr upgrade              # 查看升级到最新版本的命令
   ctr start                # 前台启动（推荐首次使用，便于查看日志）
   ctr start --daemon       # 后台启动
   ctr status               # 查看服务状态
@@ -116,6 +133,27 @@ Claude Trigger Router - 智能触发路由器
 
 更多信息：https://github.com/peterwangze/claude-trigger-router
 `);
+}
+
+function printVersion() {
+  const pkg = getPackageInfo();
+
+  console.log(`Package: ${pkg.name}`);
+  console.log(`Version: ${pkg.version}`);
+  console.log(`NPM: ${PACKAGE_PAGE_URL}`);
+}
+
+function printUpgradeGuidance() {
+  const pkg = getPackageInfo();
+
+  console.log(`当前安装版本：${pkg.version}`);
+  console.log(`包名：${pkg.name}`);
+  console.log("升级到最新版本：");
+  console.log(`  npm install -g ${pkg.name}@latest`);
+  console.log("请在当前 ctr 进程外执行升级命令，避免自升级时占用当前文件。");
+  console.log("如果你最初是通过 GitHub 源安装，请继续使用原安装来源，当前命令不会自动切换来源。");
+  console.log("全局安装在某些环境下可能需要管理员/root 权限。");
+  console.log(`NPM: ${PACKAGE_PAGE_URL}`);
 }
 
 /**
@@ -373,6 +411,14 @@ export async function main() {
 
     case "status":
       showStatus();
+      break;
+
+    case "version":
+      printVersion();
+      break;
+
+    case "upgrade":
+      printUpgradeGuidance();
       break;
 
     case "restart":
