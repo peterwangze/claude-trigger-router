@@ -63,11 +63,26 @@ describe('runClaudeCode', () => {
     printHelp();
 
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
-    expect(output).toContain('setup       首次使用向导（推荐新手）');
-    expect(output).toContain('  ctr setup                # 首次使用向导（推荐）');
-    expect(output.indexOf('  ctr setup                # 首次使用向导（推荐）')).toBeLessThan(
-      output.indexOf('  ctr init                 # 初始化配置文件')
+    expect(output).toContain('setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置');
+    expect(output).toContain('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置');
+    expect(output.indexOf('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置')).toBeLessThan(
+      output.indexOf('  ctr init                 # 初始化最小配置模板')
     );
+
+    logSpy.mockRestore();
+  });
+
+  it('prints init next steps with Models-first guidance', async () => {
+    process.argv = ['node', 'cli.ts', 'init', '--force'];
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain("  2. 在 'Models' 下补全你的模型接入信息");
+    expect(output).toContain("  3. 将 'Router.default' 设置为默认模型 ID");
+    expect(output).toContain("  4. 如需高级路由，再继续配置规则或智能路由");
 
     logSpy.mockRestore();
   });

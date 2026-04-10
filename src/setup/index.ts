@@ -173,6 +173,29 @@ function mapConfigErrorsToRepairFields(errors: string[]) {
     : { mode: 'repair' as const, fields };
 }
 
+function mapValidCurrentConfigChoice(choice: string): 'reuse' | 'overwrite' | 'cancel' {
+  if (choice === 'reuse' || choice === '直接使用当前配置（推荐）') {
+    return 'reuse';
+  }
+  if (choice === 'overwrite' || choice === '检查并调整当前配置') {
+    return 'overwrite';
+  }
+  if (choice === 'cancel' || choice === '放弃当前配置，重新开始') {
+    return 'cancel';
+  }
+  throw new Error('invalid current config action');
+}
+
+function mapLegacyConfigChoice(choice: string): 'migrate' | 'skip' {
+  if (choice === 'migrate' || choice === '迁移旧配置（推荐）') {
+    return 'migrate';
+  }
+  if (choice === 'skip' || choice === '跳过迁移，手动新建') {
+    return 'skip';
+  }
+  throw new Error('invalid legacy config action');
+}
+
 function toCapabilityBoolean(choice: TCapabilityChoice): boolean | undefined {
   if (choice === '支持') {
     return true;
@@ -305,25 +328,39 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
 }
 
 async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
-  const presetOptions = listProviderPresetKeys('setup');
-  const preset = await io.choose('选择 provider 预设', presetOptions) as ProviderPresetKey;
-  const providerName = await io.input('Provider 名称', preset);
-  const apiBaseUrl = preset === 'custom' ? await io.input('API Base URL') : await io.input('API Base URL（留空使用预设）', '');
+  const modelId = await io.input('默认模型 ID');
+  const connectMode = await io.choose('这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
+
+  let preset: ProviderPresetKey = 'custom';
+  let providerName = 'provider';
+  let apiBaseUrl = '';
+
+  if (connectMode === '使用常见接入模板') {
+    const presetOptions = listProviderPresetKeys('setup');
+    preset = await io.choose('选择 provider 预设', presetOptions) as ProviderPresetKey;
+    providerName = await io.input('Provider 名称', preset);
+    apiBaseUrl = preset === 'custom' ? await io.input('API Base URL') : await io.input('API Base URL（留空使用预设）', '');
+  } else {
+    providerName = await io.input('Provider 名称', 'provider');
+    apiBaseUrl = await io.input('API Base URL');
+  }
+
   const apiKey = await io.input('API Key');
-  const model = await io.input('默认模型');
+  const model = await io.input('上游模型名');
   const capabilityMode = await io.choose('是否配置 capability 提示', ['保持默认', '配置 capability 提示']);
 
   const draft = buildMinimalConfig({
     providers: [
       {
         name: providerName,
+        model_id: modelId,
         api_key: apiKey,
         models: [model],
         preset,
         api_base_url: apiBaseUrl,
       },
     ],
-    defaultModel: providerName,
+    defaultModel: modelId,
   });
 
   if (capabilityMode === '配置 capability 提示' && draft.Models?.[0]) {
@@ -413,11 +450,17 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
         return 'create';
       }
       if (currentConfig.kind === 'valid') {
-        deps.io.info('检测到现有可用配置。');
+        deps.io.info('检测到当前 claude-trigger-router 配置已可用。');
         if (currentConfig.warnings.length > 0) {
           deps.io.info(`当前配置提示：${currentConfig.warnings.join('; ')}`);
         }
-        return (await deps.io.choose('选择下一步', ['reuse', 'overwrite', 'cancel'])) as 'reuse' | 'overwrite' | 'cancel';
+        return mapValidCurrentConfigChoice(
+          await deps.io.choose('你想直接使用它，还是重新调整？', [
+            '直接使用当前配置（推荐）',
+            '检查并调整当前配置',
+            '放弃当前配置，重新开始',
+          ])
+        );
       }
       if (currentConfig.kind === 'invalid') {
         deps.io.info(`当前配置校验失败：${currentConfig.errors.join('; ')}`);
@@ -432,7 +475,12 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
     },
     chooseLegacyConfigAction: async ({ legacyConfig }) => {
       if (legacyConfig.kind === 'found') {
-        return (await deps.io.choose('检测到旧 ccr 配置，是否迁移？', ['migrate', 'skip'])) as 'migrate' | 'skip';
+        return mapLegacyConfigChoice(
+          await deps.io.choose('检测到旧 claude-code-router 配置。是否迁移为当前推荐配置？', [
+            '迁移旧配置（推荐）',
+            '跳过迁移，手动新建',
+          ])
+        );
       }
       if (legacyConfig.kind === 'read_error') {
         deps.io.info(`旧 ccr 配置读取失败：${legacyConfig.error}`);

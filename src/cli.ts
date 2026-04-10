@@ -83,8 +83,8 @@ Claude Trigger Router - 智能触发路由器
 用法：ctr <命令> [选项]
 
 命令：
-  setup       首次使用向导（推荐新手）
-  init        初始化配置文件（从示例模板复制）
+  setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置
+  init        初始化最小配置模板
   start       启动路由服务（默认前台运行）
   stop        停止后台服务
   restart     重启后台服务
@@ -99,8 +99,8 @@ Claude Trigger Router - 智能触发路由器
   --force       强制覆盖已有配置（配合 init 使用）
 
 使用示例：
-  ctr setup                # 首次使用向导（推荐）
-  ctr init                 # 初始化配置文件
+  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置
+  ctr init                 # 初始化最小配置模板
   ctr start                # 前台启动（推荐首次使用，便于查看日志）
   ctr start --daemon       # 后台启动
   ctr status               # 查看服务状态
@@ -158,9 +158,9 @@ function initConfig() {
     console.log("");
     console.log("下一步：");
     console.log("  1. 编辑配置文件，填入你的 API 密钥");
-    console.log("  2. 在 'Providers' 下配置你的模型提供商");
-    console.log("  3. 将 'Router.default' 设置为你的默认模型");
-    console.log("  4. 在 'TriggerRouter.rules' 下自定义触发规则");
+    console.log("  2. 在 'Models' 下补全你的模型接入信息");
+    console.log("  3. 将 'Router.default' 设置为默认模型 ID");
+    console.log("  4. 如需高级路由，再继续配置规则或智能路由");
     console.log(`  5. 运行：ctr start`);
   } catch (error: any) {
     console.error("❌ 创建配置文件失败:", error.message);

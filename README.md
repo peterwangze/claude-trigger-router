@@ -29,11 +29,10 @@ ctr setup
 
 `ctr setup` 会：
 
-- 检查当前配置是否可复用
-- 检测旧版 `~/.ccr/config.yaml`
-- 尝试迁移成新的 `Models` 配置
-- 提供 `openrouter` / `deepseek` / `openai-compatible` / `anthropic` / `siliconflow` / `custom` 预设
-- 在需要时询问最少必要字段
+- 优先检查当前配置是否可直接复用
+- 检测旧版 `~/.ccr/config.yaml` 并优先提供迁移
+- 在需要新建时，先询问默认模型 ID，再收集最少必要接入信息
+- 只生成最小可用配置（`Models + Router.default`），高级路由稍后再补
 - 保存配置后启动服务并进入 Claude Code
 
 ### 3. 使用最小配置

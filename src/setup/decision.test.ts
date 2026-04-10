@@ -14,6 +14,50 @@ function createDetectionResult(
   };
 }
 
+function buildValidCurrentConfig(): ISetupEnvironmentDetectionResult['currentConfig'] {
+  return {
+    kind: 'valid',
+    path: '/config.yaml',
+    format: 'yaml',
+    config: {
+      Providers: [],
+      Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+    },
+    errors: [],
+    warnings: [],
+  };
+}
+
+function buildInvalidCurrentConfig(): ISetupEnvironmentDetectionResult['currentConfig'] {
+  return {
+    kind: 'invalid',
+    path: '/config.yaml',
+    format: 'yaml',
+    config: {
+      Providers: [],
+      Router: { default: '' },
+    },
+    errors: ['Router.default is required'],
+    warnings: [],
+  };
+}
+
+function buildLegacyFound(): ISetupEnvironmentDetectionResult['legacyConfig'] {
+  return {
+    kind: 'found',
+    path: '/legacy/ccr.yaml',
+    config: { providers: [] },
+  };
+}
+
+function buildLegacyReadError(): ISetupEnvironmentDetectionResult['legacyConfig'] {
+  return {
+    kind: 'read_error',
+    path: '/legacy/ccr.yaml',
+    error: 'permission denied',
+  };
+}
+
 describe('decideSetupBranch', () => {
   it('prefers reusing a valid current config by default', () => {
     const result = decideSetupBranch({
@@ -329,6 +373,202 @@ describe('decideSetupBranch', () => {
         currentConfigAction: 'overwrite',
       })
     ).toThrow('legacy read error must be acknowledged');
+  });
+
+  it.each([
+    {
+      name: 'missing + create + legacy found + skip',
+      currentConfig: { kind: 'missing' } as const,
+      currentConfigAction: 'create' as const,
+      legacyConfig: buildLegacyFound(),
+      legacyConfigAction: 'skip' as const,
+    },
+    {
+      name: 'missing + create + legacy missing',
+      currentConfig: { kind: 'missing' } as const,
+      currentConfigAction: 'create' as const,
+      legacyConfig: { kind: 'missing' } as const,
+    },
+    {
+      name: 'missing + create + legacy read_error + skip',
+      currentConfig: { kind: 'missing' } as const,
+      currentConfigAction: 'create' as const,
+      legacyConfig: buildLegacyReadError(),
+      legacyConfigAction: 'skip' as const,
+    },
+    {
+      name: 'valid + overwrite + legacy found + skip',
+      currentConfig: buildValidCurrentConfig(),
+      currentConfigAction: 'overwrite' as const,
+      legacyConfig: buildLegacyFound(),
+      legacyConfigAction: 'skip' as const,
+    },
+    {
+      name: 'valid + overwrite + legacy missing',
+      currentConfig: buildValidCurrentConfig(),
+      currentConfigAction: 'overwrite' as const,
+      legacyConfig: { kind: 'missing' } as const,
+    },
+    {
+      name: 'valid + overwrite + legacy read_error + skip',
+      currentConfig: buildValidCurrentConfig(),
+      currentConfigAction: 'overwrite' as const,
+      legacyConfig: buildLegacyReadError(),
+      legacyConfigAction: 'skip' as const,
+    },
+    {
+      name: 'invalid + overwrite + legacy found + skip',
+      currentConfig: buildInvalidCurrentConfig(),
+      currentConfigAction: 'overwrite' as const,
+      legacyConfig: buildLegacyFound(),
+      legacyConfigAction: 'skip' as const,
+    },
+    {
+      name: 'invalid + overwrite + legacy missing',
+      currentConfig: buildInvalidCurrentConfig(),
+      currentConfigAction: 'overwrite' as const,
+      legacyConfig: { kind: 'missing' } as const,
+    },
+    {
+      name: 'invalid + overwrite + legacy read_error + skip',
+      currentConfig: buildInvalidCurrentConfig(),
+      currentConfigAction: 'overwrite' as const,
+      legacyConfig: buildLegacyReadError(),
+      legacyConfigAction: 'skip' as const,
+    },
+  ])('returns fresh_init only for $name', ({ currentConfig, currentConfigAction, legacyConfig, legacyConfigAction }) => {
+    expect(
+      decideSetupBranch({
+        detection: createDetectionResult(currentConfig, legacyConfig),
+        currentConfigAction,
+        legacyConfigAction,
+      })
+    ).toEqual({ kind: 'fresh_init' });
+  });
+
+  it.each([
+    {
+      name: 'missing + create',
+      currentConfig: { kind: 'missing' } as const,
+      currentConfigAction: 'create' as const,
+    },
+    {
+      name: 'valid + overwrite',
+      currentConfig: buildValidCurrentConfig(),
+      currentConfigAction: 'overwrite' as const,
+    },
+    {
+      name: 'invalid + overwrite',
+      currentConfig: buildInvalidCurrentConfig(),
+      currentConfigAction: 'overwrite' as const,
+    },
+  ])('keeps legacy flow boundaries stable for $name', ({ currentConfig, currentConfigAction }) => {
+    expect(
+      decideSetupBranch({
+        detection: createDetectionResult(currentConfig, buildLegacyFound()),
+        currentConfigAction,
+        legacyConfigAction: 'migrate',
+      })
+    ).toEqual({ kind: 'migrate_legacy' });
+
+    expect(() =>
+      decideSetupBranch({
+        detection: createDetectionResult(currentConfig, buildLegacyFound()),
+        currentConfigAction,
+      })
+    ).toThrow('legacy migration choice is required');
+
+    expect(() =>
+      decideSetupBranch({
+        detection: createDetectionResult(currentConfig, buildLegacyReadError()),
+        currentConfigAction,
+      })
+    ).toThrow('legacy read error must be acknowledged');
+
+    expect(() =>
+      decideSetupBranch({
+        detection: createDetectionResult(currentConfig, buildLegacyReadError()),
+        currentConfigAction,
+        legacyConfigAction: 'migrate',
+      })
+    ).toThrow('legacy migration action is only valid when legacy config is found');
+
+    expect(() =>
+      decideSetupBranch({
+        detection: createDetectionResult(currentConfig, { kind: 'missing' }),
+        currentConfigAction,
+        legacyConfigAction: 'skip',
+      })
+    ).toThrow('legacy migration action is only valid when legacy config is found');
+  });
+
+  it.each([
+    {
+      name: 'missing + create',
+      currentConfig: { kind: 'missing' } as const,
+      currentConfigAction: 'create' as const,
+    },
+    {
+      name: 'valid + overwrite',
+      currentConfig: buildValidCurrentConfig(),
+      currentConfigAction: 'overwrite' as const,
+    },
+    {
+      name: 'invalid + overwrite',
+      currentConfig: buildInvalidCurrentConfig(),
+      currentConfigAction: 'overwrite' as const,
+    },
+  ])('does not return fresh_init outside the allowed legacy outcomes for $name', ({ currentConfig, currentConfigAction }) => {
+    const outcomes = [
+      {
+        label: 'legacy found + migrate',
+        result: decideSetupBranch({
+          detection: createDetectionResult(currentConfig, buildLegacyFound()),
+          currentConfigAction,
+          legacyConfigAction: 'migrate',
+        }),
+      },
+      {
+        label: 'legacy found without choice',
+        result: () =>
+          decideSetupBranch({
+            detection: createDetectionResult(currentConfig, buildLegacyFound()),
+            currentConfigAction,
+          }),
+      },
+      {
+        label: 'legacy read_error without acknowledgement',
+        result: () =>
+          decideSetupBranch({
+            detection: createDetectionResult(currentConfig, buildLegacyReadError()),
+            currentConfigAction,
+          }),
+      },
+      {
+        label: 'legacy read_error + migrate',
+        result: () =>
+          decideSetupBranch({
+            detection: createDetectionResult(currentConfig, buildLegacyReadError()),
+            currentConfigAction,
+            legacyConfigAction: 'migrate',
+          }),
+      },
+      {
+        label: 'legacy missing + skip',
+        result: () =>
+          decideSetupBranch({
+            detection: createDetectionResult(currentConfig, { kind: 'missing' }),
+            currentConfigAction,
+            legacyConfigAction: 'skip',
+          }),
+      },
+    ];
+
+    expect(outcomes[0].result).toEqual({ kind: 'migrate_legacy' });
+    expect(() => outcomes[1].result()).toThrow('legacy migration choice is required');
+    expect(() => outcomes[2].result()).toThrow('legacy read error must be acknowledged');
+    expect(() => outcomes[3].result()).toThrow('legacy migration action is only valid when legacy config is found');
+    expect(() => outcomes[4].result()).toThrow('legacy migration action is only valid when legacy config is found');
   });
 
   it('throws when legacy migration action is provided but no legacy config was found', () => {
