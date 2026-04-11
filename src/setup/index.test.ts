@@ -1,6 +1,37 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { runSetupCli } from './index';
+import { readLegacyConfig, runSetupCli } from './index';
+
+describe('readLegacyConfig', () => {
+  it('detects legacy config from the claude-code-router path when ccr config is absent', async () => {
+    const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+
+    try {
+      const result = await readLegacyConfig({
+        homeDir: '/Users/tester',
+        exists: (filePath) => filePath.endsWith('.claude-code-router/config.yaml') || filePath.endsWith('.claude-code-router\\config.yaml'),
+        readConfig: (filePath) => ({ filePath }),
+      });
+
+      expect(result.kind).toBe('found');
+      if (result.kind !== 'found') {
+        throw new Error('expected legacy config to be found');
+      }
+
+      expect(result.path).toMatch(/[\\/]\.claude-code-router[\\/]config\.yaml$/);
+      expect(result.config).toEqual({
+        filePath: result.path,
+      });
+    } finally {
+      if (previousOverride) {
+        process.env.CTR_SETUP_LEGACY_CONFIG_PATH = previousOverride;
+      } else {
+        delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+      }
+    }
+  });
+});
 
 describe('runSetupCli', () => {
   it('creates a minimal config and enters Claude Code on first use', async () => {
@@ -17,11 +48,11 @@ describe('runSetupCli', () => {
         .mockResolvedValueOnce('保持默认'),
       input: vi
         .fn()
-        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('')
         .mockResolvedValueOnce('sk-test')
-        .mockResolvedValueOnce('anthropic/claude-sonnet-4'),
+        .mockResolvedValueOnce('anthropic/claude-sonnet-4')
+        .mockResolvedValueOnce('sonnet'),
       info: vi.fn(),
     };
 
@@ -55,11 +86,11 @@ describe('runSetupCli', () => {
         },
       })
     );
-    expect(io.input).toHaveBeenNthCalledWith(1, '默认模型 ID');
     expect(io.choose).toHaveBeenNthCalledWith(1, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '选择 provider 预设', expect.any(Array));
-    expect(io.input).toHaveBeenNthCalledWith(2, 'Provider 名称', 'openrouter');
-    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名');
+    expect(io.input).toHaveBeenNthCalledWith(1, 'Provider 名称', 'openrouter');
+    expect(io.input).toHaveBeenNthCalledWith(4, '上游模型名', 'anthropic/claude-sonnet-4');
+    expect(io.input).toHaveBeenNthCalledWith(5, '默认模型 ID', 'sonnet');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
@@ -83,11 +114,11 @@ describe('runSetupCli', () => {
         .mockResolvedValueOnce('支持'),
       input: vi
         .fn()
-        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('')
         .mockResolvedValueOnce('sk-test')
         .mockResolvedValueOnce('anthropic/claude-sonnet-4')
+        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('openrouter'),
       info: vi.fn(),
     };
@@ -136,14 +167,13 @@ describe('runSetupCli', () => {
         .mockResolvedValueOnce('保持默认'),
       input: vi
         .fn()
-        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('anthropic')
         .mockResolvedValueOnce('')
         .mockResolvedValueOnce('sk-ant')
-        .mockResolvedValueOnce('claude-sonnet-4-5'),
+        .mockResolvedValueOnce('claude-sonnet-4-5')
+        .mockResolvedValueOnce('sonnet'),
       info: vi.fn(),
     };
-
 
     await runSetupCli({
       readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
@@ -176,11 +206,11 @@ describe('runSetupCli', () => {
         },
       })
     );
-    expect(io.input).toHaveBeenNthCalledWith(1, '默认模型 ID');
     expect(io.choose).toHaveBeenNthCalledWith(1, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '选择 provider 预设', expect.any(Array));
-    expect(io.input).toHaveBeenNthCalledWith(2, 'Provider 名称', 'anthropic');
-    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名');
+    expect(io.input).toHaveBeenNthCalledWith(1, 'Provider 名称', 'anthropic');
+    expect(io.input).toHaveBeenNthCalledWith(4, '上游模型名', 'claude-sonnet-4-5');
+    expect(io.input).toHaveBeenNthCalledWith(5, '默认模型 ID', 'claude');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
@@ -236,15 +266,89 @@ describe('runSetupCli', () => {
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
   });
 
+  it('restarts setup flow when user abandons a valid current config', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const executeReload = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('放弃当前配置，重新开始')
+        .mockResolvedValueOnce('使用常见接入模板')
+        .mockResolvedValueOnce('openrouter')
+        .mockResolvedValueOnce('保持默认'),
+      input: vi
+        .fn()
+        .mockResolvedValueOnce('openrouter')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('sk-test')
+        .mockResolvedValueOnce('anthropic/claude-sonnet-4')
+        .mockResolvedValueOnce('sonnet'),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/tmp/config.yaml',
+        format: 'yaml',
+        config: {
+          Models: [
+            {
+              id: 'existing',
+              api_key: 'sk-old',
+              api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+              protocol: 'openai',
+              model: 'anthropic/claude-sonnet-4',
+            },
+          ],
+          Router: {
+            default: 'existing',
+          },
+        },
+      }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'self_healthy', port: 3456 }),
+      backupCurrentConfig: vi.fn().mockResolvedValue('/tmp/config.backup.yaml'),
+      writeConfig,
+      executeStart,
+      executeReload,
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Models: [
+          expect.objectContaining({
+            id: 'sonnet',
+            api_key: 'sk-test',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            model: 'anthropic/claude-sonnet-4',
+          }),
+        ],
+        Router: {
+          default: 'sonnet',
+        },
+      })
+    );
+    expect(executeStart).not.toHaveBeenCalled();
+    expect(executeReload).not.toHaveBeenCalled();
+    expect(verifyHealth).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+  });
+
   it('offers migration as the recommended legacy action', async () => {
     const writeConfig = vi.fn().mockResolvedValue(undefined);
     const executeStart = vi.fn().mockResolvedValue(undefined);
     const verifyHealth = vi.fn().mockResolvedValue(true);
     const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
     const io = {
-      choose: vi
-        .fn()
-        .mockResolvedValueOnce('迁移旧配置（推荐）'),
+      choose: vi.fn().mockResolvedValueOnce('迁移旧配置（推荐）'),
       input: vi.fn(),
       info: vi.fn(),
     };

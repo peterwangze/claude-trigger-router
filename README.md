@@ -30,8 +30,8 @@ ctr setup
 `ctr setup` 会：
 
 - 优先检查当前配置是否可直接复用
-- 检测旧版 `~/.ccr/config.yaml` 并优先提供迁移
-- 在需要新建时，先询问默认模型 ID，再收集最少必要接入信息
+- 检测旧版 `~/.ccr/config.yaml` 或 `~/.claude-code-router/config.yaml` 并优先提供迁移
+- 在需要新建时，先确认接入方式与 provider 预设，再带出默认模型和默认模型 ID 供确认
 - 只生成最小可用配置（`Models + Router.default`），高级路由稍后再补
 - 保存配置后启动服务并进入 Claude Code
 
@@ -262,7 +262,7 @@ Models:
 如果你还在使用旧的 `Providers + provider,model` 配置：
 
 - 当前版本仍然兼容旧格式
-- `ctr setup` 会优先尝试迁移旧 `ccr` 配置
+- `ctr setup` 会优先尝试迁移旧 `ccr` / `claude-code-router` 配置
 - 路由字段推荐逐步改成直接引用 `Models[].id`
 
 迁移后的核心变化是：

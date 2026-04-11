@@ -6,7 +6,7 @@ import { stdin as input, stdout as output } from 'process';
 import yaml from 'js-yaml';
 
 import { CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from '../constants';
-import { listProviderPresetKeys } from '../provider-presets';
+import { getProviderPreset, listProviderPresetKeys } from '../provider-presets';
 import { run } from '../index';
 import { waitForService } from '../service-health';
 import { backupConfigFile, normalizeAndValidateConfig, writeConfigFile } from '../utils';
@@ -90,6 +90,44 @@ function readStructuredConfigFile(filePath: string): unknown {
   return yaml.load(content);
 }
 
+interface IReadLegacyConfigDeps {
+  homeDir?: string;
+  exists?: (filePath: string) => boolean;
+  readConfig?: (filePath: string) => unknown;
+}
+
+export async function readLegacyConfig(deps: IReadLegacyConfigDeps = {}): Promise<RawLegacyConfigResult> {
+  const baseHomeDir = deps.homeDir || homedir();
+  const exists = deps.exists || existsSync;
+  const readConfig = deps.readConfig || readStructuredConfigFile;
+  const overridePath = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+  const candidatePaths = overridePath
+    ? [overridePath]
+    : [
+        join(baseHomeDir, '.ccr', 'config.yaml'),
+        join(baseHomeDir, '.claude-code-router', 'config.yaml'),
+      ];
+
+  const legacyPath = candidatePaths.find((filePath) => exists(filePath));
+  if (!legacyPath) {
+    return { kind: 'missing' };
+  }
+
+  try {
+    return {
+      kind: 'found',
+      path: legacyPath,
+      config: readConfig(legacyPath),
+    };
+  } catch (error) {
+    return {
+      kind: 'read_error',
+      path: legacyPath,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 async function readCurrentConfig(): Promise<RawCurrentConfigResult> {
   const candidates = [CONFIG_FILE, CONFIG_FILE_YML, CONFIG_FILE_JSON];
   const currentPath = candidates.find((filePath) => existsSync(filePath));
@@ -109,27 +147,6 @@ async function readCurrentConfig(): Promise<RawCurrentConfigResult> {
       kind: 'parse_error',
       path: currentPath,
       format: currentPath.endsWith('.json') ? 'json' : currentPath.endsWith('.yml') ? 'yml' : 'yaml',
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-async function readLegacyConfig(): Promise<RawLegacyConfigResult> {
-  const legacyPath = process.env.CTR_SETUP_LEGACY_CONFIG_PATH || join(homedir(), '.ccr', 'config.yaml');
-  if (!existsSync(legacyPath)) {
-    return { kind: 'missing' };
-  }
-
-  try {
-    return {
-      kind: 'found',
-      path: legacyPath,
-      config: readStructuredConfigFile(legacyPath),
-    };
-  } catch (error) {
-    return {
-      kind: 'read_error',
-      path: legacyPath,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -173,14 +190,17 @@ function mapConfigErrorsToRepairFields(errors: string[]) {
     : { mode: 'repair' as const, fields };
 }
 
-function mapValidCurrentConfigChoice(choice: string): 'reuse' | 'overwrite' | 'cancel' {
+function mapValidCurrentConfigChoice(choice: string): 'reuse' | 'overwrite' | 'fresh' | 'cancel' {
   if (choice === 'reuse' || choice === '直接使用当前配置（推荐）') {
     return 'reuse';
   }
   if (choice === 'overwrite' || choice === '检查并调整当前配置') {
     return 'overwrite';
   }
-  if (choice === 'cancel' || choice === '放弃当前配置，重新开始') {
+  if (choice === 'fresh' || choice === '放弃当前配置，重新开始') {
+    return 'fresh';
+  }
+  if (choice === 'cancel') {
     return 'cancel';
   }
   throw new Error('invalid current config action');
@@ -327,8 +347,17 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
   };
 }
 
+function toSuggestedModelId(providerName: string, model: string, preset: ProviderPresetKey): string {
+  const presetDefinition = getProviderPreset(preset);
+  if (presetDefinition?.suggested_id) {
+    return presetDefinition.suggested_id;
+  }
+
+  const source = model || providerName || 'model';
+  return source.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'model';
+}
+
 async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
-  const modelId = await io.input('默认模型 ID');
   const connectMode = await io.choose('这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
 
   let preset: ProviderPresetKey = 'custom';
@@ -346,7 +375,9 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
   }
 
   const apiKey = await io.input('API Key');
-  const model = await io.input('上游模型名');
+  const presetDefinition = getProviderPreset(preset);
+  const model = await io.input('上游模型名', presetDefinition?.default_model ?? '');
+  const modelId = await io.input('默认模型 ID', toSuggestedModelId(providerName, model, preset));
   const capabilityMode = await io.choose('是否配置 capability 提示', ['保持默认', '配置 capability 提示']);
 
   const draft = buildMinimalConfig({

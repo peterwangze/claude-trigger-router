@@ -187,6 +187,54 @@ describe('runSetup', () => {
     expect(deps.enterClaudeCode).not.toHaveBeenCalled();
   });
 
+  it('rebuilds config when user abandons a valid current config', async () => {
+    const existingConfig = createDraft();
+    const rebuiltDraft = createDraft();
+    rebuiltDraft.Models = [
+      {
+        id: 'sonnet',
+        key: 'sk-new',
+        api: 'https://openrouter.ai/api/v1/chat/completions',
+        interface: 'openai',
+        model: 'anthropic/claude-sonnet-4',
+      },
+    ];
+    rebuiltDraft.Router = { default: 'sonnet' };
+
+    const { deps } = createDeps({
+      detectSetupEnvironment: vi.fn().mockResolvedValue({
+        currentConfig: {
+          kind: 'valid',
+          path: '/tmp/config.yaml',
+          format: 'yaml',
+          config: existingConfig,
+          errors: [],
+          warnings: [],
+        },
+        legacyConfig: { kind: 'missing' },
+        detectedService: { kind: 'self_healthy', port: 3456 },
+      }),
+      chooseCurrentConfigAction: vi.fn().mockResolvedValue('fresh'),
+      buildFreshConfig: vi.fn().mockResolvedValue(rebuiltDraft),
+      ensureServiceReady: vi.fn().mockResolvedValue({
+        action: 'reload',
+        healthChecked: true,
+      }),
+    });
+
+    const { runSetup } = await import('./setup');
+
+    await runSetup(deps as any);
+
+    expect(deps.buildFreshConfig).toHaveBeenCalledTimes(1);
+    expect(deps.persistConfig).toHaveBeenCalledWith({
+      config: rebuiltDraft,
+      currentConfigPath: '/tmp/config.yaml',
+      hasExistingConfig: true,
+    });
+    expect(deps.enterClaudeCode).toHaveBeenCalledTimes(1);
+  });
+
   it('does not persist or enter Claude Code when user cancels setup', async () => {
     const existingConfig = createDraft();
     const { deps } = createDeps({

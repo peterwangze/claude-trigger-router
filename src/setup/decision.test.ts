@@ -132,6 +132,25 @@ describe('decideSetupBranch', () => {
     expect(result).toEqual({ kind: 'fresh_init' });
   });
 
+  it('chooses fresh_init when user abandons a valid current config and no legacy config exists', () => {
+    const result = decideSetupBranch({
+      detection: createDetectionResult({
+        kind: 'valid',
+        path: '/config.yaml',
+        format: 'yaml',
+        config: {
+          Providers: [],
+          Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+        },
+        errors: [],
+        warnings: [],
+      }),
+      currentConfigAction: 'fresh',
+    });
+
+    expect(result).toEqual({ kind: 'fresh_init' });
+  });
+
   it('chooses fresh_init when user chooses overwrite and no legacy config exists', () => {
     const result = decideSetupBranch({
       detection: createDetectionResult({

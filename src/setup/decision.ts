@@ -3,6 +3,7 @@ import { ISetupEnvironmentDetectionResult } from './detect';
 export type CurrentConfigAction =
   | 'reuse'
   | 'overwrite'
+  | 'fresh'
   | 'repair'
   | 'rebuild'
   | 'create'
@@ -94,7 +95,7 @@ export function decideSetupBranch(input: IDecideSetupBranchInput): SetupBranchDe
         ensureNoLegacyAction(legacyConfigAction);
         return { kind: 'reuse_current' };
       }
-      if (currentConfigAction === 'overwrite') {
+      if (currentConfigAction === 'overwrite' || currentConfigAction === 'fresh') {
         return ensureLegacyFlow(detection, legacyConfigAction);
       }
       return invalidAction();
