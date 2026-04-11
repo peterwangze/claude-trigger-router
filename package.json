@@ -19,6 +19,10 @@
     "start": "node dist/cli.js start",
     "test": "vitest",
     "verify:package": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-package.ps1",
+    "release:verify": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1 -Action verify",
+    "release:stage": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1 -Action stage",
+    "release:clean": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1 -Action clean",
+    "release:publish": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1 -Action publish",
     "prepublishOnly": "npm run build",
     "release": "npm publish --access public"
   },

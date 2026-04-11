@@ -25,7 +25,7 @@
 2. 本地先执行发布包验证：
 
 ```bash
-npm run verify:package
+npm run release:verify
 ```
 
 这一步会依次执行：
@@ -38,6 +38,45 @@ npm run verify:package
 - 运行 `ctr --help`、`ctr version`、`ctr upgrade`
 
 只有这一步通过后，才继续正式发布，避免“发布后才发现包内容或 CLI 启动有问题”。
+
+如果你想手动验收“待发布的新包 CLI”，可以先执行：
+
+```bash
+npm run release:stage
+```
+
+它会完成两件事：
+
+- 把当前版本打包并安装到仓库内的隔离目录 `.release-stage`
+- 准备一个隔离的测试 HOME 目录 `.release-home`，并自动生成测试配置
+
+这样你在手动验证时不会污染自己真实的 `~/.claude-trigger-router` 配置。
+
+Windows 下脚本会额外生成一个包装命令 `.release-stage\ctr-release-home.cmd`，自动把 `HOME` / `USERPROFILE` 指向 `.release-home`。你可以直接用它验证新功能，例如：
+
+```bash
+".release-stage\\ctr-release-home.cmd" --help
+".release-stage\\ctr-release-home.cmd" version
+".release-stage\\ctr-release-home.cmd" init --force
+".release-stage\\ctr-release-home.cmd" setup
+".release-stage\\ctr-release-home.cmd" start --port 5678
+".release-stage\\ctr-release-home.cmd" status
+".release-stage\\ctr-release-home.cmd" stop
+```
+
+如果要先修改测试配置，请编辑：
+
+```bash
+.release-home\.claude-trigger-router\config.yaml
+```
+
+验证完成后执行：
+
+```bash
+npm run release:clean
+```
+
+它会清理 `.release-stage` 和本地 tarball。
 
 3. 提交并推送到 `master`
 4. 创建并推送版本 tag，例如：
@@ -92,8 +131,21 @@ git push origin v1.0.1
 如果需要手动发布，仍可在本地执行：
 
 ```bash
-npm run verify:package
-npm publish --access public --registry=https://registry.npmjs.org/
+npm run release:verify
+npm run release:publish
+```
+
+其中：
+
+- `npm run release:verify`：只做构建、测试、打包、隔离安装和 CLI 冒烟检查
+- `npm run release:stage`：把待发布包安装到 `.release-stage`，并准备 `.release-home` 测试配置，供你手动调用新包 CLI 验收功能
+- `npm run release:clean`：清理 `.release-stage`、`.release-home` 和本地 tarball
+- `npm run release:publish`：发布前先检查目标版本是否已存在于 npm；如果不存在，会先执行完整验证，再执行 `npm publish`
+
+如果你已经刚刚执行过验证，也可以直接调用底层脚本跳过重复验证：
+
+```bash
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1 -Action publish -SkipVerify
 ```
 
 如果本机 `@peterwangze` scope 曾指向 GitHub Packages，需要先确认：
