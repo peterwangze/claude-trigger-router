@@ -32,7 +32,41 @@ describe('readLegacyConfig', () => {
     }
   });
 
-  it('detects legacy config from the claude-code-router json path when yaml is absent', async () => {
+  it('prefers yaml over json when both legacy claude-code-router configs exist', async () => {
+    const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+
+    try {
+      const result = await readLegacyConfig({
+        homeDir: '/Users/tester',
+        exists: (filePath) => (
+          filePath.endsWith('.claude-code-router/config.yaml') ||
+          filePath.endsWith('.claude-code-router\\config.yaml') ||
+          filePath.endsWith('.claude-code-router/config.json') ||
+          filePath.endsWith('.claude-code-router\\config.json')
+        ),
+        readConfig: (filePath) => ({ filePath }),
+      });
+
+      expect(result.kind).toBe('found');
+      if (result.kind !== 'found') {
+        throw new Error('expected yaml legacy config to be found');
+      }
+
+      expect(result.path).toMatch(/[\\/]\.claude-code-router[\\/]config\.yaml$/);
+      expect(result.config).toEqual({
+        filePath: result.path,
+      });
+    } finally {
+      if (previousOverride) {
+        process.env.CTR_SETUP_LEGACY_CONFIG_PATH = previousOverride;
+      } else {
+        delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+      }
+    }
+  });
+
+  it('returns read_error with json path and message when legacy json cannot be parsed', async () => {
     const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
     delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
 
@@ -40,17 +74,15 @@ describe('readLegacyConfig', () => {
       const result = await readLegacyConfig({
         homeDir: '/Users/tester',
         exists: (filePath) => filePath.endsWith('.claude-code-router/config.json') || filePath.endsWith('.claude-code-router\\config.json'),
-        readConfig: (filePath) => ({ filePath }),
+        readConfig: (filePath) => {
+          throw new Error(`invalid json in ${filePath}`);
+        },
       });
 
-      expect(result.kind).toBe('found');
-      if (result.kind !== 'found') {
-        throw new Error('expected legacy config to be found');
-      }
-
-      expect(result.path).toMatch(/[\\/]\.claude-code-router[\\/]config\.json$/);
-      expect(result.config).toEqual({
-        filePath: result.path,
+      expect(result).toEqual({
+        kind: 'read_error',
+        path: expect.stringMatching(/[\\/]\.claude-code-router[\\/]config\.json$/),
+        error: expect.stringMatching(/invalid json in .*config\.json$/),
       });
     } finally {
       if (previousOverride) {
