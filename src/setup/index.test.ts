@@ -122,7 +122,7 @@ describe('readLegacyConfig', () => {
 
   it('returns read_error with json path and message when legacy json cannot be parsed', async () => {
     const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
-    const tempHomeDir = mkdtempSync(join(tmpdir(), 'ctr-legacy-bad-json-'));
+    const tempHomeDir = mkdtempSync(join(tmpdir(), 'ctr-legacy-json-read-error-'));
     const legacyDir = join(tempHomeDir, '.claude-code-router');
     const legacyJsonPath = join(legacyDir, 'config.json');
 
@@ -131,14 +131,19 @@ describe('readLegacyConfig', () => {
     writeFileSync(legacyJsonPath, '{ invalid json,,,', 'utf-8');
 
     try {
-      const result = await readLegacyConfig({ homeDir: tempHomeDir });
+      const result = await readLegacyConfig({
+        homeDir: tempHomeDir,
+      });
 
-      expect(result.kind).toBe('read_error');
+      expect(result).toEqual({
+        kind: 'read_error',
+        path: legacyJsonPath,
+        error: expect.any(String),
+      });
       if (result.kind !== 'read_error') {
-        throw new Error('expected legacy json parse failure to return read_error');
+        throw new Error('expected legacy config read error');
       }
 
-      expect(result.path).toBe(legacyJsonPath);
       expect(result.error.length).toBeGreaterThan(0);
     } finally {
       rmSync(tempHomeDir, { recursive: true, force: true });
