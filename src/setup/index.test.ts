@@ -31,6 +31,35 @@ describe('readLegacyConfig', () => {
       }
     }
   });
+
+  it('detects legacy config from the claude-code-router json path when yaml is absent', async () => {
+    const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+
+    try {
+      const result = await readLegacyConfig({
+        homeDir: '/Users/tester',
+        exists: (filePath) => filePath.endsWith('.claude-code-router/config.json') || filePath.endsWith('.claude-code-router\\config.json'),
+        readConfig: (filePath) => ({ filePath }),
+      });
+
+      expect(result.kind).toBe('found');
+      if (result.kind !== 'found') {
+        throw new Error('expected legacy config to be found');
+      }
+
+      expect(result.path).toMatch(/[\\/]\.claude-code-router[\\/]config\.json$/);
+      expect(result.config).toEqual({
+        filePath: result.path,
+      });
+    } finally {
+      if (previousOverride) {
+        process.env.CTR_SETUP_LEGACY_CONFIG_PATH = previousOverride;
+      } else {
+        delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+      }
+    }
+  });
 });
 
 describe('runSetupCli', () => {

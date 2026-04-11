@@ -106,6 +106,7 @@ export async function readLegacyConfig(deps: IReadLegacyConfigDeps = {}): Promis
     : [
         join(baseHomeDir, '.ccr', 'config.yaml'),
         join(baseHomeDir, '.claude-code-router', 'config.yaml'),
+        join(baseHomeDir, '.claude-code-router', 'config.json'),
       ];
 
   const legacyPath = candidatePaths.find((filePath) => exists(filePath));
