@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'fs';
 import { spawnSync } from 'child_process';
+import packageJson from '../package.json';
 
 describe('build script', () => {
   it('builds an executable CLI bundle with a single shebang header', () => {
@@ -31,7 +32,7 @@ describe('build script', () => {
     });
     expect(versionResult.status).toBe(0);
     expect(versionResult.stdout).toContain('@peterwangze/claude-trigger-router');
-    expect(versionResult.stdout).toContain('1.0.3');
+    expect(versionResult.stdout).toContain(packageJson.version);
     expect(versionResult.stdout).toContain('Latest:');
   });
 });
