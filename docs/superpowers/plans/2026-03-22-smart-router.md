@@ -203,7 +203,7 @@ describe('SmartRouterSelector', () => {
       }),
     });
 
-    const result = await selector.selectModel('写一段代码', baseConfig, 3456, mockFetch as any);
+    const result = await selector.selectModel('写一段代码', baseConfig, 5678, mockFetch as any);
     expect(result).not.toBeNull();
     expect(result!.model).toBe('provider,model-a');
     expect(result!.confidence).toBe(0.9);
@@ -225,7 +225,7 @@ describe('SmartRouterSelector', () => {
       }),
     });
 
-    const result = await selector.selectModel('hello', baseConfig, 3456, mockFetch as any);
+    const result = await selector.selectModel('hello', baseConfig, 5678, mockFetch as any);
     expect(result).toBeNull();
   });
 
@@ -233,13 +233,13 @@ describe('SmartRouterSelector', () => {
 
   it('should return null on fetch error', async () => {
     const mockFetch = async () => { throw new Error('Network error'); };
-    const result = await selector.selectModel('hello', baseConfig, 3456, mockFetch as any);
+    const result = await selector.selectModel('hello', baseConfig, 5678, mockFetch as any);
     expect(result).toBeNull();
   });
 
   it('should return null on non-OK response', async () => {
     const mockFetch = async () => ({ ok: false, status: 500 });
-    const result = await selector.selectModel('hello', baseConfig, 3456, mockFetch as any);
+    const result = await selector.selectModel('hello', baseConfig, 5678, mockFetch as any);
     expect(result).toBeNull();
   });
 
@@ -248,7 +248,7 @@ describe('SmartRouterSelector', () => {
       ok: true,
       json: async () => ({ content: [{ text: 'no json here' }] }),
     });
-    const result = await selector.selectModel('hello', baseConfig, 3456, mockFetch as any);
+    const result = await selector.selectModel('hello', baseConfig, 5678, mockFetch as any);
     expect(result).toBeNull();
   });
 
@@ -274,8 +274,8 @@ describe('SmartRouterSelector', () => {
       };
     };
 
-    await selector.selectModel('写代码', baseConfig, 3456, mockFetch as any);
-    await selector.selectModel('写代码', baseConfig, 3456, mockFetch as any);
+    await selector.selectModel('写代码', baseConfig, 5678, mockFetch as any);
+    await selector.selectModel('写代码', baseConfig, 5678, mockFetch as any);
 
     expect(callCount).toBe(1); // 第二次命中缓存，无需再次调用 LLM
   });
@@ -300,8 +300,8 @@ describe('SmartRouterSelector', () => {
       };
     };
 
-    await selector.selectModel('写代码', baseConfig, 3456, mockFetch as any);
-    await selector.selectModel('写文章', baseConfig, 3456, mockFetch as any);
+    await selector.selectModel('写代码', baseConfig, 5678, mockFetch as any);
+    await selector.selectModel('写文章', baseConfig, 5678, mockFetch as any);
 
     expect(callCount).toBe(2);
   });
@@ -419,14 +419,14 @@ export class SmartRouterSelector {
    *
    * @param text 请求文本
    * @param config SmartRouter 配置
-   * @param port 本地服务端口（默认 3456）
+   * @param port 本地服务端口（默认 5678）
    * @param fetchFn 可注入的 fetch 函数（用于测试）
    * @returns 选择结果，失败时返回 null
    */
   async selectModel(
     text: string,
     config: ISmartRouterConfig,
-    port: number = 3456,
+    port: number = 5678,
     fetchFn?: typeof fetch
   ): Promise<ISmartRouterResult | null> {
     // 未启用或候选不足
@@ -562,7 +562,7 @@ import { log, logError } from '../utils/log';
 async selectModel(
   req: IRequestContext,
   config: ITriggerConfig,
-  port: number = 3456,
+  port: number = 5678,
   smartRouterConfig?: ISmartRouterConfig
 ): Promise<IAnalysisResult>
 ```
@@ -639,7 +639,7 @@ private smartRouterConfig: ISmartRouterConfig | undefined = undefined;
 ```typescript
 init(appConfig: IAppConfig): void {
   this.config = appConfig.TriggerRouter || this.getDefaultConfig();
-  this.port = appConfig.PORT || 3456;
+  this.port = appConfig.PORT || 5678;
   this.smartRouterConfig = appConfig.SmartRouter;
 }
 ```
