@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { readLegacyConfig, runSetupCli } from './index';
@@ -5,25 +9,46 @@ import { readLegacyConfig, runSetupCli } from './index';
 describe('readLegacyConfig', () => {
   it('detects legacy config from the claude-code-router path when ccr config is absent', async () => {
     const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    const tempHomeDir = mkdtempSync(join(tmpdir(), 'ctr-legacy-yaml-'));
+    const legacyDir = join(tempHomeDir, '.claude-code-router');
+    const legacyYamlPath = join(legacyDir, 'config.yaml');
+
     delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(
+      legacyYamlPath,
+      [
+        'providers:',
+        '  - name: openrouter',
+        '    api_key: sk-test',
+        '    api_base_url: https://openrouter.ai/api/v1/chat/completions',
+        '    models:',
+        '      - anthropic/claude-sonnet-4',
+        'default: openrouter,anthropic/claude-sonnet-4',
+      ].join('\n'),
+      'utf-8'
+    );
 
     try {
-      const result = await readLegacyConfig({
-        homeDir: '/Users/tester',
-        exists: (filePath) => filePath.endsWith('.claude-code-router/config.yaml') || filePath.endsWith('.claude-code-router\\config.yaml'),
-        readConfig: (filePath) => ({ filePath }),
-      });
+      const result = await readLegacyConfig({ homeDir: tempHomeDir });
 
       expect(result.kind).toBe('found');
       if (result.kind !== 'found') {
         throw new Error('expected legacy config to be found');
       }
 
-      expect(result.path).toMatch(/[\\/]\.claude-code-router[\\/]config\.yaml$/);
-      expect(result.config).toEqual({
-        filePath: result.path,
+      expect(result.path).toBe(legacyYamlPath);
+      expect(result.config).toMatchObject({
+        providers: [
+          expect.objectContaining({
+            name: 'openrouter',
+            api_key: 'sk-test',
+          }),
+        ],
+        default: 'openrouter,anthropic/claude-sonnet-4',
       });
     } finally {
+      rmSync(tempHomeDir, { recursive: true, force: true });
       if (previousOverride) {
         process.env.CTR_SETUP_LEGACY_CONFIG_PATH = previousOverride;
       } else {
@@ -34,30 +59,59 @@ describe('readLegacyConfig', () => {
 
   it('prefers yaml over json when both legacy claude-code-router configs exist', async () => {
     const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    const tempHomeDir = mkdtempSync(join(tmpdir(), 'ctr-legacy-priority-'));
+    const legacyDir = join(tempHomeDir, '.claude-code-router');
+    const legacyYamlPath = join(legacyDir, 'config.yaml');
+    const legacyJsonPath = join(legacyDir, 'config.json');
+
     delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(
+      legacyYamlPath,
+      [
+        'providers:',
+        '  - name: yaml-provider',
+        '    api_key: sk-yaml',
+        '    api_base_url: https://yaml.example/v1/chat/completions',
+        '    models:',
+        '      - yaml-model',
+        'default: yaml-provider,yaml-model',
+      ].join('\n'),
+      'utf-8'
+    );
+    writeFileSync(
+      legacyJsonPath,
+      JSON.stringify({
+        Providers: [
+          {
+            name: 'json-provider',
+            api_key: 'sk-json',
+            api_base_url: 'https://json.example/v1/chat/completions',
+            models: ['json-model'],
+          },
+        ],
+        Router: {
+          default: 'json-provider,json-model',
+        },
+      }),
+      'utf-8'
+    );
 
     try {
-      const result = await readLegacyConfig({
-        homeDir: '/Users/tester',
-        exists: (filePath) => (
-          filePath.endsWith('.claude-code-router/config.yaml') ||
-          filePath.endsWith('.claude-code-router\\config.yaml') ||
-          filePath.endsWith('.claude-code-router/config.json') ||
-          filePath.endsWith('.claude-code-router\\config.json')
-        ),
-        readConfig: (filePath) => ({ filePath }),
-      });
+      const result = await readLegacyConfig({ homeDir: tempHomeDir });
 
       expect(result.kind).toBe('found');
       if (result.kind !== 'found') {
         throw new Error('expected yaml legacy config to be found');
       }
 
-      expect(result.path).toMatch(/[\\/]\.claude-code-router[\\/]config\.yaml$/);
-      expect(result.config).toEqual({
-        filePath: result.path,
+      expect(result.path).toBe(legacyYamlPath);
+      expect(result.config).toMatchObject({
+        providers: [expect.objectContaining({ name: 'yaml-provider' })],
+        default: 'yaml-provider,yaml-model',
       });
     } finally {
+      rmSync(tempHomeDir, { recursive: true, force: true });
       if (previousOverride) {
         process.env.CTR_SETUP_LEGACY_CONFIG_PATH = previousOverride;
       } else {
@@ -68,23 +122,98 @@ describe('readLegacyConfig', () => {
 
   it('returns read_error with json path and message when legacy json cannot be parsed', async () => {
     const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    const tempHomeDir = mkdtempSync(join(tmpdir(), 'ctr-legacy-bad-json-'));
+    const legacyDir = join(tempHomeDir, '.claude-code-router');
+    const legacyJsonPath = join(legacyDir, 'config.json');
+
     delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(legacyJsonPath, '{ invalid json,,,', 'utf-8');
+
+    try {
+      const result = await readLegacyConfig({ homeDir: tempHomeDir });
+
+      expect(result.kind).toBe('read_error');
+      if (result.kind !== 'read_error') {
+        throw new Error('expected legacy json parse failure to return read_error');
+      }
+
+      expect(result.path).toBe(legacyJsonPath);
+      expect(result.error.length).toBeGreaterThan(0);
+    } finally {
+      rmSync(tempHomeDir, { recursive: true, force: true });
+      if (previousOverride) {
+        process.env.CTR_SETUP_LEGACY_CONFIG_PATH = previousOverride;
+      } else {
+        delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+      }
+    }
+  });
+
+  it('discovers the default claude-code-router json path and parses trailing commas through the production parser path', async () => {
+    const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    const tempHomeDir = mkdtempSync(join(tmpdir(), 'ctr-legacy-json-'));
+    const legacyDir = join(tempHomeDir, '.claude-code-router');
+    const legacyJsonPath = join(legacyDir, 'config.json');
+
+    delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(
+      legacyJsonPath,
+      `{
+  "LOG": false,
+  "HOST": "127.0.0.1",
+  "PORT": 3456,
+  "API_TIMEOUT_MS": 300000,
+  "Providers": [
+    {
+      "name": "fake-openrouter",
+      "api_base_url": "https://example.invalid/v1/chat/completions",
+      "api_key": "sk-fake-openrouter",
+      "models": [
+        "anthropic/claude-sonnet-4",
+      ],
+    },
+  ],
+  "Router": {
+    "default": "fake-openrouter,anthropic/claude-sonnet-4",
+    "background": "fake-openrouter,anthropic/claude-sonnet-4",
+    "think": "fake-openrouter,anthropic/claude-sonnet-4",
+    "longContext": "fake-openrouter,anthropic/claude-sonnet-4",
+    "webSearch": "fake-openrouter,anthropic/claude-sonnet-4",
+  },
+}`,
+      'utf-8'
+    );
 
     try {
       const result = await readLegacyConfig({
-        homeDir: '/Users/tester',
-        exists: (filePath) => filePath.endsWith('.claude-code-router/config.json') || filePath.endsWith('.claude-code-router\\config.json'),
-        readConfig: (filePath) => {
-          throw new Error(`invalid json in ${filePath}`);
-        },
+        homeDir: tempHomeDir,
       });
 
-      expect(result).toEqual({
-        kind: 'read_error',
-        path: expect.stringMatching(/[\\/]\.claude-code-router[\\/]config\.json$/),
-        error: expect.stringMatching(/invalid json in .*config\.json$/),
+      expect(result.kind).toBe('found');
+      if (result.kind !== 'found') {
+        throw new Error('expected legacy config to be found');
+      }
+
+      expect(result.path).toBe(legacyJsonPath);
+      expect(result.config).toMatchObject({
+        LOG: false,
+        HOST: '127.0.0.1',
+        PORT: 3456,
+        Providers: [
+          expect.objectContaining({
+            name: 'fake-openrouter',
+            api_key: 'sk-fake-openrouter',
+            models: ['anthropic/claude-sonnet-4'],
+          }),
+        ],
+        Router: expect.objectContaining({
+          default: 'fake-openrouter,anthropic/claude-sonnet-4',
+        }),
       });
     } finally {
+      rmSync(tempHomeDir, { recursive: true, force: true });
       if (previousOverride) {
         process.env.CTR_SETUP_LEGACY_CONFIG_PATH = previousOverride;
       } else {

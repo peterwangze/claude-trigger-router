@@ -3,6 +3,7 @@ import { homedir } from 'os';
 import { join } from 'path';
 import { createInterface } from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
+import JSON5 from 'json5';
 import yaml from 'js-yaml';
 
 import { CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from '../constants';
@@ -90,6 +91,14 @@ function readStructuredConfigFile(filePath: string): unknown {
   return yaml.load(content);
 }
 
+function readLegacyConfigFile(filePath: string): unknown {
+  const content = readFileSync(filePath, 'utf-8');
+  if (filePath.endsWith('.json')) {
+    return JSON5.parse(content);
+  }
+  return yaml.load(content);
+}
+
 interface IReadLegacyConfigDeps {
   homeDir?: string;
   exists?: (filePath: string) => boolean;
@@ -99,7 +108,7 @@ interface IReadLegacyConfigDeps {
 export async function readLegacyConfig(deps: IReadLegacyConfigDeps = {}): Promise<RawLegacyConfigResult> {
   const baseHomeDir = deps.homeDir || homedir();
   const exists = deps.exists || existsSync;
-  const readConfig = deps.readConfig || readStructuredConfigFile;
+  const readConfig = deps.readConfig || readLegacyConfigFile;
   const overridePath = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
   const candidatePaths = overridePath
     ? [overridePath]
