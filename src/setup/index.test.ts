@@ -30,7 +30,9 @@ describe('readLegacyConfig', () => {
     );
 
     try {
-      const result = await readLegacyConfig({ homeDir: tempHomeDir });
+      const result = await readLegacyConfig({
+        homeDir: tempHomeDir,
+      });
 
       expect(result.kind).toBe('found');
       if (result.kind !== 'found') {
@@ -98,7 +100,9 @@ describe('readLegacyConfig', () => {
     );
 
     try {
-      const result = await readLegacyConfig({ homeDir: tempHomeDir });
+      const result = await readLegacyConfig({
+        homeDir: tempHomeDir,
+      });
 
       expect(result.kind).toBe('found');
       if (result.kind !== 'found') {
@@ -106,6 +110,7 @@ describe('readLegacyConfig', () => {
       }
 
       expect(result.path).toBe(legacyYamlPath);
+      expect(result.path).not.toBe(legacyJsonPath);
       expect(result.config).toMatchObject({
         providers: [expect.objectContaining({ name: 'yaml-provider' })],
         default: 'yaml-provider,yaml-model',
