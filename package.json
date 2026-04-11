@@ -18,6 +18,7 @@
     "dev": "tsx watch src/cli.ts",
     "start": "node dist/cli.js start",
     "test": "vitest",
+    "verify:package": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-package.ps1",
     "prepublishOnly": "npm run build",
     "release": "npm publish --access public"
   },

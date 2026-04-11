@@ -34,11 +34,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test -- --run
-
-      - name: Build package
-        run: npm run build
+      - name: Verify packaged CLI locally
+        run: npm run verify:package
 
       - name: Verify package version against tag
         shell: bash
@@ -59,9 +56,6 @@ jobs:
               exit 1
             fi
           fi
-
-      - name: Verify publish tarball
-        run: npm pack --dry-run
 
       - name: Check whether version already exists on npm
         id: npm_version

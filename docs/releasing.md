@@ -22,15 +22,32 @@
 推荐主流程：
 
 1. 更新版本号
-2. 提交并推送到 `master`
-3. 创建并推送版本 tag，例如：
+2. 本地先执行发布包验证：
+
+```bash
+npm run verify:package
+```
+
+这一步会依次执行：
+
+- `npm run build`
+- `npm test -- --run`
+- `npm pack --dry-run`
+- `npm pack`
+- 将 tarball 安装到隔离目录
+- 运行 `ctr --help`、`ctr version`、`ctr upgrade`
+
+只有这一步通过后，才继续正式发布，避免“发布后才发现包内容或 CLI 启动有问题”。
+
+3. 提交并推送到 `master`
+4. 创建并推送版本 tag，例如：
 
 ```bash
 git tag v1.0.1
 git push origin v1.0.1
 ```
 
-4. `Publish Package` workflow 会自动执行：
+5. `Publish Package` workflow 会自动执行：
    - `npm ci`
    - `npm test -- --run`
    - `npm run build`
@@ -75,6 +92,7 @@ git push origin v1.0.1
 如果需要手动发布，仍可在本地执行：
 
 ```bash
+npm run verify:package
 npm publish --access public --registry=https://registry.npmjs.org/
 ```
 
