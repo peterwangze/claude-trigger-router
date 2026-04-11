@@ -298,4 +298,16 @@ describe('migrateLegacyConfig', () => {
     expect(result.needsCompletion).toBe(false);
     expect(result.missingFields).toEqual([]);
   });
+  it("assigns stable suffixes when normalized module ids collide", () => {
+    const result = migrateLegacyConfig({
+      Providers: [
+        { name: 'foo-bar', api_base_url: 'https://example.com/v1/chat/completions', api_key: 'sk-a', models: ['baz/qux'] },
+        { name: 'foo_bar', api_base_url: 'https://example.com/v1/chat/completions', api_key: 'sk-b', models: ['baz_qux'] },
+      ],
+      Router: { default: 'foo_bar,baz_qux' },
+    } as any);
+    expect(result.draft.Models?.map((item) => item.id)).toEqual(['foo_bar_baz_qux', 'foo_bar_baz_qux_2']);
+    expect(result.draft.Router.default).toBe('foo_bar_baz_qux_2');
+  });
+
 });

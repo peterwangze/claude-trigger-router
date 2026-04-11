@@ -214,10 +214,10 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
     return createNonMigratableResult();
   }
 
-  const models = normalized.providers.flatMap((provider, providerIndex) =>
+  const rawEntries = normalized.providers.flatMap((provider, providerIndex) =>
     (provider.models.length ? provider.models : [''])
       .map((model) => ({
-        id: toModelId(provider.name, model, providerIndex),
+        candidateId: toModelId(provider.name, model, providerIndex),
         api: provider.api_base_url,
         api_base_url: provider.api_base_url,
         key: provider.api_key,
@@ -225,9 +225,30 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
         interface: inferProtocolFromApiBaseUrl(provider.api_base_url),
         protocol: inferProtocolFromApiBaseUrl(provider.api_base_url),
         model,
+        providerName: provider.name,
       }))
       .filter((item) => item.model)
   );
+
+  const seenIds = new Map<string, number>();
+  const routeLookup = new Map<string, string>();
+
+  const models = rawEntries.map((entry) => {
+    const count = seenIds.get(entry.candidateId) ?? 0;
+    seenIds.set(entry.candidateId, count + 1);
+    const finalId = count === 0 ? entry.candidateId : `${entry.candidateId}_${count + 1}`;
+    routeLookup.set(`${entry.providerName.trim()},${entry.model}`, finalId);
+    return {
+      id: finalId,
+      api: entry.api,
+      api_base_url: entry.api_base_url,
+      key: entry.key,
+      api_key: entry.api_key,
+      interface: entry.interface,
+      protocol: entry.protocol,
+      model: entry.model,
+    };
+  });
 
   const hasLegacyDefaultRoute =
     typeof normalized.defaultRoute === 'string' && normalized.defaultRoute.length > 0;
@@ -236,6 +257,8 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
         const [rawProviderName, rawModelName] = String(normalized.defaultRoute).split(',');
         const providerName = (rawProviderName ?? '').trim();
         const modelName = (rawModelName ?? '').trim();
+        const fromLookup = routeLookup.get(`${providerName},${modelName}`);
+        if (fromLookup) return fromLookup;
         return models.find(
           (item) =>
             item.id === toModelId(providerName, modelName, 0) ||
