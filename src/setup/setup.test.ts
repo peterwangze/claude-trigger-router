@@ -807,6 +807,7 @@ describe('runSetup', () => {
     expect(deps.migrateLegacyConfig).toHaveBeenCalledWith({
       providers: [{ name: 'openrouter', api_key: '', models: ['anthropic/claude-sonnet-4'] }],
     });
+    expect(deps.io.info).toHaveBeenCalledWith('已识别旧配置中的 1 个 provider。');
     expect(deps.io.info).toHaveBeenCalledWith('已从旧配置迁移 1 个模型。');
     expect(deps.io.info).toHaveBeenCalledWith('迁移后的默认模型仍需补全。');
     expect(deps.io.info).toHaveBeenCalledWith('以下旧字段未自动迁移：trigger_router, Providers[0].transformer');
@@ -906,7 +907,8 @@ describe('runSetup', () => {
 
     await runSetup(deps as any);
 
-    expect(deps.io.info).toHaveBeenCalledTimes(2);
+    expect(deps.io.info).toHaveBeenCalledWith('已识别旧配置中的 1 个 provider。');
+    expect(deps.io.info).toHaveBeenCalledTimes(3);
     expect(deps.io.info).not.toHaveBeenCalledWith(expect.stringContaining('以下旧字段未自动迁移'));
   });
 

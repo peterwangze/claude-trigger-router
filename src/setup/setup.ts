@@ -42,6 +42,23 @@ function getTargetConfigPath(detection: ISetupEnvironmentDetectionResult): strin
   return CONFIG_FILE;
 }
 
+function getLegacyProviderCount(input: unknown): number {
+  if (typeof input !== 'object' || input === null) {
+    return 0;
+  }
+
+  const legacyConfig = input as { providers?: unknown; Providers?: unknown };
+  if (Array.isArray(legacyConfig.providers)) {
+    return legacyConfig.providers.length;
+  }
+
+  if (Array.isArray(legacyConfig.Providers)) {
+    return legacyConfig.Providers.length;
+  }
+
+  return 0;
+}
+
 function getMigratedModelCount(draft: ISetupConfigDraft): number {
   if (Array.isArray(draft.Models)) {
     return draft.Models.length;
@@ -151,6 +168,7 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
     }
 
     const migrated = deps.migrateLegacyConfig(detection.legacyConfig.config);
+    deps.io.info(`已识别旧配置中的 ${getLegacyProviderCount(detection.legacyConfig.config)} 个 provider。`);
     deps.io.info(`已从旧配置迁移 ${getMigratedModelCount(migrated.draft)} 个模型。`);
     if (migrated.draft.Router.default) {
       deps.io.info(`迁移后的默认模型：${migrated.draft.Router.default}`);
