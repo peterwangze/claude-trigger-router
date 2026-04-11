@@ -533,6 +533,7 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
     completeDraft: ({ draft, fields }) => completeDraft({ draft, fields, io: deps.io }),
     migrateLegacyConfig,
     mapConfigErrorsToRepairFields,
+    io: deps.io,
     persistConfig: async ({ config, currentConfigPath, hasExistingConfig }) => {
       const normalized = normalizeAndValidateConfig(config as any);
       const persisted = await persistSetupConfig({

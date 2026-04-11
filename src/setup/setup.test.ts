@@ -53,6 +53,9 @@ function createDeps(overrides: Record<string, unknown> = {}) {
       healthChecked: true,
     }),
     enterClaudeCode: vi.fn().mockResolvedValue(undefined),
+    io: {
+      info: vi.fn(),
+    },
     reloadSupported: false,
   };
 
@@ -748,18 +751,23 @@ describe('runSetup', () => {
     expect(deps.enterClaudeCode).not.toHaveBeenCalled();
   });
 
-  it('migrates legacy config and completes missing fields before persisting', async () => {
+  it('migrates legacy config and reports migration summary before persisting', async () => {
     const migratedDraft = {
-      Providers: [
+      Models: [
         {
-          name: 'openrouter',
+          id: 'openrouter_anthropic_claude_sonnet_4',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
           api_key: '',
-          models: ['anthropic/claude-sonnet-4'],
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
         },
       ],
       Router: {},
     } satisfies ISetupConfigDraft;
-    const completedDraft = createDraft();
+    const completedDraft = {
+      ...migratedDraft,
+      Router: { default: 'openrouter_anthropic_claude_sonnet_4' },
+    } satisfies ISetupConfigDraft;
     const { deps } = createDeps({
       detectSetupEnvironment: vi.fn().mockResolvedValue({
         currentConfig: { kind: 'missing' },
@@ -776,7 +784,7 @@ describe('runSetup', () => {
       chooseLegacyConfigAction: vi.fn().mockResolvedValue('migrate'),
       migrateLegacyConfig: vi.fn().mockReturnValue({
         draft: migratedDraft,
-        skippedFields: ['trigger_router'],
+        skippedFields: ['trigger_router', 'Providers[0].transformer'],
         needsCompletion: true,
         missingFields: ['defaultModel', 'apiKey'],
       }),
@@ -799,6 +807,9 @@ describe('runSetup', () => {
     expect(deps.migrateLegacyConfig).toHaveBeenCalledWith({
       providers: [{ name: 'openrouter', api_key: '', models: ['anthropic/claude-sonnet-4'] }],
     });
+    expect(deps.io.info).toHaveBeenCalledWith('已从旧配置迁移 1 个模型。');
+    expect(deps.io.info).toHaveBeenCalledWith('迁移后的默认模型仍需补全。');
+    expect(deps.io.info).toHaveBeenCalledWith('以下旧字段未自动迁移：trigger_router, Providers[0].transformer');
     expect(deps.completeDraft).toHaveBeenCalledWith({
       draft: migratedDraft,
       fields: ['defaultModel', 'apiKey'],
@@ -808,6 +819,201 @@ describe('runSetup', () => {
       currentConfigPath: CONFIG_FILE,
       hasExistingConfig: false,
     });
+  });
+
+  it('reports migrated default model id when legacy migration is already complete', async () => {
+    const migratedDraft = {
+      Models: [
+        {
+          id: 'gpt90_gpt_5_4',
+          api: 'https://example.com/v1/chat/completions',
+          api_key: 'sk-test',
+          interface: 'openai',
+          model: 'gpt-5.4',
+        },
+      ],
+      Router: { default: 'gpt90_gpt_5_4' },
+    } satisfies ISetupConfigDraft;
+    const { deps } = createDeps({
+      detectSetupEnvironment: vi.fn().mockResolvedValue({
+        currentConfig: { kind: 'missing' },
+        legacyConfig: {
+          kind: 'found',
+          path: '/legacy/ccr.json',
+          config: {
+            Providers: [{ name: 'gpt90', api_key: 'sk-test', models: ['gpt-5.4'] }],
+            Router: { default: 'gpt90,gpt-5.4' },
+          },
+        },
+        detectedService: { kind: 'none' },
+      }),
+      chooseCurrentConfigAction: vi.fn().mockResolvedValue('create'),
+      chooseLegacyConfigAction: vi.fn().mockResolvedValue('migrate'),
+      migrateLegacyConfig: vi.fn().mockReturnValue({
+        draft: migratedDraft,
+        skippedFields: [],
+        needsCompletion: false,
+        missingFields: [],
+      }),
+    });
+
+    const { runSetup } = await import('./setup');
+
+    await runSetup(deps as any);
+
+    expect(deps.io.info).toHaveBeenCalledWith('已从旧配置迁移 1 个模型。');
+    expect(deps.io.info).toHaveBeenCalledWith('迁移后的默认模型：gpt90_gpt_5_4');
+    expect(deps.completeDraft).not.toHaveBeenCalled();
+  });
+
+  it('reports zero skipped fields without extra warning text when migration consumed everything needed', async () => {
+    const migratedDraft = {
+      Models: [
+        {
+          id: 'openrouter_anthropic_claude_sonnet_4',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+      ],
+      Router: { default: 'openrouter_anthropic_claude_sonnet_4' },
+    } satisfies ISetupConfigDraft;
+    const { deps } = createDeps({
+      detectSetupEnvironment: vi.fn().mockResolvedValue({
+        currentConfig: { kind: 'missing' },
+        legacyConfig: {
+          kind: 'found',
+          path: '/legacy/ccr.json',
+          config: {
+            providers: [{ name: 'openrouter', api_key: 'sk-test', models: ['anthropic/claude-sonnet-4'] }],
+            default: 'openrouter,anthropic/claude-sonnet-4',
+          },
+        },
+        detectedService: { kind: 'none' },
+      }),
+      chooseCurrentConfigAction: vi.fn().mockResolvedValue('create'),
+      chooseLegacyConfigAction: vi.fn().mockResolvedValue('migrate'),
+      migrateLegacyConfig: vi.fn().mockReturnValue({
+        draft: migratedDraft,
+        skippedFields: [],
+        needsCompletion: false,
+        missingFields: [],
+      }),
+    });
+
+    const { runSetup } = await import('./setup');
+
+    await runSetup(deps as any);
+
+    expect(deps.io.info).toHaveBeenCalledTimes(2);
+    expect(deps.io.info).not.toHaveBeenCalledWith(expect.stringContaining('以下旧字段未自动迁移'));
+  });
+
+  it('preserves module-id router default when persisting migrated legacy config', async () => {
+    const migratedDraft = {
+      Models: [
+        {
+          id: 'gpt90_gpt_5_4',
+          api: 'https://example.com/v1/chat/completions',
+          api_key: 'sk-test',
+          interface: 'openai',
+          model: 'gpt-5.4',
+        },
+      ],
+      Router: { default: 'gpt90_gpt_5_4' },
+    } satisfies ISetupConfigDraft;
+    const { deps } = createDeps({
+      detectSetupEnvironment: vi.fn().mockResolvedValue({
+        currentConfig: { kind: 'missing' },
+        legacyConfig: {
+          kind: 'found',
+          path: '/legacy/ccr.json',
+          config: {
+            Providers: [{ name: 'gpt90', api_key: 'sk-test', models: ['gpt-5.4'] }],
+            Router: { default: 'gpt90,gpt-5.4' },
+          },
+        },
+        detectedService: { kind: 'none' },
+      }),
+      chooseCurrentConfigAction: vi.fn().mockResolvedValue('create'),
+      chooseLegacyConfigAction: vi.fn().mockResolvedValue('migrate'),
+      migrateLegacyConfig: vi.fn().mockReturnValue({
+        draft: migratedDraft,
+        skippedFields: [],
+        needsCompletion: false,
+        missingFields: [],
+      }),
+    });
+
+    const { runSetup } = await import('./setup');
+
+    await runSetup(deps as any);
+
+    expect(deps.persistConfig).toHaveBeenCalledWith({
+      config: migratedDraft,
+      currentConfigPath: CONFIG_FILE,
+      hasExistingConfig: false,
+    });
+    expect(deps.persistConfig.mock.calls[0][0].config.Router.default).toBe('gpt90_gpt_5_4');
+  });
+
+  it('does not rewrite migrated router default back to legacy provider-model syntax during completion', async () => {
+    const migratedDraft = {
+      Models: [
+        {
+          id: 'gpt90_gpt_5_4',
+          api: 'https://example.com/v1/chat/completions',
+          api_key: '',
+          interface: 'openai',
+          model: 'gpt-5.4',
+        },
+      ],
+      Router: { default: 'gpt90_gpt_5_4' },
+    } satisfies ISetupConfigDraft;
+    const completedDraft = {
+      ...migratedDraft,
+      Models: [
+        {
+          ...migratedDraft.Models![0],
+          api_key: 'sk-filled',
+        },
+      ],
+    } satisfies ISetupConfigDraft;
+    const { deps } = createDeps({
+      detectSetupEnvironment: vi.fn().mockResolvedValue({
+        currentConfig: { kind: 'missing' },
+        legacyConfig: {
+          kind: 'found',
+          path: '/legacy/ccr.json',
+          config: {
+            Providers: [{ name: 'gpt90', api_key: '', models: ['gpt-5.4'] }],
+            Router: { default: 'gpt90,gpt-5.4' },
+          },
+        },
+        detectedService: { kind: 'none' },
+      }),
+      chooseCurrentConfigAction: vi.fn().mockResolvedValue('create'),
+      chooseLegacyConfigAction: vi.fn().mockResolvedValue('migrate'),
+      migrateLegacyConfig: vi.fn().mockReturnValue({
+        draft: migratedDraft,
+        skippedFields: [],
+        needsCompletion: true,
+        missingFields: ['apiKey'],
+      }),
+      completeDraft: vi.fn().mockResolvedValue(completedDraft),
+    });
+
+    const { runSetup } = await import('./setup');
+
+    await runSetup(deps as any);
+
+    expect(deps.completeDraft).toHaveBeenCalledWith({
+      draft: migratedDraft,
+      fields: ['apiKey'],
+    });
+    expect(deps.persistConfig.mock.calls[0][0].config.Router.default).toBe('gpt90_gpt_5_4');
+    expect(deps.persistConfig.mock.calls[0][0].config.Router.default).not.toBe('gpt90,gpt-5.4');
   });
 
   it('does not roll back config or service when entering Claude Code fails', async () => {

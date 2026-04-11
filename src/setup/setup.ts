@@ -42,6 +42,18 @@ function getTargetConfigPath(detection: ISetupEnvironmentDetectionResult): strin
   return CONFIG_FILE;
 }
 
+function getMigratedModelCount(draft: ISetupConfigDraft): number {
+  if (Array.isArray(draft.Models)) {
+    return draft.Models.length;
+  }
+
+  if (Array.isArray(draft.Providers)) {
+    return draft.Providers.reduce((total, provider) => total + (provider.models?.length ?? 0), 0);
+  }
+
+  return 0;
+}
+
 export async function runSetup(deps: IRunSetupDeps): Promise<void> {
   const detection = await deps.detectSetupEnvironment();
   const currentConfigAction = await deps.chooseCurrentConfigAction({
@@ -139,6 +151,16 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
     }
 
     const migrated = deps.migrateLegacyConfig(detection.legacyConfig.config);
+    deps.io.info(`已从旧配置迁移 ${getMigratedModelCount(migrated.draft)} 个模型。`);
+    if (migrated.draft.Router.default) {
+      deps.io.info(`迁移后的默认模型：${migrated.draft.Router.default}`);
+    } else {
+      deps.io.info('迁移后的默认模型仍需补全。');
+    }
+    if (migrated.skippedFields.length > 0) {
+      deps.io.info(`以下旧字段未自动迁移：${migrated.skippedFields.join(', ')}`);
+    }
+
     let finalDraft = migrated.draft;
     if (migrated.needsCompletion) {
       finalDraft = await deps.completeDraft({

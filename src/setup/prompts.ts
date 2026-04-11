@@ -24,4 +24,7 @@ export interface ISetupPrompts {
     draft: ISetupConfigDraft;
     fields: string[];
   }) => Promise<ISetupConfigDraft>;
+  io: {
+    info: (message: string) => void;
+  };
 }
