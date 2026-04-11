@@ -10,6 +10,7 @@ import { contextAnalyzer } from './analyzer';
 import { intentDetector } from './intent';
 import { smartRouterSelector } from './smart-router';
 import { log, logError } from '../utils/log';
+import { DEFAULT_CONFIG } from '../constants';
 import { IGovernanceConfig } from '../governance/types';
 import { createTaskFingerprint, sessionStateStore } from '../governance/session-store';
 import { semanticRouter } from '../governance/semantic-router';
@@ -84,7 +85,7 @@ export class ModelSelector {
   async selectModel(
     req: IRequestContext,
     config: ITriggerConfig,
-    port: number = 3456,
+    port: number = DEFAULT_CONFIG.PORT,
     smartRouterConfig?: ISmartRouterConfig,
     governanceConfig?: IGovernanceConfig,
     apiKey?: string,

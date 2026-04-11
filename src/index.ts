@@ -97,7 +97,7 @@ async function run(options: RunOptions = {}) {
     logWarn("⚠️ API key is not set. HOST is forced to 127.0.0.1.");
   }
 
-  const port = options.port ?? config.PORT ?? 3456;
+  const port = options.port ?? config.PORT ?? DEFAULT_CONFIG.PORT;
 
   // 保存 PID 及元数据（端口、启动时间），供 ctr status 等命令使用
   savePid(process.pid, port);

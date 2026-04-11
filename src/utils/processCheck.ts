@@ -6,7 +6,7 @@
 
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { spawnSync } from "child_process";
-import { PID_FILE } from "../constants";
+import { DEFAULT_CONFIG, PID_FILE } from "../constants";
 import { logError } from "./log";
 
 /**
@@ -80,7 +80,7 @@ export interface IServiceInfo {
 export function savePid(pid: number, port?: number): void {
   const info: IServiceInfo = {
     pid,
-    port: port ?? 3456,
+    port: port ?? DEFAULT_CONFIG.PORT,
     startTime: new Date().toISOString(),
   };
   writeFileSync(PID_FILE, JSON.stringify(info, null, 2), "utf-8");
@@ -95,7 +95,7 @@ export function readServiceInfo(): IServiceInfo | null {
     const content = readFileSync(PID_FILE, "utf-8").trim();
     // 兼容旧格式（纯数字 PID）
     if (/^\d+$/.test(content)) {
-      return { pid: parseInt(content, 10), port: 3456, startTime: '' };
+      return { pid: parseInt(content, 10), port: DEFAULT_CONFIG.PORT, startTime: '' };
     }
     return JSON.parse(content) as IServiceInfo;
   } catch {

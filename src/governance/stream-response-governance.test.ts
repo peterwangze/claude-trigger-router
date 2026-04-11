@@ -103,7 +103,7 @@ describe('governStreamingResponse', () => {
           },
         },
       } as any,
-      3456
+      5678
     );
 
     const output = await readAll(result);
@@ -141,7 +141,7 @@ describe('governStreamingResponse', () => {
           },
         },
       } as any,
-      3456
+      5678
     );
 
     const output = await readAll(result);
@@ -188,7 +188,7 @@ describe('governStreamingResponse', () => {
           },
         },
       } as any,
-      3456,
+      5678,
       {
         executeCascadeRetryStream: vi.fn().mockResolvedValue(retried),
       }
@@ -257,7 +257,7 @@ describe('governStreamingResponse', () => {
           },
         },
       } as any,
-      3456,
+      5678,
       {
         executeCascadeRetryStream: vi.fn().mockResolvedValue(retried),
       }

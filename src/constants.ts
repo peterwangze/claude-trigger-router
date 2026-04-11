@@ -67,7 +67,7 @@ export const GOVERNANCE_SCHEDULE_FILE = join(CONFIG_DIR, 'governance-metric-sche
  */
 export const DEFAULT_CONFIG = {
   HOST: '127.0.0.1',
-  PORT: 3456,
+  PORT: 5678,
   LOG: true,
   LOG_LEVEL: 'debug',
   API_TIMEOUT_MS: 600000,

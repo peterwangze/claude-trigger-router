@@ -83,7 +83,7 @@ describe('IntentDetector', () => {
       const mockFetch = async () => {
         throw new Error('Network error');
       };
-      const result = await detector.detectIntent('test', config, 3456, mockFetch as any);
+      const result = await detector.detectIntent('test', config, 5678, mockFetch as any);
       expect(result.intent).toBe('general');
       expect(result.confidence).toBe(0);
     });
@@ -102,7 +102,7 @@ describe('IntentDetector', () => {
         ok: false,
         status: 500,
       });
-      const result = await detector.detectIntent('test', config, 3456, mockFetch as any);
+      const result = await detector.detectIntent('test', config, 5678, mockFetch as any);
       expect(result.intent).toBe('general');
       expect(result.confidence).toBe(0);
     });
@@ -131,7 +131,7 @@ describe('IntentDetector', () => {
           ],
         }),
       });
-      const result = await detector.detectIntent('生成一张图', config, 3456, mockFetch as any);
+      const result = await detector.detectIntent('生成一张图', config, 5678, mockFetch as any);
       expect(result.intent).toBe('image_generation');
       expect(result.confidence).toBe(0.95);
     });
@@ -157,7 +157,7 @@ describe('IntentDetector', () => {
         };
       };
 
-      await detector.detectIntent('生成一张图', config, 3456, mockFetch as any, undefined, 1234);
+      await detector.detectIntent('生成一张图', config, 5678, mockFetch as any, undefined, 1234);
       expect(receivedSignal).toBeDefined();
     });
 
@@ -177,7 +177,7 @@ describe('IntentDetector', () => {
           content: [{ text: 'no json here' }],
         }),
       });
-      const result = await detector.detectIntent('test', config, 3456, mockFetch as any);
+      const result = await detector.detectIntent('test', config, 5678, mockFetch as any);
       expect(result.intent).toBe('general');
       expect(result.confidence).toBe(0);
     });

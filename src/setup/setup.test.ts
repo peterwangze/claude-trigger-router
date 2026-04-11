@@ -158,7 +158,7 @@ describe('runSetup', () => {
           warnings: [],
         },
         legacyConfig: { kind: 'missing' },
-        detectedService: { kind: 'self_healthy', port: 3456 },
+        detectedService: { kind: 'self_healthy', port: 5678 },
       }),
       chooseCurrentConfigAction: vi.fn().mockResolvedValue('reuse'),
     });
@@ -177,7 +177,7 @@ describe('runSetup', () => {
       detectSetupEnvironment: vi.fn().mockResolvedValue({
         currentConfig: { kind: 'missing' },
         legacyConfig: { kind: 'missing' },
-        detectedService: { kind: 'non_self_occupied', port: 3456 },
+        detectedService: { kind: 'non_self_occupied', port: 5678 },
       }),
     });
 
@@ -212,7 +212,7 @@ describe('runSetup', () => {
           warnings: [],
         },
         legacyConfig: { kind: 'missing' },
-        detectedService: { kind: 'self_healthy', port: 3456 },
+        detectedService: { kind: 'self_healthy', port: 5678 },
       }),
       chooseCurrentConfigAction: vi.fn().mockResolvedValue('fresh'),
       buildFreshConfig: vi.fn().mockResolvedValue(rebuiltDraft),
@@ -248,7 +248,7 @@ describe('runSetup', () => {
           warnings: [],
         },
         legacyConfig: { kind: 'missing' },
-        detectedService: { kind: 'self_healthy', port: 3456 },
+        detectedService: { kind: 'self_healthy', port: 5678 },
       }),
       chooseCurrentConfigAction: vi.fn().mockResolvedValue('cancel'),
     });
@@ -274,7 +274,7 @@ describe('runSetup', () => {
           warnings: [],
         },
         legacyConfig: { kind: 'missing' },
-        detectedService: { kind: 'self_healthy', port: 3456 },
+        detectedService: { kind: 'self_healthy', port: 5678 },
       }),
       chooseCurrentConfigAction: vi.fn().mockResolvedValue('reuse'),
       ensureServiceReady: vi.fn().mockResolvedValue({
@@ -290,7 +290,7 @@ describe('runSetup', () => {
     expect(deps.persistConfig).not.toHaveBeenCalled();
     expect(deps.ensureServiceReady).toHaveBeenCalledWith({
       configChanged: false,
-      detectedService: { kind: 'self_healthy', port: 3456 },
+      detectedService: { kind: 'self_healthy', port: 5678 },
       reloadSupported: false,
     });
     expect(deps.enterClaudeCode).toHaveBeenCalledTimes(1);
@@ -313,7 +313,7 @@ describe('runSetup', () => {
           warnings: [],
         },
         legacyConfig: { kind: 'missing' },
-        detectedService: { kind: 'self_unhealthy', port: 3456 },
+        detectedService: { kind: 'self_unhealthy', port: 5678 },
       }),
       chooseCurrentConfigAction: vi.fn().mockResolvedValue('repair'),
       mapConfigErrorsToRepairFields: vi.fn().mockReturnValue({
@@ -351,7 +351,7 @@ describe('runSetup', () => {
     });
     expect(deps.ensureServiceReady).toHaveBeenCalledWith({
       configChanged: true,
-      detectedService: { kind: 'self_unhealthy', port: 3456 },
+      detectedService: { kind: 'self_unhealthy', port: 5678 },
       reloadSupported: false,
     });
   });
@@ -387,7 +387,7 @@ describe('runSetup', () => {
           warnings: ['Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.'],
         },
         legacyConfig: { kind: 'missing' },
-        detectedService: { kind: 'self_unhealthy', port: 3456 },
+        detectedService: { kind: 'self_unhealthy', port: 5678 },
       }),
       chooseCurrentConfigAction: vi.fn().mockResolvedValue('repair'),
       mapConfigErrorsToRepairFields: vi.fn().mockReturnValue({
@@ -664,7 +664,7 @@ describe('runSetup', () => {
           warnings: [],
         },
         legacyConfig: { kind: 'missing' },
-        detectedService: { kind: 'self_unhealthy', port: 3456 },
+        detectedService: { kind: 'self_unhealthy', port: 5678 },
       }),
       chooseCurrentConfigAction: vi.fn().mockResolvedValue('repair'),
       mapConfigErrorsToRepairFields: vi.fn().mockReturnValue({
@@ -729,7 +729,7 @@ describe('runSetup', () => {
 
   it('forwards non-self-occupied service state into ensureServiceReady before failing', async () => {
     const ensureServiceReady = vi.fn().mockImplementation(async (input) => {
-      expect(input.detectedService).toEqual({ kind: 'non_self_occupied', port: 3456 });
+      expect(input.detectedService).toEqual({ kind: 'non_self_occupied', port: 5678 });
       throw new Error('target port is occupied by another service');
     });
     const { deps } = createDeps({
@@ -737,7 +737,7 @@ describe('runSetup', () => {
       detectSetupEnvironment: vi.fn().mockResolvedValue({
         currentConfig: { kind: 'missing' },
         legacyConfig: { kind: 'missing' },
-        detectedService: { kind: 'non_self_occupied', port: 3456 },
+        detectedService: { kind: 'non_self_occupied', port: 5678 },
       }),
     });
 

@@ -86,7 +86,7 @@ describe('SemanticRouter', () => {
           architecture: '重构 系统 结构 模块 拆分 架构 设计',
         },
       },
-      3456,
+      5678,
       fetchFn
     );
 
@@ -110,7 +110,7 @@ describe('SemanticRouter', () => {
           architectural_change: '架构设计 模块拆分 系统设计',
         },
       },
-      3456,
+      5678,
       fetchFn as any
     );
 

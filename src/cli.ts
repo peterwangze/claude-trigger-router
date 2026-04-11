@@ -110,7 +110,7 @@ Claude Trigger Router - 智能触发路由器
   help        显示此帮助信息
 
 选项：
-  --port, -p    指定监听端口（默认：3456）
+  --port, -p    指定监听端口（默认：5678）
   --daemon, -d  以后台方式运行（配合 start/restart 使用）
   --force       强制覆盖已有配置（配合 init 使用）
 

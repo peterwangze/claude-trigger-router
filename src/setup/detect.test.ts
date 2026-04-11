@@ -208,30 +208,30 @@ describe('detectSetupEnvironment', () => {
     const result = await detectSetupEnvironment({
       readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
       readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
-      probeService: vi.fn().mockResolvedValue({ kind: 'self_healthy', port: 3456 }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'self_healthy', port: 5678 }),
     });
 
-    expect(result.detectedService).toEqual({ kind: 'self_healthy', port: 3456 });
+    expect(result.detectedService).toEqual({ kind: 'self_healthy', port: 5678 });
   });
 
   it('returns self_unhealthy when target port belongs to this service but health check fails', async () => {
     const result = await detectSetupEnvironment({
       readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
       readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
-      probeService: vi.fn().mockResolvedValue({ kind: 'self_unhealthy', port: 3456 }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'self_unhealthy', port: 5678 }),
     });
 
-    expect(result.detectedService).toEqual({ kind: 'self_unhealthy', port: 3456 });
+    expect(result.detectedService).toEqual({ kind: 'self_unhealthy', port: 5678 });
   });
 
   it('returns non_self_occupied when target port is occupied by another service', async () => {
     const result = await detectSetupEnvironment({
       readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
       readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
-      probeService: vi.fn().mockResolvedValue({ kind: 'non_self_occupied', port: 3456 }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'non_self_occupied', port: 5678 }),
     });
 
-    expect(result.detectedService).toEqual({ kind: 'non_self_occupied', port: 3456 });
+    expect(result.detectedService).toEqual({ kind: 'non_self_occupied', port: 5678 });
   });
 
   it('runs current config, legacy config and service probes in parallel', async () => {

@@ -35,7 +35,7 @@ describe('ContextAlignmentService', () => {
         summarizer_model: 'provider,summary',
         max_summary_tokens: 128,
       },
-      3456,
+      5678,
       fetchFn
     );
 

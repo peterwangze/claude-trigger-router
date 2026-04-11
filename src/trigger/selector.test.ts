@@ -290,8 +290,8 @@ describe('ModelSelector', () => {
         confidence: 0.9,
       });
 
-      await selector.selectModel(req as any, config, 3456, smartRouterConfig, undefined, undefined, 4321);
-      expect(smartSpy).toHaveBeenCalledWith('帮我选一个模型', smartRouterConfig, 3456, undefined, undefined, 4321);
+      await selector.selectModel(req as any, config, 5678, smartRouterConfig, undefined, undefined, 4321);
+      expect(smartSpy).toHaveBeenCalledWith('帮我选一个模型', smartRouterConfig, 5678, undefined, undefined, 4321);
       smartSpy.mockRestore();
     });
 
@@ -321,8 +321,8 @@ describe('ModelSelector', () => {
         confidence: 0,
       });
 
-      await selector.selectModel(req as any, intentConfig, 3456, undefined, undefined, undefined, 4321);
-      expect(intentSpy).toHaveBeenCalledWith('帮我分析意图', intentConfig, 3456, undefined, undefined, 4321);
+      await selector.selectModel(req as any, intentConfig, 5678, undefined, undefined, undefined, 4321);
+      expect(intentSpy).toHaveBeenCalledWith('帮我分析意图', intentConfig, 5678, undefined, undefined, 4321);
       intentSpy.mockRestore();
     });
 
@@ -343,7 +343,7 @@ describe('ModelSelector', () => {
       const result = await selector.selectModel(
         req as any,
         config,
-        3456,
+        5678,
         undefined,
         {
           enabled: true,
@@ -375,7 +375,7 @@ describe('ModelSelector', () => {
       const result = await selector.selectModel(
         req as any,
         config,
-        3456,
+        5678,
         undefined,
         {
           enabled: false,
@@ -412,7 +412,7 @@ describe('ModelSelector', () => {
       const result = await selector.selectModel(
         req as any,
         config,
-        3456,
+        5678,
         {
           enabled: true,
           router_model: 'test,router',
@@ -482,7 +482,7 @@ describe('ModelSelector', () => {
       const result = await selector.selectModel(
         req as any,
         config,
-        3456,
+        5678,
         {
           enabled: true,
           router_model: 'router_model',
@@ -504,7 +504,7 @@ describe('ModelSelector', () => {
             expect.objectContaining({ model: 'model__candidate_b,deepseek-reasoner' }),
           ],
         }),
-        3456,
+        5678,
         undefined,
         undefined,
         undefined
@@ -535,7 +535,7 @@ describe('ModelSelector', () => {
       const result = await selector.selectModel(
         req as any,
         config,
-        3456,
+        5678,
         {
           enabled: true,
           router_model: 'test,router',
@@ -591,7 +591,7 @@ describe('ModelSelector', () => {
       const result = await selector.selectModel(
         req as any,
         config,
-        3456,
+        5678,
         {
           enabled: true,
           router_model: 'test,router',

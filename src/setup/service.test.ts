@@ -72,7 +72,7 @@ describe('decideServiceAction', () => {
   it('does not reuse a healthy running service after config changes', () => {
     const result = decideServiceAction({
       configChanged: true,
-      detectedService: { kind: 'self_healthy', port: 3456 },
+      detectedService: { kind: 'self_healthy', port: 5678 },
       reloadSupported: false,
     });
 
@@ -82,7 +82,7 @@ describe('decideServiceAction', () => {
   it('reuses an already healthy service when config is unchanged', () => {
     const result = decideServiceAction({
       configChanged: false,
-      detectedService: { kind: 'self_healthy', port: 3456 },
+      detectedService: { kind: 'self_healthy', port: 5678 },
       reloadSupported: false,
     });
 
@@ -111,7 +111,7 @@ describe('decideServiceAction', () => {
     expect(
       decideServiceAction({
         configChanged: false,
-        detectedService: { kind: 'self_unhealthy', port: 3456 },
+        detectedService: { kind: 'self_unhealthy', port: 5678 },
         reloadSupported: false,
       })
     ).toEqual({ kind: 'restart' });
@@ -119,7 +119,7 @@ describe('decideServiceAction', () => {
     expect(
       decideServiceAction({
         configChanged: true,
-        detectedService: { kind: 'self_unhealthy', port: 3456 },
+        detectedService: { kind: 'self_unhealthy', port: 5678 },
         reloadSupported: true,
       })
     ).toEqual({ kind: 'restart' });
@@ -128,7 +128,7 @@ describe('decideServiceAction', () => {
   it('reloads a healthy service after config changes when reload is supported', () => {
     const result = decideServiceAction({
       configChanged: true,
-      detectedService: { kind: 'self_healthy', port: 3456 },
+      detectedService: { kind: 'self_healthy', port: 5678 },
       reloadSupported: true,
     });
 
@@ -139,7 +139,7 @@ describe('decideServiceAction', () => {
     expect(() =>
       decideServiceAction({
         configChanged: true,
-        detectedService: { kind: 'non_self_occupied', port: 3456 },
+        detectedService: { kind: 'non_self_occupied', port: 5678 },
         reloadSupported: false,
       })
     ).toThrow('target port is occupied by another service');

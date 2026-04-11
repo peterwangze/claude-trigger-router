@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const mockExistsSync = vi.fn();
+const mockReadFileSync = vi.fn();
 const mockSpawn = vi.fn(() => ({
   on: vi.fn(),
 }));
@@ -13,6 +15,16 @@ const mockProcessExit = vi.fn(() => {
 const originalArgv = process.argv.slice();
 const originalFetch = global.fetch;
 const mockFetch = vi.fn();
+
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>();
+
+  return {
+    ...actual,
+    existsSync: mockExistsSync,
+    readFileSync: mockReadFileSync,
+  };
+});
 
 vi.mock('child_process', () => ({
   spawn: mockSpawn,
@@ -54,6 +66,16 @@ describe('runClaudeCode', () => {
     mockIsServiceRunning.mockReturnValue(true);
     mockRunSetupCli.mockResolvedValue(undefined);
     mockFetch.mockRejectedValue(new Error('network error'));
+    mockExistsSync.mockReturnValue(false);
+    mockReadFileSync.mockImplementation((filePath: string, ...args: unknown[]) => {
+      if (String(filePath).endsWith('package.json')) {
+        return JSON.stringify({
+          name: '@peterwangze/claude-trigger-router',
+          version: '1.0.3',
+        });
+      }
+      throw new Error(`unexpected readFileSync call: ${String(filePath)} ${args.join(' ')}`);
+    });
   });
 
   afterEach(() => {
@@ -139,6 +161,19 @@ describe('runClaudeCode', () => {
 
   it('prints init next steps with Models-first guidance', async () => {
     process.argv = ['node', 'cli.ts', 'init', '--force'];
+    mockExistsSync.mockImplementation((filePath: string) => String(filePath).includes('trigger.example.yaml'));
+    mockReadFileSync.mockImplementation((filePath: string) => {
+      if (String(filePath).endsWith('package.json')) {
+        return JSON.stringify({
+          name: '@peterwangze/claude-trigger-router',
+          version: '1.0.3',
+        });
+      }
+      if (String(filePath).includes('trigger.example.yaml')) {
+        return 'HOST: "127.0.0.1"\nPORT: 5678\n';
+      }
+      throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
+    });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
     const { main } = await import('./cli');
@@ -187,7 +222,7 @@ describe('runClaudeCode', () => {
       [],
       expect.objectContaining({
         env: expect.objectContaining({
-          ANTHROPIC_BASE_URL: 'http://127.0.0.1:3456',
+          ANTHROPIC_BASE_URL: 'http://127.0.0.1:5678',
         }),
       })
     );

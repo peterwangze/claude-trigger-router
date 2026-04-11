@@ -5,6 +5,7 @@
  */
 
 import { IShadowSupervisorConfig } from './types';
+import { DEFAULT_CONFIG } from '../constants';
 import { IFailureEvidence } from './cascade-gate';
 import { logError, logWarn } from '../utils/log';
 import { createSingleUserTextIR } from '../protocols/message-ir';
@@ -116,7 +117,7 @@ export class ShadowSupervisor {
   async inspectWithVerifier(
     payload: any,
     config: IShadowSupervisorConfig,
-    port: number = 3456,
+    port: number = DEFAULT_CONFIG.PORT,
     fetchFn?: typeof fetch,
     apiKey?: string,
     timeoutMs?: number

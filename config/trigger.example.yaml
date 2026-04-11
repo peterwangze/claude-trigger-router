@@ -10,7 +10,7 @@
 # - custom/local: 自定义兼容地址，例如 Ollama / vLLM / one-api
 
 HOST: "127.0.0.1"
-PORT: 3456
+PORT: 5678
 
 LOG: true
 LOG_LEVEL: "debug"

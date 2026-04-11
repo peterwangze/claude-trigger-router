@@ -13,7 +13,7 @@ describe('TriggerRouter', () => {
   });
 
   const createAppConfig = (overrides?: Partial<IAppConfig>): IAppConfig => ({
-    PORT: 3456,
+    PORT: 5678,
     Providers: [
       { name: 'openrouter', api_base_url: 'https://openrouter.ai/api/v1', api_key: 'key', models: ['dall-e-3'] },
     ],
@@ -151,7 +151,7 @@ describe('TriggerRouter', () => {
           appConfig: config,
         }),
         config.TriggerRouter,
-        3456,
+        5678,
         config.SmartRouter,
         config.Governance,
         config.APIKEY,

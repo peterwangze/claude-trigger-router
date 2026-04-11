@@ -985,7 +985,7 @@ describe('createServer /api/config', () => {
 
     mockReadConfigFile.mockResolvedValue({
       HOST: '127.0.0.1',
-      PORT: 3456,
+      PORT: 5678,
       LOG: true,
       LOG_LEVEL: 'debug',
       API_TIMEOUT_MS: 600000,
@@ -1317,7 +1317,7 @@ describe('createServer /api/config', () => {
     expect(mockWriteConfigFile).toHaveBeenCalledWith(
       expect.objectContaining({
         HOST: '127.0.0.1',
-        PORT: 3456,
+        PORT: 5678,
         LOG: true,
         LOG_LEVEL: 'debug',
         API_TIMEOUT_MS: 600000,

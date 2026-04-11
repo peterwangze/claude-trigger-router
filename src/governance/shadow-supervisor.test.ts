@@ -72,7 +72,7 @@ describe('ShadowSupervisor', () => {
         enabled: true,
         verifier_model: 'glm,glm-5-air',
       },
-      3456,
+      5678,
       fetchFn
     );
 
@@ -95,7 +95,7 @@ describe('ShadowSupervisor', () => {
           placeholder_patterns: true,
         },
       },
-      3456,
+      5678,
       fetchFn as any
     );
 

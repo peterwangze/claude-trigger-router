@@ -21,16 +21,16 @@ describe('service health probing', () => {
       json: async () => ({ service: 'other-service', ready: true }),
     });
 
-    await expect(probeServiceHealth(3456, 20)).resolves.toBe(false);
+    await expect(probeServiceHealth(5678, 20)).resolves.toBe(false);
   });
 
   it('returns true only for expected router health signature', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ service: 'claude-trigger-router', ready: true, port: 3456 }),
+      json: async () => ({ service: 'claude-trigger-router', ready: true, port: 5678 }),
     });
 
-    await expect(probeServiceHealth(3456, 20)).resolves.toBe(true);
+    await expect(probeServiceHealth(5678, 20)).resolves.toBe(true);
   });
 
   it('waitForService keeps polling until the expected service appears', async () => {
@@ -41,10 +41,10 @@ describe('service health probing', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ service: 'claude-trigger-router', ready: true, port: 3456 }),
+        json: async () => ({ service: 'claude-trigger-router', ready: true, port: 5678 }),
       });
 
-    await expect(waitForService(3456, 650)).resolves.toBe(true);
+    await expect(waitForService(5678, 650)).resolves.toBe(true);
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });

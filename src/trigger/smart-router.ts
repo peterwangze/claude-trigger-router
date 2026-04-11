@@ -6,6 +6,7 @@
 
 import { LRUCache } from 'lru-cache';
 import { ISmartRouterConfig } from './types';
+import { DEFAULT_CONFIG } from '../constants';
 import { logError, logWarn } from '../utils/log';
 import { createSingleUserTextIR } from '../protocols/message-ir';
 import { toAnthropicMessagesRequest } from '../protocols/anthropic';
@@ -99,14 +100,14 @@ export class SmartRouterSelector {
    *
    * @param text 请求文本
    * @param config SmartRouter 配置
-   * @param port 本地服务端口（默认 3456）
+   * @param port 本地服务端口（默认 5678）
    * @param fetchFn 可注入的 fetch 函数（用于测试）
    * @returns 选择结果，失败时返回 null
    */
   async selectModel(
     text: string,
     config: ISmartRouterConfig,
-    port: number = 3456,
+    port: number = DEFAULT_CONFIG.PORT,
     fetchFn?: typeof fetch,
     apiKey?: string,
     timeoutMs?: number

@@ -8,7 +8,7 @@ describe('service health helpers', () => {
       isExpectedServiceHealth({
         service: SERVICE_NAME,
         ready: true,
-        port: 3456,
+        port: 5678,
       })
     ).toBe(true);
   });
@@ -23,7 +23,7 @@ describe('service health helpers', () => {
       isExpectedServiceHealth({
         service: 'other-service',
         ready: true,
-        port: 3456,
+        port: 5678,
       })
     ).toBe(false);
   });

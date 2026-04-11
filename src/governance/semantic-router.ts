@@ -5,6 +5,7 @@
  */
 
 import { ISemanticRouterConfig } from './types';
+import { DEFAULT_CONFIG } from '../constants';
 import { logError, logWarn } from '../utils/log';
 import { createSingleUserTextIR } from '../protocols/message-ir';
 import { toAnthropicMessagesRequest } from '../protocols/anthropic';
@@ -141,7 +142,7 @@ Return JSON only:
   async analyzeWithClassifier(
     text: string,
     config?: ISemanticRouterConfig,
-    port: number = 3456,
+    port: number = DEFAULT_CONFIG.PORT,
     fetchFn?: typeof fetch,
     apiKey?: string,
     timeoutMs?: number

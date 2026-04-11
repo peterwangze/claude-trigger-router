@@ -6,6 +6,7 @@
 
 import { LRUCache } from 'lru-cache';
 import { ITriggerConfig, ITriggerRule, IIntentResult } from './types';
+import { DEFAULT_CONFIG } from '../constants';
 import { logError, logWarn } from '../utils/log';
 
 /**
@@ -99,7 +100,7 @@ export class IntentDetector {
   async detectIntent(
     text: string,
     config: ITriggerConfig,
-    port: number = 3456,
+    port: number = DEFAULT_CONFIG.PORT,
     fetchFn?: typeof fetch,
     apiKey?: string,
     timeoutMs?: number

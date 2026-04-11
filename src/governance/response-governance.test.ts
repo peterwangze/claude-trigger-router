@@ -34,7 +34,7 @@ describe('applyResponseGovernance', () => {
       req,
       payload,
       config,
-      servicePort: 3456,
+      servicePort: 5678,
       deps: {
         executeCascadeRetry: vi.fn().mockResolvedValue({
           content: [{ text: 'rescued output' }],
@@ -78,7 +78,7 @@ describe('applyResponseGovernance', () => {
     const selectResult = await selector.selectModel(
       req,
       triggerConfig,
-      3456,
+      5678,
       undefined,
       {
         enabled: true,
@@ -122,7 +122,7 @@ describe('applyResponseGovernance', () => {
       req,
       payload: { content: [{ text: 'TODO: finish implementation' }] },
       config,
-      servicePort: 3456,
+      servicePort: 5678,
       deps: {
         executeCascadeRetry: vi.fn().mockResolvedValue({
           content: [{ text: 'guard rescued output' }],
@@ -189,7 +189,7 @@ describe('applyResponseGovernance', () => {
       req,
       payload,
       config,
-      servicePort: 3456,
+      servicePort: 5678,
       deps: {
         executeCascadeRetry: vi.fn().mockResolvedValue({
           content: [{ text: 'rescued output' }],

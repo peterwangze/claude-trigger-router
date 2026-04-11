@@ -16,6 +16,7 @@ import { appendTraceReason } from '../governance/trace';
 import { modelSelector } from './selector';
 import { contextAnalyzer } from './analyzer';
 import { log, logError } from '../utils/log';
+import { DEFAULT_CONFIG } from '../constants';
 import { IGovernanceConfig } from '../governance/types';
 
 /**
@@ -25,7 +26,7 @@ import { IGovernanceConfig } from '../governance/types';
 export class TriggerRouter {
   private config: ITriggerConfig | null = null;
   private appConfig: IAppConfig | null = null;
-  private port: number = 3456;
+  private port: number = DEFAULT_CONFIG.PORT;
   private smartRouterConfig: ISmartRouterConfig | undefined = undefined;
   private governanceConfig: IGovernanceConfig | undefined = undefined;
   private apiKey?: string;
@@ -39,7 +40,7 @@ export class TriggerRouter {
   init(appConfig: IAppConfig): void {
     this.appConfig = appConfig;
     this.config = appConfig.TriggerRouter || this.getDefaultConfig();
-    this.port = appConfig.PORT || 3456;
+    this.port = appConfig.PORT || DEFAULT_CONFIG.PORT;
     this.smartRouterConfig = appConfig.SmartRouter;
     this.governanceConfig = appConfig.Governance;
     this.apiKey = appConfig.APIKEY;
