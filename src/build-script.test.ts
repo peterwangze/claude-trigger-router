@@ -31,7 +31,7 @@ describe('build script', () => {
     });
     expect(versionResult.status).toBe(0);
     expect(versionResult.stdout).toContain('@peterwangze/claude-trigger-router');
-    expect(versionResult.stdout).toContain('1.0.2');
+    expect(versionResult.stdout).toContain('1.0.3');
     expect(versionResult.stdout).toContain('Latest:');
   });
 });
