@@ -248,6 +248,45 @@ function Invoke-ReleaseStage {
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" stop"
   }
   Write-Host ""
+  Write-Host "Recommended verification checklist:" -ForegroundColor Cyan
+  if ($IsWindows) {
+    Write-Host @"
+  1) Edit config:
+     notepad "$releaseConfigFile"
+
+  2) Basic package info:
+     & "$wrapperCmd" --help
+     & "$wrapperCmd" version
+
+  3) Setup / init path:
+     & "$wrapperCmd" init --force
+     & "$wrapperCmd" setup
+
+  4) Service lifecycle:
+     & "$wrapperCmd" start --port 5678
+     & "$wrapperCmd" status
+     & "$wrapperCmd" stop
+"@
+  } else {
+    Write-Host @"
+  1) Edit config:
+     ${EDITOR:-vi} "$releaseConfigFile"
+
+  2) Basic package info:
+     HOME="$releaseHome" "$stageCliPath" --help
+     HOME="$releaseHome" "$stageCliPath" version
+
+  3) Setup / init path:
+     HOME="$releaseHome" "$stageCliPath" init --force
+     HOME="$releaseHome" "$stageCliPath" setup
+
+  4) Service lifecycle:
+     HOME="$releaseHome" "$stageCliPath" start --port 5678
+     HOME="$releaseHome" "$stageCliPath" status
+     HOME="$releaseHome" "$stageCliPath" stop
+"@
+  }
+  Write-Host ""
   Write-Host "When you finish manual validation, run:" -ForegroundColor Yellow
   Write-Host "  npm run release:clean"
 }

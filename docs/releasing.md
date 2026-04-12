@@ -64,6 +64,8 @@ Windows 下脚本会额外生成一个包装命令 `.release-stage\ctr-release-h
 ".release-stage\\ctr-release-home.cmd" stop
 ```
 
+`npm run release:stage` 的输出里也会直接打印一组“推荐验证清单”，你可以按它给出的顺序直接复制执行。
+
 如果要先修改测试配置，请编辑：
 
 ```bash
