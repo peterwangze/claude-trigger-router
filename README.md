@@ -1,51 +1,65 @@
 # Claude Trigger Router
 
-面向 Claude Code 的本地模型路由代理。它接管 Claude Code 发出的上游请求，再按你的规则和路由策略分发到不同模型。
+Claude Code 的本地路由代理。
 
-核心目标只有两件事：
+它的目标很简单：
 
-- 让你用 `Models[].id` 管理模型，而不是到处手写 `provider,model`
-- 让你只关心模型接入信息，消息格式转换由路由层统一处理
+- 用一个本地服务接管 Claude Code 的上游请求
+- 按你的配置把请求路由到不同模型
+- 用统一的模型配置格式管理 OpenAI / Anthropic 及兼容接口
 
-## 快速开始
+当前对用户主流程已经做了打包态 CLI E2E 验证，覆盖：
 
-### 1. 安装
+- 安装后的 `ctr help / init / version / upgrade`
+- `start / status / stop / restart`
+- `code`
+- `ui`
+- `setup` 的复用、迁移、新建、repair、rebuild、cancel 主路径
+
+## 安装
 
 ```bash
 npm install -g @peterwangze/claude-trigger-router
 ```
 
-如果 npm registry 还没有同步到最新公开包，或者当前包尚未完成首次公开发布，可以先临时改用 GitHub 安装：
+安装后先确认：
 
 ```bash
-npm install -g github:peterwangze/claude-trigger-router
+ctr version
+ctr help
 ```
 
-### 2. 运行初始化向导
+## 最推荐的开始方式
+
+直接运行：
 
 ```bash
 ctr setup
 ```
 
-`ctr setup` 会：
+`ctr setup` 会按顺序处理这些事情：
 
-- 优先检查当前配置是否可直接复用
-- 检测旧版 `~/.ccr/config.yaml` 或 `~/.claude-code-router/config.yaml` 并优先提供迁移
-- 在需要新建时，先确认接入方式与 provider 预设，再带出默认模型和默认模型 ID 供确认
-- 只生成最小可用配置（`Models + Router.default`），高级路由稍后再补
-- 保存配置后启动服务并进入 Claude Code
+- 检查当前 `~/.claude-trigger-router` 配置是否可以直接复用
+- 检查旧的 `claude-code-router` 配置是否可以迁移
+- 如果都不适用，就引导你创建最小可用配置
+- 保存配置后启动本地服务
 
-### 3. 使用最小配置
+这是当前最推荐、也是覆盖最完整的用户入口。
 
-如果你更喜欢手动编辑，也可以先执行：
+## 最小配置
+
+如果你想手动编辑，可以先生成模板：
 
 ```bash
-ctr init
+ctr init --force
 ```
 
-然后把 `~/.claude-trigger-router/config.yaml` 调整为：
+然后编辑 `~/.claude-trigger-router/config.yaml`，最小可用配置类似这样：
 
 ```yaml
+HOST: "127.0.0.1"
+PORT: 5678
+
 Models:
   - id: sonnet
     api: "https://openrouter.ai/api/v1/chat/completions"
@@ -58,239 +72,141 @@ Router:
   default: "sonnet"
 ```
 
-### 4. 启动服务
+最少只需要关心这几个字段：
 
-```bash
-ctr start
-```
+- `api`：目标接口地址
+- `key`：API Key
+- `interface`：接口类型，当前支持 `openai` / `anthropic`
+- `thinking`：可选，支持的模型才需要配置
 
-确认配置可用后，可改为后台运行：
+消息格式转换由路由层统一处理，不需要你自己按不同厂商手写消息体。
 
-```bash
-ctr start --daemon
-```
+## `interface` 怎么选
 
-### 5. 启动 Claude Code
+`interface` 表示目标上游接口协议，不是厂商名。
 
-```bash
-ctr code
-```
+常见场景：
 
-`ctr code` 会检查目标端口上是否真的是 Claude Trigger Router，然后再注入 `ANTHROPIC_BASE_URL` 并拉起 Claude Code。
-
-## 新配置心智
-
-推荐始终从 `Models` 出发。每个模型接入项描述的是“这个模型怎么连”，而不是“内部 provider 怎么拼”。
-
-每个模型的最少必填字段是：
-
-| 字段 | 是否必填 | 说明 |
-|------|----------|------|
-| `id` | 必填 | 模型唯一标识，供 Router / TriggerRouter / SmartRouter / Governance 引用 |
-| `api` | 必填 | 上游接口地址 |
-| `key` | 必填 | 对应 API Key |
-| `interface` | 必填 | 接口类型，当前支持 `openai` / `anthropic` |
-| `model` | 必填 | 目标模型名 |
-| `thinking` | 可选 | 思考强度，推荐 `off / auto / on / low / medium / high` |
-
-额外可选项：
-
-- `metadata.vendor_hint`
-- `metadata.supports_reasoning`
-- `metadata.supports_tools`
-- `metadata.supports_images`
-
-兼容性说明：
-
-- 当前实现仍兼容旧字段 `api_base_url` / `api_key` / `protocol`
-- 保存和对外展示优先使用新字段 `api` / `key` / `interface`
-- `thinking` 既支持简写字符串，也支持 `{ mode, effort, budget_tokens }` 对象
-
-## 接口类型怎么选
-
-`interface` 只表示目标上游期望的消息协议类型，不等于“厂商名”。
-
-常见映射如下：
-
-| 场景 | `api` 示例 | `interface` |
-|------|------------|-------------|
-| OpenAI 官方 | `https://api.openai.com/v1/chat/completions` | `openai` |
-| Anthropic 官方 | `https://api.anthropic.com/v1/messages` | `anthropic` |
-| OpenRouter | `https://openrouter.ai/api/v1/chat/completions` | `openai` |
-| DeepSeek | `https://api.deepseek.com/chat/completions` | `openai` |
-| SiliconFlow / 本地兼容服务 | 对应兼容地址 | `openai` |
-
-路由层会按 `interface` 把统一消息转换成目标上游请求体。
-
-当前统一转换已覆盖：
-
-- 文本消息
-- 图片输入
-- tool call / tool result
-- `thinking`
-
-如果目标模型声明不支持某项能力，路由会做显式降级，并给出 warning。
-
-## 常见路由配置
-
-### 单模型
-
-```yaml
-Models:
-  - id: sonnet
-    api: "https://openrouter.ai/api/v1/chat/completions"
-    key: "sk-xxx"
-    interface: "openai"
-    model: "anthropic/claude-sonnet-4"
-
-Router:
-  default: "sonnet"
-```
-
-### 规则路由
-
-```yaml
-Models:
-  - id: sonnet
-    api: "https://openrouter.ai/api/v1/chat/completions"
-    key: "sk-xxx"
-    interface: "openai"
-    model: "anthropic/claude-sonnet-4"
-
-  - id: opus
-    api: "https://openrouter.ai/api/v1/chat/completions"
-    key: "sk-xxx"
-    interface: "openai"
-    model: "anthropic/claude-opus-4"
-
-Router:
-  default: "sonnet"
-
-TriggerRouter:
-  enabled: true
-  analysis_scope: "last_message"
-  rules:
-    - name: "architecture"
-      priority: 90
-      enabled: true
-      patterns:
-        - type: exact
-          keywords: ["架构设计", "system design"]
-      model: "opus"
-```
-
-### 规则 + 智能路由
-
-```yaml
-Models:
-  - id: sonnet
-    api: "https://openrouter.ai/api/v1/chat/completions"
-    key: "sk-xxx"
-    interface: "openai"
-    model: "anthropic/claude-sonnet-4"
-
-  - id: reasoner
-    api: "https://api.deepseek.com/chat/completions"
-    key: "sk-xxx"
-    interface: "openai"
-    model: "deepseek-reasoner"
-    thinking: "high"
-
-Router:
-  default: "sonnet"
-  think: "reasoner"
-
-SmartRouter:
-  enabled: true
-  router_model: "sonnet"
-  candidates:
-    - model: "sonnet"
-      description: "通用编程与调试"
-    - model: "reasoner"
-      description: "复杂推理与严谨分析"
-```
-
-完整示例见 `config/trigger.example.yaml`。
-
-## warning 与 capability hint
-
-如果你已经知道某个模型不支持完整能力，可以在配置里显式声明：
-
-```yaml
-Models:
-  - id: restricted
-    api: "https://api.example.com/v1/chat/completions"
-    key: "sk-xxx"
-    interface: "openai"
-    model: "vendor/text-only"
-    thinking: "high"
-    metadata:
-      supports_reasoning: false
-      supports_tools: false
-      supports_images: false
-```
-
-当前行为：
-
-- `supports_reasoning: false` 时，请求里的 `thinking` 会被忽略
-- `supports_tools: false` 时，工具定义和 tool call/result 会退化为文本
-- `supports_images: false` 时，图片块会退化为文本说明
-
-这些信息会出现在：
-
-- `ctr setup` 的配置提示
-- `POST /api/config` 返回的 `warnings`
-- `GET /api/models/compiled`
-- `/ui` 的 Draft Config Preview 和 Capability Warnings
-
-## `/ui` 可以做什么
-
-访问 `http://127.0.0.1:5678/ui` 后，可以直接：
-
-- 编辑 `Models` 草稿
-- 预览 compiled model map
-- 查看 `errors / warnings / capabilityWarnings`
-- 保存当前草稿配置
-- 对部分 warning 执行快捷修正
-
-`/ui` 的新增模型卡片和 Provider template 现在也共用同一份 preset 目录，不同模板会带出各自的默认模型、示例项和 placeholder。
-
-适合用来做配置校准，但主线配置入口仍然建议优先用 `ctr setup` 或直接编辑配置文件。
-
-## 旧配置迁移
-
-如果你还在使用旧的 `Providers + provider,model` 配置：
-
-- 当前版本仍然兼容旧格式
-- `ctr setup` 会优先尝试迁移旧 `ccr` / `claude-code-router` 配置
-- 路由字段推荐逐步改成直接引用 `Models[].id`
-
-迁移后的核心变化是：
-
-- `provider,model` -> `modelId`
-- `api_base_url` -> `api`
-- `api_key` -> `key`
-- `protocol` -> `interface`
-
-详见 `docs/models-migration-guide.md`。
+- OpenAI 官方：`interface: openai`
+- Anthropic 官方：`interface: anthropic`
+- OpenRouter：`interface: openai`
+- DeepSeek 兼容接口：`interface: openai`
+- 其他 OpenAI-compatible 服务：`interface: openai`
 
 ## 常用命令
+
+初始化或修复配置：
 
 ```bash
 ctr setup
 ctr init
-ctr version
-ctr upgrade
+```
+
+服务生命周期：
+
+```bash
 ctr start
 ctr start --daemon
+ctr status
 ctr stop
 ctr restart --daemon
+```
+
+配合 Claude Code 使用：
+
+```bash
+ctr code
+```
+
+其它：
+
+```bash
+ctr version
+ctr upgrade
+ctr ui
+```
+
+## 推荐使用顺序
+
+首次使用：
+
+```bash
+ctr setup
 ctr status
 ctr code
 ```
 
-## 推荐阅读
+如果你更喜欢手动配置：
 
-- 配置模板与分工建议：`docs/configuration-guide.md`
-- 旧配置迁移：`docs/models-migration-guide.md`
-- 完整示例：`config/trigger.example.yaml`
+```bash
+ctr init --force
+ctr start
+ctr code
+```
+
+后台运行：
+
+```bash
+ctr start --daemon
+ctr status
+ctr code
+```
+
+## 旧配置迁移
+
+如果你之前在用 `claude-code-router`：
+
+- `ctr setup` 会自动探测旧配置
+- 会优先提供迁移选项
+- 迁移后的新配置会落到 `~/.claude-trigger-router/config.yaml`
+
+当前推荐的新配置心智是：
+
+- 每个模型直接写成一个 `Models[]` 项
+- 路由规则直接引用 `Models[].id`
+- 不再让用户到处手写 `provider,model`
+
+## UI
+
+运行：
+
+```bash
+ctr ui
+```
+
+当前会打开：
+
+```text
+http://127.0.0.1:5678/ui
+```
+
+它适合做配置查看和调试，但主线入口仍然建议优先使用 `ctr setup`。
+
+## 示例配置
+
+更完整的配置示例见：
+
+- `config/trigger.example.yaml`
+
+如果你需要高级路由能力，再继续看这些文档：
+
+- `docs/configuration-guide.md`
+- `docs/models-migration-guide.md`
+- `docs/releasing.md`
+
+## 发布前验证
+
+如果你是维护者，发布前建议执行：
+
+```bash
+npm run release:verify
+```
+
+这一步现在会包含：
+
+- 常规测试
+- 打包后的 CLI E2E
+- tarball 安装校验
+- 安装后 CLI 冒烟校验
+
+这样可以尽量避免“发出去再发现 CLI 不可用”。
