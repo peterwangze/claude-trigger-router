@@ -25,6 +25,37 @@ let cliPath: string;
 let tarballPath: string;
 let prefixDir: string;
 
+function buildMinimalModelsConfig(port: number, overrides: string[] = []): string {
+  return [
+    'HOST: "127.0.0.1"',
+    `PORT: ${port}`,
+    'LOG: false',
+    'Models:',
+    '  - id: default_model',
+    '    api: "https://openrouter.ai/api/v1/chat/completions"',
+    '    key: "sk-test"',
+    '    interface: "openai"',
+    '    model: "anthropic/claude-sonnet-4"',
+    ...overrides,
+    'Router:',
+    '  default: "default_model"',
+  ].join('\n');
+}
+
+function getSetupMutationWhitelist(): string[] {
+  return [
+    '.claude-trigger-router',
+    '.claude-trigger-router/config.yaml',
+    '.claude-trigger-router/config.backup.*',
+    '.claude-trigger-router/logs',
+    '.claude-trigger-router/logs/ctr-*',
+    '.claude-trigger-router/claude-trigger-router.pid',
+    '.claude-code-router',
+    '.claude-code-router/config.json',
+    '.claude.json',
+  ];
+}
+
 async function canBindPort(port: number): Promise<boolean> {
   const server = createServer();
   try {
@@ -97,6 +128,42 @@ describe('packaged CLI E2E', () => {
     }
   });
 
+  it('invoking ctr without a command prints help and does not modify the isolated HOME', async () => {
+    const env = await createTestEnvironment('ctr-no-command-e2e-');
+    try {
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, [], env);
+      const after = await snapshotTree(env.homeDir);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('用法：ctr <命令> [选项]');
+      expect(result.stdout).toContain('setup');
+      expect(result.stderr).toBe('');
+
+      expect(diffSnapshots(before, after)).toEqual({ added: [], removed: [], changed: [] });
+    } finally {
+      await removePath(env.rootDir);
+    }
+  });
+
+  it('help aliases exit cleanly without mutating the isolated HOME', async () => {
+    const env = await createTestEnvironment('ctr-help-alias-e2e-');
+    try {
+      for (const arg of ['--help', '-h']) {
+        const before = await snapshotTree(env.homeDir);
+        const result = await runCtr(cliPath, [arg], env);
+        const after = await snapshotTree(env.homeDir);
+
+        expect(result.code).toBe(0);
+        expect(result.stdout).toContain('用法：ctr <命令> [选项]');
+        expect(result.stderr).toBe('');
+        expect(diffSnapshots(before, after)).toEqual({ added: [], removed: [], changed: [] });
+      }
+    } finally {
+      await removePath(env.rootDir);
+    }
+  });
+
   it('init --force writes only the expected config file under the isolated HOME', async () => {
     const env = await createTestEnvironment('ctr-init-e2e-');
     try {
@@ -114,6 +181,26 @@ describe('packaged CLI E2E', () => {
         '.claude-trigger-router',
         '.claude-trigger-router/config.yaml',
       ]);
+    } finally {
+      await removePath(env.rootDir);
+    }
+  });
+
+  it('init without --force does not overwrite an existing config file', async () => {
+    const env = await createTestEnvironment('ctr-init-existing-e2e-');
+    const configPath = join(env.homeDir, '.claude-trigger-router', 'config.yaml');
+    const originalConfig = buildMinimalModelsConfig(5678);
+    try {
+      await writeFileUnder(env.homeDir, '.claude-trigger-router/config.yaml', originalConfig);
+
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['init'], env);
+      const after = await snapshotTree(env.homeDir);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('配置文件已存在');
+      expect(await readText(configPath)).toBe(originalConfig);
+      expect(diffSnapshots(before, after)).toEqual({ added: [], removed: [], changed: [] });
     } finally {
       await removePath(env.rootDir);
     }
@@ -215,6 +302,128 @@ describe('packaged CLI E2E', () => {
       const stopResult = await runCtr(cliPath, ['stop'], env);
       expect(stopResult.code).toBe(0);
       expect(stopResult.stdout).toContain('服务已停止');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('status and stop fail safely when no service is running', async () => {
+    const env = await createTestEnvironment('ctr-no-service-e2e-');
+    try {
+      const statusResult = await runCtr(cliPath, ['status'], env);
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+
+      expect(statusResult.code).toBe(0);
+      expect(statusResult.stdout).toContain('服务未运行');
+      expect(stopResult.code).toBe(0);
+      expect(stopResult.stdout).toContain('未发现运行中的服务');
+    } finally {
+      await removePath(env.rootDir);
+    }
+  });
+
+  it('start foreground fails cleanly on invalid config without unexpected file writes', async () => {
+    const env = await createTestEnvironment('ctr-start-invalid-e2e-');
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          'PORT: 5678',
+          'LOG: false',
+          'Models:',
+          '  - id: invalid_model',
+          '    api: "https://openrouter.ai/api/v1/chat/completions"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          'Router: {}',
+        ].join('\n')
+      );
+
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['start'], env, { timeoutMs: 30000 });
+      const after = await snapshotTree(env.homeDir);
+
+      expect(result.code).toBe(1);
+      expect(result.stdout).toContain('Starting Claude Trigger Router (foreground)');
+      expect(result.stderr).toContain('Configuration error');
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), [
+        '.claude-trigger-router',
+        '.claude-trigger-router/config.yaml',
+        '.claude-trigger-router/logs',
+      ]);
+    } finally {
+      await removePath(env.rootDir);
+    }
+  });
+
+  it('start --daemon does not start a duplicate service when one is already running', async () => {
+    const env = await createTestEnvironment('ctr-start-duplicate-e2e-');
+    const port = await getFreePort();
+    try {
+      await writeFileUnder(env.homeDir, '.claude-trigger-router/config.yaml', buildMinimalModelsConfig(port));
+
+      const firstStart = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, { timeoutMs: 20000 });
+      expect(firstStart.code).toBe(0);
+
+      const statusBefore = await runCtr(cliPath, ['status'], env);
+      const secondStart = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, { timeoutMs: 15000 });
+      const statusAfter = await runCtr(cliPath, ['status'], env);
+
+      expect(secondStart.code).toBe(0);
+      expect(secondStart.stdout).toContain('Service is already running in the background');
+      expect(statusBefore.stdout).toContain('服务运行中');
+      expect(statusAfter.stdout).toContain('服务运行中');
+      expect(statusBefore.stdout).toContain(String(port));
+      expect(statusAfter.stdout).toContain(String(port));
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('restart starts the service when none is running and restarts it cleanly when already running', async () => {
+    const env = await createTestEnvironment('ctr-restart-e2e-');
+    const port = await getFreePort();
+    try {
+      await writeFileUnder(env.homeDir, '.claude-trigger-router/config.yaml', buildMinimalModelsConfig(port));
+
+      const restartCold = await runCtr(cliPath, ['restart', '--daemon', '--port', String(port)], env, { timeoutMs: 20000 });
+      expect(restartCold.code).toBe(0);
+      expect(restartCold.stdout).toContain('未发现运行中的服务');
+
+      const statusAfterCold = await runCtr(cliPath, ['status'], env);
+      expect(statusAfterCold.code).toBe(0);
+      expect(statusAfterCold.stdout).toContain('服务运行中');
+
+      const pidBefore = statusAfterCold.stdout.match(/PID：(\d+)/)?.[1];
+      const restartWarm = await runCtr(cliPath, ['restart', '--daemon', '--port', String(port)], env, { timeoutMs: 25000 });
+      expect(restartWarm.code).toBe(0);
+      expect(restartWarm.stdout).toContain('正在停止服务');
+
+      const statusAfterWarm = await runCtr(cliPath, ['status'], env);
+      const pidAfter = statusAfterWarm.stdout.match(/PID：(\d+)/)?.[1];
+      expect(statusAfterWarm.code).toBe(0);
+      expect(statusAfterWarm.stdout).toContain('服务运行中');
+      expect(pidBefore).toBeTruthy();
+      expect(pidAfter).toBeTruthy();
+      expect(pidAfter).not.toBe(pidBefore);
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
     } finally {
       try {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
@@ -434,6 +643,153 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
+  it('setup can create a fresh config on first use when no current or legacy config exists', async () => {
+    const env = await createTestEnvironment('ctr-setup-first-use-e2e-');
+    try {
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: [
+          '使用常见接入模板',
+          'openrouter',
+          'openrouter',
+          'https://openrouter.ai/api/v1/chat/completions',
+          'sk-first-use',
+          'anthropic/claude-sonnet-4',
+          'sonnet',
+          '保持默认',
+        ].join('\n'),
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+
+      expect(result.code).toBe(0);
+      expect(configText).toContain('id: sonnet');
+      expect(configText).toContain('key: sk-first-use');
+      expect(configText).toContain('default: sonnet');
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('setup can skip legacy migration and build a fresh config on first use', async () => {
+    const env = await createTestEnvironment('ctr-setup-skip-legacy-e2e-');
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-code-router/config.json',
+        `{
+  "Providers": [
+    {
+      "name": "legacy-openai",
+      "api_base_url": "https://example.com/openai/v1/chat/completions",
+      "api_key": "sk-legacy",
+      "models": ["gpt-4.1"]
+    }
+  ],
+  "Router": {
+    "default": "legacy-openai,gpt-4.1"
+  }
+}`
+      );
+
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: [
+          '2',
+          '使用常见接入模板',
+          'openrouter',
+          'openrouter',
+          'https://openrouter.ai/api/v1/chat/completions',
+          'sk-skip-legacy',
+          'anthropic/claude-sonnet-4',
+          'sonnet',
+          '保持默认',
+        ].join('\n'),
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('跳过迁移，手动新建');
+      expect(configText).toContain('key: sk-skip-legacy');
+      expect(configText).toContain('default: sonnet');
+      expect(configText).not.toContain('legacy-openai');
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('setup falls back to fresh creation when legacy config exists but cannot be parsed', async () => {
+    const env = await createTestEnvironment('ctr-setup-legacy-read-error-e2e-');
+    try {
+      await writeFileUnder(env.homeDir, '.claude-code-router/config.json', '{ invalid json');
+
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: [
+          '使用常见接入模板',
+          'openrouter',
+          'openrouter',
+          'https://openrouter.ai/api/v1/chat/completions',
+          'sk-read-error',
+          'anthropic/claude-sonnet-4',
+          'sonnet',
+          '保持默认',
+        ].join('\n'),
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('旧 ccr 配置读取失败');
+      expect(configText).toContain('key: sk-read-error');
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('setup can abandon current config and migrate legacy claude-code-router config into the new template', async () => {
     const env = await createTestEnvironment('ctr-setup-migrate-e2e-');
     const port = await getFreePort();
@@ -526,6 +882,117 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
+  it('setup can overwrite a valid current config with a newly guided configuration', async () => {
+    const env = await createTestEnvironment('ctr-setup-overwrite-valid-e2e-');
+    const port = await getFreePort();
+    try {
+      await writeFileUnder(env.homeDir, '.claude-trigger-router/config.yaml', buildMinimalModelsConfig(port));
+
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: [
+          '2',
+          '使用常见接入模板',
+          'anthropic',
+          'anthropic',
+          'https://api.anthropic.com/v1/messages',
+          'sk-overwrite',
+          'claude-sonnet-4-5',
+          'sonnet45',
+          '保持默认',
+        ].join('\n'),
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('检查并调整当前配置');
+      expect(configText).toContain('id: sonnet45');
+      expect(configText).toContain('interface: anthropic');
+      expect(configText).toContain('key: sk-overwrite');
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('setup can abandon a valid current config, skip legacy migration, and rebuild fresh', async () => {
+    const env = await createTestEnvironment('ctr-setup-fresh-skip-valid-e2e-');
+    const port = await getFreePort();
+    try {
+      await writeFileUnder(env.homeDir, '.claude-trigger-router/config.yaml', buildMinimalModelsConfig(port));
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-code-router/config.json',
+        `{
+  "Providers": [
+    {
+      "name": "legacy-openai",
+      "api_base_url": "https://example.com/openai/v1/chat/completions",
+      "api_key": "sk-legacy",
+      "models": ["gpt-4.1"]
+    }
+  ],
+  "Router": {
+    "default": "legacy-openai,gpt-4.1"
+  }
+}`
+      );
+
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: [
+          '3',
+          '2',
+          '使用常见接入模板',
+          'openrouter',
+          'openrouter',
+          'https://openrouter.ai/api/v1/chat/completions',
+          'sk-fresh-after-skip',
+          'anthropic/claude-sonnet-4',
+          'fresh_sonnet',
+          '保持默认',
+        ].join('\n'),
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+
+      expect(result.code).toBe(0);
+      expect(configText).toContain('id: fresh_sonnet');
+      expect(configText).toContain('key: sk-fresh-after-skip');
+      expect(configText).not.toContain('legacy-openai');
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('setup can repair an invalid current config without touching unexpected files', async () => {
     const env = await createTestEnvironment('ctr-setup-repair-e2e-');
     const port = await getFreePort();
@@ -579,6 +1046,113 @@ describe('packaged CLI E2E', () => {
       const stopResult = await runCtr(cliPath, ['stop'], env);
       expect(stopResult.code).toBe(0);
       expect(stopResult.stdout).toContain('服务已停止');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('setup can cancel invalid-config repair without mutating files', async () => {
+    const env = await createTestEnvironment('ctr-setup-invalid-cancel-e2e-');
+    const port = await getFreePort();
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'LOG: false',
+          'Models:',
+          '  - id: broken_model',
+          '    api: "https://openrouter.ai/api/v1/chat/completions"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          'Router: {}',
+        ].join('\n')
+      );
+
+      const before = await snapshotTree(env.homeDir);
+      const originalConfig = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: 'cancel\n',
+        timeoutMs: 30000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('当前配置校验失败');
+      expect(await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'))).toBe(originalConfig);
+      expect(diffSnapshots(before, after)).toEqual({ added: [], removed: [], changed: [] });
+    } finally {
+      await removePath(env.rootDir);
+    }
+  });
+
+  it('setup can overwrite an invalid config by migrating legacy claude-code-router settings', async () => {
+    const env = await createTestEnvironment('ctr-setup-invalid-overwrite-migrate-e2e-');
+    const port = await getFreePort();
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'LOG: false',
+          'Models:',
+          '  - id: broken_model',
+          '    api: "https://openrouter.ai/api/v1/chat/completions"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          'Router: {}',
+        ].join('\n')
+      );
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-code-router/config.json',
+        `{
+  "Providers": [
+    {
+      "name": "gpt90",
+      "api_base_url": "https://example.com/openai/v1/chat/completions",
+      "api_key": "sk-invalid-migrate",
+      "models": ["gpt-5.4"]
+    }
+  ],
+  "Router": {
+    "default": "gpt90,gpt-5.4"
+  }
+}`
+      );
+
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: 'overwrite\n1\n',
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+
+      expect(result.code).toBe(0);
+      expect(configText).toContain('id: gpt90_gpt_5_4');
+      expect(configText).toContain('key: sk-invalid-migrate');
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
     } finally {
       try {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
@@ -650,4 +1224,30 @@ describe('packaged CLI E2E', () => {
       await removePath(env.rootDir);
     }
   }, 300000);
+
+  it('setup can cancel rebuild when the current config is unparseable without mutating files', async () => {
+    const env = await createTestEnvironment('ctr-setup-parse-cancel-e2e-');
+    try {
+      await writeFileUnder(env.homeDir, '.claude-trigger-router/config.yaml', 'Models:\n\t- bad: yaml\n');
+
+      const before = await snapshotTree(env.homeDir);
+      const originalConfig = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: 'cancel\n',
+        timeoutMs: 30000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('当前配置无法解析');
+      expect(await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'))).toBe(originalConfig);
+      expect(diffSnapshots(before, after)).toEqual({ added: [], removed: [], changed: [] });
+    } finally {
+      await removePath(env.rootDir);
+    }
+  });
 });
