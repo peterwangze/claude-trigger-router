@@ -70,6 +70,14 @@ Windows 下脚本会额外生成一个包装命令 `.release-stage\ctr-release-h
 .release-home\.claude-trigger-router\config.yaml
 ```
 
+这个 staged 配置文件顶部会额外提示你优先修改：
+
+- `Models[*].key`
+- `Models[*].api` / `model`
+- `PORT`
+
+并且示例里的 `sk-xxx` 会自动替换成更显眼的占位值 `REPLACE_WITH_REAL_API_KEY`，避免直接拿着示例值做验证。
+
 验证完成后执行：
 
 ```bash

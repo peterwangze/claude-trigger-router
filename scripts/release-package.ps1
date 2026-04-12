@@ -53,6 +53,22 @@ function New-ReleaseTestConfig {
   }
 
   Copy-Item -LiteralPath $exampleConfig -Destination $releaseConfigFile -Force
+  $releaseConfigContent = Get-Content -LiteralPath $releaseConfigFile -Raw
+  $releaseConfigContent = $releaseConfigContent.Replace('"sk-xxx"', '"REPLACE_WITH_REAL_API_KEY"')
+  $releaseConfigContent = @'
+# =====================================================================
+# Release stage test config
+# This file is isolated under .release-home and will not touch your real
+# ~/.claude-trigger-router configuration.
+#
+# Before manual verification, update at least:
+#   1. Models[*].key
+#   2. Models[*].api / model if you want to target a different provider
+#   3. PORT if you do not want to use 5678
+# =====================================================================
+
+'@ + $releaseConfigContent
+  Set-Content -LiteralPath $releaseConfigFile -Value $releaseConfigContent
 
   $releaseClaudeConfig = Join-Path $releaseHome ".claude.json"
   if (-not (Test-Path -LiteralPath $releaseClaudeConfig)) {
