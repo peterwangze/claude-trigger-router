@@ -301,9 +301,10 @@ function Invoke-ReleaseStage {
     Write-Host "  `"$wrapperCmd`" version"
     Write-Host "  `"$wrapperCmd`" setup"
     Write-Host "  `"$wrapperCmd`" status"
-    Write-Host "  `"$wrapperCmd`" start --port $Port"
     Write-Host "  `"$wrapperCmd`" ui"
     Write-Host "  `"$wrapperCmd`" stop"
+    Write-Host "  `"$wrapperCmd`" init --force"
+    Write-Host "  `"$wrapperCmd`" start --port $Port"
     Write-Host ""
     Write-Host "Before running start/setup, edit the staged test config if needed:" -ForegroundColor Yellow
     Write-Host "  $releaseConfigFile"
@@ -314,9 +315,10 @@ function Invoke-ReleaseStage {
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" version"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" setup"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" status"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" start --port $Port"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" ui"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" stop"
+    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" init --force"
+    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" start --port $Port"
   }
   Write-Host ""
   Write-Host "Recommended verification checklist:" -ForegroundColor Cyan
@@ -332,11 +334,13 @@ function Invoke-ReleaseStage {
   3) Recommended user path:
      & "$wrapperCmd" setup
      & "$wrapperCmd" status
+     & "$wrapperCmd" ui
+     & "$wrapperCmd" stop
 
-  4) Service lifecycle:
+  4) Optional manual config path:
+     & "$wrapperCmd" init --force
      & "$wrapperCmd" start --port $Port
      & "$wrapperCmd" status
-     & "$wrapperCmd" ui
      & "$wrapperCmd" stop
 
   5) Legacy claude-code-router migration:
@@ -356,11 +360,13 @@ function Invoke-ReleaseStage {
   3) Recommended user path:
      HOME="$releaseHome" "$stageCliPath" setup
      HOME="$releaseHome" "$stageCliPath" status
+     HOME="$releaseHome" "$stageCliPath" ui
+     HOME="$releaseHome" "$stageCliPath" stop
 
-  4) Service lifecycle:
+  4) Optional manual config path:
+     HOME="$releaseHome" "$stageCliPath" init --force
      HOME="$releaseHome" "$stageCliPath" start --port $Port
      HOME="$releaseHome" "$stageCliPath" status
-     HOME="$releaseHome" "$stageCliPath" ui
      HOME="$releaseHome" "$stageCliPath" stop
 
   5) Legacy claude-code-router migration:
