@@ -240,6 +240,7 @@ Models:
 ## 9. 参考文件
 
 - 主入口：`README.md`
-- 完整示例：`config/trigger.example.yaml`
+- 最小示例：`config/trigger.example.yaml`
+- 完整高级示例：`config/trigger.advanced.yaml`
 - 旧配置迁移：`docs/models-migration-guide.md`
 - 发布验证：`docs/releasing.md`

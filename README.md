@@ -187,9 +187,13 @@ http://127.0.0.1:5678/ui
 
 ## 示例配置
 
-更完整的配置示例见：
+最小示例：
 
 - `config/trigger.example.yaml`
+
+完整高级示例：
+
+- `config/trigger.advanced.yaml`
 
 如果你需要高级路由能力，再继续看这些文档：
 

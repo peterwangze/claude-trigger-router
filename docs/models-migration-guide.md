@@ -261,5 +261,6 @@ npm run release:verify
 
 - 主入口：`README.md`
 - 配置指南：`docs/configuration-guide.md`
-- 完整示例：`config/trigger.example.yaml`
+- 最小示例：`config/trigger.example.yaml`
+- 完整高级示例：`config/trigger.advanced.yaml`
 - 发布验证：`docs/releasing.md`
