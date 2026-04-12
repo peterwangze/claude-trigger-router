@@ -49,6 +49,7 @@ npm run release:stage
 
 - 把当前版本打包并安装到仓库内的隔离目录 `.release-stage`
 - 准备一个隔离的测试 HOME 目录 `.release-home`，并自动生成测试配置
+- 在同一个 `.release-home` 下同时放入 `claude-code-router` legacy 配置样本，保证迁移验证走主流程 HOME
 
 这样你在手动验证时不会污染自己真实的 `~/.claude-trigger-router` 配置。
 
@@ -76,6 +77,24 @@ Windows 下脚本会额外生成一个包装命令 `.release-stage\ctr-release-h
 ```
 
 `npm run release:stage` 的输出里也会直接打印一组“推荐验证清单”，你可以按它给出的顺序直接复制执行。
+
+对于本次 `claude-code-router` 配置迁移这种高频通用能力，`release:stage` 现在也会默认在同一个主流程 HOME 中准备 legacy 配置样本。Windows 下可直接继续使用同一个 wrapper：
+
+```bash
+".release-stage\\ctr-release-home.cmd" setup
+```
+
+它会在 `.release-home` 中同时读取脚本自动生成的 legacy 样本：
+
+```bash
+.release-home\.claude-code-router\config.json
+```
+
+迁移后的目标配置请重点检查：
+
+```bash
+.release-home\.claude-trigger-router\config.yaml
+```
 
 如果要先修改测试配置，请编辑：
 
@@ -159,7 +178,7 @@ npm run release:publish
 其中：
 
 - `npm run release:verify`：只做构建、测试、打包、隔离安装和 CLI 冒烟检查
-- `npm run release:stage`：把待发布包安装到 `.release-stage`，并准备 `.release-home` 测试配置，供你手动调用新包 CLI 验收功能
+- `npm run release:stage`：把待发布包安装到 `.release-stage`，并在同一个 `.release-home` 中准备基础验收配置与 legacy 迁移验证样本
 - `npm run release:clean`：清理 `.release-stage`、`.release-home` 和本地 tarball
 - `npm run release:publish`：发布前先检查目标版本是否已存在于 npm；如果不存在，会先执行完整验证，再执行 `npm publish`
 

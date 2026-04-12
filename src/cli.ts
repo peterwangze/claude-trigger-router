@@ -4,7 +4,7 @@
  * 命令行入口
  */
 
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import { join, dirname } from "path";
 import open from "openurl";
 import { existsSync, readFileSync, copyFileSync, mkdirSync } from "fs";
@@ -17,6 +17,7 @@ import { runSetupCli } from "./setup";
 const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
 const PACKAGE_PAGE_URL = "https://www.npmjs.com/package/@peterwangze/claude-trigger-router";
 const PACKAGE_REGISTRY_LATEST_URL = "https://registry.npmjs.org/@peterwangze%2Fclaude-trigger-router/latest";
+const PACKAGE_REGISTRY_URL = "https://registry.npmjs.org/";
 
 function getPackageInfo(): { name: string; version: string } {
   const content = readFileSync(PACKAGE_JSON_PATH, "utf-8");
@@ -136,7 +137,26 @@ Claude Trigger Router - 智能触发路由器
 `);
 }
 
-async function getLatestPackageVersion(timeoutMs = 1500): Promise<string | null> {
+function getLatestPackageVersionViaNpm(packageName: string, timeoutMs = 5000): string | null {
+  try {
+    const result = spawnSync("npm", ["view", packageName, "version", "--registry", PACKAGE_REGISTRY_URL], {
+      encoding: "utf-8",
+      timeout: timeoutMs,
+      shell: process.platform === "win32",
+    });
+
+    if (result.status !== 0) {
+      return null;
+    }
+
+    const value = result.stdout?.trim();
+    return value ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getLatestPackageVersion(packageName: string, timeoutMs = 4000): Promise<string | null> {
   try {
     const response = await fetch(PACKAGE_REGISTRY_LATEST_URL, {
       signal: AbortSignal.timeout(timeoutMs),
@@ -147,10 +167,14 @@ async function getLatestPackageVersion(timeoutMs = 1500): Promise<string | null>
     }
 
     const payload = await response.json() as { version?: unknown };
-    return typeof payload.version === "string" ? payload.version : null;
+    if (typeof payload.version === "string") {
+      return payload.version;
+    }
   } catch {
-    return null;
+    // Fall through to npm CLI lookup.
   }
+
+  return getLatestPackageVersionViaNpm(packageName);
 }
 
 function isNewerVersion(current: string, latest: string): boolean {
@@ -176,7 +200,7 @@ function isNewerVersion(current: string, latest: string): boolean {
 
 async function printVersion() {
   const pkg = getPackageInfo();
-  const latestVersion = await getLatestPackageVersion();
+  const latestVersion = await getLatestPackageVersion(pkg.name);
 
   console.log(`Package: ${pkg.name}`);
   console.log(`Version: ${pkg.version}`);

@@ -542,6 +542,91 @@ describe('runSetupCli', () => {
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
   });
 
+  it('offers legacy migration after abandoning a valid current config when claude-code-router config exists', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('放弃当前配置，重新开始')
+        .mockResolvedValueOnce('迁移旧配置（推荐）'),
+      input: vi.fn(),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/tmp/config.yaml',
+        format: 'yaml',
+        config: {
+          Models: [
+            {
+              id: 'existing',
+              api_key: 'sk-old',
+              api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+              protocol: 'openai',
+              model: 'anthropic/claude-sonnet-4',
+            },
+          ],
+          Router: {
+            default: 'existing',
+          },
+        },
+      }),
+      readLegacyConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/tmp/.claude-code-router/config.json',
+        config: {
+          Providers: [
+            {
+              name: 'gpt90',
+              api_key: 'sk-test',
+              api_base_url: 'https://example.com/openai/v1/chat/completions',
+              models: ['gpt-5.4'],
+            },
+          ],
+          Router: {
+            default: 'gpt90,gpt-5.4',
+          },
+        },
+      }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue('/tmp/config.backup.yaml'),
+      writeConfig,
+      executeStart,
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(io.choose).toHaveBeenCalledWith(
+      '检测到旧 claude-code-router 配置。是否迁移为当前推荐配置？',
+      ['迁移旧配置（推荐）', '跳过迁移，手动新建']
+    );
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Models: [
+          expect.objectContaining({
+            id: 'gpt90_gpt_5_4',
+            api_key: 'sk-test',
+            api_base_url: 'https://example.com/openai/v1/chat/completions',
+            model: 'gpt-5.4',
+          }),
+        ],
+        Router: {
+          default: 'gpt90_gpt_5_4',
+        },
+      })
+    );
+    expect(executeStart).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+  });
+
   it('offers migration as the recommended legacy action', async () => {
     const writeConfig = vi.fn().mockResolvedValue(undefined);
     const executeStart = vi.fn().mockResolvedValue(undefined);

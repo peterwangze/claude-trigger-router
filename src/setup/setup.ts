@@ -81,7 +81,8 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
   let legacyConfigAction: LegacyConfigAction | undefined;
   if (
     currentConfigAction === 'create' ||
-    currentConfigAction === 'overwrite'
+    currentConfigAction === 'overwrite' ||
+    currentConfigAction === 'fresh'
   ) {
     if (detection.legacyConfig.kind === 'found' || detection.legacyConfig.kind === 'read_error') {
       legacyConfigAction = await deps.chooseLegacyConfigAction({

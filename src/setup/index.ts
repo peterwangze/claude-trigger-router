@@ -45,6 +45,95 @@ interface IRunSetupCliDeps {
 }
 
 function createConsoleIO(): ISetupIO {
+  if (process.env.CTR_SETUP_FORCE_SCRIPTED_INPUT === '1') {
+    const scriptedInput = readFileSync(0, 'utf-8');
+    const answers = scriptedInput.split(/\r?\n/).map((item) => item.trim()).filter((item) => item.length > 0);
+    let cursor = 0;
+
+    const nextAnswer = async (): Promise<string> => answers[cursor++] ?? '';
+
+    return {
+      async choose(message, options) {
+        output.write(`${message}\n`);
+        options.forEach((option, index) => {
+          output.write(`  ${index + 1}. ${option}\n`);
+        });
+
+        const answer = await nextAnswer();
+        const pickedIndex = Number(answer);
+        if (Number.isInteger(pickedIndex) && pickedIndex >= 1 && pickedIndex <= options.length) {
+          return options[pickedIndex - 1];
+        }
+        const matched = options.find((option) => option === answer);
+        if (matched) {
+          return matched;
+        }
+        throw new Error(`invalid scripted answer for "${message}": ${answer || '<empty>'}`);
+      },
+      async input(message, defaultValue) {
+        const suffix = defaultValue ? ` (${defaultValue})` : '';
+        output.write(`${message}${suffix}: `);
+        const answer = await nextAnswer();
+        return answer || defaultValue || '';
+      },
+      info(message) {
+        output.write(`${message}\n`);
+      },
+    };
+  }
+
+  if (!input.isTTY) {
+    let loaded = false;
+    let answers: string[] = [];
+    let cursor = 0;
+
+    const loadAnswers = async () => {
+      if (loaded) {
+        return;
+      }
+      loaded = true;
+      const chunks: string[] = [];
+      for await (const chunk of input) {
+        chunks.push(String(chunk));
+      }
+      answers = chunks.join('').split(/\r?\n/).map((item) => item.trim()).filter((item) => item.length > 0);
+    };
+
+    const nextAnswer = async (): Promise<string> => {
+      await loadAnswers();
+      return answers[cursor++] ?? '';
+    };
+
+    return {
+      async choose(message, options) {
+        output.write(`${message}\n`);
+        options.forEach((option, index) => {
+          output.write(`  ${index + 1}. ${option}\n`);
+        });
+
+        const answer = await nextAnswer();
+        const pickedIndex = Number(answer);
+        if (Number.isInteger(pickedIndex) && pickedIndex >= 1 && pickedIndex <= options.length) {
+          return options[pickedIndex - 1];
+        }
+        const matched = options.find((option) => option === answer);
+        if (matched) {
+          return matched;
+        }
+        throw new Error(`invalid scripted answer for "${message}": ${answer || '<empty>'}`);
+      },
+      async input(message, defaultValue) {
+        const suffix = defaultValue ? ` (${defaultValue})` : '';
+        output.write(`${message}${suffix}: `);
+        const answer = await nextAnswer();
+        return answer || defaultValue || '';
+      },
+      info(message) {
+        output.write(`${message}\n`);
+      },
+    };
+  }
+
   const rl = createInterface({ input, output });
 
   const ask = async (message: string): Promise<string> => {
@@ -89,6 +178,50 @@ function readStructuredConfigFile(filePath: string): unknown {
     return JSON.parse(content);
   }
   return yaml.load(content);
+}
+
+function getCurrentRuntimeFields(): Partial<Record<'HOST' | 'PORT' | 'LOG' | 'LOG_LEVEL' | 'API_TIMEOUT_MS', unknown>> {
+  const candidates = [CONFIG_FILE, CONFIG_FILE_YML, CONFIG_FILE_JSON];
+  const currentPath = candidates.find((filePath) => existsSync(filePath));
+  if (!currentPath) {
+    return {};
+  }
+
+  try {
+    const config = readStructuredConfigFile(currentPath) as Record<string, unknown> | null;
+    if (!config || typeof config !== 'object') {
+      return {};
+    }
+
+    const fields: Partial<Record<'HOST' | 'PORT' | 'LOG' | 'LOG_LEVEL' | 'API_TIMEOUT_MS', unknown>> = {};
+    for (const key of ['HOST', 'PORT', 'LOG', 'LOG_LEVEL', 'API_TIMEOUT_MS'] as const) {
+      if (config[key] !== undefined) {
+        fields[key] = config[key];
+      }
+    }
+    return fields;
+  } catch {
+    return {};
+  }
+}
+
+function getConfiguredPortFromCurrentFiles(): number {
+  const candidates = [CONFIG_FILE, CONFIG_FILE_YML, CONFIG_FILE_JSON];
+  const currentPath = candidates.find((filePath) => existsSync(filePath));
+  if (!currentPath) {
+    return DEFAULT_CONFIG.PORT;
+  }
+
+  try {
+    const config = readStructuredConfigFile(currentPath) as { PORT?: unknown } | null;
+    if (config && typeof config.PORT === 'number' && Number.isFinite(config.PORT) && config.PORT > 0) {
+      return config.PORT;
+    }
+  } catch {
+    // Fall back to default port when current config cannot be parsed.
+  }
+
+  return DEFAULT_CONFIG.PORT;
 }
 
 function readLegacyConfigFile(filePath: string): unknown {
@@ -163,11 +296,15 @@ async function readCurrentConfig(): Promise<RawCurrentConfigResult> {
 }
 
 async function probeService() {
-  const healthy = await waitForService(DEFAULT_CONFIG.PORT, 500);
-  return healthy ? { kind: 'self_healthy' as const, port: DEFAULT_CONFIG.PORT } : { kind: 'none' as const };
+  const port = getConfiguredPortFromCurrentFiles();
+  const healthy = await waitForService(port, 500);
+  return healthy ? { kind: 'self_healthy' as const, port } : { kind: 'none' as const };
 }
 
 async function enterClaudeCode(): Promise<void> {
+  if (process.env.CTR_SETUP_SKIP_ENTER_CODE === '1') {
+    return;
+  }
   const cliModule = await import('../cli');
   await cliModule.runClaudeCode();
 }
@@ -469,7 +606,7 @@ function createDefaultDeps(io = createConsoleIO()): IRunSetupCliDeps {
     executeStart,
     executeReload: executeRestart,
     executeRestart,
-    verifyHealth: () => waitForService(DEFAULT_CONFIG.PORT, 5000),
+    verifyHealth: () => waitForService(getConfiguredPortFromCurrentFiles(), 5000),
     enterClaudeCode,
     io,
   };
@@ -535,7 +672,10 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
     mapConfigErrorsToRepairFields,
     io: deps.io,
     persistConfig: async ({ config, currentConfigPath, hasExistingConfig }) => {
-      const normalized = normalizeAndValidateConfig(config as any);
+      const normalized = normalizeAndValidateConfig({
+        ...(hasExistingConfig ? getCurrentRuntimeFields() : {}),
+        ...(config as any),
+      });
       const persisted = await persistSetupConfig({
         config: normalized.config,
         currentConfigPath,

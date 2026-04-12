@@ -238,6 +238,72 @@ describe('runSetup', () => {
     expect(deps.enterClaudeCode).toHaveBeenCalledTimes(1);
   });
 
+  it('migrates legacy config when user abandons a valid current config and legacy config exists', async () => {
+    const migratedDraft = {
+      Models: [
+        {
+          id: 'gpt90_gpt_5_4',
+          api: 'https://example.com/openai/v1/chat/completions',
+          api_key: 'sk-test',
+          interface: 'openai',
+          model: 'gpt-5.4',
+        },
+      ],
+      Router: { default: 'gpt90_gpt_5_4' },
+    } satisfies ISetupConfigDraft;
+
+    const { deps } = createDeps({
+      detectSetupEnvironment: vi.fn().mockResolvedValue({
+        currentConfig: {
+          kind: 'valid',
+          path: '/tmp/current.yaml',
+          format: 'yaml',
+          config: createDraft(),
+          errors: [],
+          warnings: [],
+        },
+        legacyConfig: {
+          kind: 'found',
+          path: '/legacy/.claude-code-router/config.json',
+          config: {
+            Providers: [{ name: 'gpt90', api_key: 'sk-test', models: ['gpt-5.4'] }],
+            Router: { default: 'gpt90,gpt-5.4' },
+          },
+        },
+        detectedService: { kind: 'none' },
+      }),
+      chooseCurrentConfigAction: vi.fn().mockResolvedValue('fresh'),
+      chooseLegacyConfigAction: vi.fn().mockResolvedValue('migrate'),
+      migrateLegacyConfig: vi.fn().mockReturnValue({
+        draft: migratedDraft,
+        skippedFields: [],
+        needsCompletion: false,
+        missingFields: [],
+      }),
+    });
+
+    const { runSetup } = await import('./setup');
+
+    await runSetup(deps as any);
+
+    expect(deps.chooseLegacyConfigAction).toHaveBeenCalledWith({
+      legacyConfig: {
+        kind: 'found',
+        path: '/legacy/.claude-code-router/config.json',
+        config: {
+          Providers: [{ name: 'gpt90', api_key: 'sk-test', models: ['gpt-5.4'] }],
+          Router: { default: 'gpt90,gpt-5.4' },
+        },
+      },
+    });
+    expect(deps.migrateLegacyConfig).toHaveBeenCalledTimes(1);
+    expect(deps.persistConfig).toHaveBeenCalledWith({
+      config: migratedDraft,
+      currentConfigPath: '/tmp/current.yaml',
+      hasExistingConfig: true,
+    });
+  });
+
   it('does not persist or enter Claude Code when user cancels setup', async () => {
     const existingConfig = createDraft();
     const { deps } = createDeps({

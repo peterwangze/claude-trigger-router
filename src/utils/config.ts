@@ -17,6 +17,7 @@ import {
   DEFAULT_GOVERNANCE_CONFIG,
   DEFAULT_TRIGGER_CONFIG,
   DEFAULT_SMART_ROUTER_CONFIG,
+  HOME_DIR,
 } from '../constants';
 import { IAppConfig, ITriggerConfig } from '../trigger/types';
 import { collectCapabilityWarnings, isKnownModelReference } from '../models/compile';
@@ -29,6 +30,9 @@ import { logError, logWarn } from './log';
 export async function initDir(): Promise<void> {
   if (!existsSync(CONFIG_DIR)) {
     mkdirSync(CONFIG_DIR, { recursive: true });
+  }
+  if (!existsSync(HOME_DIR)) {
+    mkdirSync(HOME_DIR, { recursive: true });
   }
 }
 

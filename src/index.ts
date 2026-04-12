@@ -17,7 +17,7 @@ import {
   isServiceRunning,
   savePid,
 } from "./utils/processCheck";
-import { CONFIG_FILE, HOME_DIR } from "./constants";
+import { HOME_DIR } from "./constants";
 import { configureLogging, log, logError, logWarn, logDebug } from "./utils/log";
 import { sessionUsageCache } from "./router/cache";
 import { SSEParserTransform } from "./utils/SSEParser.transform";
@@ -30,7 +30,7 @@ import { EventEmitter } from "node:events";
 import { triggerRouter } from "./trigger";
 import { createStream } from 'rotating-file-stream';
 import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, governStreamingResponse, sessionStateStore } from "./governance";
-import { getCompiledModelRef, resolveModelReference } from "./models/compile";
+import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
 import { buildUpstreamRequest } from "./protocols";
 
 const event = new EventEmitter();
@@ -135,7 +135,7 @@ async function run(options: RunOptions = {}) {
     const minute = pad(date.getMinutes());
     const seconds = pad(date.getSeconds());
 
-    return `./logs/ctr-${month}${day}${hour}${minute}${seconds}${index ? `_${index}` : ''}.log`;
+    return `ctr-${month}${day}${hour}${minute}${seconds}${index ? `_${index}` : ''}.log`;
   };
 
   const loggerConfig =
@@ -152,10 +152,10 @@ async function run(options: RunOptions = {}) {
       : false;
 
   // 创建服务器
+  const registry = buildModelRegistry(config);
   const server = createServer({
-    jsonPath: CONFIG_FILE,
     initialConfig: {
-      providers: config.Providers,
+      providers: registry.providers,
       HOST: HOST,
       PORT: servicePort,
       LOG_FILE: join(

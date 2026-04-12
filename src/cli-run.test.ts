@@ -5,6 +5,7 @@ const mockReadFileSync = vi.fn();
 const mockSpawn = vi.fn(() => ({
   on: vi.fn(),
 }));
+const mockSpawnSync = vi.fn();
 const mockInitializeClaudeConfig = vi.fn();
 const mockIsServiceRunning = vi.fn();
 const mockWaitForService = vi.fn();
@@ -28,6 +29,7 @@ vi.mock('fs', async (importOriginal) => {
 
 vi.mock('child_process', () => ({
   spawn: mockSpawn,
+  spawnSync: mockSpawnSync,
 }));
 
 vi.mock('./index', () => ({
@@ -63,6 +65,7 @@ describe('runClaudeCode', () => {
     global.fetch = mockFetch as typeof fetch;
     mockInitializeClaudeConfig.mockResolvedValue(undefined);
     mockSpawn.mockReturnValue({ on: vi.fn() });
+    mockSpawnSync.mockReturnValue({ status: 1, stdout: '' });
     mockIsServiceRunning.mockReturnValue(true);
     mockRunSetupCli.mockResolvedValue(undefined);
     mockFetch.mockRejectedValue(new Error('network error'));
@@ -127,6 +130,7 @@ describe('runClaudeCode', () => {
   it('keeps local version output when npm registry lookup fails', async () => {
     process.argv = ['node', 'cli.ts', 'version'];
     mockFetch.mockRejectedValue(new Error('network error'));
+    mockSpawnSync.mockReturnValue({ status: 1, stdout: '' });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
     const { main } = await import('./cli');
@@ -138,6 +142,29 @@ describe('runClaudeCode', () => {
     expect(output).toContain('Latest: unavailable');
     expect(output).not.toContain('Upgrade: npm install -g @peterwangze/claude-trigger-router@latest');
     expect(output).toContain('https://www.npmjs.com/package/@peterwangze/claude-trigger-router');
+
+    logSpy.mockRestore();
+  });
+
+  it('falls back to npm view when registry fetch fails', async () => {
+    process.argv = ['node', 'cli.ts', 'version'];
+    mockFetch.mockRejectedValue(new Error('network error'));
+    mockSpawnSync.mockReturnValue({ status: 0, stdout: '1.0.4\n' });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('Version: 1.0.3');
+    expect(output).toContain('Latest: 1.0.4');
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'npm',
+      ['view', '@peterwangze/claude-trigger-router', 'version', '--registry', 'https://registry.npmjs.org/'],
+      expect.objectContaining({
+        encoding: 'utf-8',
+      })
+    );
 
     logSpy.mockRestore();
   });

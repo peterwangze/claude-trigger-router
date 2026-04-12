@@ -111,6 +111,63 @@ set "USERPROFILE=$escapedHome"
   return $releaseConfigFile
 }
 
+function New-ReleaseMigrationSample {
+  $legacyConfigDir = Join-Path $releaseHome ".claude-code-router"
+  $legacyConfigFile = Join-Path $legacyConfigDir "config.json"
+
+  if (-not (Test-Path -LiteralPath $legacyConfigDir)) {
+    New-Item -ItemType Directory -Path $legacyConfigDir -Force | Out-Null
+  }
+
+  $legacyConfigContent = @"
+{
+  "LOG": false,
+  "LOG_LEVEL": "debug",
+  "CLAUDE_PATH": "",
+  "HOST": "127.0.0.1",
+  "PORT": $Port,
+  "APIKEY": "",
+  "API_TIMEOUT_MS": "600000",
+  "PROXY_URL": "",
+  "transformers": [],
+  "Providers": [
+    {
+      "name": "qianfan_coding",
+      "api_base_url": "https://example.com/v2/coding/chat/completions",
+      "api_key": "REPLACE_WITH_REAL_API_KEY",
+      "models": ["glm-5", "kimi-k2.5"],
+      "transformer": { "use": ["enhancetool", "openai"] },
+      "headers": {
+        "Authorization": "Bearer replace-me"
+      }
+    },
+    {
+      "name": "gpt90",
+      "api_base_url": "https://example.com/openai/v1/chat/completions",
+      "api_key": "REPLACE_WITH_REAL_API_KEY",
+      "models": ["gpt-5.4"]
+    }
+  ],
+  "StatusLine": {
+    "enabled": false,
+    "currentStyle": "default"
+  },
+  "Router": {
+    "default": "gpt90,gpt-5.4",
+    "background": "gpt90,gpt-5.4",
+    "think": "gpt90,gpt-5.4",
+    "longContext": "qianfan_coding,kimi-k2.5",
+    "longContextThreshold": 60000
+  },
+  "CUSTOM_ROUTER_PATH": "",
+}
+"@
+
+  Set-Content -LiteralPath $legacyConfigFile -Value $legacyConfigContent
+
+  return $legacyConfigFile
+}
+
 function Get-LatestPublishedVersion {
   param(
     [Parameter(Mandatory = $true)]
@@ -222,6 +279,7 @@ function Invoke-ReleaseStage {
   }
 
   $releaseConfigFile = New-ReleaseTestConfig
+  $legacyConfigFile = New-ReleaseMigrationSample
   $script:keepArtifacts = $true
 
   Write-Host ""
@@ -230,6 +288,7 @@ function Invoke-ReleaseStage {
   Write-Host "CLI path: $stageCliPath"
   Write-Host "Isolated HOME: $releaseHome"
   Write-Host "Test config: $releaseConfigFile"
+  Write-Host "Legacy CCR sample: $legacyConfigFile"
   Write-Host ""
   Write-Host "Example commands:" -ForegroundColor Cyan
   if ($IsWindows) {
@@ -244,6 +303,8 @@ function Invoke-ReleaseStage {
     Write-Host ""
     Write-Host "Before running start/setup, edit the staged test config if needed:" -ForegroundColor Yellow
     Write-Host "  $releaseConfigFile"
+    Write-Host "Before running migration setup, edit the legacy CCR sample if needed:" -ForegroundColor Yellow
+    Write-Host "  $legacyConfigFile"
   } else {
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" --help"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" version"
@@ -272,6 +333,11 @@ function Invoke-ReleaseStage {
      & "$wrapperCmd" start --port $Port
      & "$wrapperCmd" status
      & "$wrapperCmd" stop
+
+  5) Legacy claude-code-router migration:
+     notepad "$legacyConfigFile"
+     & "$wrapperCmd" setup
+     notepad "$migrationTargetConfigFile"
 "@
   } else {
     Write-Host @"
@@ -290,8 +356,19 @@ function Invoke-ReleaseStage {
      HOME="$releaseHome" "$stageCliPath" start --port $Port
      HOME="$releaseHome" "$stageCliPath" status
      HOME="$releaseHome" "$stageCliPath" stop
+
+  5) Legacy claude-code-router migration:
+     ${EDITOR:-vi} "$legacyConfigFile"
+     HOME="$releaseHome" "$stageCliPath" setup
+     ${EDITOR:-vi} "$migrationTargetConfigFile"
 "@
   }
+  Write-Host ""
+  Write-Host "Migration validation focus:" -ForegroundColor Cyan
+  Write-Host "  - setup should detect the legacy file at: $legacyConfigFile"
+  Write-Host "  - setup should write the migrated config to: $migrationTargetConfigFile"
+  Write-Host "  - confirm api/key/interface/model routing fields were normalized into the new template"
+  Write-Host "  - confirm the migrated Router.default points to the new model id instead of provider,model syntax"
   Write-Host ""
   Write-Host "When you finish manual validation, run:" -ForegroundColor Yellow
   Write-Host "  npm run release:clean"
@@ -364,6 +441,7 @@ $stageCliPath = if ($IsWindows) {
 } else {
   Join-Path $stagePrefix "bin/ctr"
 }
+$migrationTargetConfigFile = Join-Path $releaseHome ".claude-trigger-router\config.yaml"
 
 try {
   switch ($Action) {
