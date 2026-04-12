@@ -107,7 +107,7 @@ Claude Trigger Router - 智能触发路由器
   version     查看当前安装版本与包信息
   upgrade     查看升级到最新 npm 版本的指引
   code        通过路由器运行 Claude Code（需先启动服务）
-  ui          打开管理 API 说明页（Web UI 开发中）
+  ui          打开本地管理页（配置预览与调试）
   help        显示此帮助信息
 
 选项：
@@ -124,6 +124,7 @@ Claude Trigger Router - 智能触发路由器
   ctr start --daemon       # 后台启动
   ctr status               # 查看服务状态
   ctr code                 # 启动 Claude Code（需先运行 ctr start）
+  ctr ui                   # 打开本地管理页（可选）
   ctr stop                 # 停止后台服务
   ctr restart --daemon     # 重启后台服务
 

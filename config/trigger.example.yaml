@@ -1,7 +1,9 @@
-# Claude Trigger Router 配置示例
+# Claude Trigger Router 完整配置示例
+# 这是偏进阶的参考模板，不是新用户的最小起步配置。
+# 如果你是首次使用，优先运行 `ctr setup`，或先参考 README 中的最小配置。
 # 复制到 ~/.claude-trigger-router/config.yaml 后，先替换 API Key 和模型名。
 #
-# 常见 provider preset（与 `ctr setup`、`/ui` Provider template 保持一致）：
+# 常见 provider preset（与 `ctr setup` 保持一致）：
 # - openrouter: https://openrouter.ai/api/v1/chat/completions
 # - deepseek: https://api.deepseek.com/chat/completions
 # - openai-compatible: https://api.openai.com/v1/chat/completions
@@ -15,7 +17,7 @@ PORT: 5678
 LOG: true
 LOG_LEVEL: "debug"
 
-# 1) Models：推荐优先使用的简化模型接入配置
+# 1) Models：主入口。每个模型直接配置成一个可引用的接入项
 Models:
   - id: sonnet
     api: "https://openrouter.ai/api/v1/chat/completions"
@@ -44,7 +46,7 @@ Models:
     model: "qwen2.5-coder:latest"
     thinking: "off"
 
-# 2) Router：推荐直接引用 model id
+# 2) Router：基础路由，统一直接引用 model id
 Router:
   default: "sonnet"
   background: "ollama_qwen"
@@ -119,7 +121,7 @@ TriggerRouter:
             - "simple"
       model: "ollama_qwen"
 
-# 4) SmartRouter：规则没命中时，让路由模型从候选模型中挑选
+# 4) SmartRouter：规则没命中时，从候选模型中自动挑选
 SmartRouter:
   enabled: true
   router_model: "sonnet"
@@ -137,7 +139,7 @@ SmartRouter:
   max_tokens: 256
   fallback: "default"
 
-# 5) Governance：治理配置也推荐直接引用 model id
+# 5) Governance：治理模块也直接引用 model id
 Governance:
   enabled: true
 
@@ -197,7 +199,7 @@ Governance:
       spike_warn_rate: 0.5
       spike_delta_rate: 0.3
 
-# 6) Legacy 兼容：如果你仍在使用旧配置，可继续保留 Providers
+# 6) Legacy 兼容：旧 `Providers` 仅作为兼容层保留，不建议新配置继续扩展
 # Providers:
 #   - name: openrouter
 #     api_base_url: "https://openrouter.ai/api/v1/chat/completions"
