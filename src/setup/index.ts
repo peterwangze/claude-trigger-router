@@ -25,6 +25,7 @@ interface ISetupIO {
   choose: (message: string, options: string[]) => Promise<string>;
   input: (message: string, defaultValue?: string) => Promise<string>;
   info: (message: string) => void;
+  close?: () => void;
 }
 
 type TCapabilityChoice = '默认' | '支持' | '禁用';
@@ -79,6 +80,9 @@ function createConsoleIO(): ISetupIO {
       info(message) {
         output.write(`${message}\n`);
       },
+      close() {
+        // No-op for scripted stdin.
+      },
     };
   }
 
@@ -131,6 +135,9 @@ function createConsoleIO(): ISetupIO {
       info(message) {
         output.write(`${message}\n`);
       },
+      close() {
+        // No-op for buffered non-interactive stdin.
+      },
     };
   }
 
@@ -168,6 +175,9 @@ function createConsoleIO(): ISetupIO {
     },
     info(message) {
       output.write(`${message}\n`);
+    },
+    close() {
+      rl.close();
     },
   };
 }
@@ -307,6 +317,10 @@ async function enterClaudeCode(): Promise<void> {
   }
   const cliModule = await import('../cli');
   await cliModule.runClaudeCode();
+}
+
+function shouldAutoEnterClaudeCodeAfterSetup(): boolean {
+  return process.env.CTR_SETUP_AUTO_ENTER_CODE === '1';
 }
 
 async function executeStart(): Promise<void> {
@@ -623,103 +637,114 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
   const defaults = createDefaultDeps(customDeps?.io);
   const deps = { ...defaults, ...customDeps } as IRunSetupCliDeps;
 
-  await runSetup({
-    detectSetupEnvironment: () =>
-      detectSetupEnvironment({
-        readCurrentConfig: deps.readCurrentConfig,
-        readLegacyConfig: deps.readLegacyConfig,
-        probeService: deps.probeService,
-      }),
-    chooseCurrentConfigAction: async ({ currentConfig }) => {
-      if (currentConfig.kind === 'missing') {
-        return 'create';
-      }
-      if (currentConfig.kind === 'valid') {
-        deps.io.info('检测到当前 claude-trigger-router 配置已可用。');
-        if (currentConfig.warnings.length > 0) {
-          deps.io.info(`当前配置提示：${currentConfig.warnings.join('; ')}`);
+  try {
+    await runSetup({
+      detectSetupEnvironment: () =>
+        detectSetupEnvironment({
+          readCurrentConfig: deps.readCurrentConfig,
+          readLegacyConfig: deps.readLegacyConfig,
+          probeService: deps.probeService,
+        }),
+      chooseCurrentConfigAction: async ({ currentConfig }) => {
+        if (currentConfig.kind === 'missing') {
+          return 'create';
         }
-        return mapValidCurrentConfigChoice(
-          await deps.io.choose('你想直接使用它，还是重新调整？', [
-            '直接使用当前配置（推荐）',
-            '检查并调整当前配置',
-            '放弃当前配置，重新开始',
-          ])
-        );
-      }
-      if (currentConfig.kind === 'invalid') {
-        deps.io.info(`当前配置校验失败：${currentConfig.errors.join('; ')}`);
-        if (currentConfig.warnings.length > 0) {
-          deps.io.info(`当前配置提示：${currentConfig.warnings.join('; ')}`);
+        if (currentConfig.kind === 'valid') {
+          deps.io.info('检测到当前 claude-trigger-router 配置已可用。');
+          if (currentConfig.warnings.length > 0) {
+            deps.io.info(`当前配置提示：${currentConfig.warnings.join('; ')}`);
+          }
+          return mapValidCurrentConfigChoice(
+            await deps.io.choose('你想直接使用它，还是重新调整？', [
+              '直接使用当前配置（推荐）',
+              '检查并调整当前配置',
+              '放弃当前配置，重新开始',
+            ])
+          );
         }
-        return (await deps.io.choose('选择下一步', ['repair', 'overwrite', 'cancel'])) as 'repair' | 'overwrite' | 'cancel';
-      }
+        if (currentConfig.kind === 'invalid') {
+          deps.io.info(`当前配置校验失败：${currentConfig.errors.join('; ')}`);
+          if (currentConfig.warnings.length > 0) {
+            deps.io.info(`当前配置提示：${currentConfig.warnings.join('; ')}`);
+          }
+          return (await deps.io.choose('选择下一步', ['repair', 'overwrite', 'cancel'])) as 'repair' | 'overwrite' | 'cancel';
+        }
 
-      deps.io.info(`当前配置无法解析：${currentConfig.error}`);
-      return (await deps.io.choose('选择下一步', ['rebuild', 'cancel'])) as 'rebuild' | 'cancel';
-    },
-    chooseLegacyConfigAction: async ({ legacyConfig }) => {
-      if (legacyConfig.kind === 'found') {
-        return mapLegacyConfigChoice(
-          await deps.io.choose('检测到旧 claude-code-router 配置。是否迁移为当前推荐配置？', [
-            '迁移旧配置（推荐）',
-            '跳过迁移，手动新建',
-          ])
-        );
-      }
-      if (legacyConfig.kind === 'read_error') {
-        deps.io.info(`旧 ccr 配置读取失败：${legacyConfig.error}`);
-      }
-      return 'skip';
-    },
-    buildFreshConfig: () => buildFreshConfig(deps.io),
-    buildRepairConfig: async ({ currentConfig }) => toDraftFromConfig(currentConfig),
-    completeDraft: ({ draft, fields }) => completeDraft({ draft, fields, io: deps.io }),
-    migrateLegacyConfig,
-    mapConfigErrorsToRepairFields,
-    io: deps.io,
-    persistConfig: async ({ config, currentConfigPath, hasExistingConfig }) => {
-      const normalized = normalizeAndValidateConfig({
-        ...(hasExistingConfig ? getCurrentRuntimeFields() : {}),
-        ...(config as any),
-      });
-      const persisted = await persistSetupConfig({
-        config: normalized.config,
-        currentConfigPath,
-        hasExistingConfig,
-        validateConfig: (inputConfig) => normalizeAndValidateConfig(inputConfig).errors,
-        backupCurrentConfig: deps.backupCurrentConfig,
-        writeConfig: deps.writeConfig,
-      });
-      if (normalized.warnings.length > 0) {
-        deps.io.info(`配置提示：${normalized.warnings.join('; ')}`);
-      }
-      return persisted;
-    },
-    ensureServiceReady: async ({ configChanged, detectedService, reloadSupported }) => {
-      const action = decideServiceAction({
-        configChanged,
-        detectedService,
-        reloadSupported,
-      });
+        deps.io.info(`当前配置无法解析：${currentConfig.error}`);
+        return (await deps.io.choose('选择下一步', ['rebuild', 'cancel'])) as 'rebuild' | 'cancel';
+      },
+      chooseLegacyConfigAction: async ({ legacyConfig }) => {
+        if (legacyConfig.kind === 'found') {
+          return mapLegacyConfigChoice(
+            await deps.io.choose('检测到旧 claude-code-router 配置。是否迁移为当前推荐配置？', [
+              '迁移旧配置（推荐）',
+              '跳过迁移，手动新建',
+            ])
+          );
+        }
+        if (legacyConfig.kind === 'read_error') {
+          deps.io.info(`旧 ccr 配置读取失败：${legacyConfig.error}`);
+        }
+        return 'skip';
+      },
+      buildFreshConfig: () => buildFreshConfig(deps.io),
+      buildRepairConfig: async ({ currentConfig }) => toDraftFromConfig(currentConfig),
+      completeDraft: ({ draft, fields }) => completeDraft({ draft, fields, io: deps.io }),
+      migrateLegacyConfig,
+      mapConfigErrorsToRepairFields,
+      io: deps.io,
+      persistConfig: async ({ config, currentConfigPath, hasExistingConfig }) => {
+        const normalized = normalizeAndValidateConfig({
+          ...(hasExistingConfig ? getCurrentRuntimeFields() : {}),
+          ...(config as any),
+        });
+        const persisted = await persistSetupConfig({
+          config: normalized.config,
+          currentConfigPath,
+          hasExistingConfig,
+          validateConfig: (inputConfig) => normalizeAndValidateConfig(inputConfig).errors,
+          backupCurrentConfig: deps.backupCurrentConfig,
+          writeConfig: deps.writeConfig,
+        });
+        if (normalized.warnings.length > 0) {
+          deps.io.info(`配置提示：${normalized.warnings.join('; ')}`);
+        }
+        return persisted;
+      },
+      ensureServiceReady: async ({ configChanged, detectedService, reloadSupported }) => {
+        const action = decideServiceAction({
+          configChanged,
+          detectedService,
+          reloadSupported,
+        });
 
-      await applyServiceAction({
-        action,
-        executeStart: deps.executeStart,
-        executeReload: deps.executeReload,
-        executeRestart: deps.executeRestart,
-        verifyHealth: deps.verifyHealth,
-      });
+        await applyServiceAction({
+          action,
+          executeStart: deps.executeStart,
+          executeReload: deps.executeReload,
+          executeRestart: deps.executeRestart,
+          verifyHealth: deps.verifyHealth,
+        });
 
-      return {
-        action: action.kind,
-        healthChecked: true,
-      };
-    },
-    enterClaudeCode: async () => {
-      printRoutingNextSteps(deps.io);
-      await deps.enterClaudeCode();
-    },
-    reloadSupported: false,
-  });
+        return {
+          action: action.kind,
+          healthChecked: true,
+        };
+      },
+      enterClaudeCode: async () => {
+        printRoutingNextSteps(deps.io);
+        if (!shouldAutoEnterClaudeCodeAfterSetup()) {
+          deps.io.info('为避免 setup 结束后接管当前终端，请手动运行：ctr code');
+          deps.io.info('如果你明确需要 setup 结束后自动进入 Claude Code，可设置环境变量 CTR_SETUP_AUTO_ENTER_CODE=1');
+          return;
+        }
+
+        deps.io.close?.();
+        await deps.enterClaudeCode();
+      },
+      reloadSupported: false,
+    });
+  } finally {
+    deps.io.close?.();
+  }
 }

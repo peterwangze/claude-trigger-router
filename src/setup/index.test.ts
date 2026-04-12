@@ -234,7 +234,7 @@ describe('readLegacyConfig', () => {
 });
 
 describe('runSetupCli', () => {
-  it('creates a minimal config and enters Claude Code on first use', async () => {
+  it('creates a minimal config and prints next steps without auto-entering Claude Code on first use', async () => {
     const writeConfig = vi.fn().mockResolvedValue(undefined);
     const executeStart = vi.fn().mockResolvedValue(undefined);
     const verifyHealth = vi.fn().mockResolvedValue(true);
@@ -293,7 +293,7 @@ describe('runSetupCli', () => {
     expect(io.input).toHaveBeenNthCalledWith(5, '默认模型 ID', 'sonnet');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
-    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
     expect(io.info).toHaveBeenCalledWith('你可以按需继续配置路由能力：');
     expect(io.info).toHaveBeenCalledWith(
       '  - TriggerRouter：适合高确定性任务，把架构设计、代码审查等请求固定切到指定模型'
@@ -302,6 +302,10 @@ describe('runSetupCli', () => {
       '  - SmartRouter：适合模糊任务，在候选模型之间自动选择更合适的模型'
     );
     expect(io.info).toHaveBeenCalledWith('  - 配置模板参考：config/trigger.advanced.yaml');
+    expect(io.info).toHaveBeenCalledWith('为避免 setup 结束后接管当前终端，请手动运行：ctr code');
+    expect(io.info).toHaveBeenCalledWith(
+      '如果你明确需要 setup 结束后自动进入 Claude Code，可设置环境变量 CTR_SETUP_AUTO_ENTER_CODE=1'
+    );
   });
 
   it('supports guided capability hints during fresh setup', async () => {
@@ -421,7 +425,7 @@ describe('runSetupCli', () => {
     expect(io.input).toHaveBeenNthCalledWith(5, '默认模型 ID', 'claude');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
-    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
   it('offers direct reuse before reconfiguration when current config is valid', async () => {
@@ -471,7 +475,7 @@ describe('runSetupCli', () => {
       ['直接使用当前配置（推荐）', '检查并调整当前配置', '放弃当前配置，重新开始']
     );
     expect(writeConfig).not.toHaveBeenCalled();
-    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
   it('restarts setup flow when user abandons a valid current config', async () => {
@@ -547,7 +551,7 @@ describe('runSetupCli', () => {
     expect(executeStart).not.toHaveBeenCalled();
     expect(executeReload).not.toHaveBeenCalled();
     expect(verifyHealth).toHaveBeenCalledTimes(1);
-    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
   it('offers legacy migration after abandoning a valid current config when claude-code-router config exists', async () => {
@@ -632,7 +636,7 @@ describe('runSetupCli', () => {
       })
     );
     expect(executeStart).toHaveBeenCalledTimes(1);
-    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
   it('offers migration as the recommended legacy action', async () => {
@@ -681,7 +685,7 @@ describe('runSetupCli', () => {
     expect(writeConfig).toHaveBeenCalled();
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
-    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
   it('preserves string thinking aliases when reusing current Models config', async () => {
@@ -726,7 +730,7 @@ describe('runSetupCli', () => {
     });
 
     expect(writeConfig).not.toHaveBeenCalled();
-    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
   it('surfaces current config warnings during setup reuse flow', async () => {
@@ -777,7 +781,7 @@ describe('runSetupCli', () => {
     expect(io.info).toHaveBeenCalledWith(
       '当前配置提示：Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.'
     );
-    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
   it('supports capability repair prompts across draft models during setup repair flow', async () => {
@@ -863,6 +867,7 @@ describe('runSetupCli', () => {
         ],
       })
     );
-    expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 });
+

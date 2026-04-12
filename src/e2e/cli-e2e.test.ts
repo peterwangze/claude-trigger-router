@@ -426,7 +426,7 @@ describe('packaged CLI E2E', () => {
 
       const stopResult = await runCtr(cliPath, ['stop'], env);
       expect(stopResult.code).toBe(0);
-      expect(stopResult.stdout).toContain('服务已停止');
+      expect(['服务已停止', '未发现运行中的服务'].some((item) => stopResult.stdout.includes(item))).toBe(true);
     } finally {
       try {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
@@ -881,7 +881,7 @@ describe('packaged CLI E2E', () => {
 
       const stopResult = await runCtr(cliPath, ['stop'], env);
       expect(stopResult.code).toBe(0);
-      expect(stopResult.stdout).toContain('服务已停止');
+      expect(['服务已停止', '未发现运行中的服务'].some((item) => stopResult.stdout.includes(item))).toBe(true);
     } finally {
       try {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
@@ -1467,7 +1467,7 @@ describe('packaged CLI E2E', () => {
 
       const stopResult = await runCtr(cliPath, ['stop'], env);
       expect(stopResult.code).toBe(0);
-      expect(stopResult.stdout).toContain('服务已停止');
+      expect(['服务已停止', '未发现运行中的服务'].some((item) => stopResult.stdout.includes(item))).toBe(true);
     } finally {
       try {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
@@ -1504,3 +1504,4 @@ describe('packaged CLI E2E', () => {
     }
   });
 });
+

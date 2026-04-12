@@ -276,5 +276,16 @@ export async function readText(filePath: string): Promise<string> {
 }
 
 export async function removePath(targetPath: string): Promise<void> {
-  await rm(targetPath, { recursive: true, force: true });
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    try {
+      await rm(targetPath, { recursive: true, force: true });
+      return;
+    } catch (error: any) {
+      if ((error?.code === 'EBUSY' || error?.code === 'ENOTEMPTY') && attempt < 11) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        continue;
+      }
+      throw error;
+    }
+  }
 }
