@@ -612,6 +612,13 @@ function createDefaultDeps(io = createConsoleIO()): IRunSetupCliDeps {
   };
 }
 
+function printRoutingNextSteps(io: ISetupIO): void {
+  io.info('你可以按需继续配置路由能力：');
+  io.info('  - TriggerRouter：适合高确定性任务，把架构设计、代码审查等请求固定切到指定模型');
+  io.info('  - SmartRouter：适合模糊任务，在候选模型之间自动选择更合适的模型');
+  io.info('  - 配置模板参考：config/trigger.advanced.yaml');
+}
+
 export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promise<void> {
   const defaults = createDefaultDeps(customDeps?.io);
   const deps = { ...defaults, ...customDeps } as IRunSetupCliDeps;
@@ -709,7 +716,10 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
         healthChecked: true,
       };
     },
-    enterClaudeCode: deps.enterClaudeCode,
+    enterClaudeCode: async () => {
+      printRoutingNextSteps(deps.io);
+      await deps.enterClaudeCode();
+    },
     reloadSupported: false,
   });
 }

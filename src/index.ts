@@ -199,11 +199,13 @@ async function run(options: RunOptions = {}) {
       });
       appendTraceReason(req.governanceTrace, "request_received");
 
-      // 执行触发路由
-      const triggerResult = await triggerRouter.route(req);
+      const bypassTriggerRouter = req.headers["x-ctr-smart-router"] === "1";
+      const triggerResult = bypassTriggerRouter
+        ? { matched: false, confidence: 0, analysisTime: 0 }
+        : await triggerRouter.route(req);
       req.triggerResult = triggerResult;
 
-      if (triggerResult.matched && triggerResult.model) {
+      if (!bypassTriggerRouter && triggerResult.matched && triggerResult.model) {
           const previousSessionState = req.sessionId ? sessionStateStore.get(req.sessionId) : undefined;
           const previousModel = previousSessionState?.lastSuccessfulModel;
           const alignmentConfig = config.Governance?.sticky?.alignment;

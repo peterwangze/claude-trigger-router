@@ -136,6 +136,7 @@ export class SmartRouterSelector {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-ctr-smart-router': '1',
           ...(apiKey ? { 'x-api-key': apiKey } : {}),
         },
         body: JSON.stringify(

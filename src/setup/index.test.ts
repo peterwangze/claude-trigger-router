@@ -294,6 +294,14 @@ describe('runSetupCli', () => {
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).toHaveBeenCalledTimes(1);
+    expect(io.info).toHaveBeenCalledWith('你可以按需继续配置路由能力：');
+    expect(io.info).toHaveBeenCalledWith(
+      '  - TriggerRouter：适合高确定性任务，把架构设计、代码审查等请求固定切到指定模型'
+    );
+    expect(io.info).toHaveBeenCalledWith(
+      '  - SmartRouter：适合模糊任务，在候选模型之间自动选择更合适的模型'
+    );
+    expect(io.info).toHaveBeenCalledWith('  - 配置模板参考：config/trigger.advanced.yaml');
   });
 
   it('supports guided capability hints during fresh setup', async () => {

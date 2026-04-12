@@ -8,14 +8,6 @@ Claude Code 的本地路由代理。
 - 按你的配置把请求路由到不同模型
 - 用统一的模型配置格式管理 OpenAI / Anthropic 及兼容接口
 
-当前对用户主流程已经做了打包态 CLI E2E 验证，覆盖：
-
-- 安装后的 `ctr help / init / version / upgrade`
-- `start / status / stop / restart`
-- `code`
-- `ui`
-- `setup` 的复用、迁移、新建、repair、rebuild、cancel 主路径
-
 ## 安装
 
 ```bash
@@ -80,6 +72,109 @@ Router:
 - `thinking`：可选，支持的模型才需要配置
 
 消息格式转换由路由层统一处理，不需要你自己按不同厂商手写消息体。
+
+## TriggerRouter：规则路由
+
+`TriggerRouter` 是当前产品的核心功能之一。
+
+它适合“高确定性任务”：
+
+- 架构设计
+- 代码审查
+- 长文档评审
+- 复杂推理
+
+这类任务通常可以通过关键词或规则稳定识别，然后直接路由到你指定的模型。
+
+示例：
+
+```yaml
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+
+  - id: opus
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-opus-4"
+
+Router:
+  default: "sonnet"
+
+TriggerRouter:
+  enabled: true
+  analysis_scope: "last_message"
+  rules:
+    - name: "architecture"
+      priority: 90
+      enabled: true
+      patterns:
+        - type: exact
+          keywords: ["架构设计", "system design"]
+      model: "opus"
+```
+
+可以简单理解成：
+
+- 默认请求走 `Router.default`
+- 命中 TriggerRouter 规则的请求，优先切到规则指定模型
+
+## SmartRouter：候选模型自动选择
+
+`SmartRouter` 是当前产品的另一个核心功能。
+
+它适合“规则难以穷举，但模型选择仍然很重要”的任务：
+
+- 通用编程 vs 深度推理
+- 日常修复 vs 架构设计
+- 常规回答 vs 长上下文分析
+
+你提供一个路由模型和一组候选模型，`SmartRouter` 会在规则未命中时，从候选模型里自动挑一个更合适的目标。
+
+示例：
+
+```yaml
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+
+  - id: reasoner
+    api: "https://api.deepseek.com/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "deepseek-reasoner"
+    thinking: "high"
+
+Router:
+  default: "sonnet"
+  think: "reasoner"
+
+SmartRouter:
+  enabled: true
+  router_model: "sonnet"
+  candidates:
+    - model: "sonnet"
+      description: "通用编程、代码生成、日常调试"
+    - model: "reasoner"
+      description: "复杂推理、严谨分析"
+```
+
+可以简单理解成：
+
+- TriggerRouter 解决“能明确命中的规则任务”
+- SmartRouter 解决“规则没命中时的动态选模”
+
+两者可以同时启用：
+
+- 先让 `TriggerRouter` 处理高确定性任务
+- 再让 `SmartRouter` 处理剩余的模糊任务
 
 ## `interface` 怎么选
 
@@ -212,7 +307,6 @@ npm run release:verify
 这一步现在会包含：
 
 - 常规测试
-- 打包后的 CLI E2E
 - tarball 安装校验
 - 安装后 CLI 冒烟校验
 

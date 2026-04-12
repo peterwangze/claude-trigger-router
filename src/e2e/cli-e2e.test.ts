@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { createServer } from 'http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import packageJson from '../../package.json';
 import {
   assertOnlyExpectedPathsChanged,
@@ -24,6 +24,131 @@ let sharedEnv: ITestEnvironment;
 let cliPath: string;
 let tarballPath: string;
 let prefixDir: string;
+
+interface IFakeUpstreamRequest {
+  url: string;
+  body: any;
+}
+
+function extractOpenAiRequestText(body: any): string {
+  if (!Array.isArray(body?.messages)) {
+    return '';
+  }
+
+  return body.messages
+    .flatMap((message: any) => {
+      if (typeof message?.content === 'string') {
+        return [message.content];
+      }
+
+      if (Array.isArray(message?.content)) {
+        return message.content
+          .map((item: any) => typeof item?.text === 'string' ? item.text : '')
+          .filter(Boolean);
+      }
+
+      return [];
+    })
+    .join('\n');
+}
+
+async function startFakeOpenAiUpstream(): Promise<{
+  port: number;
+  requests: IFakeUpstreamRequest[];
+  close: () => Promise<void>;
+}> {
+  const requests: IFakeUpstreamRequest[] = [];
+  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    if (req.method !== 'POST') {
+      res.statusCode = 405;
+      res.end('method not allowed');
+      return;
+    }
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(Buffer.from(chunk));
+    }
+
+    const body = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+    requests.push({
+      url: req.url || '/',
+      body,
+    });
+
+    const requestText = extractOpenAiRequestText(body);
+    const content = requestText.includes('Select the most appropriate model')
+      ? '{"model":"model__reasoner_model,deepseek-reasoner","confidence":0.91,"reasoning":"complex reasoning"}'
+      : 'ok from fake upstream';
+
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({
+      id: 'chatcmpl-fake',
+      object: 'chat.completion',
+      created: 0,
+      model: body.model,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: 'assistant',
+            content,
+          },
+          finish_reason: 'stop',
+        },
+      ],
+      usage: {
+        prompt_tokens: 1,
+        completion_tokens: 1,
+        total_tokens: 2,
+      },
+    }));
+  });
+
+  const port = await new Promise<number>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        reject(new Error('Failed to resolve upstream port'));
+        return;
+      }
+      resolve(address.port);
+    });
+  });
+
+  return {
+    port,
+    requests,
+    close: async () => {
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    },
+  };
+}
+
+async function postAnthropicMessage(port: number, model: string, text: string): Promise<Response> {
+  return fetch(`http://127.0.0.1:${port}/v1/messages`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 64,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+}
 
 function buildMinimalModelsConfig(port: number, overrides: string[] = []): string {
   return [
@@ -434,6 +559,130 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
+  it('TriggerRouter routes matched requests to the configured target model in packaged CLI mode', async () => {
+    const env = await createTestEnvironment('ctr-trigger-router-e2e-');
+    const port = await getFreePort();
+    const upstream = await startFakeOpenAiUpstream();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'LOG: false',
+          'Models:',
+          `  - id: default_model`,
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-default"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          `  - id: opus_model`,
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-opus"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-opus-4"',
+          'Router:',
+          '  default: "default_model"',
+          'TriggerRouter:',
+          '  enabled: true',
+          '  analysis_scope: "last_message"',
+          '  rules:',
+          '    - name: "architecture"',
+          '      priority: 90',
+          '      enabled: true',
+          '      patterns:',
+          '        - type: exact',
+          '          keywords: ["架构设计"]',
+          '      model: "opus_model"',
+        ].join('\n')
+      );
+
+      const startResult = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
+        timeoutMs: 20000,
+      });
+      expect(startResult.code).toBe(0);
+
+      const response = await postAnthropicMessage(port, 'default_model', '请给我一个架构设计方案');
+      expect(response.ok).toBe(true);
+      expect(upstream.requests.length).toBeGreaterThan(0);
+      expect(upstream.requests.at(-1)?.body?.model).toBe('anthropic/claude-opus-4');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('SmartRouter selects a candidate model for unmatched requests in packaged CLI mode', async () => {
+    const env = await createTestEnvironment('ctr-smart-router-e2e-');
+    const port = await getFreePort();
+    const upstream = await startFakeOpenAiUpstream();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'LOG: false',
+          'Models:',
+          `  - id: default_model`,
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-default"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          `  - id: reasoner_model`,
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-reasoner"',
+          '    interface: "openai"',
+          '    model: "deepseek-reasoner"',
+          '    thinking: "high"',
+          'Router:',
+          '  default: "default_model"',
+          'TriggerRouter:',
+          '  enabled: true',
+          '  analysis_scope: "last_message"',
+          '  llm_intent_recognition: false',
+          '  rules: []',
+          'SmartRouter:',
+          '  enabled: true',
+          '  router_model: "default_model"',
+          '  candidates:',
+          '    - model: "default_model"',
+          '      description: "通用编程与日常调试"',
+          '    - model: "reasoner_model"',
+          '      description: "复杂推理与严谨分析"',
+        ].join('\n')
+      );
+
+      const startResult = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
+        timeoutMs: 20000,
+      });
+      expect(startResult.code).toBe(0);
+
+      const response = await postAnthropicMessage(port, 'default_model', '请帮我深入分析这个复杂推理问题');
+      expect(response.ok).toBe(true);
+      expect(upstream.requests.length).toBeGreaterThanOrEqual(2);
+      expect(upstream.requests[0]?.body?.model).toBe('anthropic/claude-sonnet-4');
+      expect(upstream.requests.at(-1)?.body?.model).toBe('deepseek-reasoner');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('code fails cleanly when the router service is not running and only creates Claude compatibility config', async () => {
     const env = await createTestEnvironment('ctr-code-nosvc-e2e-');
     const port = await getFreePort();
@@ -671,6 +920,10 @@ describe('packaged CLI E2E', () => {
       expect(configText).toContain('id: sonnet');
       expect(configText).toContain('key: sk-first-use');
       expect(configText).toContain('default: sonnet');
+      expect(result.stdout).toContain('你可以按需继续配置路由能力：');
+      expect(result.stdout).toContain('TriggerRouter');
+      expect(result.stdout).toContain('SmartRouter');
+      expect(result.stdout).toContain('config/trigger.advanced.yaml');
       assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
 
       const stopResult = await runCtr(cliPath, ['stop'], env);
