@@ -299,10 +299,10 @@ function Invoke-ReleaseStage {
     $wrapperCmd = Join-Path $stagePrefix "ctr-release-home.cmd"
     Write-Host "  `"$wrapperCmd`" --help"
     Write-Host "  `"$wrapperCmd`" version"
-    Write-Host "  `"$wrapperCmd`" init --force"
     Write-Host "  `"$wrapperCmd`" setup"
-    Write-Host "  `"$wrapperCmd`" start --port $Port"
     Write-Host "  `"$wrapperCmd`" status"
+    Write-Host "  `"$wrapperCmd`" start --port $Port"
+    Write-Host "  `"$wrapperCmd`" ui"
     Write-Host "  `"$wrapperCmd`" stop"
     Write-Host ""
     Write-Host "Before running start/setup, edit the staged test config if needed:" -ForegroundColor Yellow
@@ -312,10 +312,10 @@ function Invoke-ReleaseStage {
   } else {
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" --help"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" version"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" init --force"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" setup"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" start --port $Port"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" status"
+    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" start --port $Port"
+    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" ui"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" stop"
   }
   Write-Host ""
@@ -329,13 +329,14 @@ function Invoke-ReleaseStage {
      & "$wrapperCmd" --help
      & "$wrapperCmd" version
 
-  3) Setup / init path:
-     & "$wrapperCmd" init --force
+  3) Recommended user path:
      & "$wrapperCmd" setup
+     & "$wrapperCmd" status
 
   4) Service lifecycle:
      & "$wrapperCmd" start --port $Port
      & "$wrapperCmd" status
+     & "$wrapperCmd" ui
      & "$wrapperCmd" stop
 
   5) Legacy claude-code-router migration:
@@ -352,13 +353,14 @@ function Invoke-ReleaseStage {
      HOME="$releaseHome" "$stageCliPath" --help
      HOME="$releaseHome" "$stageCliPath" version
 
-  3) Setup / init path:
-     HOME="$releaseHome" "$stageCliPath" init --force
+  3) Recommended user path:
      HOME="$releaseHome" "$stageCliPath" setup
+     HOME="$releaseHome" "$stageCliPath" status
 
   4) Service lifecycle:
      HOME="$releaseHome" "$stageCliPath" start --port $Port
      HOME="$releaseHome" "$stageCliPath" status
+     HOME="$releaseHome" "$stageCliPath" ui
      HOME="$releaseHome" "$stageCliPath" stop
 
   5) Legacy claude-code-router migration:

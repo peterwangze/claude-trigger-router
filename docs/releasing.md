@@ -81,14 +81,22 @@ Windows 下脚本会额外生成一个包装命令 `.release-stage\ctr-release-h
 ```bash
 ".release-stage\\ctr-release-home.cmd" --help
 ".release-stage\\ctr-release-home.cmd" version
-".release-stage\\ctr-release-home.cmd" init --force
 ".release-stage\\ctr-release-home.cmd" setup
-".release-stage\\ctr-release-home.cmd" start --port 5678
 ".release-stage\\ctr-release-home.cmd" status
+".release-stage\\ctr-release-home.cmd" start --port 5678
+".release-stage\\ctr-release-home.cmd" ui
 ".release-stage\\ctr-release-home.cmd" stop
 ```
 
-`npm run release:stage` 的输出里也会直接打印一组“推荐验证清单”，你可以按它给出的顺序直接复制执行。
+`npm run release:stage` 的输出里也会直接打印一组“推荐验证清单”，顺序会尽量贴近真实用户主路径：
+
+- `help`
+- `version`
+- `setup`
+- `status`
+- `start`
+- `ui`
+- `stop`
 
 对于本次 `claude-code-router` 配置迁移这种高频通用能力，`release:stage` 现在也会默认在同一个主流程 HOME 中准备 legacy 配置样本。Windows 下可直接继续使用同一个 wrapper：
 
@@ -190,7 +198,7 @@ npm run release:publish
 其中：
 
 - `npm run release:verify`：做构建、常规测试、packaged CLI E2E、打包、隔离安装和 CLI 冒烟检查
-- `npm run release:stage`：把待发布包安装到 `.release-stage`，并在同一个 `.release-home` 中准备基础验收配置与 legacy 迁移验证样本
+- `npm run release:stage`：把待发布包安装到 `.release-stage`，并在同一个 `.release-home` 中准备基础验收配置与 legacy 迁移验证样本；推荐按 `help -> version -> setup -> status -> start -> ui -> stop` 顺序验收
 - `npm run release:clean`：清理 `.release-stage`、`.release-home` 和本地 tarball
 - `npm run release:publish`：发布前先检查目标版本是否已存在于 npm；如果不存在，会先执行完整验证，再执行 `npm publish`
 

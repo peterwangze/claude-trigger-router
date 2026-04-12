@@ -108,8 +108,8 @@ ctr init
 ctr start
 ctr start --daemon
 ctr status
-ctr stop
 ctr restart --daemon
+ctr stop
 ```
 
 配合 Claude Code 使用：
@@ -131,6 +131,8 @@ ctr ui
 首次使用：
 
 ```bash
+ctr help
+ctr version
 ctr setup
 ctr status
 ctr code
@@ -149,6 +151,7 @@ ctr code
 ```bash
 ctr start --daemon
 ctr status
+ctr ui
 ctr code
 ```
 
