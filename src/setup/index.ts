@@ -9,7 +9,7 @@ import yaml from 'js-yaml';
 import { CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from '../constants';
 import { getProviderPreset, listProviderPresetKeys } from '../provider-presets';
 import { run } from '../index';
-import { waitForService } from '../service-health';
+import { isTcpPortOccupied, waitForService } from '../service-health';
 import { backupConfigFile, normalizeAndValidateConfig, writeConfigFile } from '../utils';
 import { killProcess, readServiceInfo } from '../utils/processCheck';
 import { decideServiceAction, applyServiceAction } from './service';
@@ -308,7 +308,18 @@ async function readCurrentConfig(): Promise<RawCurrentConfigResult> {
 async function probeService() {
   const port = getConfiguredPortFromCurrentFiles();
   const healthy = await waitForService(port, 500);
-  return healthy ? { kind: 'self_healthy' as const, port } : { kind: 'none' as const };
+  if (healthy) {
+    return { kind: 'self_healthy' as const, port };
+  }
+
+  const occupied = await isTcpPortOccupied(port, 500);
+  if (!occupied) {
+    return { kind: 'none' as const };
+  }
+
+  return isServiceRunning()
+    ? { kind: 'self_unhealthy' as const, port }
+    : { kind: 'non_self_occupied' as const, port };
 }
 
 async function enterClaudeCode(): Promise<void> {

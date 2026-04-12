@@ -146,6 +146,7 @@ describe('run startup wiring', () => {
 
     expect(mockCreateServer).toHaveBeenCalledWith(
       expect.objectContaining({
+        useJsonFile: false,
         initialConfig: expect.objectContaining({
           providers: [
             expect.objectContaining({

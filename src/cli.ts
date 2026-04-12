@@ -11,7 +11,7 @@ import { existsSync, readFileSync, copyFileSync, mkdirSync } from "fs";
 import { run, initializeClaudeConfig } from "./index";
 import { isServiceRunning, killProcess, readServiceInfo } from "./utils/processCheck";
 import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from "./constants";
-import { waitForService } from "./service-health";
+import { isTcpPortOccupied, waitForService } from "./service-health";
 import { runSetupCli } from "./setup";
 
 const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
@@ -279,11 +279,19 @@ function initConfig() {
  * 以前台方式启动服务
  */
 async function startForeground(port?: number) {
+  const targetPort = port ?? getPort();
+  const healthy = await waitForService(targetPort, 500);
+  const occupied = await isTcpPortOccupied(targetPort, 500);
+  if (!healthy && occupied && !isServiceRunning()) {
+    console.error(`❌ Port ${targetPort} is already occupied by another service.`);
+    process.exit(1);
+  }
+
   console.log("🚀 Starting Claude Trigger Router (foreground)...");
   console.log("   Press Ctrl+C to stop");
 
   try {
-    await run({ port });
+    await run({ port: targetPort });
   } catch (error: any) {
     if (error.message?.includes("Invalid configuration")) {
       console.error("\n❌ Configuration error. Run 'ctr init' to create a config file.");
@@ -297,7 +305,15 @@ async function startForeground(port?: number) {
 /**
  * 以后台（daemon）方式启动服务
  */
-function startDaemon(port?: number) {
+async function startDaemon(port?: number) {
+  const targetPort = port ?? getPort();
+  const healthy = await waitForService(targetPort, 500);
+  const occupied = await isTcpPortOccupied(targetPort, 500);
+  if (!healthy && occupied && !isServiceRunning()) {
+    console.log(`❌ Port ${targetPort} is already occupied by another service.`);
+    return;
+  }
+
   if (isServiceRunning()) {
     console.log("✅ Service is already running in the background.");
     return;
@@ -321,7 +337,6 @@ function startDaemon(port?: number) {
   child.unref();
 
   // 等待服务启动（最多 5 秒）
-  const targetPort = port ?? getPort();
   let waited = 0;
   const interval = setInterval(() => {
     waited += 500;
@@ -340,9 +355,16 @@ function startDaemon(port?: number) {
 /**
  * 显示服务状态
  */
-function showStatus() {
+async function showStatus() {
   const info = readServiceInfo();
   if (!info || !isServiceRunning()) {
+    const targetPort = getPort();
+    const healthy = await waitForService(targetPort, 500);
+    const occupied = await isTcpPortOccupied(targetPort, 500);
+    if (!healthy && occupied) {
+      console.log(`⚠️  端口 ${targetPort} 已被其他服务占用，当前不是 claude-trigger-router。`);
+      return;
+    }
     console.log("⏹  服务未运行");
     return;
   }
@@ -376,9 +398,10 @@ function stopService() {
 /**
  * 重启服务（daemon 模式）
  */
-function restartService() {
+async function restartService() {
   stopService();
-  setTimeout(() => startDaemon(getPort()), 1500);
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  await startDaemon(getPort());
 }
 
 /**
@@ -473,7 +496,7 @@ export async function main() {
 
     case "start":
       if (isDaemonMode()) {
-        startDaemon(getPort());
+        await startDaemon(getPort());
       } else {
         await startForeground(getPort());
       }
@@ -484,7 +507,7 @@ export async function main() {
       break;
 
     case "status":
-      showStatus();
+      await showStatus();
       break;
 
     case "version":
@@ -496,7 +519,7 @@ export async function main() {
       break;
 
     case "restart":
-      restartService();
+      await restartService();
       break;
 
     case "code":

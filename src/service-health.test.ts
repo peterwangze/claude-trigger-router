@@ -1,6 +1,7 @@
+import { createServer } from 'http';
 import { describe, expect, it } from 'vitest';
 
-import { isExpectedServiceHealth, SERVICE_HEALTH_PATH, SERVICE_NAME } from './service-health';
+import { isExpectedServiceHealth, isTcpPortOccupied, SERVICE_HEALTH_PATH, SERVICE_NAME } from './service-health';
 
 describe('service health helpers', () => {
   it('accepts expected service signature', () => {
@@ -30,5 +31,28 @@ describe('service health helpers', () => {
 
   it('exposes the dedicated health endpoint path', () => {
     expect(SERVICE_HEALTH_PATH).toBe('/api/health');
+  });
+
+  it('detects whether a local tcp port is occupied', async () => {
+    const server = createServer();
+    const port = await new Promise<number>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', () => {
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+          reject(new Error('failed to get test port'));
+          return;
+        }
+        resolve(address.port);
+      });
+    });
+
+    try {
+      expect(await isTcpPortOccupied(port, 500)).toBe(true);
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
+
+    expect(await isTcpPortOccupied(port, 500)).toBe(false);
   });
 });

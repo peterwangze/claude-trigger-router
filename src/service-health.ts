@@ -1,3 +1,5 @@
+import { Socket } from 'net';
+
 export const SERVICE_NAME = 'claude-trigger-router';
 export const SERVICE_HEALTH_PATH = '/api/health';
 
@@ -28,6 +30,35 @@ export async function probeServiceHealth(port: number, timeoutMs = 500): Promise
   } catch {
     return false;
   }
+}
+
+export async function isTcpPortOccupied(port: number, timeoutMs = 500): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new Socket();
+    let settled = false;
+
+    const finish = (value: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'ECONNREFUSED') {
+        finish(false);
+        return;
+      }
+      finish(false);
+    });
+
+    socket.connect(port, '127.0.0.1');
+  });
 }
 
 export async function waitForService(port: number, timeoutMs = 5000): Promise<boolean> {

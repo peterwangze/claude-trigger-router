@@ -154,6 +154,7 @@ async function run(options: RunOptions = {}) {
   // 创建服务器
   const registry = buildModelRegistry(config);
   const server = createServer({
+    useJsonFile: false,
     initialConfig: {
       providers: registry.providers,
       HOST: HOST,
@@ -522,7 +523,7 @@ async function run(options: RunOptions = {}) {
     return payload;
   });
 
-  server.start();
+  await server.start();
 }
 
 export { run, initializeClaudeConfig };
