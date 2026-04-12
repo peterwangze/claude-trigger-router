@@ -1,7 +1,8 @@
 param(
   [ValidateSet("verify", "publish", "stage", "clean")]
   [string]$Action = "verify",
-  [switch]$SkipVerify
+  [switch]$SkipVerify,
+  [int]$Port = 5678
 )
 
 $ErrorActionPreference = "Stop"
@@ -55,6 +56,11 @@ function New-ReleaseTestConfig {
   Copy-Item -LiteralPath $exampleConfig -Destination $releaseConfigFile -Force
   $releaseConfigContent = Get-Content -LiteralPath $releaseConfigFile -Raw
   $releaseConfigContent = $releaseConfigContent.Replace('"sk-xxx"', '"REPLACE_WITH_REAL_API_KEY"')
+  $releaseConfigContent = [System.Text.RegularExpressions.Regex]::Replace(
+    $releaseConfigContent,
+    '(?m)^PORT:\s*\d+\s*$',
+    "PORT: $Port"
+  )
   $releaseConfigContent = @'
 # =====================================================================
 # Release stage test config
@@ -64,7 +70,7 @@ function New-ReleaseTestConfig {
 # Before manual verification, update at least:
 #   1. Models[*].key
 #   2. Models[*].api / model if you want to target a different provider
-#   3. PORT if you do not want to use 5678
+#   3. PORT if you do not want to use the staged default
 # =====================================================================
 
 '@ + $releaseConfigContent
@@ -232,7 +238,7 @@ function Invoke-ReleaseStage {
     Write-Host "  `"$wrapperCmd`" version"
     Write-Host "  `"$wrapperCmd`" init --force"
     Write-Host "  `"$wrapperCmd`" setup"
-    Write-Host "  `"$wrapperCmd`" start --port 5678"
+    Write-Host "  `"$wrapperCmd`" start --port $Port"
     Write-Host "  `"$wrapperCmd`" status"
     Write-Host "  `"$wrapperCmd`" stop"
     Write-Host ""
@@ -243,7 +249,7 @@ function Invoke-ReleaseStage {
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" version"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" init --force"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" setup"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" start --port 5678"
+    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" start --port $Port"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" status"
     Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" stop"
   }
@@ -263,7 +269,7 @@ function Invoke-ReleaseStage {
      & "$wrapperCmd" setup
 
   4) Service lifecycle:
-     & "$wrapperCmd" start --port 5678
+     & "$wrapperCmd" start --port $Port
      & "$wrapperCmd" status
      & "$wrapperCmd" stop
 "@
@@ -281,7 +287,7 @@ function Invoke-ReleaseStage {
      HOME="$releaseHome" "$stageCliPath" setup
 
   4) Service lifecycle:
-     HOME="$releaseHome" "$stageCliPath" start --port 5678
+     HOME="$releaseHome" "$stageCliPath" start --port $Port
      HOME="$releaseHome" "$stageCliPath" status
      HOME="$releaseHome" "$stageCliPath" stop
 "@

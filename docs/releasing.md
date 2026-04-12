@@ -52,6 +52,17 @@ npm run release:stage
 
 这样你在手动验证时不会污染自己真实的 `~/.claude-trigger-router` 配置。
 
+如果你想指定测试端口，可以这样执行：
+
+```bash
+npm run release:stage -- -Port 6789
+```
+
+脚本会同时：
+
+- 把 staged 配置里的 `PORT` 改成你指定的端口
+- 在推荐命令清单里使用同一个端口
+
 Windows 下脚本会额外生成一个包装命令 `.release-stage\ctr-release-home.cmd`，自动把 `HOME` / `USERPROFILE` 指向 `.release-home`。你可以直接用它验证新功能，例如：
 
 ```bash
