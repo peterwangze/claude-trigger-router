@@ -189,8 +189,12 @@ function Invoke-ReleaseVerification {
     Invoke-CommandChecked { npm run build } "Build failed"
   }
 
-  Invoke-Step "Run test suite" {
+  Invoke-Step "Run unit/integration test suite" {
     Invoke-CommandChecked { npm test -- --run } "Tests failed"
+  }
+
+  Invoke-Step "Run packaged CLI end-to-end suite" {
+    Invoke-CommandChecked { npm run test:e2e:cli } "Packaged CLI E2E failed"
   }
 
   Invoke-Step "Inspect publish payload" {

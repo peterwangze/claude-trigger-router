@@ -32,12 +32,24 @@ npm run release:verify
 
 - `npm run build`
 - `npm test -- --run`
+- `npm run test:e2e:cli`
 - `npm pack --dry-run`
 - `npm pack`
 - 将 tarball 安装到隔离目录
 - 运行 `ctr --help`、`ctr version`、`ctr upgrade`
 
-只有这一步通过后，才继续正式发布，避免“发布后才发现包内容或 CLI 启动有问题”。
+其中 `npm run test:e2e:cli` 会直接验证打包后的真实 CLI 用户流程，而不是只测源码内部函数。当前已经覆盖：
+
+- `help` / `--help` / `-h` / 空命令
+- `init`
+- `version`
+- `upgrade`
+- `start` / `status` / `stop` / `restart`
+- `code`
+- `ui`
+- `setup` 的复用、迁移、跳过迁移、新建、repair、rebuild、cancel 等主选择路径
+
+只有这一步通过后，才继续正式发布，避免“发布后才发现包内容、CLI 启动或 setup 主流程有问题”。
 
 如果你想手动验收“待发布的新包 CLI”，可以先执行：
 
@@ -177,7 +189,7 @@ npm run release:publish
 
 其中：
 
-- `npm run release:verify`：只做构建、测试、打包、隔离安装和 CLI 冒烟检查
+- `npm run release:verify`：做构建、常规测试、packaged CLI E2E、打包、隔离安装和 CLI 冒烟检查
 - `npm run release:stage`：把待发布包安装到 `.release-stage`，并在同一个 `.release-home` 中准备基础验收配置与 legacy 迁移验证样本
 - `npm run release:clean`：清理 `.release-stage`、`.release-home` 和本地 tarball
 - `npm run release:publish`：发布前先检查目标版本是否已存在于 npm；如果不存在，会先执行完整验证，再执行 `npm publish`
