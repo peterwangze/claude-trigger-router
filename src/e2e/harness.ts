@@ -118,19 +118,28 @@ export async function createFakeClaude(binDir: string, markerPath: string): Prom
   if (process.platform === 'win32') {
     await writeFile(
       commandPath,
-      `@echo off\r\necho invoked> "${markerPath}"\r\nexit /b 0\r\n`,
+      `@echo off\r\n> "${markerPath}" echo invoked\r\n>> "${markerPath}" echo ANTHROPIC_BASE_URL=%ANTHROPIC_BASE_URL%\r\nexit /b 0\r\n`,
       'utf-8'
     );
   } else {
     await writeFile(
       commandPath,
-      `#!/usr/bin/env sh\nprintf 'invoked' > "${markerPath}"\nexit 0\n`,
+      `#!/usr/bin/env sh\nprintf 'invoked\nANTHROPIC_BASE_URL=%s\n' "$ANTHROPIC_BASE_URL" > "${markerPath}"\nexit 0\n`,
       'utf-8'
     );
   }
 }
 
 export async function packCli(repoRoot: string): Promise<string> {
+  const buildResult = await runCommand('npm', ['run', 'build'], {
+    cwd: repoRoot,
+    shell: process.platform === 'win32',
+    timeoutMs: 180000,
+  });
+  if (buildResult.code !== 0) {
+    throw new Error(`npm run build failed:\n${buildResult.stderr || buildResult.stdout}`);
+  }
+
   const result = await runCommand('npm', ['pack', '--silent'], {
     cwd: repoRoot,
     shell: process.platform === 'win32',
@@ -243,8 +252,13 @@ export function assertOnlyExpectedPathsChanged(
   diff: { added: string[]; removed: string[]; changed: string[] },
   allowedPaths: string[]
 ): void {
-  const allowed = new Set(allowedPaths);
-  const unexpected = [...diff.added, ...diff.removed, ...diff.changed].filter((item) => !allowed.has(item));
+  const isAllowed = (item: string) =>
+    allowedPaths.some((allowedPath) =>
+      allowedPath.endsWith('*')
+        ? item.startsWith(allowedPath.slice(0, -1))
+        : item === allowedPath
+    );
+  const unexpected = [...diff.added, ...diff.removed, ...diff.changed].filter((item) => !isAllowed(item));
   if (unexpected.length) {
     throw new Error(`Unexpected file mutations detected: ${unexpected.join(', ')}`);
   }

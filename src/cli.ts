@@ -443,6 +443,11 @@ function openUI() {
 
   console.log(`🌐 Opening UI at ${url}`);
 
+  if (process.env.CTR_UI_SKIP_OPEN === "1") {
+    console.log("   Browser launch skipped by CTR_UI_SKIP_OPEN=1");
+    return;
+  }
+
   try {
     open(url);
   } catch (error: any) {
