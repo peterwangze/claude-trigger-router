@@ -4,12 +4,16 @@ const mockExistsSync = vi.fn();
 const mockReadFileSync = vi.fn();
 const mockSpawn = vi.fn(() => ({
   on: vi.fn(),
+  once: vi.fn(),
+  unref: vi.fn(),
 }));
 const mockSpawnSync = vi.fn();
 const mockInitializeClaudeConfig = vi.fn();
 const mockIsServiceRunning = vi.fn();
 const mockWaitForService = vi.fn();
+const mockIsTcpPortOccupied = vi.fn();
 const mockRunSetupCli = vi.fn();
+const mockRun = vi.fn();
 const mockProcessExit = vi.fn(() => {
   throw new Error('process.exit called');
 });
@@ -33,7 +37,7 @@ vi.mock('child_process', () => ({
 }));
 
 vi.mock('./index', () => ({
-  run: vi.fn(),
+  run: mockRun,
   initializeClaudeConfig: mockInitializeClaudeConfig,
 }));
 
@@ -49,6 +53,7 @@ vi.mock('./service-health', async (importOriginal) => {
   return {
     ...actual,
     waitForService: mockWaitForService,
+    isTcpPortOccupied: mockIsTcpPortOccupied,
   };
 });
 
@@ -67,7 +72,9 @@ describe('runClaudeCode', () => {
     mockSpawn.mockReturnValue({ on: vi.fn() });
     mockSpawnSync.mockReturnValue({ status: 1, stdout: '' });
     mockIsServiceRunning.mockReturnValue(true);
+    mockIsTcpPortOccupied.mockResolvedValue(false);
     mockRunSetupCli.mockResolvedValue(undefined);
+    mockRun.mockResolvedValue(undefined);
     mockFetch.mockRejectedValue(new Error('network error'));
     mockExistsSync.mockReturnValue(false);
     mockReadFileSync.mockImplementation((filePath: string, ...args: unknown[]) => {
@@ -254,4 +261,47 @@ describe('runClaudeCode', () => {
       })
     );
   });
+
+  it('fails clearly when --port is not a valid integer', async () => {
+    process.argv = ['node', 'cli.ts', 'start', '--port', 'abc'];
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+
+    await expect(main()).rejects.toThrow('命令行端口参数 不是合法端口：abc');
+
+    const output = errorSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toBe('');
+    expect(mockRun).not.toHaveBeenCalled();
+
+    errorSpy.mockRestore();
+  });
+
+  it('fails daemon start instead of printing a misleading success message when service never becomes healthy', async () => {
+    process.argv = ['node', 'cli.ts', 'start', '--daemon', '--port', '5678'];
+    mockIsServiceRunning.mockReturnValue(false);
+    const child = {
+      on: vi.fn(),
+      once: vi.fn(),
+      unref: vi.fn(),
+    };
+    mockSpawn.mockReturnValue(child);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(mockProcessExit as never);
+
+    const { main } = await import('./cli');
+
+    await expect(main()).rejects.toThrow('process.exit called');
+
+    const errorOutput = errorSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    const logOutput = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(errorOutput).toContain('Service failed to start in background');
+    expect(logOutput).not.toContain('Service launched in background');
+    expect(logOutput).not.toContain('Service started in background');
+
+    errorSpy.mockRestore();
+    logSpy.mockRestore();
+    exitSpy.mockRestore();
+  }, 10000);
 });

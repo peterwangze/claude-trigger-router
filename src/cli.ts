@@ -48,6 +48,20 @@ function getArgValue(flag: string, shortFlag?: string): string | undefined {
   return index !== -1 ? args[index + 1] : undefined;
 }
 
+function parsePortValue(portValue: string, sourceLabel: string): number {
+  const trimmed = portValue.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    throw new Error(`${sourceLabel} 不是合法端口：${portValue}`);
+  }
+
+  const port = Number.parseInt(trimmed, 10);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`${sourceLabel} 超出合法范围（1-65535）：${portValue}`);
+  }
+
+  return port;
+}
+
 /**
  * 从命令行参数或配置文件中获取端口号
  */
@@ -55,7 +69,7 @@ function getPort(): number {
   // 优先使用命令行参数
   const portValue = getArgValue("--port", "-p");
   if (portValue) {
-    return parseInt(portValue, 10);
+    return parsePortValue(portValue, "命令行端口参数");
   }
 
   // 尝试从配置文件读取（顺序：config.yaml → config.yml → config.json）
@@ -336,20 +350,47 @@ async function startDaemon(port?: number) {
 
   child.unref();
 
-  // 等待服务启动（最多 5 秒）
-  let waited = 0;
-  const interval = setInterval(() => {
-    waited += 500;
-    if (isServiceRunning()) {
-      clearInterval(interval);
-      console.log(`✅ Service started in background (port: ${targetPort})`);
-      console.log(`   Run 'ctr stop' to stop it.`);
-    } else if (waited >= 5000) {
-      clearInterval(interval);
-      console.log(`✅ Service launched in background (port: ${targetPort})`);
-      console.log(`   If it fails to start, run 'ctr start' (without --daemon) to see errors.`);
-    }
-  }, 500);
+  const startConfirmed = await new Promise<boolean>((resolve, reject) => {
+    let settled = false;
+    const deadline = Date.now() + 5000;
+
+    const finish = (value: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve(value);
+    };
+
+    child.once("error", reject);
+    child.once("exit", () => finish(false));
+
+    const poll = () => {
+      if (settled) {
+        return;
+      }
+      if (isServiceRunning()) {
+        finish(true);
+        return;
+      }
+      if (Date.now() >= deadline) {
+        finish(false);
+        return;
+      }
+      setTimeout(poll, 250);
+    };
+
+    poll();
+  });
+
+  if (!startConfirmed) {
+    console.error(`❌ Service failed to start in background (port: ${targetPort}).`);
+    console.error("   Run 'ctr start' (without --daemon) to inspect the startup error.");
+    process.exit(1);
+  }
+
+  console.log(`✅ Service started in background (port: ${targetPort})`);
+  console.log(`   Run 'ctr stop' to stop it.`);
 }
 
 /**

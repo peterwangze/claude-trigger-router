@@ -24,12 +24,14 @@
 - `upgrade`
 - `ui`（跳过打开浏览器）
 - `init --force`
+- 非法 `--port` 参数的安全失败
 - 未知命令
 
 ### 服务生命周期
 
 - `start` 前台启动
 - `start --daemon`
+- `start --daemon` 启动失败时不再输出误导性成功提示
 - `status`
 - `stop`
 - `restart --daemon`

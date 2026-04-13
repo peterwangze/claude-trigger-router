@@ -488,6 +488,60 @@ describe('packaged CLI E2E', () => {
     }
   });
 
+  it('start rejects an invalid --port value before attempting startup', async () => {
+    const env = await createTestEnvironment('ctr-invalid-port-e2e-');
+    try {
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['start', '--port', 'abc'], env, { timeoutMs: 15000 });
+      const after = await snapshotTree(env.homeDir);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain('命令行端口参数 不是合法端口：abc');
+      expect(result.stdout).not.toContain('Starting Claude Trigger Router');
+      expect(diffSnapshots(before, after)).toEqual({ added: [], removed: [], changed: [] });
+    } finally {
+      await removePath(env.rootDir);
+    }
+  });
+
+  it('start --daemon fails cleanly when configuration is invalid instead of printing a false success message', async () => {
+    const env = await createTestEnvironment('ctr-start-daemon-invalid-e2e-');
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          'PORT: 5678',
+          'LOG: false',
+          'Models:',
+          '  - id: invalid_model',
+          '    api: "https://openrouter.ai/api/v1/chat/completions"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          'Router: {}',
+        ].join('\n')
+      );
+
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['start', '--daemon'], env, { timeoutMs: 20000 });
+      const after = await snapshotTree(env.homeDir);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain('Service failed to start in background');
+      expect(result.stderr).toContain("Run 'ctr start' (without --daemon) to inspect the startup error.");
+      expect(result.stdout).not.toContain('Service started in background');
+      expect(result.stdout).not.toContain('Service launched in background');
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), [
+        '.claude-trigger-router',
+        '.claude-trigger-router/config.yaml',
+        '.claude-trigger-router/logs',
+      ]);
+    } finally {
+      await removePath(env.rootDir);
+    }
+  });
+
   it('start --daemon does not start a duplicate service when one is already running', async () => {
     const env = await createTestEnvironment('ctr-start-duplicate-e2e-');
     const port = await getFreePort();
