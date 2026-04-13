@@ -796,6 +796,64 @@ describe('runSetup', () => {
     });
   });
 
+  it('asks for apiBaseUrl when migrated legacy config is missing endpoint data', async () => {
+    const { deps } = createDeps({
+      detectSetupEnvironment: vi.fn().mockResolvedValue({
+        currentConfig: { kind: 'missing' },
+        legacyConfig: {
+          kind: 'found',
+          path: '/legacy/ccr.yaml',
+          config: {
+            Providers: [{ name: 'openrouter', api_key: 'sk-test', models: ['anthropic/claude-sonnet-4'] }],
+            Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+          },
+        },
+        detectedService: { kind: 'none', port: 5678 },
+      }),
+      chooseLegacyConfigAction: vi.fn().mockResolvedValue('migrate'),
+      migrateLegacyConfig: vi.fn().mockReturnValue({
+        draft: {
+          Providers: [],
+          Models: [{
+            id: 'openrouter_anthropic_claude_sonnet_4',
+            key: 'sk-test',
+            model: 'anthropic/claude-sonnet-4',
+            interface: 'openai',
+          }],
+          Router: { default: 'openrouter_anthropic_claude_sonnet_4' },
+        },
+        skippedFields: [],
+        needsCompletion: true,
+        missingFields: ['apiBaseUrl'],
+      }),
+    });
+
+    deps.completeDraft.mockResolvedValue({
+      Providers: [],
+      Models: [{
+        id: 'openrouter_anthropic_claude_sonnet_4',
+        key: 'sk-test',
+        api: 'https://openrouter.ai/api/v1/chat/completions',
+        interface: 'openai',
+        model: 'anthropic/claude-sonnet-4',
+      }],
+      Router: { default: 'openrouter_anthropic_claude_sonnet_4' },
+    });
+
+    const { runSetup } = await import('./setup');
+    await runSetup(deps as any);
+
+    expect(deps.completeDraft).toHaveBeenCalledWith({
+      draft: expect.objectContaining({
+        Models: [expect.objectContaining({
+          id: 'openrouter_anthropic_claude_sonnet_4',
+        })],
+      }),
+      fields: ['apiBaseUrl'],
+    });
+    expect(deps.persistConfig.mock.calls[0][0].config.Models?.[0].api).toBe('https://openrouter.ai/api/v1/chat/completions');
+  });
+
   it('forwards non-self-occupied service state into ensureServiceReady before failing', async () => {
     const ensureServiceReady = vi.fn().mockImplementation(async (input) => {
       expect(input.detectedService).toEqual({ kind: 'non_self_occupied', port: 5678 });

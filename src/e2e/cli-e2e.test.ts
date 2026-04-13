@@ -1351,6 +1351,67 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
+  it('setup can complete missing api base url during claude-code-router migration and then start successfully', async () => {
+    const env = await createTestEnvironment('ctr-setup-migrate-missing-api-e2e-');
+    const port = await getFreePort();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-code-router/config.json',
+        `{
+  "Providers": [
+    {
+      "name": "legacy_provider",
+      "api_key": "sk-legacy-migrate",
+      "models": ["gpt-4.1"]
+    }
+  ],
+  "Router": {
+    "default": "legacy_provider,gpt-4.1"
+  }
+}`
+      );
+
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: [
+          '1',
+          'https://example.com/openai/v1/chat/completions',
+        ].join('\n'),
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+
+      const migratedConfig = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('检测到旧 claude-code-router 配置。是否迁移为当前推荐配置？');
+      expect(migratedConfig).toContain('api: https://example.com/openai/v1/chat/completions');
+      expect(migratedConfig).toContain('default: legacy_provider_gpt_4_1');
+
+      const startResult = await runCtr(cliPath, ['start', '--daemon'], env, {
+        timeoutMs: 20000,
+      });
+      expect(startResult.code).toBe(0);
+
+      const statusResult = await runCtr(cliPath, ['status'], env);
+      expect(statusResult.code).toBe(0);
+      expect(statusResult.stdout).toContain('服务运行中');
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('setup can overwrite a valid current config with a newly guided configuration', async () => {
     const env = await createTestEnvironment('ctr-setup-overwrite-valid-e2e-');
     const port = await getFreePort();

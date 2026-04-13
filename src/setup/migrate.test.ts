@@ -119,6 +119,24 @@ describe('migrateLegacyConfig', () => {
     expect(result.missingFields).toEqual(['apiKey']);
   });
 
+  it('marks migration as incomplete when api_base_url is missing', () => {
+    const result = migrateLegacyConfig({
+      providers: [
+        {
+          name: 'openrouter',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4'],
+        },
+      ],
+      default: 'openrouter,anthropic/claude-sonnet-4',
+    });
+
+    expect(result.draft.Models?.[0]?.api).toBeUndefined();
+    expect(result.draft.Models?.[0]?.api_base_url).toBeUndefined();
+    expect(result.needsCompletion).toBe(true);
+    expect(result.missingFields).toEqual(['apiBaseUrl']);
+  });
+
   it('marks migration as incomplete when default model is missing', () => {
     const result = migrateLegacyConfig({
       providers: [
@@ -150,7 +168,7 @@ describe('migrateLegacyConfig', () => {
       },
       skippedFields: [],
       needsCompletion: true,
-      missingFields: ['defaultModel', 'apiKey'],
+      missingFields: ['defaultModel', 'apiKey', 'apiBaseUrl'],
     });
   });
 
@@ -168,7 +186,7 @@ describe('migrateLegacyConfig', () => {
       },
       skippedFields: [],
       needsCompletion: true,
-      missingFields: ['defaultModel', 'apiKey'],
+      missingFields: ['defaultModel', 'apiKey', 'apiBaseUrl'],
     });
   });
 

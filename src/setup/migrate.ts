@@ -95,7 +95,7 @@ function createNonMigratableResult(): IMigrateLegacyConfigResult {
     draft: createEmptyDraft(),
     skippedFields: [],
     needsCompletion: true,
-    missingFields: ['defaultModel', 'apiKey'],
+    missingFields: ['defaultModel', 'apiKey', 'apiBaseUrl'],
   };
 }
 
@@ -267,6 +267,7 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
       })()
     : undefined;
   const hasMissingApiKey = normalized.providers.some((provider) => provider.api_key.length === 0);
+  const hasMissingApiBaseUrl = normalized.providers.some((provider) => (provider.api_base_url?.trim() ?? '').length === 0);
   const missingFields: string[] = [];
 
   if (!defaultModelId) {
@@ -274,6 +275,9 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
   }
   if (hasMissingApiKey) {
     missingFields.push('apiKey');
+  }
+  if (hasMissingApiBaseUrl) {
+    missingFields.push('apiBaseUrl');
   }
 
   return {
