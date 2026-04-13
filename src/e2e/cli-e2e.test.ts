@@ -780,6 +780,54 @@ describe('packaged CLI E2E', () => {
     }
   });
 
+  it('code still fails safely when CTR_AUTO_START=1 but the router service is not running', async () => {
+    const env = await createTestEnvironment('ctr-code-auto-start-e2e-');
+    const port = await getFreePort();
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'LOG: false',
+          'Models:',
+          '  - id: offline_model',
+          '    api: "https://openrouter.ai/api/v1/chat/completions"',
+          '    key: "sk-offline"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          'Router:',
+          '  default: "offline_model"',
+        ].join('\n')
+      );
+
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['code'], env, {
+        timeoutMs: 30000,
+        extraEnv: {
+          CTR_AUTO_START: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+
+      expect(result.code).toBe(1);
+      expect(result.stdout).toContain(`Checking if service is available on port ${port}`);
+      expect(result.stdout).toContain(`Trigger Router service is not running on port ${port}`);
+      expect(result.stdout).not.toContain('Starting Claude Code with Trigger Router');
+      expect(result.stderr).toBe('');
+
+      const diff = diffSnapshots(before, after);
+      assertOnlyExpectedPathsChanged(diff, [
+        '.claude-trigger-router',
+        '.claude-trigger-router/config.yaml',
+        '.claude.json',
+      ]);
+    } finally {
+      await removePath(env.rootDir);
+    }
+  });
+
   it('code reuses the running service and invokes Claude with the routed base URL', async () => {
     const env = await createTestEnvironment('ctr-code-service-e2e-');
     const port = await getFreePort();
@@ -860,6 +908,7 @@ describe('packaged CLI E2E', () => {
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain(`Opening UI at http://127.0.0.1:${port}/ui`);
+      expect(result.stdout).toContain('当前 UI 服务未就绪');
       expect(result.stdout).toContain('Browser launch skipped by CTR_UI_SKIP_OPEN=1');
       expect(result.stderr).toBe('');
 
@@ -872,6 +921,34 @@ describe('packaged CLI E2E', () => {
       await removePath(env.rootDir);
     }
   });
+
+  it('restart without --daemon documents and uses the same background restart behavior', async () => {
+    const env = await createTestEnvironment('ctr-restart-default-e2e-');
+    const port = await getFreePort();
+    try {
+      await writeFileUnder(env.homeDir, '.claude-trigger-router/config.yaml', buildMinimalModelsConfig(port));
+
+      const restartCold = await runCtr(cliPath, ['restart', '--port', String(port)], env, { timeoutMs: 20000 });
+      expect(restartCold.code).toBe(0);
+      expect(restartCold.stdout).toContain('`ctr restart` 当前默认按后台模式重启服务');
+      expect(restartCold.stdout).toContain('未发现运行中的服务');
+
+      const statusAfterCold = await runCtr(cliPath, ['status'], env);
+      expect(statusAfterCold.code).toBe(0);
+      expect(statusAfterCold.stdout).toContain('服务运行中');
+      expect(statusAfterCold.stdout).toContain(String(port));
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
 
   it('setup can reuse a valid current config without unexpected file writes', async () => {
     const env = await createTestEnvironment('ctr-setup-reuse-e2e-');

@@ -203,6 +203,7 @@ ctr init
 ctr start
 ctr start --daemon
 ctr status
+ctr restart
 ctr restart --daemon
 ctr stop
 ```
@@ -250,6 +251,11 @@ ctr ui
 ctr code
 ```
 
+补充说明：
+
+- `ctr restart` 当前默认按后台模式重启
+- `ctr restart --daemon` 只是更显式的等价写法
+
 ## 旧配置迁移
 
 如果你之前在用 `claude-code-router`：
@@ -277,6 +283,8 @@ ctr ui
 ```text
 http://127.0.0.1:5678/ui
 ```
+
+如果本地服务还没启动，CLI 会先提醒你运行 `ctr start` 或 `ctr start --daemon`。
 
 它适合做配置查看和调试，但主线入口仍然建议优先使用 `ctr setup`。
 

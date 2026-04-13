@@ -148,6 +148,9 @@ Claude Trigger Router - 智能触发路由器
 
 配置目录：${CONFIG_DIR}
 
+补充说明：
+  ctr restart 当前默认按后台模式重启；可写 ctr restart 或 ctr restart --daemon
+
 更多信息：https://github.com/peterwangze/claude-trigger-router
 `);
 }
@@ -237,6 +240,10 @@ function printUpgradeGuidance() {
   console.log("如果你最初是通过 GitHub 源安装，请继续使用原安装来源，当前命令不会自动切换来源。");
   console.log("全局安装在某些环境下可能需要管理员/root 权限。");
   console.log(`NPM: ${PACKAGE_PAGE_URL}`);
+}
+
+function printRestartGuidanceHint() {
+  console.log("说明：`ctr restart` 当前默认按后台模式重启服务，`--daemon` 只是显式写法。");
 }
 
 /**
@@ -467,10 +474,7 @@ export async function runClaudeCode() {
     console.log("  1. Start service first:  ctr start --daemon");
     console.log("  2. Or start interactively in another terminal:  ctr start");
     console.log("");
-    const proceed = process.env.CTR_AUTO_START === "1";
-    if (!proceed) {
-      process.exit(1);
-    }
+    process.exit(1);
   }
 
   console.log(`🚀 Starting Claude Code with Trigger Router (port: ${port})...`);
@@ -502,11 +506,15 @@ export async function runClaudeCode() {
 /**
  * 打开 Web UI
  */
-function openUI() {
+async function openUI() {
   const port = getPort();
   const url = `http://127.0.0.1:${port}/ui`;
+  const healthy = await waitForService(port, 800);
 
   console.log(`🌐 Opening UI at ${url}`);
+  if (!healthy) {
+    console.log("⚠️  当前 UI 服务未就绪；如果页面无法打开，请先运行 ctr start 或 ctr start --daemon。");
+  }
 
   if (process.env.CTR_UI_SKIP_OPEN === "1") {
     console.log("   Browser launch skipped by CTR_UI_SKIP_OPEN=1");
@@ -560,6 +568,7 @@ export async function main() {
       break;
 
     case "restart":
+      printRestartGuidanceHint();
       await restartService();
       break;
 
@@ -568,7 +577,7 @@ export async function main() {
       break;
 
     case "ui":
-      openUI();
+      await openUI();
       break;
 
     case "help":

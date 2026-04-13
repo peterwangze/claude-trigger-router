@@ -91,6 +91,8 @@ describe('runClaudeCode', () => {
   afterEach(() => {
     process.argv = [...originalArgv];
     global.fetch = originalFetch;
+    delete process.env.CTR_AUTO_START;
+    delete process.env.CTR_UI_SKIP_OPEN;
   });
 
   it('prints setup in help and lists ctr setup first in examples', async () => {
@@ -106,6 +108,7 @@ describe('runClaudeCode', () => {
     expect(output).toContain('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置');
     expect(output).toContain('  ctr version              # 查看当前安装版本');
     expect(output).toContain('  ctr upgrade              # 查看升级到最新版本的命令');
+    expect(output).toContain('ctr restart 当前默认按后台模式重启');
     expect(output.indexOf('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置')).toBeLessThan(
       output.indexOf('  ctr init                 # 初始化最小配置模板')
     );
@@ -244,6 +247,20 @@ describe('runClaudeCode', () => {
     exitSpy.mockRestore();
   });
 
+  it('still exits when CTR_AUTO_START is set but router service is unavailable', async () => {
+    process.env.CTR_AUTO_START = '1';
+    mockWaitForService.mockResolvedValue(false);
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(mockProcessExit as never);
+
+    const { runClaudeCode } = await import('./cli');
+
+    await expect(runClaudeCode()).rejects.toThrow('process.exit called');
+    expect(mockSpawn).not.toHaveBeenCalled();
+
+    delete process.env.CTR_AUTO_START;
+    exitSpy.mockRestore();
+  });
+
   it('starts Claude when health check succeeds', async () => {
     mockWaitForService.mockResolvedValue(true);
 
@@ -261,6 +278,47 @@ describe('runClaudeCode', () => {
       })
     );
   });
+
+  it('warns when ui is opened before the local service becomes healthy', async () => {
+    process.argv = ['node', 'cli.ts', 'ui'];
+    mockWaitForService.mockResolvedValue(false);
+    process.env.CTR_UI_SKIP_OPEN = '1';
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('Opening UI at http://127.0.0.1:5678/ui');
+    expect(output).toContain('当前 UI 服务未就绪');
+
+    logSpy.mockRestore();
+  });
+
+  it('prints restart guidance before restarting the background service', async () => {
+    process.argv = ['node', 'cli.ts', 'restart'];
+    mockIsServiceRunning
+      .mockReturnValueOnce(false)
+      .mockReturnValue(true);
+    mockWaitForService.mockResolvedValue(false);
+    const child = {
+      on: vi.fn(),
+      once: vi.fn(),
+      unref: vi.fn(),
+    };
+    mockSpawn.mockReturnValue(child);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('`ctr restart` 当前默认按后台模式重启服务');
+    expect(output).toContain('未发现运行中的服务');
+    expect(output).toContain('Service started in background');
+
+    logSpy.mockRestore();
+  }, 10000);
 
   it('fails clearly when --port is not a valid integer', async () => {
     process.argv = ['node', 'cli.ts', 'start', '--port', 'abc'];
