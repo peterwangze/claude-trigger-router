@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { existsSync } from 'fs';
+import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import packageJson from '../../package.json';
@@ -452,6 +453,37 @@ describe('packaged CLI E2E', () => {
     }
   });
 
+  it('start foreground returns a clear message when the router is already running on the same port', async () => {
+    const env = await createTestEnvironment('ctr-start-foreground-duplicate-e2e-');
+    const port = await getFreePort();
+    try {
+      await writeFileUnder(env.homeDir, '.claude-trigger-router/config.yaml', buildMinimalModelsConfig(port));
+
+      const daemonStart = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
+        timeoutMs: 20000,
+      });
+      expect(daemonStart.code).toBe(0);
+
+      const foregroundStart = await runCtr(cliPath, ['start', '--port', String(port)], env, {
+        timeoutMs: 15000,
+      });
+      expect(foregroundStart.code).toBe(0);
+      expect(foregroundStart.stdout).toContain(`Service is already running on port ${port}`);
+      expect(foregroundStart.stdout).toContain("Use 'ctr status' to inspect it or 'ctr stop' before starting again.");
+      expect(foregroundStart.stdout).not.toContain('Starting Claude Trigger Router (foreground)');
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('start foreground fails cleanly on invalid config without unexpected file writes', async () => {
     const env = await createTestEnvironment('ctr-start-invalid-e2e-');
     try {
@@ -866,6 +898,59 @@ describe('packaged CLI E2E', () => {
       expect(result.stdout).toContain(`Starting Claude Code with Trigger Router (port: ${port})`);
       expect(marker).toContain('invoked');
       expect(marker).toContain(`ANTHROPIC_BASE_URL=http://127.0.0.1:${port}`);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('code fails clearly when Claude Code CLI is unavailable even if the router service is healthy', async () => {
+    const env = await createTestEnvironment('ctr-code-missing-claude-e2e-');
+    const port = await getFreePort();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'LOG: false',
+          'Models:',
+          '  - id: service_model',
+          '    api: "https://openrouter.ai/api/v1/chat/completions"',
+          '    key: "sk-service"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          'Router:',
+          '  default: "service_model"',
+        ].join('\n')
+      );
+
+      const startResult = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
+        timeoutMs: 20000,
+      });
+      expect(startResult.code).toBe(0);
+
+      const fakeClaudePath = join(env.binDir, process.platform === 'win32' ? 'claude.cmd' : 'claude');
+      if (process.platform === 'win32') {
+        await writeFile(fakeClaudePath, '@echo off\r\nexit /b 1\r\n', 'utf-8');
+      } else {
+        await writeFile(fakeClaudePath, '#!/usr/bin/env sh\nexit 1\n', 'utf-8');
+      }
+
+      const result = await runCtr(cliPath, ['code'], env, {
+        timeoutMs: 30000,
+      });
+
+      expect(result.code).toBe(1);
+      expect(result.stdout).toContain(`Starting Claude Code with Trigger Router (port: ${port})`);
+      expect(result.stdout).toContain('请先安装：npm install -g @anthropic-ai/claude-code');
+      expect(result.stderr).toContain('未检测到 Claude Code CLI');
     } finally {
       try {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });

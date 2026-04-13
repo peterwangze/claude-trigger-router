@@ -246,6 +246,21 @@ function printRestartGuidanceHint() {
   console.log("说明：`ctr restart` 当前默认按后台模式重启服务，`--daemon` 只是显式写法。");
 }
 
+function isClaudeCommandAvailable(timeoutMs = 3000): boolean {
+  try {
+    const result = spawnSync("claude", ["--version"], {
+      encoding: "utf-8",
+      timeout: timeoutMs,
+      stdio: "ignore",
+      shell: process.platform === "win32",
+    });
+
+    return result.status === 0;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 初始化配置文件
  */
@@ -303,6 +318,11 @@ async function startForeground(port?: number) {
   const targetPort = port ?? getPort();
   const healthy = await waitForService(targetPort, 500);
   const occupied = await isTcpPortOccupied(targetPort, 500);
+  if (healthy && occupied && isServiceRunning()) {
+    console.log(`✅ Service is already running on port ${targetPort}.`);
+    console.log("   Use 'ctr status' to inspect it or 'ctr stop' before starting again.");
+    return;
+  }
   if (!healthy && occupied && !isServiceRunning()) {
     console.error(`❌ Port ${targetPort} is already occupied by another service.`);
     process.exit(1);
@@ -478,6 +498,11 @@ export async function runClaudeCode() {
   }
 
   console.log(`🚀 Starting Claude Code with Trigger Router (port: ${port})...`);
+  if (!isClaudeCommandAvailable()) {
+    console.error("❌ 未检测到 Claude Code CLI。");
+    console.log("   请先安装：npm install -g @anthropic-ai/claude-code");
+    process.exit(1);
+  }
 
   // 启动 Claude Code（Windows 上 npm 全局命令为 .cmd shim，需要 shell: true）
   const isWindows = process.platform === "win32";

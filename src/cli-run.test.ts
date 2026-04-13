@@ -69,8 +69,13 @@ describe('runClaudeCode', () => {
     process.argv = [...originalArgv];
     global.fetch = mockFetch as typeof fetch;
     mockInitializeClaudeConfig.mockResolvedValue(undefined);
-    mockSpawn.mockReturnValue({ on: vi.fn() });
-    mockSpawnSync.mockReturnValue({ status: 1, stdout: '' });
+    mockSpawn.mockReturnValue({ on: vi.fn(), once: vi.fn(), unref: vi.fn() });
+    mockSpawnSync.mockImplementation((command: string) => {
+      if (command === 'claude') {
+        return { status: 0, stdout: '' };
+      }
+      return { status: 1, stdout: '' };
+    });
     mockIsServiceRunning.mockReturnValue(true);
     mockIsTcpPortOccupied.mockResolvedValue(false);
     mockRunSetupCli.mockResolvedValue(undefined);
@@ -279,6 +284,30 @@ describe('runClaudeCode', () => {
     );
   });
 
+  it('fails clearly when Claude Code CLI is not installed', async () => {
+    mockWaitForService.mockResolvedValue(true);
+    mockSpawnSync.mockImplementation((command: string) => {
+      if (command === 'claude') {
+        return { status: 1, stdout: '' };
+      }
+      return { status: 1, stdout: '' };
+    });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(mockProcessExit as never);
+
+    const { runClaudeCode } = await import('./cli');
+
+    await expect(runClaudeCode()).rejects.toThrow('process.exit called');
+    expect(errorSpy.mock.calls.map(([line]) => String(line)).join('\n')).toContain('未检测到 Claude Code CLI');
+    expect(logSpy.mock.calls.map(([line]) => String(line)).join('\n')).toContain('npm install -g @anthropic-ai/claude-code');
+    expect(mockSpawn).not.toHaveBeenCalled();
+
+    errorSpy.mockRestore();
+    logSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
   it('warns when ui is opened before the local service becomes healthy', async () => {
     process.argv = ['node', 'cli.ts', 'ui'];
     mockWaitForService.mockResolvedValue(false);
@@ -319,6 +348,24 @@ describe('runClaudeCode', () => {
 
     logSpy.mockRestore();
   }, 10000);
+
+  it('does not start a second foreground service when the router is already running', async () => {
+    process.argv = ['node', 'cli.ts', 'start'];
+    mockWaitForService.mockResolvedValue(true);
+    mockIsTcpPortOccupied.mockResolvedValue(true);
+    mockIsServiceRunning.mockReturnValue(true);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('Service is already running on port 5678');
+    expect(output).toContain("Use 'ctr status' to inspect it or 'ctr stop' before starting again.");
+    expect(mockRun).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
+  });
 
   it('fails clearly when --port is not a valid integer', async () => {
     process.argv = ['node', 'cli.ts', 'start', '--port', 'abc'];

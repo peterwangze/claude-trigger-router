@@ -35,6 +35,7 @@
 - `start --daemon` 启动失败时不再输出误导性成功提示
 - `status`
 - `stop`
+- 前台 `start` 在服务已运行时的清晰提示
 - `restart`
 - `restart --daemon`
 - `restart` 与 `restart --daemon` 当前等价，且 CLI 会明确提示默认走后台模式
@@ -46,6 +47,7 @@
 - 服务未运行时执行 `code` 的安全失败
 - 服务未运行时，即使设置 `CTR_AUTO_START=1`，`code` 仍会明确失败而不是误导性继续执行
 - 服务运行时执行 `code`，并验证传给 Claude 的 `ANTHROPIC_BASE_URL`
+- 服务运行但本机未安装 Claude Code CLI 时，`code` 的明确失败提示
 - `setup -> status -> code` 的真实 shell/wrapper 主路径
 
 ### setup 主要选择路径
@@ -76,6 +78,9 @@
   - `version`
   - `upgrade`
   - `ui`
+  - `setup`
+  - `status`
+  - `stop`
 
 ## 3. 每层重点防护目标
 

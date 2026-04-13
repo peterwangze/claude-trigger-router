@@ -577,6 +577,34 @@ describe('isolated packaged CLI acceptance', () => {
       expect(uiResult.stdout).toContain('Opening UI at http://127.0.0.1:6791/ui');
       expect(uiResult.stdout).toContain('Browser launch skipped by CTR_UI_SKIP_OPEN=1');
 
+      const setupResult = await runCommandInShell(toWrapperCommand('setup'), env, {
+        cwd: repoRoot,
+        timeoutMs: 240000,
+        input: '1\n',
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+        },
+      });
+      expect(setupResult.code).toBe(0);
+      expectNoTerminalCorruption(`${setupResult.stdout}\n${setupResult.stderr}`);
+      expect(setupResult.stdout).toContain('检测到当前 claude-trigger-router 配置已可用。');
+      expect(setupResult.stdout).toContain('为避免 setup 结束后接管当前终端，请手动运行：ctr code');
+
+      const statusResult = await runCommandInShell(toWrapperCommand('status'), env, {
+        cwd: repoRoot,
+        timeoutMs: 120000,
+      });
+      expect(statusResult.code).toBe(0);
+      expect(statusResult.stdout).toContain('服务运行中');
+      expect(statusResult.stdout).toContain('6791');
+
+      const stopResult = await runCommandInShell(toWrapperCommand('stop'), env, {
+        cwd: repoRoot,
+        timeoutMs: 120000,
+      });
+      expect(stopResult.code).toBe(0);
+      expect(stopResult.stdout).toContain('服务已停止');
+
       const wrapperContent = await readText(wrapperPath);
       expect(wrapperContent).toContain('.release-home');
     } finally {
