@@ -312,6 +312,39 @@ describe('packaged CLI E2E', () => {
     }
   });
 
+  it('init --force generates a minimal template that can start the local service immediately', async () => {
+    const env = await createTestEnvironment('ctr-init-startable-e2e-');
+    const port = await getFreePort();
+    try {
+      const initResult = await runCtr(cliPath, ['init', '--force'], env);
+      expect(initResult.code).toBe(0);
+
+      const configPath = join(env.homeDir, '.claude-trigger-router', 'config.yaml');
+      const configText = (await readText(configPath)).replace('PORT: 5678', `PORT: ${port}`);
+      await writeFileUnder(env.homeDir, '.claude-trigger-router/config.yaml', configText);
+
+      const startResult = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
+        timeoutMs: 20000,
+      });
+      expect(startResult.code).toBe(0);
+
+      const statusResult = await runCtr(cliPath, ['status'], env);
+      expect(statusResult.code).toBe(0);
+      expect(statusResult.stdout).toContain('服务运行中');
+      expect(statusResult.stdout).toContain(String(port));
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('init without --force does not overwrite an existing config file', async () => {
     const env = await createTestEnvironment('ctr-init-existing-e2e-');
     const configPath = join(env.homeDir, '.claude-trigger-router', 'config.yaml');
@@ -1141,6 +1174,10 @@ describe('packaged CLI E2E', () => {
       expect(result.stdout).toContain('SmartRouter');
       expect(result.stdout).toContain('config/trigger.advanced.yaml');
       assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
+
+      const statusResult = await runCtr(cliPath, ['status'], env);
+      expect(statusResult.code).toBe(0);
+      expect(statusResult.stdout).toContain('服务运行中');
 
       const stopResult = await runCtr(cliPath, ['stop'], env);
       expect(stopResult.code).toBe(0);

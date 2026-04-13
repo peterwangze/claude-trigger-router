@@ -1,5 +1,9 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import yaml from 'js-yaml';
 import { describe, it, expect } from 'vitest';
-import { getProviderPreset, buildMinimalConfig } from './templates';
+import { normalizeAndValidateConfig } from '../utils/config';
+import { getProviderPreset, buildMinimalConfig, buildUsableMinimalTemplateConfig } from './templates';
 
 describe('setup templates', () => {
   // ============ getProviderPreset ============
@@ -293,6 +297,29 @@ describe('setup templates', () => {
 
       expect(getProviderPreset('deepseek')?.interface).toEqual('openai');
       expect(getProviderPreset('deepseek')?.protocol).toEqual('openai');
+    });
+
+    it('should build a usable minimal template config with zero validation errors', () => {
+      const template = buildUsableMinimalTemplateConfig();
+      const normalized = normalizeAndValidateConfig(template as any);
+
+      expect(normalized.errors).toEqual([]);
+      expect(template.Models?.[0]).toEqual(expect.objectContaining({
+        id: 'sonnet',
+        api: 'https://openrouter.ai/api/v1/chat/completions',
+        key: 'sk-xxx',
+        interface: 'openai',
+        model: 'anthropic/claude-sonnet-4',
+        thinking: 'auto',
+      }));
+      expect(template.Router.default).toBe('sonnet');
+    });
+
+    it('keeps config/trigger.example.yaml aligned with the generated usable minimal template', () => {
+      const examplePath = join(process.cwd(), 'config', 'trigger.example.yaml');
+      const exampleConfig = yaml.load(readFileSync(examplePath, 'utf-8')) as Record<string, unknown>;
+
+      expect(exampleConfig).toEqual(buildUsableMinimalTemplateConfig());
     });
   });
 });

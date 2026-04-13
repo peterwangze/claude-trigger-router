@@ -5,14 +5,15 @@
  */
 
 import { spawn, spawnSync } from "child_process";
-import { join, dirname } from "path";
+import { join } from "path";
 import open from "openurl";
-import { existsSync, readFileSync, copyFileSync, mkdirSync } from "fs";
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from "fs";
 import { run, initializeClaudeConfig } from "./index";
 import { isServiceRunning, killProcess, readServiceInfo } from "./utils/processCheck";
 import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from "./constants";
 import { isTcpPortOccupied, waitForService } from "./service-health";
 import { runSetupCli } from "./setup";
+import { buildUsableMinimalTemplateConfig } from "./setup/templates";
 
 const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
 const PACKAGE_PAGE_URL = "https://www.npmjs.com/package/@peterwangze/claude-trigger-router";
@@ -279,23 +280,15 @@ function initConfig() {
     mkdirSync(CONFIG_DIR, { recursive: true });
   }
 
-  // 查找示例配置文件
-  const examplePaths = [
-    join(__dirname, "..", "config", "trigger.example.yaml"),
-    join(dirname(process.argv[1]), "..", "config", "trigger.example.yaml"),
-  ];
-
-  const exampleFile = examplePaths.find((p) => existsSync(p));
-
-  if (!exampleFile) {
-    console.error("❌ 找不到示例配置文件。");
-    console.log(`   请手动创建 ${CONFIG_FILE}`);
-    console.log("   参考文档：https://github.com/peterwangze/claude-trigger-router#configuration");
-    process.exit(1);
-  }
-
   try {
-    copyFileSync(exampleFile, CONFIG_FILE);
+    const yaml = require("js-yaml");
+    const templateConfig = buildUsableMinimalTemplateConfig();
+    const content = yaml.dump(templateConfig, {
+      indent: 2,
+      lineWidth: -1,
+      noRefs: true,
+    });
+    writeFileSync(CONFIG_FILE, content, "utf-8");
     const action = force ? "已覆盖" : "已创建";
     console.log(`✅ 配置文件${action}：${CONFIG_FILE}`);
     console.log("");

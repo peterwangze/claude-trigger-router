@@ -4,8 +4,9 @@
  * 提供配置模板和预设
  */
 
+import { DEFAULT_CONFIG } from '../constants';
 import { getProviderPreset as getSharedProviderPreset } from '../provider-presets';
-import { IProviderPreset, IMinimalConfigInput, ISetupConfigDraft, ISetupModelDraft, ProviderPresetKey } from './types';
+import { IProviderPreset, IMinimalConfigInput, ISetupConfigDraft, ISetupModelDraft, IUsableMinimalTemplateConfig, ProviderPresetKey } from './types';
 
 type IModelIdAwareProviderInput = IMinimalConfigInput['providers'][number] & {
   model_id?: string;
@@ -27,6 +28,7 @@ export function getProviderPreset(key: ProviderPresetKey): IProviderPreset | und
     api_base_url: preset.api_base_url,
     interface: preset.interface,
     protocol: preset.protocol,
+    default_thinking: preset.default_thinking,
   };
 }
 
@@ -83,5 +85,47 @@ export function buildMinimalConfig(input: IMinimalConfigInput): ISetupConfigDraf
   return {
     Models: models,
     Router: defaultModel ? { default: defaultModel } : {},
+  };
+}
+
+export function buildUsableMinimalTemplateConfig(): IUsableMinimalTemplateConfig {
+  const openRouterPreset = getSharedProviderPreset('openrouter');
+  const modelId = openRouterPreset?.suggested_id ?? 'sonnet';
+  const modelName = openRouterPreset?.default_model ?? 'anthropic/claude-sonnet-4';
+  const thinking = openRouterPreset?.default_thinking ?? 'auto';
+
+  const draft = buildMinimalConfig({
+    providers: [
+      {
+        name: 'openrouter',
+        model_id: modelId,
+        preset: 'openrouter',
+        api_key: 'sk-xxx',
+        models: [modelName],
+      } as IModelIdAwareProviderInput,
+    ],
+    defaultModel: modelId,
+  });
+
+  const primaryModel = draft.Models?.[0];
+
+  return {
+    HOST: DEFAULT_CONFIG.HOST,
+    PORT: DEFAULT_CONFIG.PORT,
+    LOG: DEFAULT_CONFIG.LOG,
+    LOG_LEVEL: DEFAULT_CONFIG.LOG_LEVEL,
+    Models: primaryModel
+      ? [
+          {
+            id: primaryModel.id,
+            api: primaryModel.api,
+            key: primaryModel.key,
+            interface: primaryModel.interface,
+            model: primaryModel.model,
+            thinking,
+          },
+        ]
+      : [],
+    Router: draft.Router,
   };
 }

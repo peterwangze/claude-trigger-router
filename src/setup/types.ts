@@ -1,4 +1,5 @@
 import type { ProviderPresetKey } from '../provider-presets';
+import type { IAppConfig } from '../trigger/types';
 
 /**
  * Setup Types
@@ -18,6 +19,7 @@ export interface IProviderPreset {
   /** 协议类型 */
   interface?: 'openai' | 'anthropic';
   protocol?: 'openai' | 'anthropic';
+  default_thinking?: 'off' | 'auto' | 'on' | 'low' | 'medium' | 'high';
 }
 
 /** setup 期间生成的 Provider 草稿 */
@@ -93,3 +95,8 @@ export interface IMinimalConfigInput {
   /** 默认模型（可选，格式：provider,model） */
   defaultModel?: string;
 }
+
+export type IUsableMinimalTemplateConfig = Pick<
+  IAppConfig,
+  'HOST' | 'PORT' | 'LOG' | 'LOG_LEVEL' | 'Models' | 'Router'
+>;

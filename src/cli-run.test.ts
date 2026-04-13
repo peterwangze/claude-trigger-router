@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockExistsSync = vi.fn();
 const mockReadFileSync = vi.fn();
+const mockWriteFileSync = vi.fn();
+const mockMkdirSync = vi.fn();
 const mockSpawn = vi.fn(() => ({
   on: vi.fn(),
   once: vi.fn(),
@@ -28,6 +30,8 @@ vi.mock('fs', async (importOriginal) => {
     ...actual,
     existsSync: mockExistsSync,
     readFileSync: mockReadFileSync,
+    writeFileSync: mockWriteFileSync,
+    mkdirSync: mockMkdirSync,
   };
 });
 
@@ -203,16 +207,13 @@ describe('runClaudeCode', () => {
 
   it('prints init next steps with Models-first guidance', async () => {
     process.argv = ['node', 'cli.ts', 'init', '--force'];
-    mockExistsSync.mockImplementation((filePath: string) => String(filePath).includes('trigger.example.yaml'));
+    mockExistsSync.mockReturnValue(false);
     mockReadFileSync.mockImplementation((filePath: string) => {
       if (String(filePath).endsWith('package.json')) {
         return JSON.stringify({
           name: '@peterwangze/claude-trigger-router',
           version: '1.0.3',
         });
-      }
-      if (String(filePath).includes('trigger.example.yaml')) {
-        return 'HOST: "127.0.0.1"\nPORT: 5678\n';
       }
       throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
     });
@@ -225,6 +226,13 @@ describe('runClaudeCode', () => {
     expect(output).toContain("  2. 在 'Models' 下补全你的模型接入信息");
     expect(output).toContain("  3. 将 'Router.default' 设置为默认模型 ID");
     expect(output).toContain("  4. 如需高级路由，再继续配置规则或智能路由");
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
+      expect.stringContaining('.claude-trigger-router'),
+      expect.stringContaining('Models:'),
+      'utf-8'
+    );
+    expect(mockWriteFileSync.mock.calls[0]?.[1]).toContain('anthropic/claude-sonnet-4');
+    expect(mockWriteFileSync.mock.calls[0]?.[1]).toContain('default: sonnet');
 
     logSpy.mockRestore();
   });

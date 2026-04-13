@@ -64,6 +64,13 @@ Router:
   default: "sonnet"
 ```
 
+`ctr init --force` 现在和 `ctr setup` 一样，都会落到同一类“最小可用配置”心智：
+
+- 必要运行时字段已补齐
+- `Models[0]` 已是可校验的最小接入结构
+- `Router.default` 已指向默认模型 ID
+- 修改最少必要字段后即可直接 `ctr start`
+
 最少只需要关心这几个字段：
 
 - `api`：目标接口地址

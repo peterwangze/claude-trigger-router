@@ -25,6 +25,7 @@
 - `ui`（跳过打开浏览器）
 - `ui` 在服务未就绪时的明确提示
 - `init --force`
+- `init --force -> start --daemon -> status -> stop` 的最小模板可启动性
 - 非法 `--port` 参数的安全失败
 - 未知命令
 
