@@ -21,6 +21,7 @@
     "test:e2e:cli": "vitest --run src/e2e/cli-e2e.test.ts",
     "test:e2e:acceptance": "vitest --run src/e2e/cli-acceptance.test.ts",
     "verify:package": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-package.ps1",
+    "install:local-release": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-local-release.ps1",
     "release:verify": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1 -Action verify",
     "release:stage": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1 -Action stage",
     "release:clean": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1 -Action clean",

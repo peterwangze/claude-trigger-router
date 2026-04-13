@@ -319,3 +319,17 @@ npm run release:verify
 - 安装后 CLI 冒烟校验
 
 这样可以尽量避免“发出去再发现 CLI 不可用”。
+
+如果你想把“当前仓库里尚未发布的最新版本”直接安装到真实全局环境，可执行：
+
+```bash
+npm run install:local-release
+```
+
+它会自动执行：
+
+- `npm run build`
+- `npm pack`
+- `npm install -g <本地 tarball>`
+
+这样安装的是“待发布包的真实内容”，比直接 `npm install -g .` 更适合发包前手动验收。
