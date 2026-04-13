@@ -197,6 +197,10 @@ function Invoke-ReleaseVerification {
     Invoke-CommandChecked { npm run test:e2e:cli } "Packaged CLI E2E failed"
   }
 
+  Invoke-Step "Run isolated packaged CLI acceptance suite" {
+    Invoke-CommandChecked { npm run test:e2e:acceptance } "Packaged CLI acceptance tests failed"
+  }
+
   Invoke-Step "Inspect publish payload" {
     Invoke-CommandChecked { npm pack --dry-run } "npm pack --dry-run failed"
   }

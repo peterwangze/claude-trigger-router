@@ -33,12 +33,18 @@ npm run release:verify
 - `npm run build`
 - `npm test -- --run`
 - `npm run test:e2e:cli`
+- `npm run test:e2e:acceptance`
 - `npm pack --dry-run`
 - `npm pack`
 - 将 tarball 安装到隔离目录
 - 运行 `ctr --help`、`ctr version`、`ctr upgrade`
 
-其中 `npm run test:e2e:cli` 会直接验证打包后的真实 CLI 用户流程，而不是只测源码内部函数。当前已经覆盖：
+其中两层打包后验证分别承担不同职责：
+
+- `npm run test:e2e:cli`：覆盖打包后 CLI 的主要命令、选择路径与文件副作用边界
+- `npm run test:e2e:acceptance`：通过真实 shell / 全局 wrapper / 隔离 HOME 做更贴近人工验收的主路径看护
+
+当前已经覆盖：
 
 - `help` / `--help` / `-h` / 空命令
 - `init`
@@ -48,6 +54,12 @@ npm run release:verify
 - `code`
 - `ui`
 - `setup` 的复用、迁移、跳过迁移、新建、repair、rebuild、cancel 等主选择路径
+- `setup -> status -> code` 这种最容易暴露终端接管、wrapper、隔离 HOME、副作用边界问题的主流程
+- `start --daemon -> status -> stop` 的真实 shell/wrapper 路径
+- `restart --daemon` 的真实 shell/wrapper 生命周期
+- 目标端口被非本服务占用时的安全提示与“无额外文件修改”边界
+- 残留 / 失效 PID 文件的安全清理
+- `release:stage` 生成的 `.release-stage\ctr-release-home.cmd` wrapper 是否真的指向隔离 `.release-home`
 
 只有这一步通过后，才继续正式发布，避免“发布后才发现包内容、CLI 启动或 setup 主流程有问题”。
 
@@ -174,6 +186,12 @@ git push origin v1.0.1
 - 发布前 tarball 预检查
 
 建议统一使用 `vX.Y.Z` 形式的 tag，例如 `v1.0.1`。
+
+如果你想快速查看当前 CLI 自动化覆盖矩阵，可参考：
+
+```bash
+docs/cli-test-matrix.md
+```
 
 ## Release Check 会检查什么
 

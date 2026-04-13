@@ -24,7 +24,7 @@ export interface IFileSnapshotEntry {
 
 export type TFileSnapshot = Record<string, IFileSnapshotEntry>;
 
-function runCommand(
+export function runCommand(
   command: string,
   args: string[],
   options: {
@@ -98,6 +98,16 @@ function runCommand(
       child.stdin.end();
     }
   });
+}
+
+function buildIsolatedCommandEnv(env: ITestEnvironment, extraEnv?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    HOME: env.homeDir,
+    USERPROFILE: env.homeDir,
+    PATH: `${env.binDir}${process.platform === 'win32' ? ';' : ':'}${process.env.PATH ?? ''}`,
+    ...extraEnv,
+  };
 }
 
 export async function createTestEnvironment(prefix = 'ctr-e2e-'): Promise<ITestEnvironment> {
@@ -184,13 +194,7 @@ export async function runCtr(
     cwd?: string;
   } = {}
 ): Promise<ICommandResult> {
-  const commandEnv = {
-    ...process.env,
-    HOME: env.homeDir,
-    USERPROFILE: env.homeDir,
-    PATH: `${env.binDir}${process.platform === 'win32' ? ';' : ':'}${process.env.PATH ?? ''}`,
-    ...options.extraEnv,
-  };
+  const commandEnv = buildIsolatedCommandEnv(env, options.extraEnv);
 
   if (process.platform === 'win32') {
     return runCommand(cliPath, args, {
@@ -203,6 +207,77 @@ export async function runCtr(
   }
 
   return runCommand(cliPath, args, {
+    cwd: options.cwd ?? env.workDir,
+    env: commandEnv,
+    input: options.input,
+    timeoutMs: options.timeoutMs,
+  });
+}
+
+export async function runCtrThroughUserShell(
+  cliPath: string,
+  args: string[],
+  env: ITestEnvironment,
+  options: {
+    input?: string;
+    timeoutMs?: number;
+    extraEnv?: NodeJS.ProcessEnv;
+    cwd?: string;
+  } = {}
+): Promise<ICommandResult> {
+  const commandEnv = buildIsolatedCommandEnv(env, options.extraEnv);
+
+  if (process.platform === 'win32') {
+    const escapedCliPath = cliPath.replace(/'/g, "''");
+    const escapedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(' ');
+    const command = escapedArgs.length > 0
+      ? `& '${escapedCliPath}' ${escapedArgs}`
+      : `& '${escapedCliPath}'`;
+
+    return runCommand('pwsh', ['-NoProfile', '-Command', command], {
+      cwd: options.cwd ?? env.workDir,
+      env: commandEnv,
+      input: options.input,
+      timeoutMs: options.timeoutMs,
+    });
+  }
+
+  const quotedCliPath = cliPath.replace(/'/g, "'\\''");
+  const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(' ');
+  const command = quotedArgs.length > 0
+    ? `'${quotedCliPath}' ${quotedArgs}`
+    : `'${quotedCliPath}'`;
+
+  return runCommand('sh', ['-lc', command], {
+    cwd: options.cwd ?? env.workDir,
+    env: commandEnv,
+    input: options.input,
+    timeoutMs: options.timeoutMs,
+  });
+}
+
+export async function runCommandInShell(
+  command: string,
+  env: ITestEnvironment,
+  options: {
+    timeoutMs?: number;
+    extraEnv?: NodeJS.ProcessEnv;
+    cwd?: string;
+    input?: string;
+  } = {}
+): Promise<ICommandResult> {
+  const commandEnv = buildIsolatedCommandEnv(env, options.extraEnv);
+
+  if (process.platform === 'win32') {
+    return runCommand('pwsh', ['-NoProfile', '-Command', command], {
+      cwd: options.cwd ?? env.workDir,
+      env: commandEnv,
+      input: options.input,
+      timeoutMs: options.timeoutMs,
+    });
+  }
+
+  return runCommand('sh', ['-lc', command], {
     cwd: options.cwd ?? env.workDir,
     env: commandEnv,
     input: options.input,
@@ -261,6 +336,23 @@ export function assertOnlyExpectedPathsChanged(
   const unexpected = [...diff.added, ...diff.removed, ...diff.changed].filter((item) => !isAllowed(item));
   if (unexpected.length) {
     throw new Error(`Unexpected file mutations detected: ${unexpected.join(', ')}`);
+  }
+}
+
+export function expectNoTerminalCorruption(output: string): void {
+  const unexpectedControlChars = [...output]
+    .filter((char) => {
+      const code = char.charCodeAt(0);
+      return (code < 32 && char !== '\n' && char !== '\r' && char !== '\t') || code === 127;
+    })
+    .map((char) => JSON.stringify(char));
+
+  if (unexpectedControlChars.length > 0) {
+    throw new Error(`Unexpected terminal control characters detected: ${unexpectedControlChars.join(', ')}`);
+  }
+
+  if (output.includes('\u001b') || output.includes('\u0000') || output.includes('�')) {
+    throw new Error('Unexpected terminal corruption markers detected in command output');
   }
 }
 
