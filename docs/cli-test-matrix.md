@@ -22,6 +22,7 @@
 - `help` / `--help` / `-h` / 空命令
 - `version`
 - `upgrade`
+- `doctor`
 - `ui`（跳过打开浏览器）
 - `ui` 在服务未就绪时的明确提示
 - `init --force`
@@ -50,6 +51,12 @@
 - 服务运行时执行 `code`，并验证传给 Claude 的 `ANTHROPIC_BASE_URL`
 - 服务运行但本机未安装 Claude Code CLI 时，`code` 的明确失败提示
 - `setup -> status -> code` 的真实 shell/wrapper 主路径
+
+### 配置诊断
+
+- `doctor` 对低风险格式问题的自动修复
+- `doctor` 在用户拒绝时不会执行模型探测
+- `doctor` 在用户同意后会对模型发送最小探测请求
 
 ### setup 主要选择路径
 

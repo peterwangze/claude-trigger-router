@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'fs';
+import { createServer } from 'net';
 import { homedir } from 'os';
 import { join } from 'path';
 import { createInterface } from 'readline/promises';
@@ -11,7 +12,7 @@ import { getProviderPreset, listProviderPresetKeys } from '../provider-presets';
 import { run } from '../index';
 import { isTcpPortOccupied, waitForService } from '../service-health';
 import { backupConfigFile, normalizeAndValidateConfig, writeConfigFile } from '../utils';
-import { killProcess, readServiceInfo } from '../utils/processCheck';
+import { isServiceRunning, killProcess, readServiceInfo } from '../utils/processCheck';
 import { decideServiceAction, applyServiceAction } from './service';
 import { getRepairFields } from './repair';
 import { migrateLegacyConfig } from './migrate';
@@ -234,6 +235,27 @@ function getConfiguredPortFromCurrentFiles(): number {
   return DEFAULT_CONFIG.PORT;
 }
 
+async function getAvailablePort(): Promise<number> {
+  const server = createServer();
+  try {
+    return await new Promise<number>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', () => {
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+          reject(new Error('failed to resolve available port'));
+          return;
+        }
+        resolve(address.port);
+      });
+    });
+  } finally {
+    if (server.listening) {
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
+  }
+}
+
 function readLegacyConfigFile(filePath: string): unknown {
   const content = readFileSync(filePath, 'utf-8');
   if (filePath.endsWith('.json')) {
@@ -309,7 +331,9 @@ async function probeService() {
   const port = getConfiguredPortFromCurrentFiles();
   const healthy = await waitForService(port, 500);
   if (healthy) {
-    return { kind: 'self_healthy' as const, port };
+    return isServiceRunning()
+      ? { kind: 'self_healthy' as const, port }
+      : { kind: 'non_self_occupied' as const, port };
   }
 
   const occupied = await isTcpPortOccupied(port, 500);
@@ -336,7 +360,7 @@ function shouldAutoEnterClaudeCodeAfterSetup(): boolean {
 
 async function executeStart(): Promise<void> {
   const childProcess = await import('child_process');
-  childProcess.spawn(process.execPath, [process.argv[1], 'start', '--daemon'], {
+  childProcess.spawn(process.execPath, [process.argv[1], 'start'], {
     detached: true,
     stdio: 'ignore',
     env: { ...process.env, CTR_DAEMON: '1' },
@@ -705,10 +729,22 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
       mapConfigErrorsToRepairFields,
       io: deps.io,
       persistConfig: async ({ config, currentConfigPath, hasExistingConfig }) => {
-        const normalized = normalizeAndValidateConfig({
+        let normalized = normalizeAndValidateConfig({
           ...(hasExistingConfig ? getCurrentRuntimeFields() : {}),
           ...(config as any),
         });
+        {
+          const targetPort = normalized.config.PORT ?? DEFAULT_CONFIG.PORT;
+          const occupied = await isTcpPortOccupied(targetPort, 500);
+          if (occupied && !isServiceRunning()) {
+            const fallbackPort = await getAvailablePort();
+            deps.io.info(`检测到默认端口 ${targetPort} 已被占用，setup 已自动改用可用端口 ${fallbackPort}。`);
+            normalized = normalizeAndValidateConfig({
+              ...normalized.config,
+              PORT: fallbackPort,
+            });
+          }
+        }
         const persisted = await persistSetupConfig({
           config: normalized.config,
           currentConfigPath,
@@ -723,9 +759,12 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
         return persisted;
       },
       ensureServiceReady: async ({ configChanged, detectedService, reloadSupported }) => {
+        const effectiveDetectedService = configChanged
+          ? await deps.probeService()
+          : detectedService;
         const action = decideServiceAction({
           configChanged,
-          detectedService,
+          detectedService: effectiveDetectedService,
           reloadSupported,
         });
 

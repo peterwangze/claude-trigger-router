@@ -425,6 +425,108 @@ describe('packaged CLI E2E', () => {
     }
   });
 
+  it('doctor can repair a minimal alias-based config and make the service startable without probing models', async () => {
+    const env = await createTestEnvironment('ctr-doctor-fix-e2e-');
+    const port = await getFreePort();
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'Models:',
+          '  - api_base_url: "https://openrouter.ai/api/v1/chat/completions"',
+          '    api_key: "sk-test"',
+          '    protocol: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          'Router: {}',
+        ].join('\n')
+      );
+
+      const result = await runCtr(cliPath, ['doctor'], env, {
+        timeoutMs: 60000,
+        input: 'n\n',
+        extraEnv: {
+          CTR_DOCTOR_FORCE_SCRIPTED_INPUT: '1',
+        },
+      });
+
+      const repairedConfig = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('已归一 Models[0].api');
+      expect(result.stdout).toContain('已补全 Models[0].id');
+      expect(result.stdout).toContain('已补全 Router.default');
+      expect(result.stdout).toContain('已跳过模型探测');
+      expect(repairedConfig).toContain('id: anthropic_claude_sonnet_4');
+      expect(repairedConfig).toContain(`PORT: ${port}`);
+
+      const startResult = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
+        timeoutMs: 20000,
+      });
+      expect(startResult.code).toBe(0);
+
+      const statusResult = await runCtr(cliPath, ['status'], env);
+      expect(statusResult.stdout).toContain('服务运行中');
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('doctor can probe configured models after explicit user consent', async () => {
+    const env = await createTestEnvironment('ctr-doctor-probe-e2e-');
+    const upstream = await startFakeOpenAiUpstream();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          'PORT: 5678',
+          'LOG: true',
+          'LOG_LEVEL: "debug"',
+          'Models:',
+          '  - id: sonnet',
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-test"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          'Router:',
+          '  default: "sonnet"',
+        ].join('\n')
+      );
+
+      const result = await runCtr(cliPath, ['doctor', '--check-models'], env, {
+        timeoutMs: 60000,
+        input: 'y\n',
+        extraEnv: {
+          CTR_DOCTOR_FORCE_SCRIPTED_INPUT: '1',
+        },
+      });
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('模型探测成功：sonnet');
+      expect(upstream.requests.length).toBeGreaterThan(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('start/status/stop work on a clean alternate port using an isolated config', async () => {
     const env = await createTestEnvironment('ctr-service-e2e-');
     const port = await getFreePort();
@@ -1428,7 +1530,7 @@ describe('packaged CLI E2E', () => {
       expect(migratedConfig).toContain('api: https://example.com/openai/v1/chat/completions');
       expect(migratedConfig).toContain('default: legacy_provider_gpt_4_1');
 
-      const startResult = await runCtr(cliPath, ['start', '--daemon'], env, {
+      const startResult = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
         timeoutMs: 20000,
       });
       expect(startResult.code).toBe(0);

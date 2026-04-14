@@ -15,6 +15,7 @@ const mockIsServiceRunning = vi.fn();
 const mockWaitForService = vi.fn();
 const mockIsTcpPortOccupied = vi.fn();
 const mockRunSetupCli = vi.fn();
+const mockRunDoctorCli = vi.fn();
 const mockRun = vi.fn();
 const mockProcessExit = vi.fn(() => {
   throw new Error('process.exit called');
@@ -65,6 +66,10 @@ vi.mock('./setup', () => ({
   runSetupCli: mockRunSetupCli,
 }));
 
+vi.mock('./doctor', () => ({
+  runDoctorCli: mockRunDoctorCli,
+}));
+
 describe('runClaudeCode', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -83,6 +88,7 @@ describe('runClaudeCode', () => {
     mockIsServiceRunning.mockReturnValue(true);
     mockIsTcpPortOccupied.mockResolvedValue(false);
     mockRunSetupCli.mockResolvedValue(undefined);
+    mockRunDoctorCli.mockResolvedValue(undefined);
     mockRun.mockResolvedValue(undefined);
     mockFetch.mockRejectedValue(new Error('network error'));
     mockExistsSync.mockReturnValue(false);
@@ -112,9 +118,11 @@ describe('runClaudeCode', () => {
 
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
     expect(output).toContain('setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置');
+    expect(output).toContain('doctor      诊断并修复当前配置，按需探测模型可用性');
     expect(output).toContain('version     查看当前安装版本与包信息');
     expect(output).toContain('upgrade     查看升级到最新 npm 版本的指引');
     expect(output).toContain('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置');
+    expect(output).toContain('  ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性');
     expect(output).toContain('  ctr version              # 查看当前安装版本');
     expect(output).toContain('  ctr upgrade              # 查看升级到最新版本的命令');
     expect(output).toContain('ctr restart 当前默认按后台模式重启');
@@ -245,6 +253,16 @@ describe('runClaudeCode', () => {
 
     expect(mockRunSetupCli).toHaveBeenCalledTimes(1);
     expect(mockRunSetupCli).toHaveBeenCalledWith();
+  });
+
+  it('dispatches doctor command to doctor module entry', async () => {
+    process.argv = ['node', 'cli.ts', 'doctor'];
+
+    const { main } = await import('./cli');
+    await main();
+
+    expect(mockRunDoctorCli).toHaveBeenCalledTimes(1);
+    expect(mockRunDoctorCli).toHaveBeenCalledWith();
   });
 
   it('still requires health check even when PID metadata says running', async () => {

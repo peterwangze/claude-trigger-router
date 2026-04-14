@@ -14,6 +14,7 @@ import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CON
 import { isTcpPortOccupied, waitForService } from "./service-health";
 import { runSetupCli } from "./setup";
 import { buildUsableMinimalTemplateConfig } from "./setup/templates";
+import { runDoctorCli } from "./doctor";
 
 const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
 const PACKAGE_PAGE_URL = "https://www.npmjs.com/package/@peterwangze/claude-trigger-router";
@@ -114,6 +115,7 @@ Claude Trigger Router - 智能触发路由器
 
 命令：
   setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置
+  doctor      诊断并修复当前配置，按需探测模型可用性
   init        初始化最小配置模板
   start       启动路由服务（默认前台运行）
   stop        停止后台服务
@@ -132,6 +134,7 @@ Claude Trigger Router - 智能触发路由器
 
 使用示例：
   ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置
+  ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性
   ctr init                 # 初始化最小配置模板
   ctr version              # 查看当前安装版本
   ctr upgrade              # 查看升级到最新版本的命令
@@ -555,6 +558,10 @@ export async function main() {
   switch (command) {
     case "setup":
       await runSetupCli();
+      break;
+
+    case "doctor":
+      await runDoctorCli();
       break;
 
     case "init":
