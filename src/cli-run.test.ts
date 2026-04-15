@@ -96,7 +96,7 @@ describe('runClaudeCode', () => {
       if (String(filePath).endsWith('package.json')) {
         return JSON.stringify({
           name: '@peterwangze/claude-trigger-router',
-          version: '1.0.3',
+          version: '1.0.5',
         });
       }
       throw new Error(`unexpected readFileSync call: ${String(filePath)} ${args.join(' ')}`);
@@ -137,7 +137,7 @@ describe('runClaudeCode', () => {
     process.argv = ['node', 'cli.ts', 'version'];
     mockFetch.mockResolvedValue({
       ok: true,
-      json: vi.fn().mockResolvedValue({ version: '1.0.4' }),
+      json: vi.fn().mockResolvedValue({ version: '1.0.6' }),
     });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
@@ -146,8 +146,8 @@ describe('runClaudeCode', () => {
 
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
     expect(output).toContain('@peterwangze/claude-trigger-router');
-    expect(output).toContain('Version: 1.0.3');
-    expect(output).toContain('Latest: 1.0.4');
+    expect(output).toContain('Version: 1.0.5');
+    expect(output).toContain('Latest: 1.0.6');
     expect(output).toContain('Upgrade: npm install -g @peterwangze/claude-trigger-router@latest');
     expect(output).toContain('https://www.npmjs.com/package/@peterwangze/claude-trigger-router');
 
@@ -165,7 +165,7 @@ describe('runClaudeCode', () => {
 
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
     expect(output).toContain('@peterwangze/claude-trigger-router');
-    expect(output).toContain('Version: 1.0.3');
+    expect(output).toContain('Version: 1.0.5');
     expect(output).toContain('Latest: unavailable');
     expect(output).not.toContain('Upgrade: npm install -g @peterwangze/claude-trigger-router@latest');
     expect(output).toContain('https://www.npmjs.com/package/@peterwangze/claude-trigger-router');
@@ -176,15 +176,15 @@ describe('runClaudeCode', () => {
   it('falls back to npm view when registry fetch fails', async () => {
     process.argv = ['node', 'cli.ts', 'version'];
     mockFetch.mockRejectedValue(new Error('network error'));
-    mockSpawnSync.mockReturnValue({ status: 0, stdout: '1.0.4\n' });
+    mockSpawnSync.mockReturnValue({ status: 0, stdout: '1.0.6\n' });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
     const { main } = await import('./cli');
     await main();
 
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
-    expect(output).toContain('Version: 1.0.3');
-    expect(output).toContain('Latest: 1.0.4');
+    expect(output).toContain('Version: 1.0.5');
+    expect(output).toContain('Latest: 1.0.6');
     expect(mockSpawnSync).toHaveBeenCalledWith(
       'npm',
       ['view', '@peterwangze/claude-trigger-router', 'version', '--registry', 'https://registry.npmjs.org/'],
@@ -220,7 +220,7 @@ describe('runClaudeCode', () => {
       if (String(filePath).endsWith('package.json')) {
         return JSON.stringify({
           name: '@peterwangze/claude-trigger-router',
-          version: '1.0.3',
+          version: '1.0.5',
         });
       }
       throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
