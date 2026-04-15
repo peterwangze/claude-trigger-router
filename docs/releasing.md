@@ -63,6 +63,20 @@ npm run release:verify
 
 只有这一步通过后，才继续正式发布，避免“发布后才发现包内容、CLI 启动或 setup 主流程有问题”。
 
+标准发布命令统一为：
+
+```bash
+npm run release
+```
+
+它等价于：
+
+```bash
+npm run release:publish
+```
+
+也就是调用统一的 `scripts/release-package.ps1` 发布链路，而不是直接裸跑 `npm publish`。
+
 注意区分：
 
 - `npm run release:verify` / `npm run release:stage`：这是维护者本地手动验收链路，包含本地打包、隔离安装、stage wrapper 等“贴近真实机器”的检查

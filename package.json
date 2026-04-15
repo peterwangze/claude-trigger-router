@@ -27,7 +27,7 @@
     "release:clean": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1 -Action clean",
     "release:publish": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release-package.ps1 -Action publish",
     "prepublishOnly": "npm run build",
-    "release": "npm publish --access public"
+    "release": "npm run release:publish"
   },
   "keywords": [
     "claude",
