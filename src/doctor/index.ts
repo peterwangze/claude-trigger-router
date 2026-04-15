@@ -13,6 +13,8 @@ import { migrateLegacyConfig } from '../setup/migrate';
 import { readLegacyConfig } from '../setup';
 import { IAppConfig, IModelEndpointConfig } from '../trigger/types';
 import { getModelApi, getModelInterface, getModelKey } from '../models/schema';
+import { buildModelRegistry } from '../models/compile';
+import { buildProviderDispatchRequest } from '../protocols';
 import { isServiceRunning, killProcess, readServiceInfo } from '../utils/processCheck';
 import { isTcpPortOccupied, probeServiceHealth, waitForService } from '../service-health';
 import { buildUsableMinimalTemplateConfig } from '../setup/templates';
@@ -361,6 +363,39 @@ async function probeModelAvailability(model: IModelEndpointConfig): Promise<TPro
   }
 
   try {
+    const registry = buildModelRegistry({
+      Providers: [],
+      Models: [model],
+      Router: {
+        default: model.id,
+      },
+    } as IAppConfig);
+    const compiledModel = registry.modelMap[model.id];
+    const dispatchRequest = compiledModel
+      ? buildProviderDispatchRequest({
+          model: compiledModel.modelName,
+          interface: compiledModel.interface ?? modelInterface,
+          compatibilityProfile: compiledModel.compatibilityProfile,
+          capabilities: compiledModel.capabilities,
+          request: {
+            model: compiledModel.id,
+            max_tokens: 1,
+            stream: true,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: 'ok',
+                  },
+                ],
+              },
+            ],
+          },
+        })
+      : null;
+
     const response = await fetch(api, {
       method: 'POST',
       signal: AbortSignal.timeout(10000),
@@ -374,10 +409,11 @@ async function probeModelAvailability(model: IModelEndpointConfig): Promise<TPro
             'content-type': 'application/json',
             authorization: `Bearer ${key}`,
           },
-      body: JSON.stringify(modelInterface === 'anthropic'
+      body: JSON.stringify(dispatchRequest?.body ?? (modelInterface === 'anthropic'
         ? {
             model: model.model,
             max_tokens: 1,
+            stream: true,
             messages: [
               {
                 role: 'user',
@@ -393,13 +429,14 @@ async function probeModelAvailability(model: IModelEndpointConfig): Promise<TPro
         : {
             model: model.model,
             max_tokens: 1,
+            stream: true,
             messages: [
               {
                 role: 'user',
                 content: 'ok',
               },
             ],
-          }),
+          })),
     });
 
     if (response.ok) {

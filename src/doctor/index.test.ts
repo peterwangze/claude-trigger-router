@@ -107,11 +107,12 @@ describe('runDoctorCli', () => {
     });
 
     const originalFetch = global.fetch;
-    global.fetch = vi.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
       text: vi.fn().mockResolvedValue('bad key'),
     }) as any;
+    global.fetch = fetchMock;
 
     const { runDoctorCli } = await import('./index');
     await runDoctorCli({
@@ -129,6 +130,11 @@ describe('runDoctorCli', () => {
     });
 
     expect(io.error).toHaveBeenCalledWith(expect.stringContaining('auth_error'));
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual(
+      expect.objectContaining({
+        stream: true,
+      })
+    );
     global.fetch = originalFetch;
   });
 });
