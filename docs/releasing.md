@@ -63,6 +63,13 @@ npm run release:verify
 
 只有这一步通过后，才继续正式发布，避免“发布后才发现包内容、CLI 启动或 setup 主流程有问题”。
 
+注意区分：
+
+- `npm run release:verify` / `npm run release:stage`：这是维护者本地手动验收链路，包含本地打包、隔离安装、stage wrapper 等“贴近真实机器”的检查
+- GitHub Actions：只保留 CI 适合做的构建、常规测试和 packaged CLI E2E，不再直接跑 `verify:package`
+
+这样做是因为 `verify:package` 更偏向开发者本地验证，混入 CI 后容易把“本地/手工验收”问题误伤成工作流不稳定问题。
+
 如果你想手动验收“待发布的新包 CLI”，可以先执行：
 
 ```bash
@@ -167,9 +174,9 @@ git push origin v1.0.1
 
 5. `Publish Package` workflow 会自动执行：
    - `npm ci`
-   - `npm test -- --run`
    - `npm run build`
-   - `npm pack --dry-run`
+   - `npm test -- --run`
+   - `npm run test:e2e:cli`
    - `npm publish --access public --provenance`
 
 也支持两种补充触发方式：
@@ -198,9 +205,9 @@ docs/cli-test-matrix.md
 `Release Check` 会提前检查：
 
 - `npm ci`
-- `npm test -- --run`
 - `npm run build`
-- `npm pack --dry-run`
+- `npm test -- --run`
+- `npm run test:e2e:cli`
 - 当前 `package.json.version` 是否已经发布到 npm
 - 如果 `package.json` 已改动，版本号是否真的发生变化
 
