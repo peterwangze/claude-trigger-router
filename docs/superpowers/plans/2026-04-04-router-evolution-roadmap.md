@@ -1,5 +1,14 @@
 # Claude Trigger Router 演进计划
 
+> **文档角色说明（2026-04-15）**
+>
+> 本文件保留为治理化演进的历史路线图。
+>
+> **当前仓库的统一进展基线请优先查看：**
+> - `docs/superpowers/plans/2026-04-15-unified-progress-baseline.md`
+>
+> 本文继续承担路线设计输入职责，但不再单独承担当前整体进展台账职责。
+>
 > 基于 `advice/演进思路.md`，结合当前仓库已具备的 `TriggerRouter`、`SmartRouter`、`ctr setup`、配置校验与健康检查能力，整理出的下一阶段产品/架构演进路线图。
 
 ## 1. 现状判断
