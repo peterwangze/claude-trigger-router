@@ -72,6 +72,9 @@ describe('runDoctorCli', () => {
     expect(writeConfig.mock.calls[0][0].Router.default).toBe('anthropic_claude_sonnet_4');
     expect(startDaemon).toHaveBeenCalledTimes(1);
     expect(io.confirm).toHaveBeenCalled();
+    expect(io.info).toHaveBeenCalledWith(
+      expect.stringContaining('模型兼容画像：anthropic_claude_sonnet_4')
+    );
   });
 
   it('prompts to probe models and reports probe failures with exact category', async () => {

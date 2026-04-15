@@ -562,6 +562,17 @@ export async function runDoctorCli(customDeps?: Partial<IDoctorDeps>): Promise<v
       deps.io.info(`配置提示：${normalized.warnings.join('; ')}`);
     }
 
+    const registry = buildModelRegistry(normalized.config);
+    for (const model of normalized.config.Models ?? []) {
+      const compiledModel = registry.modelMap[model.id];
+      if (!compiledModel) {
+        continue;
+      }
+      deps.io.info(
+        `模型兼容画像：${model.id} -> ${compiledModel.compatibilityProfile} / ${compiledModel.dispatchFormat}`
+      );
+    }
+
     const needWrite = current.repairedParse || deterministic.changes.length > 0 || completed.changes.length > 0 || !current.existed;
     if (needWrite) {
       if (current.existed) {

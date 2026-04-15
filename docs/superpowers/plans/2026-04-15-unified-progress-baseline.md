@@ -108,6 +108,10 @@
 - governance trace、metrics、基础 `/ui` 调试与观测能力已建立
 - `Models` 抽象、统一 capability hint 与首轮 message IR/协议分发已落地
 - `ctr setup`、配置保存和 `/ui` 草稿路径已进入产品化持续收敛阶段
+- packaged CLI E2E / acceptance 看护、release-stage wrapper 验收链路与发布前门禁已建立
+- `ctr init` / `ctr setup` / legacy migration 已开始按“最小可用配置”统一收敛
+- `ctr doctor` 已落地，具备配置诊断、低风险自动修复、服务可启动性检查与用户确认后的模型探测能力
+- 内部 compatibility profile 已开始落地，运行时不再只依赖 `interface` 做 openai-compatible 兼容分发
 
 ### 当前并行推进的四条主线
 
@@ -140,6 +144,17 @@
 - 重排运行时决策链，减少产品心智与运行时行为之间的偏差
 - 逐步统一 schema、trace、持久化路径和文档对外叙事
 
+补充拆分说明（2026-04-15）：
+
+- C1：统一 Router 的运行时链路与 schema 收敛
+  - 当前判断：`in_progress`
+  - 已有进展：兼容画像、dispatch、message IR、统一配置入口已开始收敛
+- C2：将用户侧 `TriggerRouter` / `SmartRouter` 分立心智正式收编为统一 Router 主入口
+  - 当前判断：`in_progress`
+  - 当前状态：已在统一基线中单列，并已启动独立实施拆解文档
+  - 关联计划：`docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md`
+  - 说明：这是你指出的“之前还有一条完全没有启动的主线”，此前我在统一基线里把它笼统并入了主线 C；现已正式启动，但尚未进入代码/入口统一阶段
+
 #### 主线 D：CLI / setup UX 重设计
 
 当前判断：`in_progress`
@@ -149,6 +164,16 @@
 - 让 `ctr setup` 变成 migration-first、model-id-first 的主入口
 - 让 CLI、README、模板输出和 `/ui` 叙事保持一致
 - 降低首次使用与配置修改时的理解和录入成本
+
+#### 主线 E：CLI 稳定性与发布工程
+
+当前判断：`in_progress`
+
+关注点：
+
+- 用 packaged CLI E2E / acceptance 把用户可见命令与选择路径转成发布前门禁
+- 持续压低 setup / start / code / doctor / release-stage 的低级回归概率
+- 将本地手工验收链路与 GitHub Actions 的 CI 职责分离，避免误把开发者本地验证步骤塞进 CI
 
 ## 三、当前边界与判断原则
 
@@ -207,7 +232,233 @@
 3. 哪些历史文档已明显失去当前性，需要增加顶部归档或跳转说明
 4. 是否已经形成新的阶段性收口，需要补充新的 milestone / release notes
 
-## 六、关联文档索引
+## 六、2026-04-15 后新增收编进度
+
+以下内容已不再只是散落在提交记录中的“局部分叉优化”，而应视为统一基线的一部分：
+
+### 1. CLI 稳定性与打包验收链路已形成第一轮闭环
+
+已完成：
+
+- `ctr` 的用户可见命令已建立 packaged CLI E2E 主看护
+- 新增 shell / wrapper / staged 包 acceptance 层，覆盖：
+  - `setup -> status -> code`
+  - `start --daemon -> status -> stop`
+  - `restart --daemon`
+  - stale pid / occupied port
+  - `release:stage` wrapper 主路径
+- 发布前验证链路已区分：
+  - CI：build / 常规测试 / packaged CLI E2E
+  - 本地维护者：`release:verify` / `release:stage`
+
+当前判断：
+
+- 该分叉主线已完成第一轮“可发布质量门槛”收口
+- 后续仍可继续补场景，但不再是最优先未闭环路径
+
+### 2. 新用户入口可用性已完成第一轮统一收口
+
+已完成：
+
+- `ctr init --force` 不再只是复制静态示例，而是直接生成最小可用模板
+- `ctr setup` fresh / repair / rebuild / migration 主路径已纳入 packaged CLI 回归
+- legacy migration 已补齐缺失 `api_base_url` 等最少必要字段的补全逻辑
+- setup 在默认端口冲突时会自动切换可用端口，避免新用户首次运行直接失败
+- `init` / `setup` / example config 已开始共享“最小可用配置”心智
+
+当前判断：
+
+- 新用户入口的“配置能写出来且服务能起来”这一层已形成第一轮闭环
+- 后续更高层的“模型真实可用 / Claude 真正可用”继续由 compatibility 与 doctor 主线承接
+
+### 3. `doctor` 主线已完成首轮落地
+
+已完成：
+
+- `ctr doctor` 命令已接入 CLI
+- doctor 可执行：
+  - 配置存在性与格式诊断
+  - 低风险确定性自动修复
+  - 服务可启动性检查
+  - 用户确认后的模型最小探测
+- doctor 的模型探测已改为复用运行时 dispatch 构造，不再手写与真实链路不一致的探测请求
+
+当前判断：
+
+- doctor 已具备首轮可用性
+- 后续重点不再是“有没有 doctor”，而是让 doctor 消费更多运行时兼容信息与真实 provider 经验
+
+### 4. OpenAI-compatible 兼容差异内化主线已启动，但尚未闭环
+
+已完成：
+
+- 内部 `compatibilityProfile` 已引入模型编译层
+- 运行时 dispatch 不再只看 `interface`
+- legacy migration 已开始把旧 `transformer` 语义内化成内部 hint，而不是重新暴露给用户
+- 协议层对 tool 定义已开始同时兼容 anthropic/openai 两类输入形态
+
+未闭环的原因：
+
+- 真实 provider 的兼容差异仍未形成完整矩阵
+- 当前主要只锁定了“内化兼容画像”的基础骨架与首轮工具定义保真
+- 针对 `gpt90`、`qianfan_coding`、`minimax` 这类真实在用接口的 tool / tool_result / 流式约束差异，还缺更完整的真实回归与更细粒度适配
+
+当前判断：
+
+- 这是当前最明确的未闭环演进路径
+- 后续若要避免统一配置抽象再次被现实 provider 差异击穿，应优先继续推进此主线
+
+### 5. TriggerRouter / SmartRouter 对外心智收编主线已正式启动，但尚未进入实现闭环
+
+当前判断：`in_progress`
+
+原因：
+
+- 虽然统一 Router 的设计与实施文档已经存在
+- 当前真实实现和用户文档仍主要保留 `TriggerRouter` / `SmartRouter` 两套显式对外概念
+- 也就是说，运行时收敛主线已启动，但“对外产品心智收编”仍未进入代码层闭环
+- 现阶段已完成的是：统一基线单列 + 独立实施拆解启动
+
+当前边界：
+
+- README 仍以 `TriggerRouter` 和 `SmartRouter` 作为主要功能说明入口
+- `setup` 结束后的引导也仍显式提示 `TriggerRouter` / `SmartRouter`
+- 示例配置仍以分立模块表达为主，而不是统一 Router 表达
+
+为什么它必须单列：
+
+1. 这不是单纯文案问题，而是产品心智迁移主线
+2. 如果不单列，后续很容易只推进运行时兼容，却遗漏用户侧认知收编
+3. 它和统一 Router 的 schema/dispatch 收敛有关，但完成标准不同，不能混成一条
+
+## 七、当前优先启动的未闭环路径
+
+统一基线判断：
+
+- **当前优先持续推进的未闭环主线**：`OpenAI-compatible 兼容差异内化`
+- **当前尚未正式启动、但必须单列纳入后续计划的主线**：`TriggerRouter / SmartRouter 对外心智收编`
+
+原因：
+
+1. 它直接关系到“统一模型配置心智是否真实成立”
+2. 它已经在真实用户环境中暴露为默认模型工具调用失败问题
+3. 它位于配置产品化、统一 Router、doctor 三条主线的交叉点
+
+同时，`TriggerRouter / SmartRouter` 对外心智收编主线之所以必须补列，是因为：
+
+1. 它在设计层已经明确存在
+2. 但当前还没有进入实施闭环
+3. 如果不显式标记为 `not_started`，后续会继续被“统一 Router 已在进行中”这一笼统表述掩盖
+
+当前已启动的第一批动作：
+
+- 内部 compatibility profile 已落地到模型编译层
+- 运行时 dispatch 已接入 compatibility profile
+- doctor 探测已改为复用真实 dispatch 逻辑
+
+下一批建议动作：
+
+1. 为真实在用 provider 建立更明确的兼容矩阵
+   - `gpt90`
+   - `qianfan_coding`
+   - `minimax`
+2. 把 compatibility profile / dispatch format 暴露到更可见的调试面
+   - compiled preview
+   - doctor 输出
+   - 必要时 `/ui`
+3. 针对 tool / tool_result / stream 要求补更细的 provider-specific 回归样本
+4. 在不增加用户侧心智负担的前提下，继续消化 legacy compatibility 语义
+
+而对 `TriggerRouter / SmartRouter` 对外心智收编主线，建议的启动前动作是：
+
+1. 先把最终产品心智目标重新写成独立执行条目
+2. 明确“哪些用户侧入口必须改为统一 Router 表达”
+   - README
+   - setup 完成页
+   - example config
+   - `/ui`
+3. 再决定是以“统一 Router 默认输出”还是“兼容期双轨表达”切入
+
+## 八、当前尚未闭环的主线清单
+
+为避免后续继续被“笼统 in_progress”掩盖，这里明确列出截至 2026-04-15 的未闭环主线：
+
+### 1. OpenAI-compatible 兼容差异内化
+
+状态：`in_progress`
+
+为什么未闭环：
+
+- compatibility profile 已引入
+- dispatch / migration hint / doctor probe 已开始收敛
+- 但针对真实 provider 的兼容差异矩阵仍未完整建立
+
+当前关键未闭环点：
+
+- `gpt90`
+- `qianfan_coding`
+- `minimax`
+- tools / tool_result / stream / 特殊字段要求的 provider-specific 适配仍需继续补齐
+
+优先级判断：`P0`
+
+### 2. TriggerRouter / SmartRouter 对外心智收编
+
+状态：`in_progress`
+
+为什么未闭环：
+
+- 已正式单列成独立主线
+- 但 README / setup 完成页 / example config / `/ui` 还未真正切到统一 Router 对外叙事
+
+当前关键未闭环点：
+
+- 用户仍主要通过 `TriggerRouter` / `SmartRouter` 理解产品
+- 统一 Router 仍更多停留在设计文档与内部实现层
+
+优先级判断：`P0`
+
+### 3. 配置产品化最终收口
+
+状态：`in_progress`
+
+为什么未闭环：
+
+- `Models` 抽象、message IR、setup/init/migration、doctor、warning 通道等都已建立
+- 但 setup、配置文件、`/ui` 还没有完全以一套最终产品入口完全收口
+
+当前关键未闭环点：
+
+- repair / warning / capability / compatibility 仍未在所有入口完全一致
+- 最终“用户只理解统一模型配置”的承诺还需更多真实 provider 验证支撑
+
+优先级判断：`P1`
+
+### 4. 治理观测增强 / 运营化
+
+状态：`in_progress`
+
+为什么未闭环：
+
+- metrics、anomaly、snapshot、archive、时间窗趋势都已具备
+- 但还处于“持续增强”阶段，尚未形成更成熟的长期运营闭环
+
+当前关键未闭环点：
+
+- 更强的可视化、调优闭环与长期使用验证仍待继续推进
+
+优先级判断：`P2`
+
+### 统一优先级结论
+
+当前建议的闭环顺序：
+
+1. OpenAI-compatible 兼容差异内化
+2. TriggerRouter / SmartRouter 对外心智收编
+3. 配置产品化最终收口
+4. 治理观测增强 / 运营化
+
+## 九、关联文档索引
 
 ### 治理化演进
 
