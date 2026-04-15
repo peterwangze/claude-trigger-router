@@ -53,6 +53,61 @@ describe('message IR', () => {
     });
   });
 
+  it('creates IR from openai-style system messages, assistant tool_calls, and tool role messages', () => {
+    const ir = createMessageIR({
+      messages: [
+        { role: 'system', content: 'System rule' },
+        {
+          role: 'assistant',
+          content: null,
+          tool_calls: [
+            {
+              id: 'call-1',
+              type: 'function',
+              function: {
+                name: 'search',
+                arguments: '{"q":"x"}',
+              },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          tool_call_id: 'call-1',
+          content: '{"ok":true}',
+        },
+      ],
+    } as any);
+
+    expect(ir).toEqual({
+      system: ['System rule'],
+      messages: [
+        {
+          role: 'assistant',
+          parts: [
+            {
+              type: 'tool_call',
+              id: 'call-1',
+              name: 'search',
+              arguments: '{"q":"x"}',
+            },
+          ],
+        },
+        {
+          role: 'user',
+          parts: [
+            {
+              type: 'tool_result',
+              tool_call_id: 'call-1',
+              content: '{"ok":true}',
+            },
+          ],
+        },
+      ],
+      options: undefined,
+    });
+  });
+
   it('builds anthropic messages request from IR', () => {
     const body = toAnthropicMessagesRequest({
       model: 'sonnet',
@@ -392,6 +447,11 @@ describe('message IR', () => {
             },
           },
         ],
+        tool_choice: {
+          type: 'tool',
+          name: 'search',
+        },
+        stream: true,
       },
     });
 
@@ -399,6 +459,7 @@ describe('message IR', () => {
     expect(upstream.body).toEqual({
       model: 'gpt-5.4',
       max_tokens: 64,
+      stream: true,
       messages: [
         {
           role: 'user',
@@ -417,6 +478,10 @@ describe('message IR', () => {
           },
         },
       ],
+      tool_choice: {
+        type: 'tool',
+        name: 'search',
+      },
     });
   });
 
@@ -448,6 +513,12 @@ describe('message IR', () => {
             },
           },
         ],
+        tool_choice: {
+          type: 'function',
+          function: {
+            name: 'search_docs',
+          },
+        },
       },
     } as any);
 
@@ -462,6 +533,278 @@ describe('message IR', () => {
             query: { type: 'string' },
           },
         },
+      },
+    ]);
+    expect(upstream.body.tool_choice).toEqual({
+      type: 'tool',
+      name: 'search_docs',
+    });
+  });
+
+  it('normalizes openai-style function tool_choice into anthropic-compatible tool_choice', () => {
+    const body = toAnthropicMessagesRequest({
+      model: 'gpt-5.4',
+      max_tokens: 32,
+      tool_choice: {
+        type: 'function',
+        function: {
+          name: 'search_docs',
+        },
+      },
+      ir: createSingleUserTextIR('hello'),
+    });
+
+    expect(body.tool_choice).toEqual({
+      type: 'tool',
+      name: 'search_docs',
+    });
+  });
+
+  it('preserves tool call and tool result lifecycle when openai-compatible profiles dispatch in anthropic message shape', () => {
+    const upstream = buildProviderDispatchRequest({
+      model: 'gpt-5.4',
+      interface: 'openai',
+      compatibilityProfile: 'openrouter-like',
+      request: {
+        model: 'model__gpt90,gpt-5.4',
+        max_tokens: 32,
+        messages: [
+          {
+            role: 'assistant',
+            content: [
+              {
+                type: 'tool_use',
+                id: 'call-1',
+                name: 'search_docs',
+                input: {
+                  query: 'router',
+                },
+              },
+            ],
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: 'call-1',
+                content: {
+                  ok: true,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    } as any);
+
+    expect(upstream.dispatchFormat).toBe('anthropic_messages');
+    expect(upstream.body.messages).toEqual([
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'call-1',
+            name: 'search_docs',
+            input: {
+              query: 'router',
+            },
+          },
+        ],
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'call-1',
+            content: {
+              ok: true,
+            },
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('maps thinking, stream, and max_completion_tokens into anthropic-compatible dispatch for openai-compatible profiles', () => {
+    const upstream = buildProviderDispatchRequest({
+      model: 'gpt-5.4',
+      interface: 'openai',
+      compatibilityProfile: 'generic-openai-compatible',
+      request: {
+        model: 'model__gpt90,gpt-5.4',
+        max_completion_tokens: 48,
+        stream: true,
+        messages: [
+          {
+            role: 'user',
+            content: 'hello',
+          },
+        ],
+        thinking: {
+          type: 'enabled',
+          effort: 'medium',
+        },
+      },
+      capabilities: {
+        thinking: {
+          supported: true,
+        },
+        tools: true,
+        images: true,
+        systemMessageStyle: 'openai',
+      },
+    } as any);
+
+    expect(upstream.dispatchFormat).toBe('anthropic_messages');
+    expect(upstream.body).toEqual({
+      model: 'gpt-5.4',
+      max_tokens: 48,
+      stream: true,
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'hello' }],
+        },
+      ],
+      thinking: {
+        type: 'enabled',
+        effort: 'medium',
+      },
+    });
+  });
+
+  it('preserves openai-style image blocks when dispatching openai-compatible models through anthropic message shape', () => {
+    const upstream = buildProviderDispatchRequest({
+      model: 'gpt-5.4',
+      interface: 'openai',
+      compatibilityProfile: 'generic-openai-compatible',
+      request: {
+        model: 'model__gpt90,gpt-5.4',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: {
+                  url: 'data:image/png;base64,abc',
+                },
+                media_type: 'image/png',
+              },
+            ],
+          },
+        ],
+      },
+    } as any);
+
+    expect(upstream.dispatchFormat).toBe('anthropic_messages');
+    expect(upstream.body.messages).toEqual([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: {
+              url: 'data:image/png;base64,abc',
+              media_type: 'image/png',
+            },
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('converts openai-style system messages into anthropic system blocks for openai-compatible dispatch', () => {
+    const upstream = buildProviderDispatchRequest({
+      model: 'gpt-5.4',
+      interface: 'openai',
+      compatibilityProfile: 'generic-openai-compatible',
+      request: {
+        model: 'model__gpt90,gpt-5.4',
+        messages: [
+          {
+            role: 'system',
+            content: 'Stay concise',
+          },
+          {
+            role: 'user',
+            content: 'hello',
+          },
+        ],
+      },
+    } as any);
+
+    expect(upstream.body.system).toEqual([
+      {
+        type: 'text',
+        text: 'Stay concise',
+      },
+    ]);
+    expect(upstream.body.messages).toEqual([
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'hello' }],
+      },
+    ]);
+  });
+
+  it('preserves openai-style assistant tool_calls with empty content when dispatching through anthropic message shape', () => {
+    const upstream = buildProviderDispatchRequest({
+      model: 'gpt-5.4',
+      interface: 'openai',
+      compatibilityProfile: 'generic-openai-compatible',
+      request: {
+        model: 'model__gpt90,gpt-5.4',
+        messages: [
+          {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              {
+                id: 'call-1',
+                type: 'function',
+                function: {
+                  name: 'search_docs',
+                  arguments: '{"query":"router"}',
+                },
+              },
+            ],
+          },
+          {
+            role: 'tool',
+            tool_call_id: 'call-1',
+            content: '{"ok":true}',
+          },
+        ],
+      },
+    } as any);
+
+    expect(upstream.body.messages).toEqual([
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'tool_use',
+            id: 'call-1',
+            name: 'search_docs',
+            input: {
+              query: 'router',
+            },
+          },
+        ],
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'call-1',
+            content: '{"ok":true}',
+          },
+        ],
       },
     ]);
   });

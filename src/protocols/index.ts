@@ -117,6 +117,7 @@ function omitRequestFields(body: Record<string, any>) {
     thinking,
     metadata,
     max_tokens,
+    max_completion_tokens,
     ...rest
   } = body;
 
@@ -147,6 +148,7 @@ export function buildUpstreamRequestFromIR(input: {
         stream: fallback.request.stream,
         metadata: fallback.request.metadata,
         tools: fallback.request.tools,
+        tool_choice: fallback.request.tool_choice,
         ir: fallback.ir,
       }),
     };
@@ -204,10 +206,11 @@ export function buildProviderDispatchRequestFromIR(input: {
     ...passthrough,
     ...toAnthropicMessagesRequest({
       model: input.model,
-      max_tokens: fallback.request.max_tokens,
+      max_tokens: fallback.request.max_tokens ?? fallback.request.max_completion_tokens,
       stream: fallback.request.stream,
       metadata: fallback.request.metadata,
       tools: fallback.request.tools,
+      tool_choice: fallback.request.tool_choice,
       ir: fallback.ir,
     }),
   };

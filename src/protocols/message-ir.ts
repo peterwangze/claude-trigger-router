@@ -46,7 +46,16 @@ function normalizeContentParts(content: any): TMessageIRPart[] {
         return typeof item.text === 'string' ? [{ type: 'text', text: item.text }] : [];
       case 'image':
       case 'image_url':
-        return [{ type: 'image', source: item.source ?? item.image_url ?? item.url }];
+        return [{
+          type: 'image',
+          source: item.source
+            ?? (item.image_url
+              ? {
+                  ...item.image_url,
+                  ...(item.media_type ? { media_type: item.media_type } : {}),
+                }
+              : item.url),
+        }];
       case 'tool_use':
         return item.id && item.name
           ? [{ type: 'tool_call', id: item.id, name: item.name, arguments: JSON.stringify(item.input ?? {}) }]
@@ -61,6 +70,28 @@ function normalizeContentParts(content: any): TMessageIRPart[] {
   });
 }
 
+function normalizeOpenAIToolCalls(toolCalls: any): TMessageIRPart[] {
+  if (!Array.isArray(toolCalls)) {
+    return [];
+  }
+
+  return toolCalls.flatMap((toolCall) => {
+    const id = toolCall?.id;
+    const name = toolCall?.function?.name;
+    const args = toolCall?.function?.arguments;
+    if (!id || !name) {
+      return [];
+    }
+
+    return [{
+      type: 'tool_call' as const,
+      id,
+      name,
+      arguments: typeof args === 'string' ? args : JSON.stringify(args ?? {}),
+    }];
+  });
+}
+
 export function createMessageIR(input: {
   system?: any;
   messages?: any[];
@@ -69,16 +100,50 @@ export function createMessageIR(input: {
   const system = typeof input.system === 'string'
     ? [input.system]
     : Array.isArray(input.system)
-      ? input.system.flatMap((item) => item?.type === 'text' && typeof item.text === 'string' ? [item.text] : [])
+      ? input.system.flatMap((item) =>
+          typeof item === 'string'
+            ? [item]
+            : item?.type === 'text' && typeof item.text === 'string'
+              ? [item.text]
+              : []
+        )
       : [];
 
   const messages = Array.isArray(input.messages)
     ? input.messages
         .filter((item) => item?.role)
-        .map((item) => ({
-          role: item.role,
-          parts: normalizeContentParts(item.content),
-        }))
+        .flatMap((item) => {
+          if (item.role === 'system') {
+            const systemParts = typeof item.content === 'string'
+              ? [item.content]
+              : normalizeContentParts(item.content)
+                  .filter((part) => part.type === 'text')
+                  .map((part) => part.text);
+            system.push(...systemParts);
+            return [];
+          }
+
+          if (item.role === 'tool' && item.tool_call_id) {
+            return [{
+              role: 'user' as const,
+              parts: [{
+                type: 'tool_result' as const,
+                tool_call_id: item.tool_call_id,
+                content: item.content,
+              }],
+            }];
+          }
+
+          const parts = [
+            ...normalizeContentParts(item.content),
+            ...(item.role === 'assistant' ? normalizeOpenAIToolCalls(item.tool_calls) : []),
+          ];
+
+          return [{
+            role: item.role,
+            parts,
+          }];
+        })
     : [];
 
   const thinking = input.thinking

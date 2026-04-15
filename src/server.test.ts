@@ -1241,6 +1241,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('compiledModelsStatus');
     expect(html).toContain('compiledProvidersTable');
     expect(html).toContain('compiledModelMapTable');
+    expect(html).toContain('Compatibility profile');
+    expect(html).toContain('Dispatch format');
     expect(html).toContain('loadCompiledModels');
     expect(html).toContain('/api/governance/traces');
     expect(html).toContain('/api/governance/archives');

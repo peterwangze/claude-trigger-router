@@ -32,6 +32,7 @@ export function toAnthropicMessagesRequest(input: {
   stream?: boolean;
   metadata?: Record<string, any>;
   tools?: any[];
+  tool_choice?: any;
   ir: IMessageIR;
 }) {
   const body: Record<string, any> = {
@@ -60,6 +61,22 @@ export function toAnthropicMessagesRequest(input: {
       description: tool?.description ?? tool?.function?.description,
       input_schema: tool?.input_schema ?? tool?.function?.parameters,
     }));
+  }
+
+  if (input.tool_choice) {
+    if (typeof input.tool_choice === 'string') {
+      body.tool_choice = input.tool_choice;
+    } else if (input.tool_choice?.type === 'tool' && input.tool_choice?.name) {
+      body.tool_choice = {
+        type: 'tool',
+        name: input.tool_choice.name,
+      };
+    } else if (input.tool_choice?.type === 'function' && input.tool_choice?.function?.name) {
+      body.tool_choice = {
+        type: 'tool',
+        name: input.tool_choice.function.name,
+      };
+    }
   }
 
   if (input.ir.system.length) {
