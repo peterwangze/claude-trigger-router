@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildModelRegistry, compileModelsToProviders } from './compile';
+import { buildModelRegistry, compileModelsToProviders, getDispatchFormatForProfile } from './compile';
 
 describe('model compile', () => {
   it('compiles simplified Models config into internal providers', () => {
@@ -63,6 +63,8 @@ describe('model compile', () => {
       modelName: 'anthropic/claude-sonnet-4',
       interface: 'openai',
       protocol: 'openai',
+      compatibilityProfile: 'openrouter-like',
+      dispatchFormat: 'anthropic_messages',
       thinking: {
         mode: 'auto',
       },
@@ -99,6 +101,8 @@ describe('model compile', () => {
       modelName: 'anthropic/claude-sonnet-4',
       interface: 'openai',
       protocol: 'openai',
+      compatibilityProfile: 'openrouter-like',
+      dispatchFormat: 'anthropic_messages',
       capabilities: {
         thinking: {
           supported: true,
@@ -109,6 +113,42 @@ describe('model compile', () => {
       },
       source: 'providers',
     });
+  });
+
+  it('derives compatibility profiles from endpoint hints and exposes dispatch format', () => {
+    const registry = buildModelRegistry({
+      Providers: [],
+      Router: { default: 'gpt90' },
+      Models: [
+        {
+          id: 'gpt90',
+          api: 'https://apikey.soxio.me/openai/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'gpt-5.4',
+        },
+        {
+          id: 'qianfan',
+          api: 'https://qianfan.baidubce.com/v2/coding/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'glm-5',
+        },
+        {
+          id: 'minimax',
+          api: 'https://api.minimax.chat/v1/text/chatcompletion_v2',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'MiniMax-M2.7-highspeed',
+        },
+      ],
+    } as any);
+
+    expect(registry.modelMap.gpt90?.compatibilityProfile).toBe('generic-openai-compatible');
+    expect(registry.modelMap.gpt90?.dispatchFormat).toBe('anthropic_messages');
+    expect(registry.modelMap.qianfan?.compatibilityProfile).toBe('qianfan-coding');
+    expect(registry.modelMap.minimax?.compatibilityProfile).toBe('minimax-chatcompletion-v2');
+    expect(getDispatchFormatForProfile('openai', 'openrouter-like')).toBe('anthropic_messages');
   });
 
   it('accepts legacy model field names via alias normalization', () => {

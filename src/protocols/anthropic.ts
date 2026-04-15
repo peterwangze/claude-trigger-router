@@ -55,7 +55,11 @@ export function toAnthropicMessagesRequest(input: {
   }
 
   if (input.tools) {
-    body.tools = input.tools;
+    body.tools = input.tools.map((tool) => ({
+      name: tool?.name ?? tool?.function?.name,
+      description: tool?.description ?? tool?.function?.description,
+      input_schema: tool?.input_schema ?? tool?.function?.parameters,
+    }));
   }
 
   if (input.ir.system.length) {

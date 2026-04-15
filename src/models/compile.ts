@@ -1,12 +1,23 @@
 import { IAppConfig, ICompiledModelCapabilities, IModelEndpointConfig, IModelThinkingConfig, IProvider } from '../trigger/types';
 import { getModelApi, getModelInterface, getModelKey, normalizeModelEndpointConfig } from './schema';
 
+export type TCompatibilityProfile =
+  | 'anthropic-native'
+  | 'openrouter-like'
+  | 'qianfan-coding'
+  | 'minimax-chatcompletion-v2'
+  | 'generic-openai-compatible';
+
+export type TDispatchFormat = 'anthropic_messages' | 'openai_chat';
+
 export interface ICompiledModelRef {
   id: string;
   providerName: string;
   modelName: string;
   interface?: 'openai' | 'anthropic';
   protocol: 'openai' | 'anthropic';
+  compatibilityProfile: TCompatibilityProfile;
+  dispatchFormat: TDispatchFormat;
   thinking?: IModelThinkingConfig;
   capabilities: ICompiledModelCapabilities;
   source: 'models' | 'providers';
@@ -42,6 +53,54 @@ function inferTransformer(protocol: 'openai' | 'anthropic'): any {
   }
 
   return undefined;
+}
+
+function inferCompatibilityProfile(
+  item: Pick<IModelEndpointConfig, 'api' | 'api_base_url' | 'metadata'>,
+  modelInterface: 'openai' | 'anthropic'
+): TCompatibilityProfile {
+  if (modelInterface === 'anthropic') {
+    return 'anthropic-native';
+  }
+
+  const api = getModelApi(item);
+  const vendorHint = item.metadata?.vendor_hint?.trim().toLowerCase();
+
+  if (vendorHint === 'openrouter' || api.includes('openrouter.ai')) {
+    return 'openrouter-like';
+  }
+
+  if (vendorHint === 'qianfan' || vendorHint === 'qianfan-coding' || api.includes('qianfan.baidubce.com/v2/coding')) {
+    return 'qianfan-coding';
+  }
+
+  if (vendorHint === 'minimax' || vendorHint === 'minimax-chatcompletion-v2' || api.includes('/v1/text/chatcompletion_v2')) {
+    return 'minimax-chatcompletion-v2';
+  }
+
+  return 'generic-openai-compatible';
+}
+
+export function getDispatchFormatForProfile(
+  modelInterface: 'openai' | 'anthropic',
+  compatibilityProfile: TCompatibilityProfile
+): TDispatchFormat {
+  if (modelInterface === 'anthropic') {
+    return 'anthropic_messages';
+  }
+
+  switch (compatibilityProfile) {
+    case 'openrouter-like':
+    case 'qianfan-coding':
+    case 'minimax-chatcompletion-v2':
+      return 'anthropic_messages';
+    case 'anthropic-native':
+      return 'anthropic_messages';
+    case 'generic-openai-compatible':
+      return 'anthropic_messages';
+    default:
+      return 'anthropic_messages';
+  }
 }
 
 function buildCompiledCapabilities(
@@ -81,12 +140,15 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
     const modelMap = config.Models.reduce<Record<string, ICompiledModelRef>>((result, rawItem) => {
       const item = normalizeModelEndpointConfig(rawItem);
       const modelInterface = getModelInterface(item) || 'openai';
+      const compatibilityProfile = inferCompatibilityProfile(item, modelInterface);
       result[item.id] = {
         id: item.id,
         providerName: `model__${item.id}`,
         modelName: item.model,
         interface: modelInterface,
         protocol: modelInterface,
+        compatibilityProfile,
+        dispatchFormat: getDispatchFormatForProfile(modelInterface, compatibilityProfile),
         thinking: item.thinking,
         capabilities: buildCompiledCapabilities(item, modelInterface),
         source: 'models',
@@ -103,12 +165,23 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
   const providers = config.Providers ?? [];
   const modelMap = providers.reduce<Record<string, ICompiledModelRef>>((result, provider) => {
     for (const model of provider.models ?? []) {
+      const compatibilityProfile = inferCompatibilityProfile(
+        {
+          api_base_url: provider.api_base_url,
+          metadata: {
+            vendor_hint: provider.transformer?.use?.[0],
+          },
+        },
+        'openai'
+      );
       result[`${provider.name},${model}`] = {
         id: `${provider.name},${model}`,
         providerName: provider.name,
         modelName: model,
         interface: 'openai',
         protocol: 'openai',
+        compatibilityProfile,
+        dispatchFormat: getDispatchFormatForProfile('openai', compatibilityProfile),
         capabilities: {
           thinking: {
             supported: true,

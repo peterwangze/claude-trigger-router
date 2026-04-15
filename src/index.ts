@@ -31,7 +31,7 @@ import { triggerRouter } from "./trigger";
 import { createStream } from 'rotating-file-stream';
 import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, governStreamingResponse, sessionStateStore } from "./governance";
 import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
-import { buildUpstreamRequest } from "./protocols";
+import { buildProviderDispatchRequest } from "./protocols";
 
 const event = new EventEmitter();
 
@@ -289,9 +289,10 @@ async function run(options: RunOptions = {}) {
       const compiledModel = getCompiledModelRef(config, req.body?.model);
       if (compiledModel?.interface && req.body?.messages) {
         const originalBody = cloneRequestBody(req.body);
-        const upstream = buildUpstreamRequest({
+        const upstream = buildProviderDispatchRequest({
           model: compiledModel.modelName,
           interface: compiledModel.interface,
+          compatibilityProfile: compiledModel.compatibilityProfile,
           request: originalBody,
           capabilities: compiledModel.capabilities,
         });

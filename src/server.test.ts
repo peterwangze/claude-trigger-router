@@ -180,6 +180,8 @@ describe('createServer /api/config', () => {
       modelName: 'anthropic/claude-sonnet-4',
       interface: 'openai',
       protocol: 'openai',
+      compatibilityProfile: 'openrouter-like',
+      dispatchFormat: 'anthropic_messages',
       thinking: {
         mode: 'auto',
       },
@@ -261,6 +263,8 @@ describe('createServer /api/config', () => {
       modelName: 'anthropic/claude-3.5-haiku',
       interface: 'openai',
       protocol: 'openai',
+      compatibilityProfile: 'openrouter-like',
+      dispatchFormat: 'anthropic_messages',
       thinking: {
         mode: 'off',
       },

@@ -101,6 +101,32 @@ describe('migrateLegacyConfig', () => {
     expect(result.skippedFields).toEqual(['providers[0].transformer', 'trigger_router']);
   });
 
+  it('preserves legacy compatibility hints internally without exposing transformer syntax', () => {
+    const result = migrateLegacyConfig({
+      Providers: [
+        {
+          name: 'gpt90',
+          api_base_url: 'https://example.com/openai/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['gpt-5.4'],
+          transformer: { use: ['openrouter'] },
+        },
+      ],
+      Router: {
+        default: 'gpt90,gpt-5.4',
+      },
+    } as any);
+
+    expect(result.draft.Models).toEqual([
+      expect.objectContaining({
+        id: 'gpt90_gpt_5_4',
+        metadata: expect.objectContaining({
+          vendor_hint: 'openrouter',
+        }),
+      }),
+    ]);
+  });
+
   it('marks migration as incomplete when api_key is missing', () => {
     const result = migrateLegacyConfig({
       providers: [

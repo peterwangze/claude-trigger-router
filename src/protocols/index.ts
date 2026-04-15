@@ -2,6 +2,7 @@ import { createMessageIR, IMessageIR } from './message-ir';
 import { toAnthropicMessagesRequest } from './anthropic';
 import { toOpenAIChatRequest } from './openai';
 import { ICompiledModelCapabilities } from '../trigger/types';
+import { TCompatibilityProfile, TDispatchFormat, getDispatchFormatForProfile } from '../models/compile';
 
 function stringifyFallbackContent(value: any): string {
   if (typeof value === 'string') {
@@ -162,6 +163,78 @@ export function buildUpstreamRequestFromIR(input: {
       tool_choice: fallback.request.tool_choice,
       ir: fallback.ir,
     }),
+  };
+}
+
+export function buildProviderDispatchRequestFromIR(input: {
+  model: string;
+  interface: 'openai' | 'anthropic';
+  compatibilityProfile: TCompatibilityProfile;
+  request: Record<string, any>;
+  ir: IMessageIR;
+  capabilities?: ICompiledModelCapabilities;
+}) {
+  const fallback = applyCapabilityFallbacks({
+    ir: input.ir,
+    request: input.request,
+    capabilities: input.capabilities,
+  });
+  const passthrough = omitRequestFields(fallback.request);
+  const dispatchFormat: TDispatchFormat = getDispatchFormatForProfile(input.interface, input.compatibilityProfile);
+
+  if (dispatchFormat === 'openai_chat') {
+    return {
+      dispatchFormat,
+      diagnostics: fallback.diagnostics,
+      ...passthrough,
+      ...toOpenAIChatRequest({
+        model: input.model,
+        max_completion_tokens: fallback.request.max_tokens ?? fallback.request.max_completion_tokens,
+        stream: fallback.request.stream,
+        tools: fallback.request.tools,
+        tool_choice: fallback.request.tool_choice,
+        ir: fallback.ir,
+      }),
+    };
+  }
+
+  return {
+    dispatchFormat,
+    diagnostics: fallback.diagnostics,
+    ...passthrough,
+    ...toAnthropicMessagesRequest({
+      model: input.model,
+      max_tokens: fallback.request.max_tokens,
+      stream: fallback.request.stream,
+      metadata: fallback.request.metadata,
+      tools: fallback.request.tools,
+      ir: fallback.ir,
+    }),
+  };
+}
+
+export function buildProviderDispatchRequest(input: {
+  model: string;
+  interface: 'openai' | 'anthropic';
+  compatibilityProfile: TCompatibilityProfile;
+  request: Record<string, any>;
+  capabilities?: ICompiledModelCapabilities;
+}) {
+  const ir = createMessageIR(input.request);
+  const { diagnostics, dispatchFormat, ...body } = buildProviderDispatchRequestFromIR({
+    model: input.model,
+    interface: input.interface,
+    compatibilityProfile: input.compatibilityProfile,
+    request: input.request,
+    ir,
+    capabilities: input.capabilities,
+  });
+
+  return {
+    ir,
+    body,
+    diagnostics,
+    dispatchFormat,
   };
 }
 

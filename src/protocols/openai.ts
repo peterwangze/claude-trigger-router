@@ -48,6 +48,18 @@ function toOpenAIToolResultMessages(parts: IMessageIR['messages'][number]['parts
     }));
 }
 
+function getToolName(tool: any) {
+  return tool?.name ?? tool?.function?.name;
+}
+
+function getToolDescription(tool: any) {
+  return tool?.description ?? tool?.function?.description;
+}
+
+function getToolInputSchema(tool: any) {
+  return tool?.input_schema ?? tool?.function?.parameters;
+}
+
 function toOpenAITools(tools?: any[]) {
   if (!Array.isArray(tools) || !tools.length) {
     return undefined;
@@ -56,9 +68,9 @@ function toOpenAITools(tools?: any[]) {
   return tools.map((tool) => ({
     type: 'function',
     function: {
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.input_schema,
+      name: getToolName(tool),
+      description: getToolDescription(tool),
+      parameters: getToolInputSchema(tool),
     },
   }));
 }

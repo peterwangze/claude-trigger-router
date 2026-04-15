@@ -151,6 +151,83 @@ async function postAnthropicMessage(port: number, model: string, text: string): 
   });
 }
 
+async function postAnthropicMessageWithTools(port: number, model: string, text: string): Promise<Response> {
+  return fetch(`http://127.0.0.1:${port}/v1/messages`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 64,
+      tools: [
+        {
+          name: 'search_docs',
+          description: 'Search the docs',
+          input_schema: {
+            type: 'object',
+            properties: {
+              query: { type: 'string' },
+            },
+            required: ['query'],
+          },
+        },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+}
+
+async function postAnthropicMessageWithOpenAiTools(port: number, model: string, text: string): Promise<Response> {
+  return fetch(`http://127.0.0.1:${port}/v1/messages`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 64,
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'search_docs',
+            description: 'Search the docs',
+            parameters: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+              },
+              required: ['query'],
+            },
+          },
+        },
+      ],
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+}
+
 function buildMinimalModelsConfig(port: number, overrides: string[] = []): string {
   return [
     'HOST: "127.0.0.1"',
@@ -893,6 +970,64 @@ describe('packaged CLI E2E', () => {
       expect(upstream.requests.length).toBeGreaterThanOrEqual(2);
       expect(upstream.requests[0]?.body?.model).toBe('anthropic/claude-sonnet-4');
       expect(upstream.requests.at(-1)?.body?.model).toBe('deepseek-reasoner');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('generic openai-compatible models preserve tool names when Claude sends openai-style tool definitions', async () => {
+    const env = await createTestEnvironment('ctr-compat-tools-e2e-');
+    const upstream = await startFakeOpenAiUpstream();
+    const port = await getFreePort();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'LOG: false',
+          'Models:',
+          '  - id: gpt90',
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-test"',
+          '    interface: "openai"',
+          '    model: "gpt-5.4"',
+          'Router:',
+          '  default: "gpt90"',
+        ].join('\n')
+      );
+
+      const startResult = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
+        timeoutMs: 20000,
+      });
+      expect(startResult.code).toBe(0);
+
+      const response = await postAnthropicMessageWithOpenAiTools(port, 'gpt90', '帮我查一下路由协议兼容性');
+      expect(response.ok).toBe(true);
+      expect(upstream.requests.length).toBeGreaterThan(0);
+      expect(upstream.requests[0]?.body?.tools).toEqual([
+        expect.objectContaining({
+          type: 'function',
+          function: expect.objectContaining({
+            name: 'search_docs',
+            description: 'Search the docs',
+            parameters: expect.objectContaining({
+              type: 'object',
+            }),
+          }),
+        }),
+      ]);
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
     } finally {
       try {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });

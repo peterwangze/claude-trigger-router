@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createMessageIR, createSingleUserTextIR } from './message-ir';
 import { toAnthropicMessagesRequest } from './anthropic';
 import { toOpenAIChatRequest } from './openai';
-import { buildUpstreamRequest } from './index';
+import { buildProviderDispatchRequest, buildUpstreamRequest } from './index';
 
 describe('message IR', () => {
   it('creates IR from anthropic-style request payload', () => {
@@ -356,5 +356,113 @@ describe('message IR', () => {
         },
       ],
     });
+  });
+
+  it('builds provider dispatch requests in anthropic message shape for openrouter-like compatibility profiles', () => {
+    const upstream = buildProviderDispatchRequest({
+      model: 'gpt-5.4',
+      interface: 'openai',
+      compatibilityProfile: 'openrouter-like',
+      capabilities: {
+        thinking: {
+          supported: true,
+        },
+        tools: true,
+        images: true,
+        systemMessageStyle: 'openai',
+      },
+      request: {
+        model: 'model__gpt90,gpt-5.4',
+        max_tokens: 64,
+        messages: [
+          {
+            role: 'user',
+            content: 'hello',
+          },
+        ],
+        tools: [
+          {
+            name: 'search',
+            description: 'Search the docs',
+            input_schema: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    expect(upstream.dispatchFormat).toBe('anthropic_messages');
+    expect(upstream.body).toEqual({
+      model: 'gpt-5.4',
+      max_tokens: 64,
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'text', text: 'hello' }],
+        },
+      ],
+      tools: [
+        {
+          name: 'search',
+          description: 'Search the docs',
+          input_schema: {
+            type: 'object',
+            properties: {
+              query: { type: 'string' },
+            },
+          },
+        },
+      ],
+    });
+  });
+
+  it('normalizes incoming openai-style tool definitions without dropping tool names', () => {
+    const upstream = buildProviderDispatchRequest({
+      model: 'gpt-5.4',
+      interface: 'openai',
+      compatibilityProfile: 'generic-openai-compatible',
+      request: {
+        model: 'model__gpt90,gpt-5.4',
+        messages: [
+          {
+            role: 'user',
+            content: 'hello',
+          },
+        ],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'search_docs',
+              description: 'Search the docs',
+              parameters: {
+                type: 'object',
+                properties: {
+                  query: { type: 'string' },
+                },
+              },
+            },
+          },
+        ],
+      },
+    } as any);
+
+    expect(upstream.dispatchFormat).toBe('anthropic_messages');
+    expect(upstream.body.tools).toEqual([
+      {
+        name: 'search_docs',
+        description: 'Search the docs',
+        input_schema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string' },
+          },
+        },
+      },
+    ]);
   });
 });
