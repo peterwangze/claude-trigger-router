@@ -13,7 +13,7 @@ import { migrateLegacyConfig } from '../setup/migrate';
 import { readLegacyConfig } from '../setup';
 import { IAppConfig, IModelEndpointConfig } from '../trigger/types';
 import { getModelApi, getModelInterface, getModelKey } from '../models/schema';
-import { buildModelRegistry } from '../models/compile';
+import { buildModelRegistry, describeCompatibilityProfile, describeDispatchFormat } from '../models/compile';
 import { buildProviderDispatchRequest } from '../protocols';
 import { isServiceRunning, killProcess, readServiceInfo } from '../utils/processCheck';
 import { isTcpPortOccupied, probeServiceHealth, waitForService } from '../service-health';
@@ -53,6 +53,12 @@ interface IConfigLoadResult {
 type TProbeResult =
   | { kind: 'success' }
   | { kind: 'failure'; category: 'auth_error' | 'model_not_found' | 'endpoint_unreachable' | 'protocol_mismatch' | 'remote_error'; message: string };
+
+interface IProbeFailureExplanation {
+  label: string;
+  summary: string;
+  action: string;
+}
 
 function hasArg(flag: string): boolean {
   return process.argv.slice(2).includes(flag);
@@ -464,6 +470,47 @@ async function probeModelAvailability(model: IModelEndpointConfig): Promise<TPro
   }
 }
 
+function explainProbeFailure(category: TProbeResult extends { kind: 'failure'; category: infer T } ? T : never): IProbeFailureExplanation {
+  switch (category) {
+    case 'auth_error':
+      return {
+        label: '鉴权失败',
+        summary: '上游接口拒绝了当前 API Key，或当前账号没有访问该模型的权限。',
+        action: '请检查 API Key、账号订阅状态，以及当前账号是否具备目标模型权限。',
+      };
+    case 'model_not_found':
+      return {
+        label: '模型不存在或无权限',
+        summary: '上游接口无法识别当前模型名，或当前账号没有该模型的访问权限。',
+        action: '请检查模型名是否正确，以及当前账号是否已开通该模型。',
+      };
+    case 'endpoint_unreachable':
+      return {
+        label: '接口不可达',
+        summary: 'doctor 无法连接到当前 API 地址，可能是地址、网络、TLS 或代理配置问题。',
+        action: '请检查 API Base URL、网络连通性、TLS 证书链，以及是否需要代理。',
+      };
+    case 'protocol_mismatch':
+      return {
+        label: '协议兼容失败',
+        summary: '当前上游接口与统一消息抽象在 messages、tools、stream 或控制字段上存在兼容差异。',
+        action: '请先确认 API Base URL 和 interface 是否配置正确；如果文本请求正常但工具调用失败，请保留原始报错继续收敛兼容层。',
+      };
+    case 'remote_error':
+      return {
+        label: '上游返回错误',
+        summary: '请求已经到达上游，但上游返回了其他业务或服务端错误。',
+        action: '请结合原始错误信息检查上游服务状态、模型配额或账号限制。',
+      };
+    default:
+      return {
+        label: category,
+        summary: '未知远端错误。',
+        action: '请保留原始错误信息后继续排查。',
+      };
+  }
+}
+
 async function ensureServiceUsable(config: IAppConfig, deps: IDoctorDeps, configChanged: boolean): Promise<void> {
   const port = config.PORT ?? DEFAULT_CONFIG.PORT;
   const healthy = await deps.probeServiceHealth(port, 500);
@@ -568,9 +615,13 @@ export async function runDoctorCli(customDeps?: Partial<IDoctorDeps>): Promise<v
       if (!compiledModel) {
         continue;
       }
+      const compatibility = describeCompatibilityProfile(compiledModel.compatibilityProfile);
+      const dispatch = describeDispatchFormat(compiledModel.dispatchFormat);
       deps.io.info(
-        `模型兼容画像：${model.id} -> ${compiledModel.compatibilityProfile} / ${compiledModel.dispatchFormat}`
+        `模型兼容策略：${model.id} -> ${compatibility.label}`
       );
+      deps.io.info(`兼容说明：${compatibility.summary}`);
+      deps.io.info(`请求编译：${dispatch.label}。${dispatch.summary}`);
     }
 
     const needWrite = current.repairedParse || deterministic.changes.length > 0 || completed.changes.length > 0 || !current.existed;
@@ -597,17 +648,26 @@ export async function runDoctorCli(customDeps?: Partial<IDoctorDeps>): Promise<v
       return;
     }
 
+    let probeSuccess = 0;
+    let probeFailure = 0;
     for (const model of normalized.config.Models ?? []) {
       const result = await probeModelAvailability(model);
       if (result.kind === 'success') {
         deps.io.info(`模型探测成功：${model.id}`);
+        probeSuccess += 1;
         continue;
       }
 
-      deps.io.error(`模型探测失败：${model.id} -> ${result.category} -> ${result.message}`);
+      const explanation = explainProbeFailure(result.category);
+      probeFailure += 1;
+      deps.io.error(`模型探测失败：${model.id} -> ${explanation.label}`);
+      deps.io.info(`失败说明：${explanation.summary}`);
+      deps.io.info(`处理建议：${explanation.action}`);
+      deps.io.info(`远端原始信息：${result.message}`);
       deps.io.info('这类远端失败需要你确认并手动处理；doctor 不会自动修改模型语义或远端账号配置。');
     }
 
+    deps.io.info(`模型探测完成：成功 ${probeSuccess}，失败 ${probeFailure}。`);
     deps.io.info('doctor 诊断完成。');
   } finally {
     deps.io.close?.();

@@ -534,6 +534,10 @@ describe('packaged CLI E2E', () => {
       expect(result.stdout).toContain('已归一 Models[0].api');
       expect(result.stdout).toContain('已补全 Models[0].id');
       expect(result.stdout).toContain('已补全 Router.default');
+      expect(result.stdout).toContain('模型兼容策略：anthropic_claude_sonnet_4 -> OpenAI-compatible / Anthropic dispatch');
+      expect(result.stdout).toContain('兼容说明：目标接口属于 OpenAI-compatible 兼容族');
+      expect(result.stdout).toContain('请求编译：Anthropic-style messages');
+      expect(result.stdout).not.toContain('openai-compatible-anthropic-dispatch');
       expect(result.stdout).toContain('已跳过模型探测');
       expect(repairedConfig).toContain('id: anthropic_claude_sonnet_4');
       expect(repairedConfig).toContain(`PORT: ${port}`);
@@ -592,6 +596,7 @@ describe('packaged CLI E2E', () => {
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain('模型探测成功：sonnet');
+      expect(result.stdout).toContain('模型探测完成：成功 1，失败 0。');
       expect(upstream.requests.length).toBeGreaterThan(0);
     } finally {
       try {
@@ -600,6 +605,77 @@ describe('packaged CLI E2E', () => {
         // Ignore cleanup stop failures.
       }
       await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('doctor reports probe failures with user-readable guidance instead of internal compatibility terms', async () => {
+    const env = await createTestEnvironment('ctr-doctor-probe-failure-e2e-');
+    const failingServer = createServer(async (_req: IncomingMessage, res: ServerResponse) => {
+      res.statusCode = 401;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({
+        error: {
+          message: 'bad key',
+        },
+      }));
+    });
+
+    const port = await new Promise<number>((resolve, reject) => {
+      failingServer.once('error', reject);
+      failingServer.listen(0, '127.0.0.1', () => {
+        const address = failingServer.address();
+        if (!address || typeof address === 'string') {
+          reject(new Error('Failed to resolve failing upstream port'));
+          return;
+        }
+        resolve(address.port);
+      });
+    });
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          'PORT: 5678',
+          'LOG: true',
+          'LOG_LEVEL: "debug"',
+          'Models:',
+          '  - id: sonnet',
+          `    api: "http://127.0.0.1:${port}/v1/chat/completions"`,
+          '    key: "sk-bad"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          'Router:',
+          '  default: "sonnet"',
+        ].join('\n')
+      );
+
+      const result = await runCtr(cliPath, ['doctor', '--check-models'], env, {
+        timeoutMs: 60000,
+        input: 'y\n',
+        extraEnv: {
+          CTR_DOCTOR_FORCE_SCRIPTED_INPUT: '1',
+        },
+      });
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('模型探测失败：sonnet -> 鉴权失败');
+      expect(result.stdout).toContain('失败说明：上游接口拒绝了当前 API Key');
+      expect(result.stdout).toContain('处理建议：请检查 API Key、账号订阅状态');
+      expect(result.stdout).toContain('远端原始信息：401');
+      expect(result.stdout).toContain('模型探测完成：成功 0，失败 1。');
+      expect(result.stdout).not.toContain('auth_error');
+      expect(result.stdout).not.toContain('openai-compatible-anthropic-dispatch');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await new Promise<void>((resolve, reject) => failingServer.close((error) => error ? reject(error) : resolve()));
       await removePath(env.rootDir);
     }
   }, 300000);

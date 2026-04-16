@@ -73,7 +73,10 @@ describe('runDoctorCli', () => {
     expect(startDaemon).toHaveBeenCalledTimes(1);
     expect(io.confirm).toHaveBeenCalled();
     expect(io.info).toHaveBeenCalledWith(
-      expect.stringContaining('模型兼容画像：anthropic_claude_sonnet_4')
+      expect.stringContaining('模型兼容策略：anthropic_claude_sonnet_4 -> OpenAI-compatible / Anthropic dispatch')
+    );
+    expect(io.info).toHaveBeenCalledWith(
+      expect.stringContaining('请求编译：Anthropic-style messages')
     );
   });
 
@@ -132,7 +135,10 @@ describe('runDoctorCli', () => {
       startDaemon: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('auth_error'));
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('鉴权失败'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('失败说明：上游接口拒绝了当前 API Key'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远端原始信息：401 bad key'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('模型探测完成：成功 0，失败 1。'));
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual(
       expect.objectContaining({
         stream: true,
