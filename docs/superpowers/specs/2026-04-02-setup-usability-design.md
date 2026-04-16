@@ -1,5 +1,12 @@
 # 首次使用一键向导（`ctr setup`）设计文档
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“`ctr setup` 早期实施计划”这一行所关联的 setup 易用性设计输入。
+>
+> 当前职责：保留首次使用入口设计依据；后续 setup / UX 重设计的详细方案以下游专项文档为准。
+
+
 **目标**
 
 为 Claude Trigger Router 增加一个面向新手的首次使用入口 `ctr setup`，把“检查配置、迁移旧 ccr 配置、生成最小可用配置、启动服务、进入 `ctr code`”收敛成一条可走通的向导路径。

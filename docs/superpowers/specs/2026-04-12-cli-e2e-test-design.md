@@ -1,5 +1,12 @@
 # CLI E2E Test Design
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“CLI 稳定性与发布工程”这一行的测试设计输入。
+>
+> 当前职责：承接 packaged CLI、acceptance 与 release gate 的详细验证策略；顶层入口只维护该特性的状态、闭环结论与文档指针。
+
+
 ## 1. Background
 
 `claude-trigger-router` is delivered to users primarily through the `ctr` CLI. Recent fixes exposed a structural gap: many regressions were caught only after packaging or after manual release validation, which means the current test strategy is still too implementation-centric and not sufficiently user-flow-centric.

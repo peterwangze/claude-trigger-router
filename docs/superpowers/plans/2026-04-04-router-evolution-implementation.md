@@ -1,5 +1,12 @@
 # Router 治理化演进实施计划
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“Governance 治理主链首轮落地”这一行的历史实施计划。
+>
+> 当前职责：保留治理主链首轮能力落地时的详细实施拆解；后续治理观测增强与其他并行特性演进，不再在本文追加为当前主入口内容。
+
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在现有 Claude Trigger Router 上，分阶段落地 Sticky Routing、Context Alignment、Cascade Reasoning Gate、Semantic Router 和 Shadow Supervisor，使项目具备基础模型治理能力。

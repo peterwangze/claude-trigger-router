@@ -1,5 +1,12 @@
 # CLI / Setup UX 重设计方案
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“CLI / setup UX 重设计”这一行的设计输入。
+>
+> 当前职责：承接 migration-first、model-id-first 入口与统一叙事的详细设计；顶层入口只维护状态与闭环结论。
+
+
 ## 1. 背景与问题
 
 当前 `ctr setup` 的用户入口与项目已经明确的产品心智不一致：

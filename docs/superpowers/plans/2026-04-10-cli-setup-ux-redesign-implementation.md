@@ -1,5 +1,12 @@
 # CLI / Setup UX Redesign Implementation Plan
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“CLI / setup UX 重设计”这一行的实施计划部分。
+>
+> 当前职责：承接 setup 流程重排、CLI 帮助文本、README 与模板统一化的详细实施计划；顶层入口不再展开执行细节。
+
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Rework `ctr setup` so it is migration-first, model-id-first, and consistent with the project's `Models[].id` product story across setup, init, help text, and README.

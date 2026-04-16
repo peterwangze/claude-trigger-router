@@ -1,11 +1,17 @@
 # Router 演进进度校准报告
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“治理观测增强 / 运营化”“配置产品化最终收口”“OpenAI-compatible 兼容差异内化”三行在阶段切换时的校准记录。
+>
+> 当前职责：保留历史计划与当前实现差异的校准结论，为统一进展入口提供阶段判断依据；顶层入口只维护当前状态、闭环结论与文档指针。
+
 > **文档角色说明（2026-04-15）**
 >
 > 本文件保留为“历史计划与当前实现差异”的校准记录。
 >
 > **当前仓库的统一进展基线请优先查看：**
-> - `docs/superpowers/plans/2026-04-15-unified-progress-baseline.md`
+> - `docs/superpowers/plans/unified-progress-baseline.md`
 >
 > 自 2026-04-15 起，整体阶段判断、主线汇总和后续进展基线以统一基线文档为准；本文继续保留其校准结论，作为阶段切换的重要依据。
 

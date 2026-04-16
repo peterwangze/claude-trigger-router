@@ -1,5 +1,12 @@
 # Claude Code Router Legacy 配置迁移设计
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“legacy config migration 收敛”与“OpenAI-compatible 兼容差异内化”两行的迁移与兼容设计输入。
+>
+> 当前职责：承接 legacy config 迁移、旧语义内化与真实输入约束的详细设计；顶层入口不再展开迁移细节。
+
+
 ## 1. 背景与问题
 
 当前 `claude-trigger-router` 的 setup 流程虽然已经存在 legacy migration 分支，但对真实 `claude-code-router` 配置的支持并不完整。现状中的主要问题不是“没有迁移入口”，而是迁移逻辑和测试样本没有基于真实 legacy 配置进行约束，导致功能表面存在、真实场景却无法闭环。

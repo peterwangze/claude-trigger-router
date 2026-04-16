@@ -1,11 +1,18 @@
 # Claude Trigger Router 演进计划
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“Governance 治理主链首轮落地”与“治理观测增强 / 运营化”两行的历史路线设计输入。
+>
+> 当前职责：保留治理化演进的历史路线图与阶段拆分依据；顶层入口仅维护当前状态与闭环结论，不再在入口文档复写本路线细节。
+
+
 > **文档角色说明（2026-04-15）**
 >
 > 本文件保留为治理化演进的历史路线图。
 >
 > **当前仓库的统一进展基线请优先查看：**
-> - `docs/superpowers/plans/2026-04-15-unified-progress-baseline.md`
+> - `docs/superpowers/plans/unified-progress-baseline.md`
 >
 > 本文继续承担路线设计输入职责，但不再单独承担当前整体进展台账职责。
 >

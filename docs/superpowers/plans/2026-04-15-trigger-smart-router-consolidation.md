@@ -1,5 +1,12 @@
 # TriggerRouter / SmartRouter 对外心智收编实施计划
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“TriggerRouter / SmartRouter 对外心智收编”这一行的专项实施计划。
+>
+> 当前职责：承接统一 Router 对外产品叙事收编的详细执行路径；顶层入口只维护该事项的状态、闭环结论与文档入口。
+
+
 ## 1. 计划定位
 
 本计划对应统一进展基线中的：

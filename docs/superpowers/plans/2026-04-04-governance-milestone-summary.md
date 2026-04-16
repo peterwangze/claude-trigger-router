@@ -1,11 +1,18 @@
 # Governance 演进里程碑说明
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“Governance 治理主链首轮落地”这一行的阶段收口说明。
+>
+> 当前职责：保留治理主链首轮里程碑的收口结论、验证结果与边界说明；统一进展入口不再展开里程碑正文。
+
+
 > **文档角色说明（2026-04-15）**
 >
 > 本文件保留为治理化演进阶段收口说明。
 >
 > **当前仓库的统一进展基线请优先查看：**
-> - `docs/superpowers/plans/2026-04-15-unified-progress-baseline.md`
+> - `docs/superpowers/plans/unified-progress-baseline.md`
 >
 > 本文继续保留里程碑总结内容，但不再单独承担当前整体进展台账职责。
 

@@ -1,11 +1,18 @@
 # Router 治理化演进进展跟踪
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“Governance 治理主链首轮落地”与“治理观测增强 / 运营化”两行的历史跟踪记录。
+>
+> 当前职责：保留治理主线的历史看板、里程碑和阶段来源；统一进展入口仅维护当前状态、闭环结论和文档指针。
+
+
 > **文档角色说明（2026-04-15）**
 >
 > 本文件保留为治理化演进主线的历史进展记录与阶段来源文档。
 >
 > **当前仓库的统一进展基线请优先查看：**
-> - `docs/superpowers/plans/2026-04-15-unified-progress-baseline.md`
+> - `docs/superpowers/plans/unified-progress-baseline.md`
 >
 > 自 2026-04-15 起，整体演进状态、跨主线汇总和后续基线判断，统一收口到上述文档；本文继续保留原始跟踪内容，供历史追溯与治理主线细节参考。
 

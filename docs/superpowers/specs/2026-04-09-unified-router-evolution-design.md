@@ -1,5 +1,12 @@
 # Claude Trigger Router 统一路由架构演进方案
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“统一 Router 运行时收敛”这一行的核心设计输入。
+>
+> 当前职责：承接统一 Router 架构、产品心智与收敛边界的详细设计；顶层入口只维护该特性的状态与闭环结论。
+
+
 ## 1. 背景与目标
 
 当前项目在实现层面已经具备 `TriggerRouter`、`SmartRouter`、`Governance` 三类能力，并且运行时已经出现了实际串联：显式规则匹配、语义分析、智能候选选择、会话粘性、上下文摘要等能力并非完全割裂。

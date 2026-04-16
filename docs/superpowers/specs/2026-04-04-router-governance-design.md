@@ -1,5 +1,12 @@
 # Claude Trigger Router 治理化演进设计
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“Governance 治理主链首轮落地”与“治理观测增强 / 运营化”两行的核心设计输入。
+>
+> 当前职责：保留治理能力设计目标、边界与架构依据；后续统一进展入口只维护该特性的状态与闭环结论。
+
+
 ## 1. 设计目标
 
 在现有 `TriggerRouter + SmartRouter + Router.default` 的基础上，新增一层可选的治理能力，使系统从“单次请求路由”升级为“面向会话、失败证据和输出质量的多阶段决策系统”。

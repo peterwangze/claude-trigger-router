@@ -1,5 +1,12 @@
 # Unified Router Evolution Implementation Plan
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“统一 Router 运行时收敛”这一行的实施计划部分。
+>
+> 当前职责：承接统一 Router 运行时链路、schema、写出链路与落地顺序的详细实施计划；统一进展入口不再展开实现细节。
+
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 将当前 `TriggerRouter + SmartRouter + Governance` 的组合实现收敛为一套统一 Router 决策系统，严格按“运行时链路统一 -> 默认治理边界稳定 -> schema/兼容保真 -> 写出链路 -> setup/UI/docs 输出统一化”的顺序落地。

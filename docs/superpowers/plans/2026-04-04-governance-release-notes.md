@@ -1,11 +1,18 @@
 # Governance 演进 Release Notes
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“Governance 治理主链首轮落地”这一行的阶段发布说明。
+>
+> 当前职责：保留治理化演进阶段发布说明与能力变化记录；统一进展入口仅维护状态、闭环结论与文档入口。
+
+
 > **文档角色说明（2026-04-15）**
 >
 > 本文件保留为治理化演进阶段发布说明。
 >
 > **当前仓库的统一进展基线请优先查看：**
-> - `docs/superpowers/plans/2026-04-15-unified-progress-baseline.md`
+> - `docs/superpowers/plans/unified-progress-baseline.md`
 >
 > 本文继续保留 release note 内容，但不再单独承担当前整体进展台账职责。
 

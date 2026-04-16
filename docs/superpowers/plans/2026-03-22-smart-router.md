@@ -1,5 +1,12 @@
 # SmartRouter 实现计划
 
+> **统一进展承接说明（2026-04-16）**
+>
+> 本文档承接 `docs/superpowers/plans/unified-progress-baseline.md` 中“SmartRouter 早期专项计划”这一行的历史专项记录。
+>
+> 当前职责：保留 SmartRouter 早期方案与实施背景，作为历史专项输入；后续统一 Router 与配置产品化相关详细演进，不再在本文扩写。
+
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在现有路由链中插入 SmartRouter 层，支持通过 LLM 从配置的候选模型列表中自动选择最优模型，提升路由准确率。
