@@ -49,25 +49,34 @@
 4. 若新增事项 / 特性，必须先在本表新增一行，再创建或补齐对应特性文档。
 5. 若某条记录没有可承接的特性文档，不得直接长期堆在入口文档中。
 
+### 优先级判定规则
+
+为保证后续闭环顺序稳定，未完成主线统一按以下优先级口径维护：
+
+- `P0-基础功能闭环`：影响主路径可用性、最小运行时闭环、兼容主链与迁移主链，不完成会阻塞其他事项推进。
+- `P1-主路径易用性`：建立用户可理解、可配置、可进入的统一入口与产品心智，不完成会显著拉高使用门槛。
+- `P2-能力扩展与体验增强`：在主路径已可用且可理解后，再继续收拢远程部署、双层工作台、治理观测等增强能力。
+- `P3-治理支撑与持续维护`：用于保证进展台账、问题记录、发布质量门禁和长期运营稳定，但不应抢占基础闭环事项之前。
+
 ### 特性进展总表
 
-| 事项 / 特性 | 类型 | 当前状态 | 当前闭环结论 | 详细进展 / 设计 / 实施文档 |
-|---|---|---|---|---|
-| Governance 治理主链首轮落地 | 核心能力 | closed | sticky / alignment / cascade / semantic / shadow 首轮能力已闭环，当前已转入观测增强与运营化阶段；输入侧 Prompt / Intent Optimization 被定义为治理下一轮增强子特性，而不是独立新总线 | `docs/superpowers/plans/2026-04-04-router-evolution-roadmap.md` ; `docs/superpowers/specs/2026-04-04-router-governance-design.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-04-governance-milestone-summary.md` ; `docs/superpowers/plans/2026-04-04-governance-release-notes.md` |
-| 治理观测增强 / 运营化 | 持续演进特性 | in_progress | metrics、快照、归档、异常检测和时间窗趋势已具备第一轮基础，当前闭环结论是“已从可调试进入可运营增强阶段，但尚未完成长期运营闭环”；输入侧优化将作为治理增强链路的下一轮设计输入推进 | `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` |
-| 部署形态与远程接入收敛 | 持续演进特性 | in_progress | 本地单机部署已形成基础，但服务端 / 客户端、远程注册、集中式路由服务与多端复用仍未成体系；当前闭环结论是“已从单机代理心智进入部署形态收敛设计阶段，且首轮实施顺序已经拆出，但最小双端边界尚未落地” | `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` ; `docs/superpowers/plans/2026-04-17-deployment-and-remote-access-implementation.md` ; `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` ; `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` |
-| UI 双层工作台收敛 | 持续演进特性 | in_progress | 当前 `/ui` 已同时承载配置编辑与治理观测，但使用者与维护者路径尚未显式分层；当前闭环结论是“UI 双层产品边界已立项，且首轮页面分层实施顺序已经明确，但信息架构、入口导航与角色分区仍待收口” | `docs/superpowers/specs/2026-04-17-dual-surface-ui-ux-design.md` ; `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` ; `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` |
-| SmartRouter 早期专项计划 | 历史专项 | archived | SmartRouter 已不再是独立新增主线，当前闭环结论是“历史计划价值保留，但后续演进应纳入统一 Router 心智与配置产品化体系” | `docs/superpowers/plans/2026-03-22-smart-router.md` |
-| `ctr setup` 早期实施计划 | 历史专项 | archived | setup 已完成从早期 checklist 到产品入口的阶段跃迁，当前闭环结论是“原始计划归档，后续演进转由 setup UX 与配置产品化文档承接” | `docs/superpowers/plans/2026-04-02-ctr-setup.md` ; `docs/superpowers/specs/2026-04-02-setup-usability-design.md` |
-| 配置产品化最终收口 | 持续演进特性 | in_progress | `Models` 抽象、message IR、setup、`/ui` 与 warning 通道已建立基础闭环，当前闭环结论是“统一入口已形成，但最终产品心智与全入口一致性仍未完全收口” | `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` |
-| OpenAI-compatible 兼容差异内化 | 持续演进特性 | in_progress | compatibility profile 已进入模型编译与 dispatch 骨架，当前闭环结论是“兼容语义已内化起步，但真实 provider 差异矩阵与回归样本仍未闭环” | `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/specs/2026-04-11-legacy-config-migration-design.md` ; `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` |
-| legacy config migration 收敛 | 持续演进特性 | in_progress | legacy migration 已能补齐最少必要字段并内化部分旧语义，当前闭环结论是“迁移主路径可用，但与 compatibility / doctor 的进一步收口仍在推进” | `docs/superpowers/specs/2026-04-11-legacy-config-migration-design.md` |
-| 统一 Router 运行时收敛 | 持续演进特性 | in_progress | 运行时链路、schema、dispatch 与统一配置入口已开始收敛，当前闭环结论是“运行时统一方向成立，但剩余链路与对外叙事尚未同时闭环” | `docs/superpowers/specs/2026-04-09-unified-router-evolution-design.md` ; `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md` |
-| TriggerRouter / SmartRouter 对外心智收编 | 持续演进特性 | in_progress | 已完成独立立项与实施拆解，当前闭环结论是“对外产品心智已被正式单列，但 README / setup / example config / `/ui` 仍未全部切换到统一 Router 叙事” | `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
-| CLI / setup UX 重设计 | 持续演进特性 | in_progress | migration-first、model-id-first 方向已明确，当前闭环结论是“主入口 redesign 已立项并部分落地，但 CLI / README / 模板 / `/ui` 叙事尚未完全统一” | `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` ; `docs/superpowers/plans/2026-04-10-cli-setup-ux-redesign-implementation.md` |
-| CLI 稳定性与发布工程 | 持续演进特性 | in_progress | packaged CLI E2E、acceptance、release-stage wrapper 已形成首轮门禁，当前闭环结论是“发布前质量门槛已成型，但仍需持续覆盖新路径与压低回归概率” | `docs/superpowers/specs/2026-04-12-cli-e2e-test-design.md` |
-| 进展文档体系治理 | 治理事项 | in_progress | 公共入口已切换为不带日期标签的统一基线，当前闭环结论是“单一入口已经建立，但后续仍需按规则维护特性表与问题记录，防止再次膨胀或口径漂移” | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
-| 问题修改记录 | 治理事项 | in_progress | 问题记录文档已建立，当前闭环结论是“历史问题已开始沉淀为可追踪事项，后续所有文档治理偏差必须在此追加记录并闭环” | `docs/superpowers/plans/progress-issue-log.md` |
+| 事项 / 特性 | 类型 | 当前状态 | 当前优先级 | 当前闭环结论 | 详细进展 / 设计 / 实施文档 |
+|---|---|---|---|---|---|
+| Governance 治理主链首轮落地 | 核心能力 | closed | closed | sticky / alignment / cascade / semantic / shadow 首轮能力已闭环，当前已转入观测增强与运营化阶段；输入侧 Prompt / Intent Optimization 被定义为治理下一轮增强子特性，而不是独立新总线 | `docs/superpowers/plans/2026-04-04-router-evolution-roadmap.md` ; `docs/superpowers/specs/2026-04-04-router-governance-design.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-04-governance-milestone-summary.md` ; `docs/superpowers/plans/2026-04-04-governance-release-notes.md` |
+| 治理观测增强 / 运营化 | 持续演进特性 | in_progress | P2-能力扩展 | metrics、快照、归档、异常检测和时间窗趋势已具备第一轮基础，当前闭环结论是“已从可调试进入可运营增强阶段，但尚未完成长期运营闭环”；输入侧优化将作为治理增强链路的下一轮设计输入推进 | `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` |
+| 部署形态与远程接入收敛 | 持续演进特性 | in_progress | P2-能力扩展 | 本地单机部署已形成基础，但服务端 / 客户端、远程注册、集中式路由服务与多端复用仍未成体系；当前闭环结论是“已从单机代理心智进入部署形态收敛设计阶段，且首轮实施顺序已经拆出，但最小双端边界尚未落地” | `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` ; `docs/superpowers/plans/2026-04-17-deployment-and-remote-access-implementation.md` ; `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` ; `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` |
+| UI 双层工作台收敛 | 持续演进特性 | in_progress | P2-能力扩展 | 当前 `/ui` 已同时承载配置编辑与治理观测，但使用者与维护者路径尚未显式分层；当前闭环结论是“UI 双层产品边界已立项，且首轮页面分层实施顺序已经明确，但信息架构、入口导航与角色分区仍待收口” | `docs/superpowers/specs/2026-04-17-dual-surface-ui-ux-design.md` ; `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` ; `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` |
+| SmartRouter 早期专项计划 | 历史专项 | archived | archived | SmartRouter 已不再是独立新增主线，当前闭环结论是“历史计划价值保留，但后续演进应纳入统一 Router 心智与配置产品化体系” | `docs/superpowers/plans/2026-03-22-smart-router.md` |
+| `ctr setup` 早期实施计划 | 历史专项 | archived | archived | setup 已完成从早期 checklist 到产品入口的阶段跃迁，当前闭环结论是“原始计划归档，后续演进转由 setup UX 与配置产品化文档承接” | `docs/superpowers/plans/2026-04-02-ctr-setup.md` ; `docs/superpowers/specs/2026-04-02-setup-usability-design.md` |
+| 配置产品化最终收口 | 持续演进特性 | in_progress | P1-主路径易用性 | `Models` 抽象、message IR、setup、`/ui` 与 warning 通道已建立基础闭环，当前闭环结论是“统一入口已形成，但最终产品心智与全入口一致性仍未完全收口” | `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` |
+| OpenAI-compatible 兼容差异内化 | 持续演进特性 | in_progress | P0-基础功能闭环 | compatibility profile 已进入模型编译与 dispatch 骨架，当前闭环结论是“兼容语义已内化起步，但真实 provider 差异矩阵与回归样本仍未闭环” | `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/specs/2026-04-11-legacy-config-migration-design.md` ; `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` |
+| legacy config migration 收敛 | 持续演进特性 | in_progress | P0-基础功能闭环 | legacy migration 已能补齐最少必要字段并内化部分旧语义，当前闭环结论是“迁移主路径可用，但与 compatibility / doctor 的进一步收口仍在推进” | `docs/superpowers/specs/2026-04-11-legacy-config-migration-design.md` |
+| 统一 Router 运行时收敛 | 持续演进特性 | in_progress | P0-基础功能闭环 | 运行时链路、schema、dispatch 与统一配置入口已开始收敛，当前闭环结论是“运行时统一方向成立，但剩余链路与对外叙事尚未同时闭环” | `docs/superpowers/specs/2026-04-09-unified-router-evolution-design.md` ; `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md` |
+| TriggerRouter / SmartRouter 对外心智收编 | 持续演进特性 | in_progress | P1-主路径易用性 | 已完成独立立项与实施拆解，当前闭环结论是“对外产品心智已被正式单列，但 README / setup / example config / `/ui` 仍未全部切换到统一 Router 叙事” | `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
+| CLI / setup UX 重设计 | 持续演进特性 | in_progress | P1-主路径易用性 | migration-first、model-id-first 方向已明确，当前闭环结论是“主入口 redesign 已立项并部分落地，但 CLI / README / 模板 / `/ui` 叙事尚未完全统一” | `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` ; `docs/superpowers/plans/2026-04-10-cli-setup-ux-redesign-implementation.md` |
+| CLI 稳定性与发布工程 | 持续演进特性 | in_progress | P3-治理支撑 | packaged CLI E2E、acceptance、release-stage wrapper 已形成首轮门禁，当前闭环结论是“发布前质量门槛已成型，但仍需持续覆盖新路径与压低回归概率” | `docs/superpowers/specs/2026-04-12-cli-e2e-test-design.md` |
+| 进展文档体系治理 | 治理事项 | in_progress | P3-治理支撑 | 公共入口已切换为不带日期标签的统一基线，当前闭环结论是“单一入口已经建立，但后续仍需按规则维护特性表与问题记录，防止再次膨胀或口径漂移” | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
+| 问题修改记录 | 治理事项 | in_progress | P3-治理支撑 | 问题记录文档已建立，当前闭环结论是“历史问题已开始沉淀为可追踪事项，后续所有文档治理偏差必须在此追加记录并闭环” | `docs/superpowers/plans/progress-issue-log.md` |
 
 ## 三、问题修改记录关联
 
@@ -180,6 +189,7 @@
 
 - 项目整体阶段定义
 - 特性 / 事项级总表
+- 优先级口径与闭环判定标准
 - 历史文档的角色说明与入口归并
 - 需要团队统一对齐的当前基线与边界
 - 问题修改记录文档的入口与维护约束
@@ -203,16 +213,156 @@
 3. 若状态发生变化，先更新本文档表格中的状态与闭环结论，再回补特性文档细节
 4. 若出现文档结构、状态口径或入口治理问题，必须同步追加到 `docs/superpowers/plans/progress-issue-log.md`
 
-### 4. 当前优先闭环顺序
+### 4. 优先级闭环判定标准
 
-当前建议的闭环顺序：
+后续判断某条主线是否可以从“推进中”切换到“阶段闭环 / closed”，统一以该主线对应优先级的闭环判定标准为准，而不只看是否已经立项或拆出实施计划。
+
+#### P0：基础功能闭环判定
+
+满足以下条件，才能认为 P0 事项达到阶段闭环：
+
+1. 主路径运行时能力已经落地，且不会阻塞默认请求链路、兼容链路或迁移链路。
+2. 对应 schema / compile / dispatch / migration 等基础链路已有测试覆盖，且目标测试可以稳定通过。
+3. 关键兼容语义不再停留在骨架或占位状态，而是形成可验证的真实行为闭环。
+4. 后续剩余工作即使存在，也主要属于扩展能力、补样本或体验优化，而不是主路径不可用。
+
+#### P1：主路径易用性闭环判定
+
+满足以下条件，才能认为 P1 事项达到阶段闭环：
+
+1. 用户主入口叙事已经统一，CLI / setup / README / `/ui` 不再明显分叉。
+2. 默认使用路径已经可理解、可配置、可保存、可进入，不依赖用户先理解历史术语或内部实现。
+3. 相关入口文案、模板、页面导航或保存路径已完成最小一致性收口。
+4. 剩余事项主要是高级能力延展，而不是基础使用门槛过高。
+
+#### P2：能力扩展与体验增强闭环判定
+
+满足以下条件，才能认为 P2 事项达到阶段闭环：
+
+1. 增强能力已建立明确产品边界，不再与主路径职责混杂。
+2. 对应能力至少完成一轮最小实现，核心页面 / 接口 / 状态表达可达且可验证。
+3. 扩展能力已具备独立验证方式，包括 targeted tests、状态查询或文档 checklist。
+4. 剩余工作主要属于增强覆盖面、长期运营化或更复杂场景，而不是能力边界本身仍不成立。
+
+#### P3：治理支撑与持续维护闭环判定
+
+满足以下条件，才能认为 P3 事项达到阶段闭环：
+
+1. 质量门禁、文档入口、问题记录或发布验证链路已形成稳定维护机制。
+2. 新增事项、状态变化和问题修正已有统一维护位置，不再依赖临时口径。
+3. 对应治理动作具备持续执行抓手，例如回归测试、issue log、release verify 或台账规则。
+4. 剩余工作主要是持续维护频率和覆盖面优化，而不是机制缺失。
+
+### 5. 当前优先闭环顺序
+
+当前建议按“先基础功能、再主路径易用性、最后能力扩展与治理支撑”的逻辑闭环：
+
+#### P0：基础功能闭环
 
 1. OpenAI-compatible 兼容差异内化
-2. TriggerRouter / SmartRouter 对外心智收编
-3. 配置产品化最终收口
-4. 部署形态与远程接入收敛
-5. 统一 Router 运行时收敛的剩余口径统一
-6. CLI / setup UX 与发布工程持续收口
-7. UI 双层工作台收敛
-8. 治理观测增强 / 运营化
-9. 进展文档体系治理与问题记录闭环持续维护
+2. legacy config migration 收敛
+3. 统一 Router 运行时收敛
+
+##### P0 主线离闭环还差什么
+
+- `OpenAI-compatible 兼容差异内化`
+  - 补齐真实 provider 差异矩阵与回归样本，不再只停留在 compatibility profile 骨架。
+  - 继续覆盖复杂消息块、更多 capability 降级与 provider 差异回归，确保主请求链路行为可验证。
+  - 将现有 warning / diagnostics 与真实 provider 行为继续对齐，避免“编译期已提示、运行时仍失真”。
+- `legacy config migration 收敛`
+  - 以真实 `.claude-code-router/config.json` 样本继续补 migration 测试，锁定宽松 JSON、字段优先级与错误路径。
+  - 把 legacy 路由槽位、`skippedFields` 与 module id 映射规则补齐到可稳定断言的程度。
+  - 完成与 compatibility / doctor 的进一步收口，避免“能迁移但迁后仍不可诊断或不可运行”。
+- `统一 Router 运行时收敛`
+  - 按实施计划继续完成 runtime decision chain、default-governance boundaries、schema normalization 和 write path 收口。
+  - 让 trace / observability / migration diagnostics 与 unified route-source 保持一致，不再残留 legacy labels。
+  - 把 setup / `/ui` / example config / docs 的输出统一建立在稳定运行时链路之上，而不是提前切默认口径。
+
+#### P1：主路径易用性
+
+4. TriggerRouter / SmartRouter 对外心智收编
+5. 配置产品化最终收口
+6. CLI / setup UX 重设计
+
+##### P1 主线离闭环还差什么
+
+- `TriggerRouter / SmartRouter 对外心智收编`
+  - 完成 README 首屏、快速开始、setup 完成页、example config 与 `/ui` 主文案的统一 Router 叙事收编。
+  - 建立该主线的专门回归测试组，避免 README / setup / example / UI 仍各讲各话。
+  - 保证旧术语只保留在兼容说明或历史映射层，而不是继续占据用户第一入口。
+- `配置产品化最终收口`
+  - 继续把 warning、capability hint、repair/save 路径与 setup 多模型引导收拢为统一入口体验。
+  - 补齐更复杂 warning 在 setup 侧的快捷修正模板，减少“UI 可修、CLI 只能提示”的分叉。
+  - 让 `/ui`、setup、配置文件和编译器围绕同一字段心智继续收口，而不是功能已在、入口仍分裂。
+- `CLI / setup UX 重设计`
+  - 按实施计划继续完成 branch ordering、model-id-first fresh flow、help 文案与 README 快速开始的一致性落地。
+  - 把 migration-first、最小可用配置优先和 `Models + Router.default` 心智贯彻到 setup 输出与 next steps。
+  - 避免 provider-centric 旧叙事从 help、模板、setup 问答或完成页中回流。
+
+#### P2：能力扩展与体验增强
+
+7. 部署形态与远程接入收敛
+8. UI 双层工作台收敛
+9. 治理观测增强 / 运营化
+
+##### P2 主线离闭环还差什么
+
+- `部署形态与远程接入收敛`
+  - 先按实施计划补齐 service mode、remote status、registration 与 service info，形成最小可验证的服务端 / 客户端边界。
+  - 让 setup、doctor、`/ui` 与公开文档都能稳定表达“本地使用 vs 连接远程服务”，避免远程能力只停留在底层 schema 或 API。
+  - 完成聚焦回归测试与 build 验证，确认 local 默认路径不被破坏、也没有引入平行运行时心智。
+- `UI 双层工作台收敛`
+  - 先完成 service context 顶栏、页面能力归类和使用者 / 维护者 surface 标识，为后续导航拆分建立稳定锚点。
+  - 继续完成首页双入口、使用者编辑主路径和维护者观测主路径收口，确保现有 `/ui` 功能仍可达而不再混杂成单页调试台。
+  - 同步把 README、configuration guide 与 setup 入口说明切到“使用者工作台优先、维护者工作台独立承接”的统一叙事。
+- `治理观测增强 / 运营化`
+  - 在现有 metrics、异常检测、快照、归档和趋势能力基础上，补齐长期运营闭环所需的稳定入口、查询方式与独立验证抓手。
+  - 继续把治理增强与输入侧优化拉通，确保 Prompt / Intent Optimization 等下一轮治理子特性能纳入统一 trace、metrics 与运营观察口径。
+  - 让治理观测边界与维护者工作台、导出 / 调度 / archive 管理形成稳定配套，而不是能力已在但日常运营路径仍然分散。
+
+#### P3：治理支撑与持续维护
+
+10. CLI 稳定性与发布工程
+11. 进展文档体系治理
+12. 问题修改记录
+
+##### P3 主线离闭环还差什么
+
+- `CLI 稳定性与发布工程`
+  - 继续把 packaged CLI、acceptance、release-stage wrapper 的验证切到真实用户流 contract，确保帮助、init、setup、start/stop/status、code、ui 等命令的 side effect 与行为承诺都能被稳定拦截回归。
+  - 补齐隔离环境、允许写路径白名单、legacy migration 主路径与 alternate-port 等高风险 E2E slice，避免发布门禁只覆盖源码级逻辑而漏掉打包后行为。
+  - 让 release verify 从“已有首轮门禁”进一步收口为可持续执行的稳定机制，压低新入口和新交互路径的回归概率。
+- `进展文档体系治理`
+  - 继续按统一基线规则维护总表、优先级、闭环判定和 remaining gap，避免后续新增事项时重新回到散文式入口或多入口并存。
+  - 让新增特性、状态变化、历史文档收编和治理偏差都能先回到统一入口再下沉细节，确保入口职责边界不再漂移。
+  - 把当前这套排产抓手持续维持为单一事实来源，而不是只在本轮整理后再次失养。
+- `问题修改记录`
+  - 后续所有文档治理偏差、错误修改和结构回退都必须增量追加到 issue log，而不是停留在会话修正或临时口头结论。
+  - 继续保证每条问题记录都带首次暴露时间、影响范围、修正动作、当前状态和闭环结论，形成真正可复盘的治理资产。
+  - 让问题记录与统一基线形成联动机制：发现问题时能追到入口规则，调整入口时也能反查历史反例，避免重复踩坑。
+
+### 6. 近期执行顺序（排产抓手）
+
+为避免后续再次出现“优先级已定义，但实际推进顺序仍靠临时体感判断”的问题，当前建议把未完成主线按以下顺序推进。
+
+| 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
+|---|---|---|---|---|
+| 1 | OpenAI-compatible 兼容差异内化 | P0-基础功能闭环 | 先补真实 provider 差异矩阵、复杂消息块回归和 capability 降级样本 | 它直接影响主请求链路真实性，是 P0 中最靠近真实运行时行为的一条主线，不先补齐会放大后续 migration 与 runtime 收口的不确定性 |
+| 2 | legacy config migration 收敛 | P0-基础功能闭环 | 继续用真实 legacy 样本补 migration 测试，并收口到 compatibility / doctor | 它决定老用户迁移主路径是否稳定可用；若迁移链路不闭环，setup / doctor / README 的后续统一都会失真 |
+| 3 | 统一 Router 运行时收敛 | P0-基础功能闭环 | 按实施计划继续补 runtime chain、governance boundaries、schema normalization 和 write path | 它是 P1 文案和入口统一的运行时底座；先把运行时链路收稳，后续对外心智和 setup/UI 输出才不会提前切口径 |
+| 4 | TriggerRouter / SmartRouter 对外心智收编 | P1-主路径易用性 | 优先统一 README、setup 完成页、example config 与 `/ui` 主文案 | 在 P0 底座可用后，最先要解决的是用户第一入口叙事，避免旧术语继续占据默认心智 |
+| 5 | 配置产品化最终收口 | P1-主路径易用性 | 继续收拢 warning、capability hint、repair/save 与 setup 多模型引导 | 它承接用户实际配置主路径，排在对外心智收编之后、CLI/setup redesign 之前，能先把字段心智和修正路径收稳 |
+| 6 | CLI / setup UX 重设计 | P1-主路径易用性 | 继续完成 migration-first、model-id-first 与 help/README 一致性落地 | 它是 P1 的主入口收口动作，但要建立在统一叙事和配置心智已基本稳定之上，避免反复改问答流 |
+| 7 | 部署形态与远程接入收敛 | P2-能力扩展与体验增强 | 先补最小双端边界、remote status 与 setup/doctor/ui 本地-远程心智 | 这条线已经超出基础闭环，适合放在主路径可用后推进，否则容易让基础入口和远程能力交叉返工 |
+| 8 | UI 双层工作台收敛 | P2-能力扩展与体验增强 | 先完成 service context、surface 标识与首页双入口 | 它依赖前面配置主路径、远程语义和维护者边界更稳定，否则 UI 分层容易只做视觉拆分而不是产品收口 |
+| 9 | 治理观测增强 / 运营化 | P2-能力扩展与体验增强 | 继续补长期运营入口、验证抓手，并拉通输入侧优化 | 它在现阶段已经有首轮基础，适合放在部署与 UI 边界更清晰后再做长期运营化，避免观测入口再次分散 |
+| 10 | CLI 稳定性与发布工程 | P3-治理支撑 | 持续补 packaged CLI 用户流 E2E 与 release verify slice | 它需要持续跟随前面新路径一起扩 coverage，属于伴随式治理支撑，不应抢到主功能闭环之前 |
+| 11 | 进展文档体系治理 | P3-治理支撑 | 持续维护统一基线、优先级、闭环标准和执行顺序表 | 它是总台账机制，必须持续维护，但其价值建立在前面主线真实推进基础上 |
+| 12 | 问题修改记录 | P3-治理支撑 | 发现治理偏差就即时追加 issue log 并更新闭环结论 | 它是防重复踩坑机制，属于全程伴随动作，不单独抢占功能主线资源，但必须同步执行 |
+
+补充约束：
+
+1. `10-12` 这三条 P3 事项虽然排在顺序表后段，但不是“最后才做”，而是必须从当前开始伴随推进；这里只表示它们不应抢占 `1-9` 的主闭环顺序。
+2. 若 `1-3` 任一 P0 主线出现新增阻塞项，应优先在当前顺序表内调整，而不是直接跳做新的 P1 / P2 事项。
+3. 若 `4-6` 中某条 P1 主线因上游 runtime / migration 变化而失去前提，应先回补对应 P0 主线，再恢复 P1 推进。
+4. 后续若新增事项，必须同时补：优先级、remaining gap、以及本顺序表中的插入位置与原因。
