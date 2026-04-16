@@ -18,6 +18,8 @@
 3. 关键词不足时的语义识别
 4. 对低质量输出的监督与拦截
 
+在统一进展基线更新后，治理下一轮增强还额外纳入一项输入侧子特性：Prompt / Intent Optimization。它属于治理增强链路，而不是新的独立总线；详细设计见 `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md`。
+
 ## 2. 非目标
 
 本轮设计不追求：
@@ -464,7 +466,32 @@ Governance:
 - 再根据数据决定阈值和采样率
 - 避免一开始就引入不可解释的自动行为
 
-## 14. 结论
+## 14. 下一轮输入侧治理补充
+
+在 sticky / semantic / cascade / shadow 首轮闭环后，治理链下一轮重点之一是把输入侧优化正式纳入治理增强范围。
+
+定位原则：
+
+- Prompt / Intent Optimization 是治理子特性，而不是独立主线
+- 默认关闭，且优先采用 tags / structured hint 等保守模式
+- 必须与 Context Extractor、Semantic Intent、trace 和 Shadow Supervisor 共享同一条证据链
+- 不能替代用户原始输入，只能做可回溯、可解释的增强
+
+建议接入顺序：
+
+```text
+request intake
+  -> context extractor
+  -> input optimization
+  -> sticky / trigger / semantic / smart router
+  -> upstream execution
+```
+
+这一步的目标不是“替用户写提示词”，而是让治理前链获得更清晰的任务信号。详细方案见：
+
+- `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md`
+
+## 15. 结论
 
 这套设计的核心，不是简单增加几个新模块，而是建立一条更完整的决策闭环：
 

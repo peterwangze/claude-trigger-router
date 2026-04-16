@@ -21,7 +21,7 @@
 
 截至 2026-04-16，项目当前状态统一定义为：
 
-> 项目已经完成治理主链首轮能力落地，当前进入“治理观测增强、配置产品化、OpenAI-compatible 兼容差异内化、统一 Router 收敛、CLI / setup UX 与发布工程持续收口”并行推进阶段。
+> 项目已经完成治理主链首轮能力落地，当前进入“治理观测增强、配置产品化、OpenAI-compatible 兼容差异内化、统一 Router 收敛、CLI / setup UX 与发布工程持续收口、部署形态收敛与 UI 双层工作台设计并行推进”阶段。
 
 这一定义用于替代历史文档中分散、彼此可能滞后的阶段描述。
 
@@ -53,8 +53,10 @@
 
 | 事项 / 特性 | 类型 | 当前状态 | 当前闭环结论 | 详细进展 / 设计 / 实施文档 |
 |---|---|---|---|---|
-| Governance 治理主链首轮落地 | 核心能力 | closed | sticky / alignment / cascade / semantic / shadow 首轮能力已闭环，当前已转入观测增强与运营化阶段 | `docs/superpowers/plans/2026-04-04-router-evolution-roadmap.md` ; `docs/superpowers/specs/2026-04-04-router-governance-design.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-04-governance-milestone-summary.md` ; `docs/superpowers/plans/2026-04-04-governance-release-notes.md` |
-| 治理观测增强 / 运营化 | 持续演进特性 | in_progress | metrics、快照、归档、异常检测和时间窗趋势已具备第一轮基础，当前闭环结论是“已从可调试进入可运营增强阶段，但尚未完成长期运营闭环” | `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` |
+| Governance 治理主链首轮落地 | 核心能力 | closed | sticky / alignment / cascade / semantic / shadow 首轮能力已闭环，当前已转入观测增强与运营化阶段；输入侧 Prompt / Intent Optimization 被定义为治理下一轮增强子特性，而不是独立新总线 | `docs/superpowers/plans/2026-04-04-router-evolution-roadmap.md` ; `docs/superpowers/specs/2026-04-04-router-governance-design.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-04-governance-milestone-summary.md` ; `docs/superpowers/plans/2026-04-04-governance-release-notes.md` |
+| 治理观测增强 / 运营化 | 持续演进特性 | in_progress | metrics、快照、归档、异常检测和时间窗趋势已具备第一轮基础，当前闭环结论是“已从可调试进入可运营增强阶段，但尚未完成长期运营闭环”；输入侧优化将作为治理增强链路的下一轮设计输入推进 | `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` |
+| 部署形态与远程接入收敛 | 持续演进特性 | in_progress | 本地单机部署已形成基础，但服务端 / 客户端、远程注册、集中式路由服务与多端复用仍未成体系；当前闭环结论是“已从单机代理心智进入部署形态收敛设计阶段，且首轮实施顺序已经拆出，但最小双端边界尚未落地” | `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` ; `docs/superpowers/plans/2026-04-17-deployment-and-remote-access-implementation.md` ; `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` ; `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` |
+| UI 双层工作台收敛 | 持续演进特性 | in_progress | 当前 `/ui` 已同时承载配置编辑与治理观测，但使用者与维护者路径尚未显式分层；当前闭环结论是“UI 双层产品边界已立项，且首轮页面分层实施顺序已经明确，但信息架构、入口导航与角色分区仍待收口” | `docs/superpowers/specs/2026-04-17-dual-surface-ui-ux-design.md` ; `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` ; `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` |
 | SmartRouter 早期专项计划 | 历史专项 | archived | SmartRouter 已不再是独立新增主线，当前闭环结论是“历史计划价值保留，但后续演进应纳入统一 Router 心智与配置产品化体系” | `docs/superpowers/plans/2026-03-22-smart-router.md` |
 | `ctr setup` 早期实施计划 | 历史专项 | archived | setup 已完成从早期 checklist 到产品入口的阶段跃迁，当前闭环结论是“原始计划归档，后续演进转由 setup UX 与配置产品化文档承接” | `docs/superpowers/plans/2026-04-02-ctr-setup.md` ; `docs/superpowers/specs/2026-04-02-setup-usability-design.md` |
 | 配置产品化最终收口 | 持续演进特性 | in_progress | `Models` 抽象、message IR、setup、`/ui` 与 warning 通道已建立基础闭环，当前闭环结论是“统一入口已形成，但最终产品心智与全入口一致性仍未完全收口” | `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` |
@@ -143,17 +145,32 @@
   - 定位：TriggerRouter / SmartRouter 对外心智收编实施计划
   - 角色：保留为统一 Router 对外产品表达收编的专项执行文档
 
-### 5. CLI / setup UX 与发布工程文档
+### 5. CLI / setup UX、部署形态与双层 UI 文档
 
 - `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md`
   - 定位：CLI / setup UX 重设计方案
-  - 角色：保留为 migration-first、model-id-first 入口设计依据
+  - 角色：保留为 migration-first、model-id-first 入口设计依据，并承接使用者界面入口与远程接入心智收口
 - `docs/superpowers/plans/2026-04-10-cli-setup-ux-redesign-implementation.md`
   - 定位：CLI / setup UX 重设计实施计划
   - 角色：保留为 setup 流程、帮助文本和 README 对齐的专项实施文档
 - `docs/superpowers/specs/2026-04-12-cli-e2e-test-design.md`
   - 定位：CLI E2E / acceptance / release-stage 验证设计
   - 角色：保留为 CLI 稳定性与发布工程主线的测试设计依据
+- `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md`
+  - 定位：部署形态与远程接入设计文档
+  - 角色：保留为本地 / server / cloud 部署、服务端 / 客户端职责和远程注册边界的设计依据
+- `docs/superpowers/plans/2026-04-17-deployment-and-remote-access-implementation.md`
+  - 定位：部署形态与远程接入实施计划
+  - 角色：保留为 service mode、remote status、registration、setup / doctor / UI 收口的实施拆解文档
+- `docs/superpowers/specs/2026-04-17-dual-surface-ui-ux-design.md`
+  - 定位：UI 双层工作台设计文档
+  - 角色：保留为使用者界面 / 维护者界面分层、导航与演进顺序的设计依据
+- `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md`
+  - 定位：UI 双层工作台实施计划
+  - 角色：保留为 `/ui` 顶层导航、页面分层、使用者 / 维护者工作台收口的实施拆解文档
+- `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md`
+  - 定位：治理输入侧优化设计文档
+  - 角色：保留为 Prompt / Intent Optimization 作为治理增强子特性的设计依据
 
 ## 五、后续维护规则
 
@@ -193,7 +210,9 @@
 1. OpenAI-compatible 兼容差异内化
 2. TriggerRouter / SmartRouter 对外心智收编
 3. 配置产品化最终收口
-4. 统一 Router 运行时收敛的剩余口径统一
-5. CLI / setup UX 与发布工程持续收口
-6. 治理观测增强 / 运营化
-7. 进展文档体系治理与问题记录闭环持续维护
+4. 部署形态与远程接入收敛
+5. 统一 Router 运行时收敛的剩余口径统一
+6. CLI / setup UX 与发布工程持续收口
+7. UI 双层工作台收敛
+8. 治理观测增强 / 运营化
+9. 进展文档体系治理与问题记录闭环持续维护

@@ -78,6 +78,16 @@ CLI 对用户暴露的主概念应收敛为：
 - 内部 schema 转换术语
 - 复杂 governance 拓扑
 
+同时，随着部署形态与 `/ui` 演进，setup / CLI 还需要额外承担两类产品边界收敛：
+
+- 对使用者，setup 应继续是“最短路径得到可用配置”的入口
+- 对维护者或远程服务使用者，setup / CLI 需要显式表达当前是在管理本地服务还是连接远程服务
+
+因此后续 UX 收口不再只围绕 model-id-first，还要同时为“使用者界面 vs 维护者界面”以及“本地 vs 远程服务”提供统一入口心智。详细承接文档见：
+
+- `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md`
+- `docs/superpowers/specs/2026-04-17-dual-surface-ui-ux-design.md`
+
 ---
 
 ## 4. 命令分工重定义

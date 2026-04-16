@@ -153,7 +153,24 @@
 - 一个模型入口在三条路径上表达一致
 - 校验错误能够定位到统一字段名
 
-## 6. 里程碑
+## 6. 与部署形态 / 远程接入的关系
+
+配置产品化第二阶段虽然以统一模型 schema、message IR 和能力表达为主，但后续部署形态收敛会直接消费这些产物。
+
+需要提前明确：
+
+- remote service 场景下仍应复用同一份 compiled model schema，而不是再定义一套远程专用模型结构
+- 客户端查询到的 compiled models、capabilities 和 warnings，应与本地 `/ui` / setup 看到的语义一致
+- 服务端 / 客户端分层后，配置入口要能区分“编辑本地配置”与“连接远程服务”，但不能把 schema 语义拆裂
+
+因此“部署形态与远程接入收敛”虽然在统一基线中单列为持续演进事项，其底层仍依赖本计划中的 schema / capability / message IR 收敛。
+
+相关设计承接文档：
+
+- `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md`
+- `docs/superpowers/specs/2026-04-17-dual-surface-ui-ux-design.md`
+
+## 7. 里程碑
 
 | 里程碑 | 目标 | 状态 |
 |--------|------|------|
