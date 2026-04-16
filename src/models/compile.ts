@@ -3,12 +3,14 @@ import { getModelApi, getModelInterface, getModelKey, normalizeModelEndpointConf
 
 export type TCompatibilityProfile =
   | 'anthropic-native'
-  | 'openrouter-like'
-  | 'qianfan-coding'
-  | 'minimax-chatcompletion-v2'
-  | 'generic-openai-compatible';
+  | 'openai-compatible-anthropic-dispatch';
 
 export type TDispatchFormat = 'anthropic_messages' | 'openai_chat';
+
+export interface ICompatibilityProfileDescription {
+  label: string;
+  summary: string;
+}
 
 export interface ICompiledModelRef {
   id: string;
@@ -63,22 +65,7 @@ function inferCompatibilityProfile(
     return 'anthropic-native';
   }
 
-  const api = getModelApi(item);
-  const vendorHint = item.metadata?.vendor_hint?.trim().toLowerCase();
-
-  if (vendorHint === 'openrouter' || api.includes('openrouter.ai')) {
-    return 'openrouter-like';
-  }
-
-  if (vendorHint === 'qianfan' || vendorHint === 'qianfan-coding' || api.includes('qianfan.baidubce.com/v2/coding')) {
-    return 'qianfan-coding';
-  }
-
-  if (vendorHint === 'minimax' || vendorHint === 'minimax-chatcompletion-v2' || api.includes('/v1/text/chatcompletion_v2')) {
-    return 'minimax-chatcompletion-v2';
-  }
-
-  return 'generic-openai-compatible';
+  return 'openai-compatible-anthropic-dispatch';
 }
 
 export function getDispatchFormatForProfile(
@@ -90,16 +77,52 @@ export function getDispatchFormatForProfile(
   }
 
   switch (compatibilityProfile) {
-    case 'openrouter-like':
-    case 'qianfan-coding':
-    case 'minimax-chatcompletion-v2':
+    case 'openai-compatible-anthropic-dispatch':
       return 'anthropic_messages';
     case 'anthropic-native':
       return 'anthropic_messages';
-    case 'generic-openai-compatible':
-      return 'anthropic_messages';
     default:
       return 'anthropic_messages';
+  }
+}
+
+export function describeCompatibilityProfile(profile: TCompatibilityProfile): ICompatibilityProfileDescription {
+  switch (profile) {
+    case 'anthropic-native':
+      return {
+        label: 'Anthropic native',
+        summary: '目标接口原生接受 Anthropic messages 形态，请求无需做 OpenAI-compatible 兼容转换。',
+      };
+    case 'openai-compatible-anthropic-dispatch':
+      return {
+        label: 'OpenAI-compatible / Anthropic dispatch',
+        summary: '目标接口属于 OpenAI-compatible 兼容族，运行时会自动使用 Anthropic-style dispatch 处理 tools、messages 与控制字段差异。',
+      };
+    default:
+      return {
+        label: profile,
+        summary: '未知兼容画像。',
+      };
+  }
+}
+
+export function describeDispatchFormat(format: TDispatchFormat): ICompatibilityProfileDescription {
+  switch (format) {
+    case 'anthropic_messages':
+      return {
+        label: 'Anthropic-style messages',
+        summary: '运行时会把统一请求编译成 Anthropic messages 形态后再发往目标接口。',
+      };
+    case 'openai_chat':
+      return {
+        label: 'OpenAI chat completions',
+        summary: '运行时会把统一请求编译成 OpenAI chat completions 形态后再发往目标接口。',
+      };
+    default:
+      return {
+        label: format,
+        summary: '未知 dispatch 形态。',
+      };
   }
 }
 
@@ -149,9 +172,9 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
         protocol: modelInterface,
         compatibilityProfile,
         dispatchFormat: getDispatchFormatForProfile(modelInterface, compatibilityProfile),
-        thinking: item.thinking,
-        capabilities: buildCompiledCapabilities(item, modelInterface),
-        source: 'models',
+      thinking: item.thinking,
+      capabilities: buildCompiledCapabilities(item, modelInterface),
+      source: 'models',
       };
       return result;
     }, {});
@@ -166,12 +189,7 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
   const modelMap = providers.reduce<Record<string, ICompiledModelRef>>((result, provider) => {
     for (const model of provider.models ?? []) {
       const compatibilityProfile = inferCompatibilityProfile(
-        {
-          api_base_url: provider.api_base_url,
-          metadata: {
-            vendor_hint: provider.transformer?.use?.[0],
-          },
-        },
+        { api_base_url: provider.api_base_url },
         'openai'
       );
       result[`${provider.name},${model}`] = {

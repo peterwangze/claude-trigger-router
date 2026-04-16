@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildModelRegistry, compileModelsToProviders, getDispatchFormatForProfile } from './compile';
+import { buildModelRegistry, compileModelsToProviders, describeCompatibilityProfile, describeDispatchFormat, getDispatchFormatForProfile } from './compile';
 
 describe('model compile', () => {
   it('compiles simplified Models config into internal providers', () => {
@@ -63,7 +63,7 @@ describe('model compile', () => {
       modelName: 'anthropic/claude-sonnet-4',
       interface: 'openai',
       protocol: 'openai',
-      compatibilityProfile: 'openrouter-like',
+      compatibilityProfile: 'openai-compatible-anthropic-dispatch',
       dispatchFormat: 'anthropic_messages',
       thinking: {
         mode: 'auto',
@@ -101,7 +101,7 @@ describe('model compile', () => {
       modelName: 'anthropic/claude-sonnet-4',
       interface: 'openai',
       protocol: 'openai',
-      compatibilityProfile: 'openrouter-like',
+      compatibilityProfile: 'openai-compatible-anthropic-dispatch',
       dispatchFormat: 'anthropic_messages',
       capabilities: {
         thinking: {
@@ -144,11 +144,24 @@ describe('model compile', () => {
       ],
     } as any);
 
-    expect(registry.modelMap.gpt90?.compatibilityProfile).toBe('generic-openai-compatible');
+    expect(registry.modelMap.gpt90?.compatibilityProfile).toBe('openai-compatible-anthropic-dispatch');
     expect(registry.modelMap.gpt90?.dispatchFormat).toBe('anthropic_messages');
-    expect(registry.modelMap.qianfan?.compatibilityProfile).toBe('qianfan-coding');
-    expect(registry.modelMap.minimax?.compatibilityProfile).toBe('minimax-chatcompletion-v2');
-    expect(getDispatchFormatForProfile('openai', 'openrouter-like')).toBe('anthropic_messages');
+    expect(registry.modelMap.qianfan?.compatibilityProfile).toBe('openai-compatible-anthropic-dispatch');
+    expect(registry.modelMap.minimax?.compatibilityProfile).toBe('openai-compatible-anthropic-dispatch');
+    expect(getDispatchFormatForProfile('openai', 'openai-compatible-anthropic-dispatch')).toBe('anthropic_messages');
+  });
+
+  it('describes compatibility profiles and dispatch formats for user-visible explanation layers', () => {
+    expect(describeCompatibilityProfile('openai-compatible-anthropic-dispatch')).toEqual(
+      expect.objectContaining({
+        label: 'OpenAI-compatible / Anthropic dispatch',
+      })
+    );
+    expect(describeDispatchFormat('anthropic_messages')).toEqual(
+      expect.objectContaining({
+        label: 'Anthropic-style messages',
+      })
+    );
   });
 
   it('accepts legacy model field names via alias normalization', () => {

@@ -42,7 +42,6 @@ interface INormalizedLegacyConfig {
     api_base_url?: string;
     api_key: string;
     models: string[];
-    vendor_hint?: string;
   }>;
   defaultRoute?: string;
   skippedFields: string[];
@@ -101,25 +100,6 @@ function createNonMigratableResult(): IMigrateLegacyConfigResult {
     needsCompletion: true,
     missingFields: ['defaultModel', 'apiKey', 'apiBaseUrl'],
   };
-}
-
-function inferVendorHintFromLegacyProvider(provider: ILegacyProviderInput): string | undefined {
-  const transformerUse = Array.isArray((provider.transformer as any)?.use)
-    ? (provider.transformer as any).use.map((item: unknown) => String(item).trim().toLowerCase())
-    : [];
-  const normalizedName = (provider.name ?? '').trim().toLowerCase();
-
-  if (transformerUse.includes('openrouter')) {
-    return 'openrouter';
-  }
-  if (normalizedName.includes('qianfan')) {
-    return 'qianfan-coding';
-  }
-  if (normalizedName.includes('minimax')) {
-    return 'minimax-chatcompletion-v2';
-  }
-
-  return undefined;
 }
 
 function isLegacyProviderInput(value: unknown): value is ILegacyProviderInput {
@@ -189,7 +169,6 @@ function normalizeLegacyConfig(input: ILegacyConfigInput): INormalizedLegacyConf
       api_base_url: provider.api_base_url,
       api_key: provider.api_key ?? '',
       models: Array.isArray(provider.models) ? provider.models : [],
-      vendor_hint: inferVendorHintFromLegacyProvider(provider),
     };
   });
 
@@ -250,7 +229,6 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
         protocol: inferProtocolFromApiBaseUrl(provider.api_base_url),
         model,
         providerName: provider.name,
-        vendorHint: provider.vendor_hint,
       }))
       .filter((item) => item.model)
   );
@@ -272,11 +250,6 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
       interface: entry.interface,
       protocol: entry.protocol,
       model: entry.model,
-      metadata: entry.vendorHint
-        ? {
-            vendor_hint: entry.vendorHint,
-          }
-        : undefined,
     };
   });
 

@@ -413,11 +413,11 @@ describe('message IR', () => {
     });
   });
 
-  it('builds provider dispatch requests in anthropic message shape for openrouter-like compatibility profiles', () => {
+  it('builds provider dispatch requests in anthropic message shape for openai-compatible anthropic-dispatch contracts', () => {
     const upstream = buildProviderDispatchRequest({
       model: 'gpt-5.4',
       interface: 'openai',
-      compatibilityProfile: 'openrouter-like',
+      compatibilityProfile: 'openai-compatible-anthropic-dispatch',
       capabilities: {
         thinking: {
           supported: true,
@@ -489,7 +489,7 @@ describe('message IR', () => {
     const upstream = buildProviderDispatchRequest({
       model: 'gpt-5.4',
       interface: 'openai',
-      compatibilityProfile: 'generic-openai-compatible',
+      compatibilityProfile: 'openai-compatible-anthropic-dispatch',
       request: {
         model: 'model__gpt90,gpt-5.4',
         messages: [
@@ -564,7 +564,7 @@ describe('message IR', () => {
     const upstream = buildProviderDispatchRequest({
       model: 'gpt-5.4',
       interface: 'openai',
-      compatibilityProfile: 'openrouter-like',
+      compatibilityProfile: 'openai-compatible-anthropic-dispatch',
       request: {
         model: 'model__gpt90,gpt-5.4',
         max_tokens: 32,
@@ -632,7 +632,7 @@ describe('message IR', () => {
     const upstream = buildProviderDispatchRequest({
       model: 'gpt-5.4',
       interface: 'openai',
-      compatibilityProfile: 'generic-openai-compatible',
+      compatibilityProfile: 'openai-compatible-anthropic-dispatch',
       request: {
         model: 'model__gpt90,gpt-5.4',
         max_completion_tokens: 48,
@@ -680,7 +680,7 @@ describe('message IR', () => {
     const upstream = buildProviderDispatchRequest({
       model: 'gpt-5.4',
       interface: 'openai',
-      compatibilityProfile: 'generic-openai-compatible',
+      compatibilityProfile: 'openai-compatible-anthropic-dispatch',
       request: {
         model: 'model__gpt90,gpt-5.4',
         messages: [
@@ -721,7 +721,7 @@ describe('message IR', () => {
     const upstream = buildProviderDispatchRequest({
       model: 'gpt-5.4',
       interface: 'openai',
-      compatibilityProfile: 'generic-openai-compatible',
+      compatibilityProfile: 'openai-compatible-anthropic-dispatch',
       request: {
         model: 'model__gpt90,gpt-5.4',
         messages: [
@@ -755,7 +755,7 @@ describe('message IR', () => {
     const upstream = buildProviderDispatchRequest({
       model: 'gpt-5.4',
       interface: 'openai',
-      compatibilityProfile: 'generic-openai-compatible',
+      compatibilityProfile: 'openai-compatible-anthropic-dispatch',
       request: {
         model: 'model__gpt90,gpt-5.4',
         messages: [
