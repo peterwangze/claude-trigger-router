@@ -58,10 +58,23 @@ export interface ISetupModelDraft {
 
 /** setup 期间生成的配置草稿 */
 export interface ISetupConfigDraft {
+  APIKEY?: string;
+  HOST?: string;
+  PORT?: number;
+  PROXY_URL?: string;
+  LOG?: boolean;
+  LOG_LEVEL?: string;
+  API_TIMEOUT_MS?: number;
+  CUSTOM_ROUTER_PATH?: string;
   Providers?: ISetupProviderDraft[];
   Models?: ISetupModelDraft[];
   Router: {
     default?: string;
+    background?: string;
+    think?: string;
+    longContext?: string;
+    longContextThreshold?: number;
+    webSearch?: string;
   };
 }
 

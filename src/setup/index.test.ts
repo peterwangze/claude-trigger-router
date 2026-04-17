@@ -308,6 +308,58 @@ describe('runSetupCli', () => {
     );
   });
 
+  it('does not silently fall back to json when higher-priority yaml exists but cannot be parsed', async () => {
+    const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    const tempHomeDir = mkdtempSync(join(tmpdir(), 'ctr-legacy-yaml-read-error-priority-'));
+    const legacyDir = join(tempHomeDir, '.claude-code-router');
+    const legacyYamlPath = join(legacyDir, 'config.yaml');
+    const legacyJsonPath = join(legacyDir, 'config.json');
+
+    delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(legacyYamlPath, 'providers:\n\t- bad: yaml\n', 'utf-8');
+    writeFileSync(
+      legacyJsonPath,
+      JSON.stringify({
+        Providers: [
+          {
+            name: 'json-provider',
+            api_key: 'sk-json',
+            api_base_url: 'https://json.example/v1/chat/completions',
+            models: ['json-model'],
+          },
+        ],
+        Router: {
+          default: 'json-provider,json-model',
+        },
+      }),
+      'utf-8'
+    );
+
+    try {
+      const result = await readLegacyConfig({
+        homeDir: tempHomeDir,
+      });
+
+      expect(result).toEqual({
+        kind: 'read_error',
+        path: legacyYamlPath,
+        error: expect.any(String),
+      });
+      if (result.kind !== 'read_error') {
+        throw new Error('expected yaml legacy config read error');
+      }
+      expect(result.path).not.toBe(legacyJsonPath);
+    } finally {
+      rmSync(tempHomeDir, { recursive: true, force: true });
+      if (previousOverride) {
+        process.env.CTR_SETUP_LEGACY_CONFIG_PATH = previousOverride;
+      } else {
+        delete process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
+      }
+    }
+  });
+
   it('supports guided capability hints during fresh setup', async () => {
     const writeConfig = vi.fn().mockResolvedValue(undefined);
     const executeStart = vi.fn().mockResolvedValue(undefined);
@@ -632,6 +684,84 @@ describe('runSetupCli', () => {
         ],
         Router: {
           default: 'gpt90_gpt_5_4',
+        },
+      })
+    );
+    expect(executeStart).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
+  });
+
+  it('persists supported legacy top-level fields and router slots during claude-code-router migration', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+    const io = {
+      choose: vi.fn().mockResolvedValueOnce('迁移旧配置（推荐）'),
+      input: vi.fn(),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      readLegacyConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/tmp/.claude-code-router/config.json',
+        config: {
+          LOG: false,
+          LOG_LEVEL: 'debug',
+          HOST: '127.0.0.1',
+          PORT: 3456,
+          API_TIMEOUT_MS: '600000',
+          Providers: [
+            {
+              name: 'gpt90',
+              api_key: 'sk-test',
+              api_base_url: 'https://example.com/openai/v1/chat/completions',
+              models: ['gpt-5.4'],
+            },
+            {
+              name: 'qianfan_coding',
+              api_key: 'sk-qianfan',
+              api_base_url: 'https://example.com/qianfan/v1/chat/completions',
+              models: ['glm-5'],
+            },
+          ],
+          Router: {
+            default: 'gpt90,gpt-5.4',
+            background: 'gpt90,gpt-5.4',
+            think: 'gpt90,gpt-5.4',
+            longContext: 'qianfan_coding,glm-5',
+            longContextThreshold: 60000,
+            webSearch: 'qianfan_coding,glm-5',
+          },
+        },
+      }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig,
+      executeStart,
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        LOG: false,
+        LOG_LEVEL: 'debug',
+        HOST: '127.0.0.1',
+        PORT: 3456,
+        API_TIMEOUT_MS: 600000,
+        Router: {
+          default: 'gpt90_gpt_5_4',
+          background: 'gpt90_gpt_5_4',
+          think: 'gpt90_gpt_5_4',
+          longContext: 'qianfan_coding_glm_5',
+          longContextThreshold: 60000,
+          webSearch: 'qianfan_coding_glm_5',
         },
       })
     );

@@ -1692,16 +1692,32 @@ describe('packaged CLI E2E', () => {
         env.homeDir,
         '.claude-code-router/config.json',
         `{
+  "LOG": false,
+  "LOG_LEVEL": "debug",
+  "HOST": "127.0.0.1",
+  "PORT": ${port},
+  "API_TIMEOUT_MS": "600000",
   "Providers": [
     {
       "name": "gpt90",
       "api_base_url": "https://example.com/openai/v1/chat/completions",
       "api_key": "sk-migrated",
       "models": ["gpt-5.4"]
+    },
+    {
+      "name": "qianfan_coding",
+      "api_base_url": "https://example.com/qianfan/v1/chat/completions",
+      "api_key": "sk-qianfan",
+      "models": ["glm-5"]
     }
   ],
   "Router": {
-    "default": "gpt90,gpt-5.4"
+    "default": "gpt90,gpt-5.4",
+    "background": "gpt90,gpt-5.4",
+    "think": "gpt90,gpt-5.4",
+    "longContext": "qianfan_coding,glm-5",
+    "longContextThreshold": 60000,
+    "webSearch": "qianfan_coding,glm-5"
   }
 }`
       );
@@ -1729,7 +1745,13 @@ describe('packaged CLI E2E', () => {
       expect(result.stdout).toContain('迁移旧配置（推荐）');
       expect(result.stdout).toContain('迁移后的默认模型：gpt90_gpt_5_4');
       expect(migratedConfig).toContain('id: gpt90_gpt_5_4');
+      expect(migratedConfig).toContain('id: qianfan_coding_glm_5');
       expect(migratedConfig).toContain('default: gpt90_gpt_5_4');
+      expect(migratedConfig).toContain('background: gpt90_gpt_5_4');
+      expect(migratedConfig).toContain('think: gpt90_gpt_5_4');
+      expect(migratedConfig).toContain('longContext: qianfan_coding_glm_5');
+      expect(migratedConfig).toContain('longContextThreshold: 60000');
+      expect(migratedConfig).toContain('webSearch: qianfan_coding_glm_5');
       expect(migratedConfig).toContain(`PORT: ${port}`);
       expect(legacyConfig).toContain('"default": "gpt90,gpt-5.4"');
 

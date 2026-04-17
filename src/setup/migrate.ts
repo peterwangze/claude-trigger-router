@@ -25,6 +25,7 @@ interface ILegacyRouterInput {
   think?: unknown;
   longContext?: unknown;
   longContextThreshold?: unknown;
+  webSearch?: unknown;
 }
 
 interface ILegacyConfigInput {
@@ -44,21 +45,21 @@ interface INormalizedLegacyConfig {
     models: string[];
   }>;
   defaultRoute?: string;
+  routeSlots: {
+    background?: string;
+    think?: string;
+    longContext?: string;
+    longContextThreshold?: number;
+    webSearch?: string;
+  };
+  supportedTopLevelConfig: Partial<ISetupConfigDraft>;
   skippedFields: string[];
 }
 
 const KNOWN_UNSUPPORTED_TOP_LEVEL_FIELDS = new Set([
-  'LOG',
-  'LOG_LEVEL',
   'CLAUDE_PATH',
-  'HOST',
-  'PORT',
-  'APIKEY',
-  'API_TIMEOUT_MS',
-  'PROXY_URL',
   'transformers',
   'StatusLine',
-  'CUSTOM_ROUTER_PATH',
   'trigger_router',
 ]);
 
@@ -116,6 +117,95 @@ function pushUnique(target: string[], value: string): void {
   }
 }
 
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string'
+    ? value.trim()
+    : undefined;
+}
+
+function readBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    if (value.toLowerCase() === 'true') {
+      return true;
+    }
+    if (value.toLowerCase() === 'false') {
+      return false;
+    }
+  }
+  return undefined;
+}
+
+function readFiniteNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+function extractSupportedTopLevelConfig(input: ILegacyConfigInput, consumedTopLevelFields: Set<string>): Partial<ISetupConfigDraft> {
+  const nextConfig: Partial<ISetupConfigDraft> = {};
+  const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(input, key);
+
+  const host = readString(input.HOST);
+  if (hasOwn('HOST')) {
+    nextConfig.HOST = host;
+    consumedTopLevelFields.add('HOST');
+  }
+
+  const port = readFiniteNumber(input.PORT);
+  if (hasOwn('PORT') && port !== undefined) {
+    nextConfig.PORT = port;
+    consumedTopLevelFields.add('PORT');
+  }
+
+  const log = readBoolean(input.LOG);
+  if (hasOwn('LOG') && log !== undefined) {
+    nextConfig.LOG = log;
+    consumedTopLevelFields.add('LOG');
+  }
+
+  const logLevel = readString(input.LOG_LEVEL);
+  if (hasOwn('LOG_LEVEL')) {
+    nextConfig.LOG_LEVEL = logLevel;
+    consumedTopLevelFields.add('LOG_LEVEL');
+  }
+
+  const apiTimeoutMs = readFiniteNumber(input.API_TIMEOUT_MS);
+  if (hasOwn('API_TIMEOUT_MS') && apiTimeoutMs !== undefined) {
+    nextConfig.API_TIMEOUT_MS = apiTimeoutMs;
+    consumedTopLevelFields.add('API_TIMEOUT_MS');
+  }
+
+  const proxyUrl = readString(input.PROXY_URL);
+  if (hasOwn('PROXY_URL')) {
+    nextConfig.PROXY_URL = proxyUrl;
+    consumedTopLevelFields.add('PROXY_URL');
+  }
+
+  const apiKey = readString(input.APIKEY);
+  if (hasOwn('APIKEY')) {
+    nextConfig.APIKEY = apiKey;
+    consumedTopLevelFields.add('APIKEY');
+  }
+
+  const customRouterPath = readString(input.CUSTOM_ROUTER_PATH);
+  if (hasOwn('CUSTOM_ROUTER_PATH')) {
+    nextConfig.CUSTOM_ROUTER_PATH = customRouterPath;
+    consumedTopLevelFields.add('CUSTOM_ROUTER_PATH');
+  }
+
+  return nextConfig;
+}
+
 function normalizeLegacyConfig(input: ILegacyConfigInput): INormalizedLegacyConfig | null {
   const lowerProviders = Array.isArray(input.providers) && input.providers.every(isLegacyProviderInput)
     ? input.providers
@@ -156,6 +246,7 @@ function normalizeLegacyConfig(input: ILegacyConfigInput): INormalizedLegacyConf
   }
 
   const consumedTopLevelFields = new Set<string>([providerKey]);
+  const supportedTopLevelConfig = extractSupportedTopLevelConfig(input, consumedTopLevelFields);
   const providers = rawProviders.map((provider, index) => {
     if (provider.transformer !== undefined) {
       pushUnique(skippedFields, `${providerKey}[${index}].transformer`);
@@ -173,6 +264,7 @@ function normalizeLegacyConfig(input: ILegacyConfigInput): INormalizedLegacyConf
   });
 
   let defaultRoute: string | undefined;
+  const routeSlots: INormalizedLegacyConfig['routeSlots'] = {};
   if (providerKey === 'providers') {
     consumedTopLevelFields.add('default');
     defaultRoute = typeof input.default === 'string' ? input.default : undefined;
@@ -180,19 +272,11 @@ function normalizeLegacyConfig(input: ILegacyConfigInput): INormalizedLegacyConf
     consumedTopLevelFields.add('Router');
     if (isLegacyRouterInput(input.Router)) {
       defaultRoute = typeof input.Router.default === 'string' ? input.Router.default : undefined;
-
-      if (input.Router.background !== undefined) {
-        pushUnique(skippedFields, 'Router.background');
-      }
-      if (input.Router.think !== undefined) {
-        pushUnique(skippedFields, 'Router.think');
-      }
-      if (input.Router.longContext !== undefined) {
-        pushUnique(skippedFields, 'Router.longContext');
-      }
-      if (input.Router.longContextThreshold !== undefined) {
-        pushUnique(skippedFields, 'Router.longContextThreshold');
-      }
+      routeSlots.background = readString(input.Router.background);
+      routeSlots.think = readString(input.Router.think);
+      routeSlots.longContext = readString(input.Router.longContext);
+      routeSlots.webSearch = readString(input.Router.webSearch);
+      routeSlots.longContextThreshold = readFiniteNumber(input.Router.longContextThreshold);
     }
   }
 
@@ -207,6 +291,8 @@ function normalizeLegacyConfig(input: ILegacyConfigInput): INormalizedLegacyConf
   return {
     providers,
     defaultRoute,
+    routeSlots,
+    supportedTopLevelConfig,
     skippedFields,
   };
 }
@@ -253,22 +339,32 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
     };
   });
 
+  const resolveLegacyRoute = (ref: string | undefined, fieldName: string): string | undefined => {
+    if (!ref) {
+      return undefined;
+    }
+
+    const [rawProviderName, rawModelName] = String(ref).split(',');
+    const providerName = (rawProviderName ?? '').trim();
+    const modelName = (rawModelName ?? '').trim();
+    const fromLookup = routeLookup.get(`${providerName},${modelName}`);
+    if (fromLookup) {
+      return fromLookup;
+    }
+
+    pushUnique(normalized.skippedFields, fieldName);
+    return undefined;
+  };
+
   const hasLegacyDefaultRoute =
     typeof normalized.defaultRoute === 'string' && normalized.defaultRoute.length > 0;
   const defaultModelId = hasLegacyDefaultRoute
-    ? (() => {
-        const [rawProviderName, rawModelName] = String(normalized.defaultRoute).split(',');
-        const providerName = (rawProviderName ?? '').trim();
-        const modelName = (rawModelName ?? '').trim();
-        const fromLookup = routeLookup.get(`${providerName},${modelName}`);
-        if (fromLookup) return fromLookup;
-        return models.find(
-          (item) =>
-            item.id === toModelId(providerName, modelName, 0) ||
-            (item.id.startsWith(`${normalizeSegment(providerName)}_`) && item.model === modelName)
-        )?.id;
-      })()
+    ? resolveLegacyRoute(normalized.defaultRoute, 'Router.default')
     : undefined;
+  const backgroundModelId = resolveLegacyRoute(normalized.routeSlots.background, 'Router.background');
+  const thinkModelId = resolveLegacyRoute(normalized.routeSlots.think, 'Router.think');
+  const longContextModelId = resolveLegacyRoute(normalized.routeSlots.longContext, 'Router.longContext');
+  const webSearchModelId = resolveLegacyRoute(normalized.routeSlots.webSearch, 'Router.webSearch');
   const hasMissingApiKey = normalized.providers.some((provider) => provider.api_key.length === 0);
   const hasMissingApiBaseUrl = normalized.providers.some((provider) => (provider.api_base_url?.trim() ?? '').length === 0);
   const missingFields: string[] = [];
@@ -285,9 +381,17 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
 
   return {
     draft: {
+      ...normalized.supportedTopLevelConfig,
       Providers: [],
       Models: models,
-      Router: defaultModelId ? { default: defaultModelId } : {},
+      Router: {
+        ...(defaultModelId ? { default: defaultModelId } : {}),
+        ...(backgroundModelId ? { background: backgroundModelId } : {}),
+        ...(thinkModelId ? { think: thinkModelId } : {}),
+        ...(longContextModelId ? { longContext: longContextModelId } : {}),
+        ...(normalized.routeSlots.longContextThreshold !== undefined ? { longContextThreshold: normalized.routeSlots.longContextThreshold } : {}),
+        ...(webSearchModelId ? { webSearch: webSearchModelId } : {}),
+      },
     },
     skippedFields: normalized.skippedFields,
     needsCompletion: missingFields.length > 0,

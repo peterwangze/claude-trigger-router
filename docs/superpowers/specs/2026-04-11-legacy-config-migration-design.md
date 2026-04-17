@@ -353,6 +353,34 @@
 
 ---
 
+## 11. 2026-04-18 首轮闭环结论
+
+截至 2026-04-18，本设计对应的首轮迁移闭环已完成：
+
+- `readLegacyConfig()` 已覆盖 `.ccr/config.yaml`、`.claude-code-router/config.yaml`、`.claude-code-router/config.json`
+- 宽松 JSON / 尾随逗号读取已通过真实样本测试锁定
+- YAML / JSON 并存时的优先级、解析失败时不静默回退的行为已通过测试锁定
+- `migrateLegacyConfig()` 已完成：
+  - 多 provider / 多 model 迁移
+  - 稳定 module id 生成与冲突后缀去重
+  - `Router.default / background / think / longContext / longContextThreshold / webSearch` 迁移
+  - `HOST / PORT / LOG / LOG_LEVEL / API_TIMEOUT_MS / APIKEY / PROXY_URL / CUSTOM_ROUTER_PATH` 等已支持顶层字段迁移
+  - `skippedFields` 对 unsupported 字段和 unresolved route slot 的显式记录
+- `setup` 与 packaged CLI E2E 已锁定：
+  - 迁移摘要输出
+  - skipped 字段提示
+  - 迁移后新配置真正写回并可启动
+
+当前闭环结论：
+
+- legacy migration 主路径已不再作为独立未闭环 P0 主线维护
+- 后续剩余工作主要转入：
+  - 统一 Router 运行时收敛
+  - 配置产品化最终收口
+  - 更高阶 legacy 扩展语义是否需要纳入正式 schema 的后续演进判断
+
+---
+
 ## 9. 风险与边界
 
 ### 9.1 风险
