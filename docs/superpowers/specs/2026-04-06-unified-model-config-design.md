@@ -266,6 +266,10 @@ app request
 - `/ui` 的 Capability Warnings 面板现已开始提供快捷修正动作，warning 正从只读提示演进为可操作入口
 - `ctr setup` 现也已支持 capability hint 的显式采集，使 capability 心智进一步进入 CLI 主路径
 - setup 在 repair / migrate 的多模型场景下，也已开始逐个模型采集 capability hint，而不再只覆盖单模型初始化路径
+- OpenAI-compatible 兼容差异内化已完成首轮行为型 contract 闭环：
+  - 运行时不再按 provider 名称建模兼容画像，而是按行为型 compatibility contract 编译与分发
+  - OpenAI-compatible 路径已覆盖 tools、tool_choice、tool call/result 生命周期、thinking、stream、token 控制字段、image blocks、system message 与 assistant empty-content + tool_calls 边界
+  - capability 降级 diagnostics 已进入协议层 contract，并由 `doctor` 与 packaged CLI E2E 共同回归，避免内部 code 直接暴露给用户
 
 当前仍未完成的部分：
 
@@ -273,6 +277,15 @@ app request
 - 对图片、音频、结构化输出等更复杂消息块的覆盖仍需继续扩展
 - 对 OpenAI Responses、音频/视频多模态、结构化输出 schema 等更细粒度接口差异仍需单独抽象
 - warning 虽已进入 repair/save UI 与 setup CLI，但更复杂 warning 的修正模板与多步策略仍未完全联动
+
+补充闭环结论（2026-04-17）：
+
+- “OpenAI-compatible 兼容差异内化”已不再作为独立未闭环 P0 主线维护
+- 后续剩余工作主要转入：
+  - legacy migration 收敛
+  - 统一 Router 运行时收敛
+  - 配置产品化最终收口
+  - 更高阶多模态 / structured output 扩展
 
 ## 8. setup、配置文件、/ui 的统一策略
 

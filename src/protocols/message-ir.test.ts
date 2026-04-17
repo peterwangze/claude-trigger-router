@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createMessageIR, createSingleUserTextIR } from './message-ir';
 import { toAnthropicMessagesRequest } from './anthropic';
 import { toOpenAIChatRequest } from './openai';
-import { buildProviderDispatchRequest, buildUpstreamRequest } from './index';
+import { buildProviderDispatchRequest, buildUpstreamRequest, describeProtocolDiagnostic } from './index';
 
 describe('message IR', () => {
   it('creates IR from anthropic-style request payload', () => {
@@ -482,6 +482,24 @@ describe('message IR', () => {
         type: 'tool',
         name: 'search',
       },
+    });
+  });
+
+  it('describes protocol diagnostics in user-readable behavior terms', () => {
+    expect(describeProtocolDiagnostic('thinking_ignored')).toEqual({
+      code: 'thinking_ignored',
+      severity: 'info',
+      label: 'thinking 已忽略',
+      summary: '当前模型或接口未启用 reasoning 能力，请求中的 thinking 设置不会继续传给上游。',
+      action: '如需保留 thinking，请切回支持 reasoning 的模型，或移除当前模型上的 thinking 配置。',
+    });
+
+    expect(describeProtocolDiagnostic('tools_text_fallback')).toEqual({
+      code: 'tools_text_fallback',
+      severity: 'warn',
+      label: '工具调用已降级为文本',
+      summary: '当前模型未声明工具能力，tool definitions 与 tool call/result 会退化为普通文本内容。',
+      action: '如需保留工具调用，请启用 supports_tools 或切回支持工具的模型。',
     });
   });
 

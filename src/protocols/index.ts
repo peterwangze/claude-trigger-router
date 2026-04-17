@@ -4,6 +4,19 @@ import { toOpenAIChatRequest } from './openai';
 import { ICompiledModelCapabilities } from '../trigger/types';
 import { TCompatibilityProfile, TDispatchFormat, getDispatchFormatForProfile } from '../models/compile';
 
+export type TProtocolDiagnosticCode =
+  | 'thinking_ignored'
+  | 'images_text_fallback'
+  | 'tools_text_fallback';
+
+export interface IProtocolDiagnosticDescription {
+  code: TProtocolDiagnosticCode;
+  severity: 'info' | 'warn';
+  label: string;
+  summary: string;
+  action: string;
+}
+
 function stringifyFallbackContent(value: any): string {
   if (typeof value === 'string') {
     return value;
@@ -106,6 +119,43 @@ function applyCapabilityFallbacks(input: {
     ir: nextIR,
     request: nextRequest,
   };
+}
+
+export function describeProtocolDiagnostic(code: TProtocolDiagnosticCode): IProtocolDiagnosticDescription {
+  switch (code) {
+    case 'thinking_ignored':
+      return {
+        code,
+        severity: 'info',
+        label: 'thinking 已忽略',
+        summary: '当前模型或接口未启用 reasoning 能力，请求中的 thinking 设置不会继续传给上游。',
+        action: '如需保留 thinking，请切回支持 reasoning 的模型，或移除当前模型上的 thinking 配置。',
+      };
+    case 'images_text_fallback':
+      return {
+        code,
+        severity: 'warn',
+        label: '图片已降级为文本',
+        summary: '当前模型未声明图片输入能力，请求中的图片内容会退化为文本提示，不会原样发送到上游。',
+        action: '如需保留图片输入，请启用 supports_images 或切回支持图片的模型。',
+      };
+    case 'tools_text_fallback':
+      return {
+        code,
+        severity: 'warn',
+        label: '工具调用已降级为文本',
+        summary: '当前模型未声明工具能力，tool definitions 与 tool call/result 会退化为普通文本内容。',
+        action: '如需保留工具调用，请启用 supports_tools 或切回支持工具的模型。',
+      };
+    default:
+      return {
+        code,
+        severity: 'info',
+        label: code,
+        summary: '未知协议诊断。',
+        action: '请结合原始请求和上游响应继续排查。',
+      };
+  }
 }
 
 function omitRequestFields(body: Record<string, any>) {

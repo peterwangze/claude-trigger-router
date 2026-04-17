@@ -680,6 +680,58 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
+  it('doctor previews runtime compatibility fallbacks in user-readable terms before probing models', async () => {
+    const env = await createTestEnvironment('ctr-doctor-compat-preview-e2e-');
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          'PORT: 5678',
+          'LOG: true',
+          'LOG_LEVEL: "debug"',
+          'Models:',
+          '  - id: limited_model',
+          '    api: "https://example.com/v1/chat/completions"',
+          '    key: "sk-test"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          '    metadata:',
+          '      supports_reasoning: false',
+          '      supports_tools: false',
+          '      supports_images: false',
+          'Router:',
+          '  default: "limited_model"',
+        ].join('\n')
+      );
+
+      const result = await runCtr(cliPath, ['doctor'], env, {
+        timeoutMs: 60000,
+        input: 'n\n',
+        extraEnv: {
+          CTR_DOCTOR_FORCE_SCRIPTED_INPUT: '1',
+        },
+      });
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('运行时兼容提示：thinking 已忽略');
+      expect(result.stdout).toContain('运行时兼容提示：图片已降级为文本');
+      expect(result.stdout).toContain('运行时兼容提示：工具调用已降级为文本');
+      expect(result.stdout).toContain('运行时建议：如需保留工具调用，请启用 supports_tools');
+      expect(result.stdout).not.toContain('tools_text_fallback');
+      expect(result.stdout).not.toContain('images_text_fallback');
+      expect(result.stdout).not.toContain('thinking_ignored');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('start/status/stop work on a clean alternate port using an isolated config', async () => {
     const env = await createTestEnvironment('ctr-service-e2e-');
     const port = await getFreePort();

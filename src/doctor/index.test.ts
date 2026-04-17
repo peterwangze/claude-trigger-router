@@ -146,4 +146,61 @@ describe('runDoctorCli', () => {
     );
     global.fetch = originalFetch;
   });
+
+  it('explains runtime compatibility fallbacks using user-readable diagnostics', async () => {
+    const io = createIo({
+      confirm: vi.fn().mockResolvedValue(false),
+    });
+
+    vi.doMock('fs', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('fs')>();
+      return {
+        ...actual,
+        existsSync: vi.fn((filePath: string) => String(filePath).endsWith('config.yaml')),
+        readFileSync: vi.fn((filePath: string) => {
+          if (String(filePath).endsWith('config.yaml')) {
+            return [
+              'HOST: "127.0.0.1"',
+              'PORT: 5678',
+              'LOG: true',
+              'LOG_LEVEL: "debug"',
+              'Models:',
+              '  - id: limited_model',
+              '    api: "https://example.com/v1/chat/completions"',
+              '    key: "sk-test"',
+              '    interface: "openai"',
+              '    model: "anthropic/claude-sonnet-4"',
+              '    metadata:',
+              '      supports_reasoning: false',
+              '      supports_tools: false',
+              '      supports_images: false',
+              'Router:',
+              '  default: "limited_model"',
+            ].join('\n');
+          }
+          return '';
+        }),
+      };
+    });
+
+    const { runDoctorCli } = await import('./index');
+    await runDoctorCli({
+      io: io as any,
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig: vi.fn().mockResolvedValue(undefined),
+      isServiceRunning: vi.fn().mockReturnValue(true),
+      readServiceInfo: vi.fn().mockReturnValue({ pid: 123, port: 5678, startTime: '' }),
+      killProcess: vi.fn(),
+      probeServiceHealth: vi.fn().mockResolvedValue(true),
+      isTcpPortOccupied: vi.fn().mockResolvedValue(true),
+      waitForService: vi.fn().mockResolvedValue(true),
+      startDaemon: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('运行时兼容提示：thinking 已忽略'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('运行时兼容提示：图片已降级为文本'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('运行时兼容提示：工具调用已降级为文本'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('运行时建议：如需保留工具调用'));
+  });
 });

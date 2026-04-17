@@ -14,7 +14,7 @@ import { readLegacyConfig } from '../setup';
 import { IAppConfig, IModelEndpointConfig } from '../trigger/types';
 import { getModelApi, getModelInterface, getModelKey } from '../models/schema';
 import { buildModelRegistry, describeCompatibilityProfile, describeDispatchFormat } from '../models/compile';
-import { buildProviderDispatchRequest } from '../protocols';
+import { buildProviderDispatchRequest, describeProtocolDiagnostic, TProtocolDiagnosticCode } from '../protocols';
 import { isServiceRunning, killProcess, readServiceInfo } from '../utils/processCheck';
 import { isTcpPortOccupied, probeServiceHealth, waitForService } from '../service-health';
 import { buildUsableMinimalTemplateConfig } from '../setup/templates';
@@ -58,6 +58,72 @@ interface IProbeFailureExplanation {
   label: string;
   summary: string;
   action: string;
+}
+
+function collectCompatibilityPreviewDiagnostics(model: IModelEndpointConfig) {
+  const registry = buildModelRegistry({
+    Providers: [],
+    Models: [model],
+    Router: {
+      default: model.id,
+    },
+  } as IAppConfig);
+  const compiledModel = registry.modelMap[model.id];
+  if (!compiledModel) {
+    return [];
+  }
+
+  const preview = buildProviderDispatchRequest({
+    model: compiledModel.modelName,
+    interface: compiledModel.interface ?? 'openai',
+    compatibilityProfile: compiledModel.compatibilityProfile,
+    capabilities: compiledModel.capabilities,
+    request: {
+      model: compiledModel.id,
+      max_tokens: 32,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'compatibility preview',
+            },
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/png',
+                data: 'preview',
+              },
+            },
+          ],
+        },
+      ],
+      tools: [
+        {
+          name: 'preview_tool',
+          description: 'Preview tool',
+          input_schema: {
+            type: 'object',
+            properties: {
+              query: { type: 'string' },
+            },
+          },
+        },
+      ],
+      tool_choice: {
+        type: 'tool',
+        name: 'preview_tool',
+      },
+      thinking: {
+        type: 'enabled',
+        effort: 'medium',
+      },
+    },
+  });
+
+  return preview.diagnostics.map((code) => describeProtocolDiagnostic(code as TProtocolDiagnosticCode));
 }
 
 function hasArg(flag: string): boolean {
@@ -622,6 +688,12 @@ export async function runDoctorCli(customDeps?: Partial<IDoctorDeps>): Promise<v
       );
       deps.io.info(`兼容说明：${compatibility.summary}`);
       deps.io.info(`请求编译：${dispatch.label}。${dispatch.summary}`);
+      const previewDiagnostics = collectCompatibilityPreviewDiagnostics(model);
+      for (const diagnostic of previewDiagnostics) {
+        deps.io.info(`运行时兼容提示：${diagnostic.label}`);
+        deps.io.info(`运行时说明：${diagnostic.summary}`);
+        deps.io.info(`运行时建议：${diagnostic.action}`);
+      }
     }
 
     const needWrite = current.repairedParse || deterministic.changes.length > 0 || completed.changes.length > 0 || !current.existed;
