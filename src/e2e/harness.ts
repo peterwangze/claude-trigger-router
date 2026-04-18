@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readdir, readFile, rm, stat, writeFile } from 'fs/promises';
+import { chmod, mkdtemp, mkdir, readdir, readFile, rm, stat, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, relative } from 'path';
@@ -137,6 +137,7 @@ export async function createFakeClaude(binDir: string, markerPath: string): Prom
       `#!/usr/bin/env sh\nprintf 'invoked\nANTHROPIC_BASE_URL=%s\n' "$ANTHROPIC_BASE_URL" > "${markerPath}"\nexit 0\n`,
       'utf-8'
     );
+    await chmod(commandPath, 0o755);
   }
 }
 

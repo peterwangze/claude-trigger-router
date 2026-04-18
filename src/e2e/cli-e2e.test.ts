@@ -128,43 +128,65 @@ async function startFakeOpenAiUpstream(): Promise<{
 }
 
 async function postAnthropicMessage(port: number, model: string, text: string): Promise<Response> {
-  return fetch(`http://127.0.0.1:${port}/v1/messages`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 64,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text,
-            },
-          ],
-        },
-      ],
-    }),
+  return postAnthropicPayload(port, {
+    model,
+    max_tokens: 64,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text,
+          },
+        ],
+      },
+    ],
   });
 }
 
 async function postAnthropicMessageWithTools(port: number, model: string, text: string): Promise<Response> {
-  return fetch(`http://127.0.0.1:${port}/v1/messages`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 64,
-      tools: [
-        {
+  return postAnthropicPayload(port, {
+    model,
+    max_tokens: 64,
+    tools: [
+      {
+        name: 'search_docs',
+        description: 'Search the docs',
+        input_schema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string' },
+          },
+          required: ['query'],
+        },
+      },
+    ],
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text,
+          },
+        ],
+      },
+    ],
+  });
+}
+
+async function postAnthropicMessageWithOpenAiTools(port: number, model: string, text: string): Promise<Response> {
+  return postAnthropicPayload(port, {
+    model,
+    max_tokens: 64,
+    tools: [
+      {
+        type: 'function',
+        function: {
           name: 'search_docs',
           description: 'Search the docs',
-          input_schema: {
+          parameters: {
             type: 'object',
             properties: {
               query: { type: 'string' },
@@ -172,60 +194,47 @@ async function postAnthropicMessageWithTools(port: number, model: string, text: 
             required: ['query'],
           },
         },
-      ],
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text,
-            },
-          ],
-        },
-      ],
-    }),
+      },
+    ],
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text,
+          },
+        ],
+      },
+    ],
   });
 }
 
-async function postAnthropicMessageWithOpenAiTools(port: number, model: string, text: string): Promise<Response> {
-  return fetch(`http://127.0.0.1:${port}/v1/messages`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 64,
-      tools: [
-        {
-          type: 'function',
-          function: {
-            name: 'search_docs',
-            description: 'Search the docs',
-            parameters: {
-              type: 'object',
-              properties: {
-                query: { type: 'string' },
-              },
-              required: ['query'],
-            },
-          },
+async function postAnthropicPayload(port: number, payload: any): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    try {
+      return await fetch(`http://127.0.0.1:${port}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
         },
-      ],
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text,
-            },
-          ],
-        },
-      ],
-    }),
-  });
+        body: JSON.stringify(payload),
+      });
+    } catch (error: any) {
+      lastError = error;
+      const isConnectionRefused =
+        error?.cause?.code === 'ECONNREFUSED' ||
+        error?.code === 'ECONNREFUSED' ||
+        String(error?.message || '').includes('ECONNREFUSED');
+      if (!isConnectionRefused || attempt === 24) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 function buildMinimalModelsConfig(port: number, overrides: string[] = []): string {

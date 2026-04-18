@@ -106,6 +106,17 @@ set "USERPROFILE=$escapedHome"
 `$env:USERPROFILE = '$releaseHome'
 & '$stageCliPath' @args
 "@
+  } else {
+    $wrapperSh = Join-Path $stagePrefix "ctr-release-home.sh"
+    Set-Content -LiteralPath $wrapperSh -Value @"
+#!/usr/bin/env sh
+HOME='$releaseHome'
+USERPROFILE='$releaseHome'
+export HOME
+export USERPROFILE
+exec '$stageCliPath' "\$@"
+"@
+    & chmod +x $wrapperSh
   }
 
   return $releaseConfigFile
@@ -315,14 +326,15 @@ function Invoke-ReleaseStage {
     Write-Host "Before running migration setup, edit the legacy CCR sample if needed:" -ForegroundColor Yellow
     Write-Host "  $legacyConfigFile"
   } else {
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" --help"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" version"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" setup"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" status"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" ui"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" stop"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" init --force"
-    Write-Host "  HOME=`"$releaseHome`" `"$stageCliPath`" start --port $Port"
+    $wrapperSh = Join-Path $stagePrefix "ctr-release-home.sh"
+    Write-Host "  `"$wrapperSh`" --help"
+    Write-Host "  `"$wrapperSh`" version"
+    Write-Host "  `"$wrapperSh`" setup"
+    Write-Host "  `"$wrapperSh`" status"
+    Write-Host "  `"$wrapperSh`" ui"
+    Write-Host "  `"$wrapperSh`" stop"
+    Write-Host "  `"$wrapperSh`" init --force"
+    Write-Host "  `"$wrapperSh`" start --port $Port"
   }
   Write-Host ""
   Write-Host "Recommended verification checklist:" -ForegroundColor Cyan
@@ -353,29 +365,30 @@ function Invoke-ReleaseStage {
      notepad "$migrationTargetConfigFile"
 "@
   } else {
+    $wrapperSh = Join-Path $stagePrefix "ctr-release-home.sh"
     Write-Host @"
   1) Edit config:
      ${EDITOR:-vi} "$releaseConfigFile"
 
   2) Basic package info:
-     HOME="$releaseHome" "$stageCliPath" --help
-     HOME="$releaseHome" "$stageCliPath" version
+     "$wrapperSh" --help
+     "$wrapperSh" version
 
   3) Recommended user path:
-     HOME="$releaseHome" "$stageCliPath" setup
-     HOME="$releaseHome" "$stageCliPath" status
-     HOME="$releaseHome" "$stageCliPath" ui
-     HOME="$releaseHome" "$stageCliPath" stop
+     "$wrapperSh" setup
+     "$wrapperSh" status
+     "$wrapperSh" ui
+     "$wrapperSh" stop
 
   4) Optional manual config path:
-     HOME="$releaseHome" "$stageCliPath" init --force
-     HOME="$releaseHome" "$stageCliPath" start --port $Port
-     HOME="$releaseHome" "$stageCliPath" status
-     HOME="$releaseHome" "$stageCliPath" stop
+     "$wrapperSh" init --force
+     "$wrapperSh" start --port $Port
+     "$wrapperSh" status
+     "$wrapperSh" stop
 
   5) Legacy claude-code-router migration:
      ${EDITOR:-vi} "$legacyConfigFile"
-     HOME="$releaseHome" "$stageCliPath" setup
+     "$wrapperSh" setup
      ${EDITOR:-vi} "$migrationTargetConfigFile"
 "@
   }

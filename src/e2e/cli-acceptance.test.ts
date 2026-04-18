@@ -518,7 +518,7 @@ describe('isolated packaged CLI acceptance', () => {
 
       const wrapperPath = process.platform === 'win32'
         ? join(stageDir, 'ctr-release-home.cmd')
-        : join(stageDir, 'bin', 'ctr');
+        : join(stageDir, 'ctr-release-home.sh');
       const toWrapperCommand = (...args: string[]) => {
         if (process.platform === 'win32') {
           const escapedPath = wrapperPath.replace(/'/g, "''");
