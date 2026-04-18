@@ -115,13 +115,15 @@ export class TriggerRouter {
     if (req.governanceTrace) {
       if (result.routeSource === 'trigger_rule' && result.rule?.name) {
         appendTraceReason(req.governanceTrace, `trigger_rule:${result.rule.name}`);
-      } else if (result.routeSource === 'sticky') {
+      } else if (result.routeSource === 'semantic_match' && result.rule?.name) {
+        appendTraceReason(req.governanceTrace, `semantic_match:${result.rule.name}`);
+      } else if (result.routeSource === 'sticky_correction') {
         req.governanceTrace.stickyHit = true;
-        appendTraceReason(req.governanceTrace, 'sticky_routing');
+        appendTraceReason(req.governanceTrace, 'sticky_correction');
       } else if (result.routeSource === 'smart_router') {
-        appendTraceReason(req.governanceTrace, 'smart_router');
-      } else if (result.routeSource === 'intent') {
-        appendTraceReason(req.governanceTrace, 'intent_detection');
+        appendTraceReason(req.governanceTrace, 'smart_decision');
+      } else if (result.routeSource === 'intent_fallback') {
+        appendTraceReason(req.governanceTrace, 'intent_fallback');
       } else {
         appendTraceReason(req.governanceTrace, 'trigger_router:no_match');
       }
@@ -195,7 +197,19 @@ export class TriggerRouter {
           req.triggerResult = result;
 
           log(
-            `[TriggerRouter] ${result.routeSource === 'sticky' ? 'Sticky routing selected' : result.rule ? `Matched rule "${result.rule.name}"` : 'SmartRouter selected'} -> model "${result.model}" ` +
+            `[TriggerRouter] ${
+              result.routeSource === 'sticky_correction'
+                ? 'Sticky correction selected'
+                : result.routeSource === 'semantic_match'
+                  ? `Semantic match "${result.rule?.name}"`
+                  : result.routeSource === 'smart_router'
+                    ? 'Smart fallback selected'
+                    : result.routeSource === 'intent_fallback'
+                      ? `Intent fallback "${result.rule?.name}"`
+                      : result.rule
+                        ? `Matched rule "${result.rule.name}"`
+                        : 'Unified router selected'
+            } -> model "${result.model}" ` +
             `(confidence: ${result.confidence}, time: ${result.analysisTime}ms)`
           );
         }

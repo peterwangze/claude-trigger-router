@@ -50,6 +50,13 @@ export interface ITriggerRule {
 
   /** 规则描述 */
   description?: string;
+
+  /** 规则级语义画像，用于统一 Router 运行时语义匹配 */
+  semantic_profile?: {
+    enabled?: boolean;
+    prototype?: string;
+    threshold?: number;
+  };
 }
 
 /**
@@ -100,7 +107,7 @@ export interface IAnalysisResult {
   analyzedText?: string;
 
   /** 路由来源 */
-  routeSource?: 'trigger_rule' | 'sticky' | 'smart_router' | 'intent';
+  routeSource?: 'trigger_rule' | 'semantic_match' | 'smart_router' | 'sticky_correction' | 'intent_fallback';
 }
 
 /**
@@ -236,6 +243,39 @@ export interface IRouterConfig {
   longContextThreshold?: number;
   webSearch?: string;
   image?: string;
+  routes?: Array<{
+    name: string;
+    model: string;
+    description?: string;
+    priority?: number;
+    enabled?: boolean;
+    match?: {
+      keywords?: string[];
+      regex?: string;
+      semantic?: boolean;
+      semantic_profile?: {
+        prototype?: string;
+        threshold?: number;
+      };
+    };
+  }>;
+  decision?: {
+    smart_fallback?: boolean;
+    router_model?: string;
+    candidates?: ISmartRouterCandidate[];
+    cache_ttl?: number;
+    max_tokens?: number;
+    fallback?: 'default' | 'skip';
+    router_hint?: {
+      include_task_summary?: boolean;
+      include_top_route_candidates?: boolean;
+    };
+  };
+  defaults?: {
+    sticky?: IGovernanceConfig['sticky'];
+    semantic?: IGovernanceConfig['semantic'];
+    route_trace?: boolean;
+  };
 }
 
 /**
@@ -274,6 +314,12 @@ export interface ISmartRouterConfig {
    * - "skip"：跳过 SmartRouter，直接走后续路由链
    */
   fallback?: 'default' | 'skip';
+
+  /** 结构化 router hint，帮助路由模型基于预筛选结果做兜底裁决 */
+  router_hint?: {
+    include_task_summary?: boolean;
+    include_top_route_candidates?: boolean;
+  };
 }
 
 /**

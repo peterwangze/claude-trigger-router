@@ -452,4 +452,120 @@ describe('normalizeAndValidateConfig governance', () => {
       'Models[0].metadata.supports_images disables image input for model "restricted". Image blocks will fall back to plain text descriptions.',
     ]);
   });
+
+  it('normalizes unified Router routes and decision config into runtime-compatible trigger/smart/governance structures', () => {
+    const result = normalizeAndValidateConfig({
+      Router: {
+        default: 'sonnet',
+        routes: [
+          {
+            name: 'architecture',
+            model: 'opus',
+            description: '重构 系统 结构 模块 拆分 架构 设计',
+            priority: 90,
+            match: {
+              semantic: true,
+              semantic_profile: {
+                threshold: 0.2,
+              },
+            },
+          },
+          {
+            name: 'coding',
+            model: 'sonnet',
+            description: '通用编程与调试',
+            priority: 60,
+            match: {
+              keywords: ['写代码', 'debug'],
+            },
+          },
+        ],
+        decision: {
+          smart_fallback: true,
+          router_model: 'sonnet',
+          candidates: [
+            { model: 'sonnet', description: '通用编程与调试' },
+            { model: 'opus', description: '架构与复杂评审' },
+          ],
+          router_hint: {
+            include_task_summary: true,
+            include_top_route_candidates: true,
+          },
+        },
+        defaults: {
+          sticky: {
+            enabled: true,
+            alignment: {
+              enabled: true,
+              summarizer_model: 'sonnet',
+            },
+          },
+          semantic: {
+            enabled: true,
+            threshold: 0.2,
+          },
+        },
+      },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+    } as any);
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.TriggerRouter).toEqual(expect.objectContaining({
+      enabled: true,
+      rules: [
+        expect.objectContaining({
+          name: 'architecture',
+          model: 'opus',
+          description: '重构 系统 结构 模块 拆分 架构 设计',
+          semantic_profile: expect.objectContaining({
+            enabled: true,
+            threshold: 0.2,
+          }),
+        }),
+        expect.objectContaining({
+          name: 'coding',
+          model: 'sonnet',
+          patterns: [
+            expect.objectContaining({
+              type: 'exact',
+              keywords: ['写代码', 'debug'],
+            }),
+          ],
+        }),
+      ],
+    }));
+    expect(result.config.SmartRouter).toEqual(expect.objectContaining({
+      enabled: true,
+      router_model: 'sonnet',
+      candidates: [
+        expect.objectContaining({ model: 'sonnet' }),
+        expect.objectContaining({ model: 'opus' }),
+      ],
+      router_hint: {
+        include_task_summary: true,
+        include_top_route_candidates: true,
+      },
+    }));
+    expect(result.config.Governance?.semantic?.prototypes).toEqual(expect.objectContaining({
+      architecture: '重构 系统 结构 模块 拆分 架构 设计',
+      coding: '通用编程与调试',
+    }));
+    expect(result.config.Governance?.sticky?.alignment?.summarizer_model).toBe('sonnet');
+    expect(result.config.Router.routes).toHaveLength(2);
+  });
 });

@@ -291,7 +291,18 @@ describe('ModelSelector', () => {
       });
 
       await selector.selectModel(req as any, config, 5678, smartRouterConfig, undefined, undefined, 4321);
-      expect(smartSpy).toHaveBeenCalledWith('帮我选一个模型', smartRouterConfig, 5678, undefined, undefined, 4321);
+      expect(smartSpy).toHaveBeenCalledWith(
+        '帮我选一个模型',
+        smartRouterConfig,
+        5678,
+        undefined,
+        undefined,
+        4321,
+        {
+          taskSummary: '帮我选一个模型',
+          topRouteCandidates: [],
+        }
+      );
       smartSpy.mockRestore();
     });
 
@@ -355,7 +366,7 @@ describe('ModelSelector', () => {
 
       expect(result.matched).toBe(true);
       expect(result.model).toBe('provider,sticky-model');
-      expect(result.routeSource).toBe('sticky');
+      expect(result.routeSource).toBe('sticky_correction');
     });
 
     it('should not reuse sticky session model when governance is disabled', async () => {
@@ -435,7 +446,7 @@ describe('ModelSelector', () => {
 
       expect(result.matched).toBe(true);
       expect(result.rule?.name).toBe('architecture');
-      expect(result.routeSource).toBe('intent');
+      expect(result.routeSource).toBe('semantic_match');
       expect(req.governanceTrace.semanticIntent).toBe('architecture');
       expect(smartSpy).not.toHaveBeenCalled();
       smartSpy.mockRestore();
@@ -507,7 +518,11 @@ describe('ModelSelector', () => {
         5678,
         undefined,
         undefined,
-        undefined
+        undefined,
+        {
+          taskSummary: '帮我选一个更合适的模型',
+          topRouteCandidates: [],
+        }
       );
       smartSpy.mockRestore();
     });
@@ -616,10 +631,95 @@ describe('ModelSelector', () => {
 
       expect(result.matched).toBe(true);
       expect(result.rule?.name).toBe('architecture');
-      expect(result.routeSource).toBe('intent');
+      expect(result.routeSource).toBe('semantic_match');
       expect(smartSpy).not.toHaveBeenCalled();
       semanticSpy.mockRestore();
       smartSpy.mockRestore();
+    });
+
+    it('should evaluate semantic match before smart router and before sticky correction', async () => {
+      sessionStateStore.put('sticky-session', {
+        preferredModel: 'provider,sticky-model',
+        lastSuccessfulModel: 'provider,sticky-model',
+        lastTaskFingerprint: '请帮我重构系统结构并拆分核心模块',
+      });
+
+      const req = {
+        sessionId: 'sticky-session',
+        body: {
+          messages: [{ role: 'user', content: '请帮我重构系统结构并拆分核心模块' }],
+        },
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.9,
+      });
+
+      const result = await selector.selectModel(
+        req as any,
+        config,
+        5678,
+        {
+          enabled: true,
+          router_model: 'test,router',
+          candidates: [
+            { model: 'provider,model-a', description: 'A' },
+            { model: 'provider,model-b', description: 'B' },
+          ],
+        },
+        {
+          enabled: true,
+          sticky: {
+            enabled: true,
+          },
+          semantic: {
+            enabled: true,
+            threshold: 0.2,
+            prototypes: {
+              architecture: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          },
+        } as any
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('provider,sticky-model');
+      expect(result.routeSource).toBe('sticky_correction');
+      expect(smartSpy).not.toHaveBeenCalled();
+      smartSpy.mockRestore();
+    });
+
+    it('should not let sticky correction override an explicit trigger rule', async () => {
+      sessionStateStore.put('sticky-session', {
+        preferredModel: 'provider,sticky-model',
+        lastSuccessfulModel: 'provider,sticky-model',
+        lastTaskFingerprint: '请帮我生成图片',
+      });
+
+      const req = {
+        sessionId: 'sticky-session',
+        body: {
+          messages: [{ role: 'user', content: '请帮我生成图片' }],
+        },
+      };
+
+      const result = await selector.selectModel(
+        req as any,
+        config,
+        5678,
+        undefined,
+        {
+          enabled: true,
+          sticky: {
+            enabled: true,
+            break_on_explicit_route: true,
+          },
+        } as any
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.routeSource).toBe('trigger_rule');
+      expect(result.model).toBe('openrouter,dall-e-3');
     });
   });
 

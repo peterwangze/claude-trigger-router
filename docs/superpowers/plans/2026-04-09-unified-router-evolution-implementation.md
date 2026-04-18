@@ -792,3 +792,39 @@ Expected: no accidental re-introduction of split user-facing concepts, no droppe
 git add src/trigger/selector.ts src/trigger/smart-router.ts src/governance/semantic-router.ts src/utils/config.ts src/server.ts src/setup/index.ts src/setup/persist.ts src/setup/templates.ts src/trigger/types.ts src/governance/trace.ts src/governance/context-alignment.ts src/governance/session-store.ts config/trigger.example.yaml README.md docs/configuration-guide.md docs/models-migration-guide.md src/trigger/selector.test.ts src/trigger/smart-router.test.ts src/governance/semantic-router.test.ts src/utils/config.test.ts src/server.test.ts src/setup/index.test.ts src/setup/templates.test.ts
 git commit -m "feat: unify router decision flow and config experience"
 ```
+
+---
+
+## 2026-04-18 首轮闭环结论
+
+截至 2026-04-18，本实施计划中“统一 Router 运行时收敛”对应的首轮 P0 目标已完成：
+
+- runtime decision chain 已调整为：
+  - `rule -> semantic_match -> smart_router fallback -> sticky_correction -> legacy intent fallback`
+- `routeSource` 与 trigger trace reason 已统一为新的运行时标签：
+  - `trigger_rule`
+  - `semantic_match`
+  - `smart_router`
+  - `sticky_correction`
+  - `intent_fallback`
+- `SmartRouterSelector` 已支持结构化 router hint：
+  - `taskSummary`
+  - `topRouteCandidates`
+- unified Router schema 已具备双读 normalize 能力：
+  - `Router.routes`
+  - `Router.decision`
+  - `Router.defaults`
+  可归一到当前 `TriggerRouter / SmartRouter / Governance` 运行时结构
+- 相关 focused regression 已建立并通过：
+  - `src/trigger/selector.test.ts`
+  - `src/trigger/trigger-router.test.ts`
+  - `src/trigger/smart-router.test.ts`
+  - `src/utils/config.test.ts`
+
+当前闭环结论：
+
+- 统一 Router 的运行时底座已足够稳定，可作为后续对外心智收编、配置产品化最终收口和 CLI/setup UX 重设计的前提
+- 后续剩余工作不再作为独立未闭环 P0 主线维护，而是转入：
+  - TriggerRouter / SmartRouter 对外心智收编
+  - 配置产品化最终收口
+  - CLI / setup UX 重设计

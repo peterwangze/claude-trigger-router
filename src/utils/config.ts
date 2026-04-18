@@ -260,7 +260,12 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
           const err = validateModelRef(rule.model, validProviders, `TriggerRouter.rules[${index}].model`);
           if (err) errors.push(err);
         }
-        if (!rule.patterns || rule.patterns.length === 0) {
+        const hasSemanticOnlyMatch = Boolean(
+          rule.description ||
+          rule.semantic_profile?.prototype ||
+          rule.semantic_profile?.enabled
+        );
+        if ((!rule.patterns || rule.patterns.length === 0) && !hasSemanticOnlyMatch) {
           errors.push(`TriggerRouter.rules[${index}].patterns must be a non-empty array`);
         }
       });
@@ -431,11 +436,127 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
   return errors;
 }
 
+function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppConfig> {
+  const routes = config.Router?.routes;
+  const decision = config.Router?.decision;
+  const defaults = config.Router?.defaults;
+  const hasUnifiedRouterInput = Boolean(
+    (Array.isArray(routes) && routes.length) ||
+    decision ||
+    defaults
+  );
+
+  if (!hasUnifiedRouterInput) {
+    return config;
+  }
+
+  const nextConfig: Partial<IAppConfig> = {
+    ...config,
+    Router: {
+      ...(config.Router ?? {}),
+    },
+  };
+
+  if (Array.isArray(routes) && routes.length > 0) {
+    nextConfig.TriggerRouter = {
+      ...(config.TriggerRouter ?? DEFAULT_TRIGGER_CONFIG),
+      enabled: true,
+      rules: routes.map((route) => ({
+        name: route.name,
+        priority: route.priority ?? 0,
+        enabled: route.enabled ?? true,
+        model: route.model,
+        description: route.description,
+        semantic_profile: route.match?.semantic || route.match?.semantic_profile
+          ? {
+              enabled: route.match?.semantic ?? true,
+              prototype: route.match?.semantic_profile?.prototype,
+              threshold: route.match?.semantic_profile?.threshold,
+            }
+          : undefined,
+        patterns: [
+          ...(Array.isArray(route.match?.keywords) && route.match?.keywords.length
+            ? [{
+                type: 'exact' as const,
+                keywords: route.match?.keywords,
+              }]
+            : []),
+          ...(typeof route.match?.regex === 'string' && route.match.regex.trim().length
+            ? [{
+                type: 'regex' as const,
+                pattern: route.match.regex,
+              }]
+            : []),
+        ],
+      })),
+    };
+
+    const semanticPrototypes = Object.fromEntries(
+      routes
+        .filter((route) => route.match?.semantic || route.match?.semantic_profile?.prototype || route.description)
+        .map((route) => [
+          route.name,
+          route.match?.semantic_profile?.prototype ?? route.description ?? '',
+        ])
+        .filter(([, prototype]) => typeof prototype === 'string' && prototype.trim().length > 0)
+    );
+
+    if (Object.keys(semanticPrototypes).length > 0 || defaults?.semantic) {
+      nextConfig.Governance = {
+        ...(config.Governance ?? DEFAULT_GOVERNANCE_CONFIG),
+        semantic: {
+          ...((config.Governance?.semantic ?? {}) as NonNullable<IAppConfig['Governance']>['semantic']),
+          ...(defaults?.semantic ?? {}),
+          enabled: defaults?.semantic?.enabled ?? true,
+          prototypes: {
+            ...(config.Governance?.semantic?.prototypes ?? {}),
+            ...semanticPrototypes,
+          },
+        },
+      };
+    }
+  }
+
+  if (decision) {
+    nextConfig.SmartRouter = {
+      ...(config.SmartRouter ?? DEFAULT_SMART_ROUTER_CONFIG),
+      enabled: decision.smart_fallback ?? true,
+      router_model: decision.router_model ?? config.SmartRouter?.router_model ?? '',
+      candidates: decision.candidates ?? config.SmartRouter?.candidates ?? [],
+      cache_ttl: decision.cache_ttl ?? config.SmartRouter?.cache_ttl,
+      max_tokens: decision.max_tokens ?? config.SmartRouter?.max_tokens,
+      fallback: decision.fallback ?? config.SmartRouter?.fallback,
+      router_hint: decision.router_hint ?? config.SmartRouter?.router_hint,
+    };
+  }
+
+  if (defaults?.sticky || defaults?.semantic) {
+    nextConfig.Governance = {
+      ...(nextConfig.Governance ?? config.Governance ?? DEFAULT_GOVERNANCE_CONFIG),
+      sticky: defaults?.sticky
+        ? {
+            ...((config.Governance?.sticky ?? {}) as NonNullable<IAppConfig['Governance']>['sticky']),
+            ...defaults.sticky,
+          }
+        : config.Governance?.sticky,
+      semantic: defaults?.semantic
+        ? {
+            ...((nextConfig.Governance?.semantic ?? config.Governance?.semantic ?? {}) as NonNullable<IAppConfig['Governance']>['semantic']),
+            ...defaults.semantic,
+          }
+        : nextConfig.Governance?.semantic ?? config.Governance?.semantic,
+    };
+  }
+
+  return nextConfig;
+}
+
 export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
   config: IAppConfig;
   errors: string[];
   warnings: string[];
 } {
+  const normalizedInput = normalizeUnifiedRouterInput(config);
   const normalizedConfig = deepMerge(
     {
       ...DEFAULT_CONFIG,
@@ -445,19 +566,19 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
       Providers: [],
       SmartRouter: DEFAULT_SMART_ROUTER_CONFIG,
     },
-    config
+    normalizedInput
   ) as IAppConfig;
 
-  if (config.TriggerRouter) {
-    normalizedConfig.TriggerRouter = deepMerge(DEFAULT_TRIGGER_CONFIG, config.TriggerRouter) as IAppConfig['TriggerRouter'];
+  if (normalizedInput.TriggerRouter) {
+    normalizedConfig.TriggerRouter = deepMerge(DEFAULT_TRIGGER_CONFIG, normalizedInput.TriggerRouter) as IAppConfig['TriggerRouter'];
   }
 
-  if (config.Governance) {
-    normalizedConfig.Governance = deepMerge(DEFAULT_GOVERNANCE_CONFIG, config.Governance) as IAppConfig['Governance'];
+  if (normalizedInput.Governance) {
+    normalizedConfig.Governance = deepMerge(DEFAULT_GOVERNANCE_CONFIG, normalizedInput.Governance) as IAppConfig['Governance'];
   }
 
-  if (config.Models) {
-    normalizedConfig.Models = config.Models.map((item) => normalizeModelEndpointConfig(item));
+  if (normalizedInput.Models) {
+    normalizedConfig.Models = normalizedInput.Models.map((item) => normalizeModelEndpointConfig(item));
   }
 
   return {

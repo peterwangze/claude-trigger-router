@@ -66,6 +66,52 @@ describe('SmartRouterSelector', () => {
     expect(result!.confidence).toBe(0.9);
   });
 
+  it('should include structured router hints in the prompt when provided', async () => {
+    let promptBody = '';
+    const mockFetch = async (_url: string, init?: RequestInit) => {
+      promptBody = String(init?.body ?? '');
+      return {
+        ok: true,
+        json: async () => ({
+          content: [
+            {
+              text: JSON.stringify({
+                model: 'provider,model-a',
+                confidence: 0.9,
+                reasoning: 'Code task detected',
+              }),
+            },
+          ],
+        }),
+      };
+    };
+
+    await selector.selectModel(
+      '写一段代码',
+      baseConfig,
+      5678,
+      mockFetch as any,
+      undefined,
+      undefined,
+      {
+        taskSummary: '用户在请求代码任务',
+        topRouteCandidates: [
+          {
+            name: 'coding',
+            model: 'provider,model-a',
+            description: '擅长代码任务',
+            confidence: 0.88,
+          },
+        ],
+      }
+    );
+
+    const parsed = JSON.parse(promptBody);
+    expect(JSON.stringify(parsed)).toContain('Task summary');
+    expect(JSON.stringify(parsed)).toContain('Pre-filtered route candidates');
+    expect(JSON.stringify(parsed)).toContain('coding -> provider,model-a');
+  });
+
   it('should pass AbortSignal timeout to internal smart router fetch when configured', async () => {
     let receivedSignal: AbortSignal | undefined;
     const mockFetch = async (_url: string, init?: RequestInit) => {

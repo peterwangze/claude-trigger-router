@@ -17,6 +17,12 @@ export interface ISemanticIntentResult {
   evidence?: string[];
 }
 
+export interface ISemanticCandidateInput {
+  intent: string;
+  prototype: string;
+  threshold?: number;
+}
+
 function normalize(text: string): string {
   return text
     .toLowerCase()
@@ -129,6 +135,43 @@ Return JSON only:
     }
 
     if (!best || best.confidence < threshold) {
+      return null;
+    }
+
+    return best;
+  }
+
+  analyzeCandidates(text: string, candidates: ISemanticCandidateInput[], defaultThreshold = 0.85): ISemanticIntentResult | null {
+    const inputTokens = tokenize(text);
+    if (inputTokens.length === 0 || !candidates.length) {
+      return null;
+    }
+
+    const inputVector = buildVector(inputTokens);
+    let best: ISemanticIntentResult | null = null;
+    let bestThreshold = defaultThreshold;
+
+    for (const candidate of candidates) {
+      const prototypeTokens = tokenize(candidate.prototype);
+      if (prototypeTokens.length === 0) {
+        continue;
+      }
+
+      const prototypeVector = buildVector(prototypeTokens);
+      const matched = prototypeTokens.filter((token) => inputTokens.includes(token));
+      const confidence = cosineSimilarity(inputVector, prototypeVector);
+      if (!best || confidence > best.confidence) {
+        best = {
+          intent: candidate.intent,
+          confidence,
+          matchedPrototype: candidate.prototype,
+          evidence: matched,
+        };
+        bestThreshold = candidate.threshold ?? defaultThreshold;
+      }
+    }
+
+    if (!best || best.confidence < bestThreshold) {
       return null;
     }
 

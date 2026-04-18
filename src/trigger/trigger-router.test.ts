@@ -210,9 +210,42 @@ describe('TriggerRouter', () => {
 
       const result = await router.route(req as any);
 
-      expect(result.routeSource).toBe('sticky');
-      expect(req.governanceTrace.routeReason).toContain('sticky_routing');
+      expect(result.routeSource).toBe('sticky_correction');
+      expect(req.governanceTrace.routeReason).toContain('sticky_correction');
       expect(req.governanceTrace.stickyHit).toBe(true);
+    });
+
+    it('should record semantic_match trace reasons with unified labels', async () => {
+      const config = createAppConfig({
+        Governance: {
+          enabled: true,
+          semantic: {
+            enabled: true,
+            threshold: 0.2,
+            prototypes: {
+              architecture: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          },
+        } as any,
+      });
+      router.init(config);
+      const req = {
+        governanceTrace: {
+          requestId: 'req-semantic',
+          routeReason: [],
+          stickyHit: false,
+          alignmentUsed: false,
+          cascadeTriggered: false,
+          shadowChecked: false,
+          startedAt: Date.now(),
+        },
+        body: { messages: [{ role: 'user', content: '请帮我重构系统结构并拆分核心模块' }] },
+      };
+
+      const result = await router.route(req as any);
+
+      expect(result.routeSource).toBe('semantic_match');
+      expect(req.governanceTrace.routeReason).toContain('semantic_match:architecture');
     });
   });
 

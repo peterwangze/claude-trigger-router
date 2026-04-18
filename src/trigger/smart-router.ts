@@ -25,30 +25,19 @@ export interface ISmartRouterResult {
   reasoning?: string;
 }
 
+export interface ISmartRouterHintContext {
+  taskSummary?: string;
+  topRouteCandidates?: Array<{
+    name: string;
+    model: string;
+    description?: string;
+    confidence?: number;
+  }>;
+}
+
 /**
  * SmartRouter Prompt 模板
  */
-const SMART_ROUTER_PROMPT = `You are a model routing assistant. Your job is to select the most appropriate AI model from the given candidates to handle the user's request.
-
-User request:
-"""
-{request}
-"""
-
-Available models:
-{candidates}
-
-Select the most appropriate model and respond in the following JSON format ONLY:
-{
-  "model": "<exact model identifier from the list>",
-  "confidence": <0.0-1.0>,
-  "reasoning": "<brief explanation>"
-}
-
-Important:
-- The "model" field MUST be one of the exact identifiers listed above
-- Respond ONLY with the JSON, no additional text`;
-
 /**
  * 智能路由选择器类
  */
@@ -89,10 +78,44 @@ export class SmartRouterSelector {
   /**
    * 构建完整 prompt
    */
-  private buildPrompt(text: string, candidates: ISmartRouterConfig['candidates']): string {
-    return SMART_ROUTER_PROMPT
-      .replace('{request}', text)
-      .replace('{candidates}', this.buildCandidatesList(candidates));
+  private buildPrompt(text: string, candidates: ISmartRouterConfig['candidates'], hint?: ISmartRouterHintContext): string {
+    const sections = [
+      'You are a model routing assistant. Your job is to select the most appropriate AI model from the given candidates to handle the user\'s request.',
+    ];
+
+    if (hint?.taskSummary) {
+      sections.push(`Task summary:\n"""\n${hint.taskSummary}\n"""`);
+    }
+
+    if (hint?.topRouteCandidates?.length) {
+      sections.push(
+        'Pre-filtered route candidates:\n' +
+        hint.topRouteCandidates
+          .map((candidate, index) =>
+            `${index + 1}. ${candidate.name} -> ${candidate.model}` +
+            `${candidate.description ? ` (${candidate.description})` : ''}` +
+            `${candidate.confidence !== undefined ? ` [confidence=${candidate.confidence}]` : ''}`
+          )
+          .join('\n')
+      );
+    }
+
+    sections.push(
+      `User request:\n"""\n${text}\n"""`,
+      `Available models:\n${this.buildCandidatesList(candidates)}`,
+      `Select the most appropriate model and respond in the following JSON format ONLY:
+{
+  "model": "<exact model identifier from the list>",
+  "confidence": <0.0-1.0>,
+  "reasoning": "<brief explanation>"
+}
+
+Important:
+- The "model" field MUST be one of the exact identifiers listed above
+- Respond ONLY with the JSON, no additional text`
+    );
+
+    return sections.join('\n\n');
   }
 
   /**
@@ -110,7 +133,8 @@ export class SmartRouterSelector {
     port: number = DEFAULT_CONFIG.PORT,
     fetchFn?: typeof fetch,
     apiKey?: string,
-    timeoutMs?: number
+    timeoutMs?: number,
+    hint?: ISmartRouterHintContext
   ): Promise<ISmartRouterResult | null> {
     // 未启用或候选不足
     if (!config.enabled) {
@@ -130,7 +154,7 @@ export class SmartRouterSelector {
 
     try {
       const fetchImpl = fetchFn || fetch;
-      const prompt = this.buildPrompt(text, config.candidates);
+      const prompt = this.buildPrompt(text, config.candidates, hint);
 
       const response = await fetchImpl(`http://127.0.0.1:${port}/v1/messages`, {
         method: 'POST',

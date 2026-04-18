@@ -16,10 +16,125 @@ import { createTaskFingerprint, sessionStateStore } from '../governance/session-
 import { semanticRouter } from '../governance/semantic-router';
 import { resolveModelReference } from '../models/compile';
 
+interface IStickyCorrectionContext {
+  sessionModel?: string;
+  fingerprint?: string;
+}
+
 /**
  * 模型选择器类
  */
 export class ModelSelector {
+  private resolveRouteModel(appConfig: IAppConfig | undefined, ref: string | undefined): string | undefined {
+    if (!ref) {
+      return undefined;
+    }
+    return appConfig ? resolveModelReference(appConfig, ref) ?? ref : ref;
+  }
+
+  private buildSemanticCandidates(
+    rules: ITriggerRule[],
+    governanceConfig?: IGovernanceConfig
+  ) {
+    const defaultThreshold = governanceConfig?.semantic?.threshold;
+    const legacyPrototypes = governanceConfig?.semantic?.prototypes ?? {};
+
+    return this.sortRulesByPriority(rules)
+      .map((rule) => {
+        const prototype = rule.semantic_profile?.prototype
+          ?? legacyPrototypes[rule.name]
+          ?? rule.description;
+        const semanticEnabled = rule.semantic_profile?.enabled !== false && Boolean(prototype);
+        if (!semanticEnabled || !prototype) {
+          return null;
+        }
+
+        return {
+          rule,
+          prototype,
+          threshold: rule.semantic_profile?.threshold ?? defaultThreshold,
+        };
+      })
+      .filter(Boolean) as Array<{ rule: ITriggerRule; prototype: string; threshold?: number }>;
+  }
+
+  private getStickyCorrection(
+    text: string,
+    req: IRequestContext,
+    governanceConfig?: IGovernanceConfig
+  ): IStickyCorrectionContext {
+    if (!governanceConfig?.enabled || !governanceConfig.sticky?.enabled || !req.sessionId) {
+      return {};
+    }
+
+    const fingerprint = createTaskFingerprint(text);
+    const sessionState = sessionStateStore.get(req.sessionId);
+    if (
+      !fingerprint ||
+      sessionState?.lastTaskFingerprint !== fingerprint ||
+      !(sessionState.preferredModel || sessionState.lastSuccessfulModel)
+    ) {
+      return {};
+    }
+
+    return {
+      fingerprint,
+      sessionModel: sessionState.preferredModel || sessionState.lastSuccessfulModel,
+    };
+  }
+
+  private applyStickyCorrection(
+    candidate: IAnalysisResult | null,
+    sticky: IStickyCorrectionContext,
+    appConfig?: IAppConfig
+  ): IAnalysisResult | null {
+    if (!sticky.sessionModel) {
+      return candidate;
+    }
+
+    const stickyModel = this.resolveRouteModel(appConfig, sticky.sessionModel);
+    if (!stickyModel) {
+      return candidate;
+    }
+
+    if (!candidate) {
+      log(`[StickyRouting] Reusing model "${stickyModel}" as unified router correction`);
+      return {
+        matched: true,
+        model: stickyModel,
+        confidence: 0.95,
+        analysisTime: 0,
+        routeSource: 'sticky_correction',
+      };
+    }
+
+    if (candidate.model === stickyModel) {
+      return candidate;
+    }
+
+    log(`[StickyRouting] Correcting selected model "${candidate.model}" -> "${stickyModel}"`);
+    return {
+      ...candidate,
+      model: stickyModel,
+      confidence: Math.max(candidate.confidence, 0.95),
+      routeSource: 'sticky_correction',
+    };
+  }
+
+  private buildSmartRouterHint(text: string, rules: ITriggerRule[]) {
+    return {
+      taskSummary: text.slice(0, 240),
+      topRouteCandidates: this.sortRulesByPriority(rules)
+        .filter((rule) => rule.description)
+        .slice(0, 3)
+        .map((rule) => ({
+          name: rule.name,
+          model: rule.model,
+          description: rule.description,
+          confidence: undefined,
+        })),
+    };
+  }
   /**
    * 按优先级排序规则
    * 优先级数值越大，优先级越高
@@ -130,43 +245,33 @@ export class ModelSelector {
       };
     }
 
-    // 第二步：Sticky routing，优先复用同会话同任务的最近稳定模型
-    if (governanceConfig?.enabled && governanceConfig.sticky?.enabled && req.sessionId) {
-      const fingerprint = createTaskFingerprint(text);
-      const sessionState = sessionStateStore.get(req.sessionId);
+    const stickyCorrection = this.getStickyCorrection(text, req, governanceConfig);
 
-      if (
-        fingerprint &&
-        sessionState?.lastTaskFingerprint === fingerprint &&
-        (sessionState.preferredModel || sessionState.lastSuccessfulModel)
-      ) {
-        const stickyModel = sessionState.preferredModel || sessionState.lastSuccessfulModel;
-        if (stickyModel) {
-          log(`[StickyRouting] Reusing model "${stickyModel}" for session "${req.sessionId}"`);
-          return {
-            matched: true,
-            model: appConfig ? resolveModelReference(appConfig, stickyModel) ?? stickyModel : stickyModel,
-            confidence: 0.95,
-            analysisTime: Date.now() - startTime,
-            analyzedText: text,
-            routeSource: 'sticky',
-          };
-        }
-      }
-    }
-
-    // 第三步：Semantic Router 语义意图匹配
-    if (governanceConfig?.enabled && governanceConfig.semantic?.enabled) {
-      const semanticResult = governanceConfig.semantic.mode === 'classifier'
+    // 第二步：Semantic Router 语义辅助匹配
+    const semanticCandidates = this.buildSemanticCandidates(config.rules, governanceConfig);
+    if (governanceConfig?.enabled && governanceConfig.semantic?.enabled && semanticCandidates.length > 0) {
+      const semanticConfig = {
+        ...governanceConfig.semantic,
+        prototypes: Object.fromEntries(semanticCandidates.map((candidate) => [candidate.rule.name, candidate.prototype])),
+      };
+      const semanticResult = semanticConfig.mode === 'classifier'
         ? await semanticRouter.analyzeWithClassifier(
             text,
-            governanceConfig.semantic,
+            semanticConfig,
             port,
             undefined,
             apiKey,
             timeoutMs
           )
-        : semanticRouter.analyze(text, governanceConfig.semantic);
+        : semanticRouter.analyzeCandidates(
+            text,
+            semanticCandidates.map((candidate) => ({
+              intent: candidate.rule.name,
+              prototype: candidate.prototype,
+              threshold: candidate.threshold,
+            })),
+            semanticConfig.threshold
+          );
       if (semanticResult) {
         const matchedRule = config.rules.find(
           (rule) => rule.enabled !== false && rule.name.toLowerCase() === semanticResult.intent.toLowerCase()
@@ -177,34 +282,43 @@ export class ModelSelector {
           if (req.governanceTrace) {
             req.governanceTrace.semanticIntent = semanticResult.intent;
           }
-          return {
+          const semanticSelection: IAnalysisResult = {
             matched: true,
             rule: matchedRule,
-            model: appConfig ? resolveModelReference(appConfig, matchedRule.model) ?? matchedRule.model : matchedRule.model,
+            model: this.resolveRouteModel(appConfig, matchedRule.model),
             confidence: semanticResult.confidence,
             analysisTime: Date.now() - startTime,
             analyzedText: text,
-            routeSource: 'intent',
+            routeSource: 'semantic_match',
           };
+          return this.applyStickyCorrection(semanticSelection, stickyCorrection, appConfig) ?? semanticSelection;
         }
       }
     }
 
-    // 第四步：SmartRouter 智能模型选择
+    // 第三步：SmartRouter 作为结构化 fallback
     if (smartRouterConfig?.enabled && smartRouterConfig.candidates?.length >= 2) {
       try {
         const resolvedSmartRouterConfig = appConfig ? {
           ...smartRouterConfig,
-          router_model: resolveModelReference(appConfig, smartRouterConfig.router_model) ?? smartRouterConfig.router_model,
+          router_model: this.resolveRouteModel(appConfig, smartRouterConfig.router_model) ?? smartRouterConfig.router_model,
           candidates: smartRouterConfig.candidates.map((candidate) => ({
             ...candidate,
-            model: resolveModelReference(appConfig, candidate.model) ?? candidate.model,
+            model: this.resolveRouteModel(appConfig, candidate.model) ?? candidate.model,
           })),
         } : smartRouterConfig;
-        const smartResult = await smartRouterSelector.selectModel(text, resolvedSmartRouterConfig, port, undefined, apiKey, timeoutMs);
+        const smartResult = await smartRouterSelector.selectModel(
+          text,
+          resolvedSmartRouterConfig,
+          port,
+          undefined,
+          apiKey,
+          timeoutMs,
+          this.buildSmartRouterHint(text, config.rules)
+        );
         if (smartResult) {
           log(`[SmartRouter] Selected model "${smartResult.model}" (confidence: ${smartResult.confidence})`);
-          return {
+          const smartSelection: IAnalysisResult = {
             matched: true,
             model: smartResult.model,
             confidence: smartResult.confidence,
@@ -212,13 +326,14 @@ export class ModelSelector {
             analyzedText: text,
             routeSource: 'smart_router',
           };
+          return this.applyStickyCorrection(smartSelection, stickyCorrection, appConfig) ?? smartSelection;
         }
       } catch (error) {
         logError('[ModelSelector] SmartRouter error:', error);
       }
     }
 
-    // 第五步：如果启用了 LLM 意图识别，进行意图检测
+    // 第四步：保留 legacy intent fallback 作为兼容兜底
     if (config.llm_intent_recognition && config.intent_model) {
       try {
         const intentResult = await intentDetector.detectIntent(text, config, port, undefined, apiKey, timeoutMs);
@@ -227,15 +342,16 @@ export class ModelSelector {
           const matchedRule = intentDetector.findRuleByIntent(intentResult.intent, config.rules);
 
           if (matchedRule) {
-            return {
+            const intentSelection: IAnalysisResult = {
               matched: true,
               rule: matchedRule,
-              model: appConfig ? resolveModelReference(appConfig, matchedRule.model) ?? matchedRule.model : matchedRule.model,
+              model: this.resolveRouteModel(appConfig, matchedRule.model),
               confidence: intentResult.confidence,
               analysisTime: Date.now() - startTime,
               analyzedText: text,
-              routeSource: 'intent',
+              routeSource: 'intent_fallback',
             };
+            return this.applyStickyCorrection(intentSelection, stickyCorrection, appConfig) ?? intentSelection;
           }
         }
       } catch (error) {
@@ -243,7 +359,16 @@ export class ModelSelector {
       }
     }
 
-    // 没有匹配任何规则
+    // 第五步：若前层均未稳定命中，再尝试 sticky correction 作为最后稳定性修正
+    const stickyOnlySelection = this.applyStickyCorrection(null, stickyCorrection, appConfig);
+    if (stickyOnlySelection) {
+      return {
+        ...stickyOnlySelection,
+        analysisTime: Date.now() - startTime,
+        analyzedText: text,
+      };
+    }
+
     return {
       matched: false,
       confidence: 0,
