@@ -139,6 +139,19 @@ function validateModelRef(
   return null;
 }
 
+function validateKnownModelRef(
+  ref: string,
+  config: Partial<IAppConfig>,
+  providers: IAppConfig['Providers'],
+  fieldName: string
+): string | null {
+  if (isKnownModelReference(config as IAppConfig, ref)) {
+    return null;
+  }
+
+  return validateModelRef(ref, providers, fieldName);
+}
+
 /**
  * 验证配置
  */
@@ -233,7 +246,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
       ];
       for (const [ref, field] of routerModelFields) {
         if (ref) {
-          const err = validateModelRef(ref, validProviders, field);
+          const err = validateKnownModelRef(ref, config, validProviders, field);
           if (err) errors.push(err);
         }
       }
@@ -245,7 +258,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
     if (config.TriggerRouter.llm_intent_recognition && !config.TriggerRouter.intent_model) {
       errors.push('TriggerRouter.intent_model is required when llm_intent_recognition is enabled');
     } else if (config.TriggerRouter.intent_model && validProviders.length > 0) {
-      const err = validateModelRef(config.TriggerRouter.intent_model, validProviders, 'TriggerRouter.intent_model');
+      const err = validateKnownModelRef(config.TriggerRouter.intent_model, config, validProviders, 'TriggerRouter.intent_model');
       if (err) errors.push(err);
     }
 
@@ -257,7 +270,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
         if (!rule.model) {
           errors.push(`TriggerRouter.rules[${index}].model is required`);
         } else if (validProviders.length > 0) {
-          const err = validateModelRef(rule.model, validProviders, `TriggerRouter.rules[${index}].model`);
+          const err = validateKnownModelRef(rule.model, config, validProviders, `TriggerRouter.rules[${index}].model`);
           if (err) errors.push(err);
         }
         const hasSemanticOnlyMatch = Boolean(
@@ -277,7 +290,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
     if (!config.SmartRouter.router_model) {
       errors.push('SmartRouter.router_model is required when SmartRouter is enabled');
     } else if (validProviders.length > 0) {
-      const err = validateModelRef(config.SmartRouter.router_model, validProviders, 'SmartRouter.router_model');
+      const err = validateKnownModelRef(config.SmartRouter.router_model, config, validProviders, 'SmartRouter.router_model');
       if (err) errors.push(err);
     }
     if (!config.SmartRouter.candidates || config.SmartRouter.candidates.length < 2) {
@@ -287,7 +300,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
         if (!candidate.model) {
           errors.push(`SmartRouter.candidates[${index}].model is required`);
         } else if (validProviders.length > 0) {
-          const err = validateModelRef(candidate.model, validProviders, `SmartRouter.candidates[${index}].model`);
+          const err = validateKnownModelRef(candidate.model, config, validProviders, `SmartRouter.candidates[${index}].model`);
           if (err) errors.push(err);
         }
         if (!candidate.description) {
@@ -458,6 +471,7 @@ function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppC
   };
 
   if (Array.isArray(routes) && routes.length > 0) {
+    const semanticExplicitlyEnabled = defaults?.semantic?.enabled;
     nextConfig.TriggerRouter = {
       ...(config.TriggerRouter ?? DEFAULT_TRIGGER_CONFIG),
       enabled: true,
@@ -504,6 +518,11 @@ function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppC
     if (Object.keys(semanticPrototypes).length > 0 || defaults?.semantic) {
       nextConfig.Governance = {
         ...(config.Governance ?? DEFAULT_GOVERNANCE_CONFIG),
+        enabled: config.Governance?.enabled ?? (
+          semanticExplicitlyEnabled !== undefined
+            ? semanticExplicitlyEnabled
+            : Object.keys(semanticPrototypes).length > 0
+        ),
         semantic: {
           ...((config.Governance?.semantic ?? {}) as NonNullable<IAppConfig['Governance']>['semantic']),
           ...(defaults?.semantic ?? {}),
@@ -533,6 +552,11 @@ function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppC
   if (defaults?.sticky || defaults?.semantic) {
     nextConfig.Governance = {
       ...(nextConfig.Governance ?? config.Governance ?? DEFAULT_GOVERNANCE_CONFIG),
+      enabled: config.Governance?.enabled ?? Boolean(
+        defaults?.sticky?.enabled ||
+        defaults?.semantic?.enabled ||
+        nextConfig.Governance?.semantic?.enabled
+      ),
       sticky: defaults?.sticky
         ? {
             ...((config.Governance?.sticky ?? {}) as NonNullable<IAppConfig['Governance']>['sticky']),

@@ -1109,6 +1109,83 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
+  it('unified Router config routes requests through the normalized runtime chain in packaged CLI mode', async () => {
+    const env = await createTestEnvironment('ctr-unified-router-e2e-');
+    const port = await getFreePort();
+    const upstream = await startFakeOpenAiUpstream();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'LOG: false',
+          'Providers:',
+          '  - name: openrouter',
+          `    api_base_url: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    api_key: "sk-provider"',
+          '    models: ["anthropic/claude-sonnet-4", "anthropic/claude-opus-4"]',
+          'Models:',
+          '  - id: sonnet',
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-sonnet"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-sonnet-4"',
+          '  - id: opus',
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-opus"',
+          '    interface: "openai"',
+          '    model: "anthropic/claude-opus-4"',
+          'Router:',
+          '  default: "sonnet"',
+          '  routes:',
+          '    - name: "architecture"',
+          '      model: "opus"',
+          '      description: "重构 系统 结构 模块 拆分 架构 设计"',
+          '      priority: 90',
+          '      match:',
+          '        semantic: true',
+          '        semantic_profile:',
+          '          threshold: 0.2',
+          '  decision:',
+          '    smart_fallback: true',
+          '    router_model: "sonnet"',
+          '    candidates:',
+          '      - model: "sonnet"',
+          '        description: "通用编程与日常调试"',
+          '      - model: "opus"',
+          '        description: "架构与复杂评审"',
+          '  defaults:',
+          '    semantic:',
+          '      enabled: true',
+          '      threshold: 0.2',
+          '    sticky:',
+          '      enabled: true',
+        ].join('\n')
+      );
+
+      const startResult = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
+        timeoutMs: 20000,
+      });
+      expect(startResult.code).toBe(0);
+
+      const response = await postAnthropicMessage(port, 'sonnet', '请帮我重构系统结构并拆分核心模块');
+      expect(response.ok).toBe(true);
+      expect(upstream.requests.length).toBeGreaterThan(0);
+      expect(upstream.requests.at(-1)?.body?.model).toBe('anthropic/claude-opus-4');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('generic openai-compatible models preserve tool names when Claude sends openai-style tool definitions', async () => {
     const env = await createTestEnvironment('ctr-compat-tools-e2e-');
     const upstream = await startFakeOpenAiUpstream();

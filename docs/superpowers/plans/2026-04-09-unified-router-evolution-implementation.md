@@ -815,11 +815,16 @@ git commit -m "feat: unify router decision flow and config experience"
   - `Router.decision`
   - `Router.defaults`
   可归一到当前 `TriggerRouter / SmartRouter / Governance` 运行时结构
+- unified `Router.defaults` 已不再停留在编译层骨架：
+  - `defaults.semantic` / `defaults.sticky` 会真实启用治理层，而不是只落到子字段不生效
+- mixed config 场景已收口：
+  - 当 `Providers` 与 `Models` 共存时，统一 Router 的 model id 引用不会再被旧 `provider,model` 校验误伤
 - 相关 focused regression 已建立并通过：
   - `src/trigger/selector.test.ts`
   - `src/trigger/trigger-router.test.ts`
   - `src/trigger/smart-router.test.ts`
   - `src/utils/config.test.ts`
+  - `src/e2e/cli-e2e.test.ts`
 
 当前闭环结论：
 

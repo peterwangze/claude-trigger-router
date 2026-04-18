@@ -565,7 +565,60 @@ describe('normalizeAndValidateConfig governance', () => {
       architecture: '重构 系统 结构 模块 拆分 架构 设计',
       coding: '通用编程与调试',
     }));
+    expect(result.config.Governance?.enabled).toBe(true);
     expect(result.config.Governance?.sticky?.alignment?.summarizer_model).toBe('sonnet');
     expect(result.config.Router.routes).toHaveLength(2);
+  });
+
+  it('treats unified Router model-id references as valid even when Providers still exist', () => {
+    const result = normalizeAndValidateConfig({
+      Providers: [
+        {
+          name: 'openrouter',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4', 'anthropic/claude-opus-4'],
+        },
+      ],
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+      Router: {
+        default: 'sonnet',
+        routes: [
+          {
+            name: 'architecture',
+            model: 'opus',
+            description: '架构设计',
+            match: {
+              semantic: true,
+            },
+          },
+        ],
+        decision: {
+          smart_fallback: true,
+          router_model: 'sonnet',
+          candidates: [
+            { model: 'sonnet', description: '通用' },
+            { model: 'opus', description: '架构' },
+          ],
+        },
+      },
+    } as any);
+
+    expect(result.errors).toEqual([]);
   });
 });
