@@ -108,7 +108,7 @@ set "USERPROFILE=$escapedHome"
 "@
   } else {
     $wrapperSh = Join-Path $stagePrefix "ctr-release-home.sh"
-    Set-Content -LiteralPath $wrapperSh -Value @"
+    $wrapperShContent = @"
 #!/usr/bin/env sh
 HOME='$releaseHome'
 USERPROFILE='$releaseHome'
@@ -116,6 +116,11 @@ export HOME
 export USERPROFILE
 exec '$stageCliPath' "\$@"
 "@
+    [System.IO.File]::WriteAllText(
+      $wrapperSh,
+      $wrapperShContent,
+      (New-Object System.Text.UTF8Encoding($false))
+    )
     & chmod +x $wrapperSh
   }
 
