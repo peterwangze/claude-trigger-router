@@ -130,7 +130,7 @@ describe('applyResponseGovernance', () => {
       },
     });
 
-    expect(selectResult.routeSource).toBe('intent');
+    expect(selectResult.routeSource).toBe('semantic_match');
     expect(req.governanceTrace.semanticIntent).toBe('architecture');
     expect(nextPayload).toEqual({ content: [{ text: 'guard rescued output' }] });
     expect(req.body.model).toBe('provider,model-b');
