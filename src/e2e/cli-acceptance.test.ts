@@ -504,11 +504,12 @@ describe('isolated packaged CLI acceptance', () => {
 
   it('release:stage creates a usable isolated wrapper that points to the staged HOME', async () => {
     const env = await createTestEnvironment('ctr-acceptance-release-stage-');
+    const port = await getFreePort();
     const stageDir = join(repoRoot, '.release-stage');
     const releaseHomeDir = join(repoRoot, '.release-home');
 
     try {
-      const stageResult = await runCommandInShell('npm run release:stage -- -Port 6791', env, {
+      const stageResult = await runCommandInShell(`npm run release:stage -- -Port ${port}`, env, {
         cwd: repoRoot,
         timeoutMs: 600000,
       });
@@ -554,7 +555,7 @@ describe('isolated packaged CLI acceptance', () => {
       expect(versionResult.code).toBe(0);
       expectNoTerminalCorruption(`${versionResult.stdout}\n${versionResult.stderr}`);
       expect(versionResult.stdout).toContain('Package: @peterwangze/claude-trigger-router');
-      expect(versionResult.stdout).toContain('Version: 1.0.5');
+      expect(versionResult.stdout).toContain('Version: 1.0.6');
 
       const upgradeResult = await runCommandInShell(toWrapperCommand('upgrade'), env, {
         cwd: repoRoot,
@@ -574,7 +575,7 @@ describe('isolated packaged CLI acceptance', () => {
       });
       expect(uiResult.code).toBe(0);
       expectNoTerminalCorruption(`${uiResult.stdout}\n${uiResult.stderr}`);
-      expect(uiResult.stdout).toContain('Opening UI at http://127.0.0.1:6791/ui');
+      expect(uiResult.stdout).toContain(`Opening UI at http://127.0.0.1:${port}/ui`);
       expect(uiResult.stdout).toContain('Browser launch skipped by CTR_UI_SKIP_OPEN=1');
 
       const setupResult = await runCommandInShell(toWrapperCommand('setup'), env, {
@@ -596,7 +597,7 @@ describe('isolated packaged CLI acceptance', () => {
       });
       expect(statusResult.code).toBe(0);
       expect(statusResult.stdout).toContain('服务运行中');
-      expect(statusResult.stdout).toContain('6791');
+      expect(statusResult.stdout).toContain(String(port));
 
       const stopResult = await runCommandInShell(toWrapperCommand('stop'), env, {
         cwd: repoRoot,

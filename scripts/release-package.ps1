@@ -264,6 +264,16 @@ function Invoke-ReleaseVerification {
 }
 
 function Invoke-ReleaseStage {
+  Invoke-Step "Reset staged release workspace" {
+    if (Test-Path -LiteralPath $stagePrefix) {
+      Remove-Item -LiteralPath $stagePrefix -Recurse -Force
+    }
+
+    if (Test-Path -LiteralPath $releaseHome) {
+      Remove-Item -LiteralPath $releaseHome -Recurse -Force
+    }
+  }
+
   Invoke-Step "Build dist bundle" {
     Invoke-CommandChecked { npm run build } "Build failed"
   }
@@ -287,10 +297,6 @@ function Invoke-ReleaseStage {
   }
 
   Invoke-Step "Install tarball into staged directory" {
-    if (Test-Path -LiteralPath $stagePrefix) {
-      Remove-Item -LiteralPath $stagePrefix -Recurse -Force
-    }
-
     New-Item -ItemType Directory -Path $stagePrefix | Out-Null
     Invoke-CommandChecked {
       npm install -g (Join-Path $repoRoot $packageFile) --prefix $stagePrefix

@@ -1,6 +1,6 @@
 {
   "name": "@peterwangze/claude-trigger-router",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Intelligent trigger-based router for Claude Code with automatic task type detection and model routing",
   "bin": {
     "ctr": "dist/cli.js"
@@ -10,6 +10,14 @@
     "config",
     "README.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peterwangze/claude-trigger-router.git"
+  },
+  "homepage": "https://github.com/peterwangze/claude-trigger-router#readme",
+  "bugs": {
+    "url": "https://github.com/peterwangze/claude-trigger-router/issues"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -17,7 +25,7 @@
     "build": "node scripts/build.js",
     "dev": "tsx watch src/cli.ts",
     "start": "node dist/cli.js start",
-    "test": "vitest",
+    "test": "vitest --exclude src/e2e/**",
     "test:e2e:cli": "vitest --run src/e2e/cli-e2e.test.ts",
     "test:e2e:acceptance": "vitest --run src/e2e/cli-acceptance.test.ts",
     "verify:package": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-package.ps1",
