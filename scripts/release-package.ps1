@@ -116,6 +116,7 @@ export HOME
 export USERPROFILE
 exec '$stageCliPath' "\$@"
 "@
+    $wrapperShContent = $wrapperShContent -replace "`r`n", "`n"
     [System.IO.File]::WriteAllText(
       $wrapperSh,
       $wrapperShContent,
