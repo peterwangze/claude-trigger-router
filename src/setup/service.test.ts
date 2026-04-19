@@ -64,7 +64,19 @@ describe('applyServiceAction', () => {
         executeRestart: vi.fn().mockResolvedValue(undefined),
         verifyHealth: vi.fn().mockResolvedValue(false),
       })
-    ).rejects.toThrow('service health check failed');
+    ).rejects.toThrow('service health check failed after restart');
+  });
+
+  it('reports a friendlier start failure message when health verification never succeeds', async () => {
+    await expect(
+      applyServiceAction({
+        action: { kind: 'start' },
+        executeStart: vi.fn().mockResolvedValue(undefined),
+        executeReload: vi.fn(),
+        executeRestart: vi.fn(),
+        verifyHealth: vi.fn().mockResolvedValue(false),
+      })
+    ).rejects.toThrow('service health check failed after start');
   });
 });
 

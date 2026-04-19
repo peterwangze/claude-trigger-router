@@ -31,6 +31,17 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
+export async function waitForProcessExit(pid: number, timeoutMs = 5000): Promise<boolean> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (!isProcessAlive(pid)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return !isProcessAlive(pid);
+}
+
 /**
  * 跨平台终止进程
  */

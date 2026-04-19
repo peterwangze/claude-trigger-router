@@ -12,7 +12,7 @@ import { getProviderPreset, listProviderPresetKeys } from '../provider-presets';
 import { run } from '../index';
 import { isTcpPortOccupied, waitForService } from '../service-health';
 import { backupConfigFile, normalizeAndValidateConfig, writeConfigFile } from '../utils';
-import { isServiceRunning, killProcess, readServiceInfo } from '../utils/processCheck';
+import { isServiceRunning, killProcess, readServiceInfo, waitForProcessExit } from '../utils/processCheck';
 import { decideServiceAction, applyServiceAction } from './service';
 import { getRepairFields } from './repair';
 import { migrateLegacyConfig } from './migrate';
@@ -372,6 +372,7 @@ async function executeRestart(): Promise<void> {
   if (info) {
     try {
       killProcess(info.pid);
+      await waitForProcessExit(info.pid, 5000);
     } catch {
       // Ignore stop failures here and rely on the following health check.
     }

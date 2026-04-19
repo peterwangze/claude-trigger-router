@@ -999,5 +999,49 @@ describe('runSetupCli', () => {
     );
     expect(enterClaudeCode).not.toHaveBeenCalled();
   });
+
+  it('surfaces a friendlier message when setup restart health check still fails', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const io = {
+      choose: vi.fn().mockResolvedValueOnce('迁移旧配置（推荐）'),
+      input: vi.fn(),
+      info: vi.fn(),
+    };
+
+    await expect(
+      runSetupCli({
+        readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+        readLegacyConfig: vi.fn().mockResolvedValue({
+          kind: 'found',
+          path: '/tmp/.claude-code-router/config.json',
+          config: {
+            Providers: [
+              {
+                name: 'gpt90',
+                api_key: 'sk-test',
+                api_base_url: 'https://example.com/openai/v1/chat/completions',
+                models: ['gpt-5.4'],
+              },
+            ],
+            Router: {
+              default: 'gpt90,gpt-5.4',
+            },
+          },
+        }),
+        probeService: vi
+          .fn()
+          .mockResolvedValueOnce({ kind: 'self_healthy', port: 5678 })
+          .mockResolvedValueOnce({ kind: 'self_healthy', port: 5678 }),
+        backupCurrentConfig: vi.fn().mockResolvedValue(null),
+        writeConfig,
+        executeStart: vi.fn().mockResolvedValue(undefined),
+        executeReload: vi.fn().mockResolvedValue(undefined),
+        executeRestart: vi.fn().mockResolvedValue(undefined),
+        verifyHealth: vi.fn().mockResolvedValue(false),
+        enterClaudeCode: vi.fn().mockResolvedValue(undefined),
+        io,
+      })
+    ).rejects.toThrow('service health check failed after restart');
+  });
 });
 

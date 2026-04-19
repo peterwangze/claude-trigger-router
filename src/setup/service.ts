@@ -55,6 +55,15 @@ export async function applyServiceAction(input: IApplyServiceActionInput): Promi
 
   const healthy = await input.verifyHealth();
   if (!healthy) {
-    throw new Error('service health check failed');
+    if (input.action.kind === 'restart') {
+      throw new Error('service health check failed after restart; the previous ctr service may still be shutting down. Please wait a moment and retry, or run `ctr stop` first.');
+    }
+    if (input.action.kind === 'start') {
+      throw new Error('service health check failed after start; please check whether the target port is already occupied or the configuration is still invalid.');
+    }
+    if (input.action.kind === 'reload') {
+      throw new Error('service health check failed after reload; please retry or run `ctr restart` / `ctr stop` first.');
+    }
+    throw new Error('service health check failed while reusing the current service; please run `ctr status` or `ctr restart` to verify it.');
   }
 }
