@@ -21,7 +21,7 @@
 
 截至 2026-04-16，项目当前状态统一定义为：
 
-> 项目已经完成治理主链首轮能力落地，当前进入“治理观测增强、配置产品化、统一 Router 对外心智收编、CLI / setup UX 与发布工程持续收口、部署形态收敛与 UI 双层工作台设计并行推进”阶段。
+> 项目已经完成治理主链首轮能力落地，当前进入“治理观测增强、配置产品化、SmartRouter 统一路由引擎化、CLI / setup UX 与发布工程持续收口、部署形态收敛与 UI 双层工作台设计并行推进”阶段。
 
 这一定义用于替代历史文档中分散、彼此可能滞后的阶段描述。
 
@@ -74,7 +74,7 @@
 | OpenAI-compatible 兼容差异内化 | 持续演进特性 | closed | closed | 行为型 compatibility contract、复杂消息块转换、capability 降级、runtime diagnostics 与 doctor/CLI 回归已形成首轮闭环，当前闭环结论是“默认 OpenAI-compatible 主路径已可按统一 contract 运行，后续剩余工作转入 migration / unified router / 产品入口收口，不再作为独立未闭环 P0 主线维护” | `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/specs/2026-04-11-legacy-config-migration-design.md` ; `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` |
 | legacy config migration 收敛 | 持续演进特性 | closed | closed | 真实 `.claude-code-router/config.json` 样本、宽松 JSON 读取、module id 稳定映射、supported 顶层字段与 Router 槽位迁移、skippedFields 提示、setup/doctor/packaged CLI 回归已形成首轮闭环，当前闭环结论是“legacy 迁移主路径已不再作为独立未闭环 P0 主线维护，后续剩余事项并入统一 Router 与配置产品化收口” | `docs/superpowers/specs/2026-04-11-legacy-config-migration-design.md` |
 | 统一 Router 运行时收敛 | 持续演进特性 | closed | closed | `rule -> semantic -> smart fallback -> sticky correction -> legacy intent fallback` 决策链、统一 route-source/trace、structured smart hint、unified Router schema 双读与 runtime normalize 已完成首轮闭环；同时已补齐 unified `Router.defaults` 对治理层的真实启用与 mixed config + model id 引用兼容，当前闭环结论是“运行时底座已可作为后续 setup/UI/docs 收口前提，剩余工作转入对外心智与产品入口主线” | `docs/superpowers/specs/2026-04-09-unified-router-evolution-design.md` ; `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md` |
-| TriggerRouter / SmartRouter 对外心智收编 | 持续演进特性 | in_progress | P1-主路径易用性 | 已正式进入执行阶段；README 与 setup 完成页正在进行第一批统一 Router 叙事收口，但 example config 与 `/ui` 主表达仍未完成 | `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
+| Trigger 收编到 SmartRouter（统一路由引擎化） | 持续演进特性 | in_progress | P1-主路径易用性 | 已完成目标纠偏，当前闭环结论是“主线目标已改为 SmartRouter 统一路由引擎化，但 runtime contract、Trigger 前置能力内收与治理默认能力内收尚未完成；对外口径收口已后置为逻辑完成后的结果” | `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
 | CLI / setup UX 重设计 | 持续演进特性 | in_progress | P1-主路径易用性 | migration-first、model-id-first 方向已明确，当前闭环结论是“主入口 redesign 已立项并部分落地，但 CLI / README / 模板 / `/ui` 叙事尚未完全统一” | `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` ; `docs/superpowers/plans/2026-04-10-cli-setup-ux-redesign-implementation.md` |
 | CLI 稳定性与发布工程 | 持续演进特性 | in_progress | P3-治理支撑 | packaged CLI E2E、acceptance、release-stage wrapper 已形成首轮门禁，当前闭环结论是“发布前质量门槛已成型，但仍需持续覆盖新路径与压低回归概率” | `docs/superpowers/specs/2026-04-12-cli-e2e-test-design.md` |
 | 进展文档体系治理 | 治理事项 | in_progress | P3-治理支撑 | 公共入口已切换为不带日期标签的统一基线，当前闭环结论是“单一入口已经建立，但后续仍需按规则维护特性表与问题记录，防止再次膨胀或口径漂移” | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
@@ -144,7 +144,7 @@
   - 定位：legacy config migration 设计文档
   - 角色：保留为迁移与兼容语义内化主线的设计依据
 
-### 4. 统一 Router 与对外心智收编主线文档
+### 4. 统一 Router 与 SmartRouter 统一路由引擎主线文档
 
 - `docs/superpowers/specs/2026-04-09-unified-router-evolution-design.md`
   - 定位：统一 Router 架构演进设计
@@ -153,8 +153,8 @@
   - 定位：统一 Router 实施计划
   - 角色：保留为运行时链路、schema、trace、持久化收敛的专项实施文档
 - `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md`
-  - 定位：TriggerRouter / SmartRouter 对外心智收编实施计划
-  - 角色：保留为统一 Router 对外产品表达收编的专项执行文档
+  - 定位：Trigger 收编到 SmartRouter（统一路由引擎化）实施计划
+  - 角色：保留为 SmartRouter 统一路由引擎、Trigger 前置能力内收与治理增强默认化的专项执行文档
 
 ### 5. CLI / setup UX、部署形态与双层 UI 文档
 
@@ -269,16 +269,17 @@
 
 #### P1：主路径易用性
 
-1. TriggerRouter / SmartRouter 对外心智收编
+1. Trigger 收编到 SmartRouter（统一路由引擎化）
 2. 配置产品化最终收口
 3. CLI / setup UX 重设计
 
 ##### P1 主线离闭环还差什么
 
-- `TriggerRouter / SmartRouter 对外心智收编`
-  - 完成 README 首屏、快速开始、setup 完成页、example config 与 `/ui` 主文案的统一 Router 叙事收编。
-  - 建立该主线的专门回归测试组，避免 README / setup / example / UI 仍各讲各话。
-  - 保证旧术语只保留在兼容说明或历史映射层，而不是继续占据用户第一入口。
+- `Trigger 收编到 SmartRouter（统一路由引擎化）`
+  - 先完成 SmartRouter runtime contract，明确 `enabled`、关键词 / 正则前置能力、语义增强、可选 `router_model` 与默认兜底的统一行为。
+  - 让 Trigger 真正内收到 SmartRouter 主链，而不是继续作为并列主系统存在。
+  - 把语义分析、语义粘连、上下文摘要提取 / 注入等能力转为默认路由增强层，并保留显式关闭开关。
+  - 在上述逻辑成立后，再推进 README / setup / example config / `/ui` 的口径与模板收口。
 - `配置产品化最终收口`
   - 继续把 warning、capability hint、repair/save 路径与 setup 多模型引导收拢为统一入口体验。
   - 补齐更复杂 warning 在 setup 侧的快捷修正模板，减少“UI 可修、CLI 只能提示”的分叉。
@@ -336,8 +337,8 @@
 
 | 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
 |---|---|---|---|---|
-| 1 | TriggerRouter / SmartRouter 对外心智收编 | P1-主路径易用性 | 优先统一 README、setup 完成页、example config 与 `/ui` 主文案 | runtime 底座已稳定后，最先要解决的是用户第一入口叙事，避免旧术语继续占据默认心智 |
-| 2 | 配置产品化最终收口 | P1-主路径易用性 | 继续收拢 warning、capability hint、repair/save 与 setup 多模型引导 | 它承接用户实际配置主路径，排在对外心智收编之后、CLI/setup redesign 之前，能先把字段心智和修正路径收稳 |
+| 1 | Trigger 收编到 SmartRouter（统一路由引擎化） | P1-主路径易用性 | 优先完成 SmartRouter runtime contract、Trigger 前置能力内收与治理默认能力内收 | 当前最先要解决的是逻辑是否真的符合统一路由引擎目标；对外口径收口必须建立在逻辑已成立基础上 |
+| 2 | 配置产品化最终收口 | P1-主路径易用性 | 继续收拢 warning、capability hint、repair/save 与 setup 多模型引导 | 它承接用户实际配置主路径，应建立在统一路由逻辑主线更稳定之后，再去统一字段心智与修正路径 |
 | 3 | CLI / setup UX 重设计 | P1-主路径易用性 | 继续完成 migration-first、model-id-first 与 help/README 一致性落地 | 它是 P1 的主入口收口动作，但要建立在统一叙事和配置心智已基本稳定之上，避免反复改问答流 |
 | 4 | 部署形态与远程接入收敛 | P2-能力扩展与体验增强 | 先补最小双端边界、remote status 与 setup/doctor/ui 本地-远程心智 | 这条线已经超出基础闭环，适合放在主路径可用后推进，否则容易让基础入口和远程能力交叉返工 |
 | 5 | UI 双层工作台收敛 | P2-能力扩展与体验增强 | 先完成 service context、surface 标识与首页双入口 | 它依赖前面配置主路径、远程语义和维护者边界更稳定，否则 UI 分层容易只做视觉拆分而不是产品收口 |
