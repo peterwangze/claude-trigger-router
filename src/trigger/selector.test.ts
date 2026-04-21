@@ -721,6 +721,79 @@ describe('ModelSelector', () => {
       expect(result.routeSource).toBe('trigger_rule');
       expect(result.model).toBe('openrouter,dall-e-3');
     });
+
+    it('should treat SmartRouter embedded rules as the primary routing path when SmartRouter is enabled', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '请帮我做架构设计' }],
+        },
+      };
+      const result = await selector.selectModel(
+        req as any,
+        { ...config, enabled: false, rules: [] },
+        5678,
+        {
+          enabled: true,
+          rules: [
+            {
+              name: 'architecture',
+              priority: 90,
+              enabled: true,
+              patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+              model: 'provider,model-architecture',
+            },
+          ],
+        } as any
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('provider,model-architecture');
+      expect(result.routeSource).toBe('trigger_rule');
+    });
+
+    it('should skip LLM router selection when SmartRouter has no router_model and rely on semantic enhancement before default fallback', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '请帮我重构系统结构并拆分核心模块' }],
+        },
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.9,
+      });
+
+      const result = await selector.selectModel(
+        req as any,
+        { ...config, enabled: false, rules: [] },
+        5678,
+        {
+          enabled: true,
+          rules: [
+            {
+              name: 'architecture',
+              priority: 90,
+              enabled: true,
+              patterns: [],
+              model: 'provider,model-architecture',
+              description: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          ],
+          semantic: {
+            enabled: true,
+            threshold: 0.2,
+            prototypes: {
+              architecture: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          },
+        } as any
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('provider,model-architecture');
+      expect(result.routeSource).toBe('semantic_match');
+      expect(smartSpy).not.toHaveBeenCalled();
+      smartSpy.mockRestore();
+    });
   });
 
   // ============ selectModelSync ============

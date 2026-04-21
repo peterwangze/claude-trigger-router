@@ -556,6 +556,31 @@ describe('normalizeAndValidateConfig governance', () => {
         expect.objectContaining({ model: 'sonnet' }),
         expect.objectContaining({ model: 'opus' }),
       ],
+      rules: [
+        expect.objectContaining({
+          name: 'architecture',
+          model: 'opus',
+        }),
+        expect.objectContaining({
+          name: 'coding',
+          model: 'sonnet',
+        }),
+      ],
+      semantic: expect.objectContaining({
+        enabled: true,
+        threshold: 0.2,
+        prototypes: expect.objectContaining({
+          architecture: '重构 系统 结构 模块 拆分 架构 设计',
+          coding: '通用编程与调试',
+        }),
+      }),
+      sticky: expect.objectContaining({
+        enabled: true,
+        alignment: expect.objectContaining({
+          enabled: true,
+          summarizer_model: 'sonnet',
+        }),
+      }),
       router_hint: {
         include_task_summary: true,
         include_top_route_candidates: true,
@@ -568,6 +593,73 @@ describe('normalizeAndValidateConfig governance', () => {
     expect(result.config.Governance?.enabled).toBe(true);
     expect(result.config.Governance?.sticky?.alignment?.summarizer_model).toBe('sonnet');
     expect(result.config.Router.routes).toHaveLength(2);
+  });
+
+  it('accepts enabled SmartRouter without router_model when using embedded trigger-style rules and semantic fallback', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+      SmartRouter: {
+        enabled: true,
+        rules: [
+          {
+            name: 'architecture',
+            priority: 90,
+            enabled: true,
+            patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+            model: 'opus',
+            description: '重构 系统 结构 模块 拆分 架构 设计',
+          },
+        ],
+        semantic: {
+          enabled: true,
+          threshold: 0.2,
+          prototypes: {
+            architecture: '重构 系统 结构 模块 拆分 架构 设计',
+          },
+        },
+        sticky: {
+          enabled: true,
+          alignment: {
+            enabled: true,
+            summarizer_model: 'sonnet',
+          },
+        },
+      },
+    } as any);
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.SmartRouter).toEqual(expect.objectContaining({
+      enabled: true,
+      router_model: '',
+      rules: [
+        expect.objectContaining({
+          name: 'architecture',
+          model: 'opus',
+        }),
+      ],
+      semantic: expect.objectContaining({
+        enabled: true,
+      }),
+      sticky: expect.objectContaining({
+        enabled: true,
+      }),
+    }));
   });
 
   it('treats unified Router model-id references as valid even when Providers still exist', () => {

@@ -141,6 +141,10 @@ Important:
       return null;
     }
 
+    if (!config.router_model) {
+      return null;
+    }
+
     if (!config.candidates || config.candidates.length < 2) {
       return null;
     }

@@ -152,7 +152,10 @@ describe('TriggerRouter', () => {
         }),
         config.TriggerRouter,
         5678,
-        config.SmartRouter,
+        expect.objectContaining({
+          enabled: true,
+          rules: config.TriggerRouter?.rules,
+        }),
         config.Governance,
         config.APIKEY,
         4321
@@ -246,6 +249,38 @@ describe('TriggerRouter', () => {
 
       expect(result.routeSource).toBe('semantic_match');
       expect(req.governanceTrace.routeReason).toContain('semantic_match:architecture');
+    });
+
+    it('should route through SmartRouter-only embedded rules even when TriggerRouter is disabled', async () => {
+      const config = createAppConfig({
+        TriggerRouter: {
+          enabled: false,
+          analysis_scope: 'last_message',
+          llm_intent_recognition: false,
+          rules: [],
+        },
+        SmartRouter: {
+          enabled: true,
+          rules: [
+            {
+              name: 'architecture',
+              priority: 90,
+              enabled: true,
+              patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+              model: 'openrouter,claude-opus-4',
+            },
+          ],
+        } as any,
+      });
+      router.init(config);
+      expect(router.isEnabled()).toBe(true);
+
+      const req = { body: { messages: [{ role: 'user', content: '请帮我做架构设计' }] } };
+      const result = await router.route(req as any);
+
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('openrouter,claude-opus-4');
+      expect(result.routeSource).toBe('trigger_rule');
     });
   });
 

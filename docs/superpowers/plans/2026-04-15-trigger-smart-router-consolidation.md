@@ -211,12 +211,16 @@
 - 在统一进展基线中单独列出该主线
 - 已识别此前把“对外口径收口”放在“核心逻辑演进”之前的顺序偏差
 - 已将这条主线重新校准为：先完成 SmartRouter 统一路由引擎化，再继续收口对外口径
+- SmartRouter runtime contract 第一轮已开始落地：
+  - `router_model` 改为可选
+  - SmartRouter 已可直接承载内收规则、语义增强与 sticky 默认增强配置
+  - selector / trigger 入口已开始优先消费 SmartRouter 的新 contract，而不再只看旧 Trigger/Governance 分支
 
 当前未完成：
 
-- SmartRouter runtime contract 尚未落地
-- Trigger 仍未真正内收到 SmartRouter 运行时主链
-- 治理默认能力尚未真正转化为默认路由增强层
+- Trigger 仍未完全内收到 SmartRouter 运行时主链，当前仍保留兼容分支
+- 治理默认能力尚未完全转化为 SmartRouter 默认增强层，当前仍处于部分桥接状态
+- routeSource / trace reason / diagnostics 仍未完全统一为 SmartRouter 统一路由引擎语义
 - README / setup / example config / `/ui` 的继续收口应后置，不再作为当前第一阶段目标
 
 ## 8. 推荐执行顺序

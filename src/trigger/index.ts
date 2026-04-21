@@ -16,7 +16,7 @@ import { appendTraceReason } from '../governance/trace';
 import { modelSelector } from './selector';
 import { contextAnalyzer } from './analyzer';
 import { log, logError } from '../utils/log';
-import { DEFAULT_CONFIG } from '../constants';
+import { DEFAULT_CONFIG, DEFAULT_SMART_ROUTER_CONFIG } from '../constants';
 import { IGovernanceConfig } from '../governance/types';
 
 /**
@@ -41,7 +41,7 @@ export class TriggerRouter {
     this.appConfig = appConfig;
     this.config = appConfig.TriggerRouter || this.getDefaultConfig();
     this.port = appConfig.PORT || DEFAULT_CONFIG.PORT;
-    this.smartRouterConfig = appConfig.SmartRouter;
+    this.smartRouterConfig = this.buildRuntimeSmartRouterConfig(appConfig);
     this.governanceConfig = appConfig.Governance;
     this.apiKey = appConfig.APIKEY;
     this.apiTimeoutMs = appConfig.API_TIMEOUT_MS;
@@ -59,11 +59,35 @@ export class TriggerRouter {
     };
   }
 
+  private buildRuntimeSmartRouterConfig(appConfig: IAppConfig): ISmartRouterConfig {
+    const baseSmartRouterConfig = appConfig.SmartRouter ?? DEFAULT_SMART_ROUTER_CONFIG;
+    const hasExplicitSmartRouterConfig = Boolean(
+      baseSmartRouterConfig.enabled ||
+      baseSmartRouterConfig.router_model ||
+      baseSmartRouterConfig.candidates?.length ||
+      baseSmartRouterConfig.rules?.length ||
+      baseSmartRouterConfig.semantic ||
+      baseSmartRouterConfig.sticky
+    );
+
+    return {
+      ...baseSmartRouterConfig,
+      enabled: hasExplicitSmartRouterConfig
+        ? baseSmartRouterConfig.enabled
+        : Boolean(appConfig.TriggerRouter?.enabled),
+      rules: baseSmartRouterConfig.rules?.length
+        ? baseSmartRouterConfig.rules
+        : appConfig.TriggerRouter?.rules ?? [],
+      semantic: baseSmartRouterConfig.semantic ?? appConfig.Governance?.semantic,
+      sticky: baseSmartRouterConfig.sticky ?? appConfig.Governance?.sticky,
+    };
+  }
+
   /**
    * 检查触发路由是否启用
    */
   isEnabled(): boolean {
-    return this.config?.enabled ?? false;
+    return Boolean(this.smartRouterConfig?.enabled || this.config?.enabled);
   }
 
   /**
@@ -81,7 +105,7 @@ export class TriggerRouter {
    * @returns 分析结果
    */
   async route(req: IRequestContext): Promise<IAnalysisResult> {
-    if (!this.config || !this.config.enabled) {
+    if (!this.config || !this.isEnabled()) {
       return {
         matched: false,
         confidence: 0,
@@ -140,7 +164,7 @@ export class TriggerRouter {
    * @returns 分析结果
    */
   routeSync(req: IRequestContext): IAnalysisResult {
-    if (!this.config || !this.config.enabled) {
+    if (!this.config || !this.isEnabled()) {
       return {
         matched: false,
         confidence: 0,
@@ -161,7 +185,7 @@ export class TriggerRouter {
     return modelSelector.selectModelSync({
       ...req,
       appConfig: this.appConfig ?? undefined,
-    } as IRequestContext, this.config);
+    } as IRequestContext, this.config, this.smartRouterConfig);
   }
 
   /**

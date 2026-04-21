@@ -152,6 +152,33 @@ function validateKnownModelRef(
   return validateModelRef(ref, providers, fieldName);
 }
 
+function validateRoutingRule(
+  rule: NonNullable<ITriggerConfig['rules']>[number],
+  index: number,
+  containerName: string,
+  config: Partial<IAppConfig>,
+  validProviders: IAppConfig['Providers'],
+  errors: string[]
+): void {
+  if (!rule.name) {
+    errors.push(`${containerName}[${index}].name is required`);
+  }
+  if (!rule.model) {
+    errors.push(`${containerName}[${index}].model is required`);
+  } else if (validProviders.length > 0) {
+    const err = validateKnownModelRef(rule.model, config, validProviders, `${containerName}[${index}].model`);
+    if (err) errors.push(err);
+  }
+  const hasSemanticOnlyMatch = Boolean(
+    rule.description ||
+    rule.semantic_profile?.prototype ||
+    rule.semantic_profile?.enabled
+  );
+  if ((!rule.patterns || rule.patterns.length === 0) && !hasSemanticOnlyMatch) {
+    errors.push(`${containerName}[${index}].patterns must be a non-empty array`);
+  }
+}
+
 /**
  * 验证配置
  */
@@ -264,38 +291,23 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
 
     if (config.TriggerRouter.rules) {
       config.TriggerRouter.rules.forEach((rule, index) => {
-        if (!rule.name) {
-          errors.push(`TriggerRouter.rules[${index}].name is required`);
-        }
-        if (!rule.model) {
-          errors.push(`TriggerRouter.rules[${index}].model is required`);
-        } else if (validProviders.length > 0) {
-          const err = validateKnownModelRef(rule.model, config, validProviders, `TriggerRouter.rules[${index}].model`);
-          if (err) errors.push(err);
-        }
-        const hasSemanticOnlyMatch = Boolean(
-          rule.description ||
-          rule.semantic_profile?.prototype ||
-          rule.semantic_profile?.enabled
-        );
-        if ((!rule.patterns || rule.patterns.length === 0) && !hasSemanticOnlyMatch) {
-          errors.push(`TriggerRouter.rules[${index}].patterns must be a non-empty array`);
-        }
+        validateRoutingRule(rule, index, 'TriggerRouter.rules', config, validProviders, errors);
       });
     }
   }
 
   // 验证 SmartRouter 配置
   if (config.SmartRouter?.enabled) {
-    if (!config.SmartRouter.router_model) {
-      errors.push('SmartRouter.router_model is required when SmartRouter is enabled');
-    } else if (validProviders.length > 0) {
+    if (config.SmartRouter.router_model && validProviders.length > 0) {
       const err = validateKnownModelRef(config.SmartRouter.router_model, config, validProviders, 'SmartRouter.router_model');
       if (err) errors.push(err);
     }
-    if (!config.SmartRouter.candidates || config.SmartRouter.candidates.length < 2) {
-      errors.push('SmartRouter.candidates must have at least 2 entries when SmartRouter is enabled');
-    } else {
+    if (config.SmartRouter.router_model) {
+      if (!config.SmartRouter.candidates || config.SmartRouter.candidates.length < 2) {
+        errors.push('SmartRouter.candidates must have at least 2 entries when SmartRouter.router_model is configured');
+      }
+    }
+    if (config.SmartRouter.candidates && config.SmartRouter.candidates.length > 0) {
       config.SmartRouter.candidates.forEach((candidate, index) => {
         if (!candidate.model) {
           errors.push(`SmartRouter.candidates[${index}].model is required`);
@@ -306,6 +318,11 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
         if (!candidate.description) {
           errors.push(`SmartRouter.candidates[${index}].description is required`);
         }
+      });
+    }
+    if (config.SmartRouter.rules) {
+      config.SmartRouter.rules.forEach((rule, index) => {
+        validateRoutingRule(rule, index, 'SmartRouter.rules', config, validProviders, errors);
       });
     }
   }
@@ -470,12 +487,8 @@ function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppC
     },
   };
 
-  if (Array.isArray(routes) && routes.length > 0) {
-    const semanticExplicitlyEnabled = defaults?.semantic?.enabled;
-    nextConfig.TriggerRouter = {
-      ...(config.TriggerRouter ?? DEFAULT_TRIGGER_CONFIG),
-      enabled: true,
-      rules: routes.map((route) => ({
+  const normalizedRules = Array.isArray(routes) && routes.length > 0
+    ? routes.map((route) => ({
         name: route.name,
         priority: route.priority ?? 0,
         enabled: route.enabled ?? true,
@@ -502,7 +515,15 @@ function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppC
               }]
             : []),
         ],
-      })),
+      }))
+    : [];
+
+  if (Array.isArray(routes) && routes.length > 0) {
+    const semanticExplicitlyEnabled = defaults?.semantic?.enabled;
+    nextConfig.TriggerRouter = {
+      ...(config.TriggerRouter ?? DEFAULT_TRIGGER_CONFIG),
+      enabled: true,
+      rules: normalizedRules,
     };
 
     const semanticPrototypes = Object.fromEntries(
@@ -536,16 +557,44 @@ function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppC
     }
   }
 
-  if (decision) {
+  const semanticPrototypes = Object.fromEntries(
+    normalizedRules
+      .filter((rule) => rule.semantic_profile?.enabled !== false && (rule.semantic_profile?.prototype || rule.description))
+      .map((rule) => [
+        rule.name,
+        rule.semantic_profile?.prototype ?? rule.description ?? '',
+      ])
+      .filter(([, prototype]) => typeof prototype === 'string' && prototype.trim().length > 0)
+  );
+
+  if (decision || normalizedRules.length > 0 || defaults?.sticky || defaults?.semantic || config.SmartRouter) {
     nextConfig.SmartRouter = {
       ...(config.SmartRouter ?? DEFAULT_SMART_ROUTER_CONFIG),
-      enabled: decision.smart_fallback ?? true,
-      router_model: decision.router_model ?? config.SmartRouter?.router_model ?? '',
-      candidates: decision.candidates ?? config.SmartRouter?.candidates ?? [],
-      cache_ttl: decision.cache_ttl ?? config.SmartRouter?.cache_ttl,
-      max_tokens: decision.max_tokens ?? config.SmartRouter?.max_tokens,
-      fallback: decision.fallback ?? config.SmartRouter?.fallback,
-      router_hint: decision.router_hint ?? config.SmartRouter?.router_hint,
+      enabled: decision?.smart_fallback ?? config.SmartRouter?.enabled ?? true,
+      router_model: decision?.router_model ?? config.SmartRouter?.router_model ?? '',
+      candidates: decision?.candidates ?? config.SmartRouter?.candidates ?? [],
+      cache_ttl: decision?.cache_ttl ?? config.SmartRouter?.cache_ttl,
+      max_tokens: decision?.max_tokens ?? config.SmartRouter?.max_tokens,
+      fallback: decision?.fallback ?? config.SmartRouter?.fallback,
+      router_hint: decision?.router_hint ?? config.SmartRouter?.router_hint,
+      rules: normalizedRules.length > 0 ? normalizedRules : config.SmartRouter?.rules,
+      semantic: Object.keys(semanticPrototypes).length > 0 || defaults?.semantic || config.SmartRouter?.semantic
+        ? {
+            ...(config.SmartRouter?.semantic ?? config.Governance?.semantic ?? {}),
+            ...(defaults?.semantic ?? {}),
+            prototypes: {
+              ...(config.Governance?.semantic?.prototypes ?? {}),
+              ...(config.SmartRouter?.semantic?.prototypes ?? {}),
+              ...semanticPrototypes,
+            },
+          }
+        : config.SmartRouter?.semantic,
+      sticky: defaults?.sticky
+        ? {
+            ...(config.SmartRouter?.sticky ?? config.Governance?.sticky ?? {}),
+            ...defaults.sticky,
+          }
+        : config.SmartRouter?.sticky ?? config.Governance?.sticky,
     };
   }
 

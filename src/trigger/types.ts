@@ -296,11 +296,24 @@ export interface ISmartRouterConfig {
   /** 是否启用 SmartRouter，默认 false */
   enabled: boolean;
 
-  /** 用于选择模型的路由 LLM，格式：provider_name,model_name */
-  router_model: string;
+  /**
+   * 可选的路由 LLM。
+   * - 未配置时：行为退化为“关键词/正则前置筛选 + 语义增强匹配 + 默认路由兜底”
+   * - 配置后：在前置筛选与语义增强之后，再由 router_model 做最终选模判断
+   */
+  router_model?: string;
 
-  /** 候选模型列表（至少 2 个） */
-  candidates: ISmartRouterCandidate[];
+  /** 候选模型列表（配置 router_model 时至少 2 个） */
+  candidates?: ISmartRouterCandidate[];
+
+  /** SmartRouter 内部的前置规则能力，作为 Trigger 能力的统一内收入口 */
+  rules?: ITriggerRule[];
+
+  /** 语义增强匹配能力，默认可由治理能力内收进来 */
+  semantic?: IGovernanceConfig['semantic'];
+
+  /** 语义粘连 / 上下文对齐等默认路由增强能力 */
+  sticky?: IGovernanceConfig['sticky'];
 
   /** 缓存 TTL（毫秒），默认 600000（10 分钟） */
   cache_ttl?: number;

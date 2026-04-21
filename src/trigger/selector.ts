@@ -25,6 +25,53 @@ interface IStickyCorrectionContext {
  * 模型选择器类
  */
 export class ModelSelector {
+  private isRoutingEnabled(config: ITriggerConfig, smartRouterConfig?: ISmartRouterConfig): boolean {
+    return Boolean(smartRouterConfig?.enabled || config.enabled);
+  }
+
+  private getRoutingRules(config: ITriggerConfig, smartRouterConfig?: ISmartRouterConfig): ITriggerRule[] {
+    return smartRouterConfig?.rules?.length
+      ? smartRouterConfig.rules
+      : config.rules;
+  }
+
+  private getEffectiveGovernanceConfig(
+    smartRouterConfig?: ISmartRouterConfig,
+    governanceConfig?: IGovernanceConfig
+  ): IGovernanceConfig | undefined {
+    if (!smartRouterConfig?.semantic && !smartRouterConfig?.sticky) {
+      return governanceConfig;
+    }
+
+    return {
+      ...(governanceConfig ?? {}),
+      enabled: Boolean(
+        governanceConfig?.enabled ||
+        smartRouterConfig.semantic?.enabled ||
+        smartRouterConfig.sticky?.enabled
+      ),
+      sticky: smartRouterConfig.sticky
+        ? {
+            ...(governanceConfig?.sticky ?? {}),
+            ...smartRouterConfig.sticky,
+          }
+        : governanceConfig?.sticky,
+      semantic: smartRouterConfig.semantic
+        ? {
+            ...(governanceConfig?.semantic ?? {}),
+            ...smartRouterConfig.semantic,
+            prototypes: {
+              ...(governanceConfig?.semantic?.prototypes ?? {}),
+              ...(smartRouterConfig.semantic?.prototypes ?? {}),
+            },
+          }
+        : governanceConfig?.semantic,
+      cascade: governanceConfig?.cascade,
+      shadow: governanceConfig?.shadow,
+      observability: governanceConfig?.observability,
+    };
+  }
+
   private resolveRouteModel(appConfig: IAppConfig | undefined, ref: string | undefined): string | undefined {
     if (!ref) {
       return undefined;
@@ -208,9 +255,11 @@ export class ModelSelector {
   ): Promise<IAnalysisResult> {
     const startTime = Date.now();
     const appConfig = (req as any).appConfig as IAppConfig | undefined;
+    const effectiveGovernanceConfig = this.getEffectiveGovernanceConfig(smartRouterConfig, governanceConfig);
+    const routingRules = this.getRoutingRules(config, smartRouterConfig);
 
-    // 如果触发路由未启用，直接返回不匹配
-    if (!config.enabled) {
+    // 如果统一路由未启用，直接返回不匹配
+    if (!this.isRoutingEnabled(config, smartRouterConfig)) {
       return {
         matched: false,
         confidence: 0,
@@ -231,7 +280,7 @@ export class ModelSelector {
     }
 
     // 第一步：关键词/正则匹配
-    const matchResult = this.matchRuleFromText(text, config.rules);
+    const matchResult = this.matchRuleFromText(text, routingRules);
 
     if (matchResult) {
       return {
@@ -245,13 +294,13 @@ export class ModelSelector {
       };
     }
 
-    const stickyCorrection = this.getStickyCorrection(text, req, governanceConfig);
+    const stickyCorrection = this.getStickyCorrection(text, req, effectiveGovernanceConfig);
 
     // 第二步：Semantic Router 语义辅助匹配
-    const semanticCandidates = this.buildSemanticCandidates(config.rules, governanceConfig);
-    if (governanceConfig?.enabled && governanceConfig.semantic?.enabled && semanticCandidates.length > 0) {
+    const semanticCandidates = this.buildSemanticCandidates(routingRules, effectiveGovernanceConfig);
+    if (effectiveGovernanceConfig?.enabled && effectiveGovernanceConfig.semantic?.enabled && semanticCandidates.length > 0) {
       const semanticConfig = {
-        ...governanceConfig.semantic,
+        ...effectiveGovernanceConfig.semantic,
         prototypes: Object.fromEntries(semanticCandidates.map((candidate) => [candidate.rule.name, candidate.prototype])),
       };
       const semanticResult = semanticConfig.mode === 'classifier'
@@ -273,7 +322,7 @@ export class ModelSelector {
             semanticConfig.threshold
           );
       if (semanticResult) {
-        const matchedRule = config.rules.find(
+        const matchedRule = routingRules.find(
           (rule) => rule.enabled !== false && rule.name.toLowerCase() === semanticResult.intent.toLowerCase()
         );
 
@@ -297,7 +346,7 @@ export class ModelSelector {
     }
 
     // 第三步：SmartRouter 作为结构化 fallback
-    if (smartRouterConfig?.enabled && smartRouterConfig.candidates?.length >= 2) {
+    if (smartRouterConfig?.enabled && smartRouterConfig.router_model && smartRouterConfig.candidates?.length >= 2) {
       try {
         const resolvedSmartRouterConfig = appConfig ? {
           ...smartRouterConfig,
@@ -314,7 +363,7 @@ export class ModelSelector {
           undefined,
           apiKey,
           timeoutMs,
-          this.buildSmartRouterHint(text, config.rules)
+          this.buildSmartRouterHint(text, routingRules)
         );
         if (smartResult) {
           log(`[SmartRouter] Selected model "${smartResult.model}" (confidence: ${smartResult.confidence})`);
@@ -339,7 +388,7 @@ export class ModelSelector {
         const intentResult = await intentDetector.detectIntent(text, config, port, undefined, apiKey, timeoutMs);
 
         if (intentResult.confidence > 0.5 && intentResult.intent !== 'general') {
-          const matchedRule = intentDetector.findRuleByIntent(intentResult.intent, config.rules);
+          const matchedRule = intentDetector.findRuleByIntent(intentResult.intent, routingRules);
 
           if (matchedRule) {
             const intentSelection: IAnalysisResult = {
@@ -385,12 +434,16 @@ export class ModelSelector {
    * @param config 触发配置
    * @returns 分析结果
    */
-  selectModelSync(req: IRequestContext, config: ITriggerConfig): IAnalysisResult {
+  selectModelSync(
+    req: IRequestContext,
+    config: ITriggerConfig,
+    smartRouterConfig?: ISmartRouterConfig
+  ): IAnalysisResult {
     const startTime = Date.now();
     const appConfig = (req as any).appConfig as IAppConfig | undefined;
 
-    // 如果触发路由未启用，直接返回不匹配
-    if (!config.enabled) {
+    // 如果统一路由未启用，直接返回不匹配
+    if (!this.isRoutingEnabled(config, smartRouterConfig)) {
       return {
         matched: false,
         confidence: 0,
@@ -410,8 +463,10 @@ export class ModelSelector {
       };
     }
 
+    const routingRules = this.getRoutingRules(config, smartRouterConfig);
+
     // 关键词/正则匹配
-    const matchResult = this.matchRuleFromText(text, config.rules);
+    const matchResult = this.matchRuleFromText(text, routingRules);
 
     if (matchResult) {
       return {
