@@ -1498,6 +1498,95 @@ describe('createServer /api/config', () => {
     );
   });
 
+  it('does not persist derived SmartRouter defaults when user did not configure SmartRouter', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const requestBody = {
+      Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+      Providers: [
+        {
+          name: 'openrouter',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4'],
+        },
+      ],
+    };
+
+    await handler({ body: requestBody }, reply);
+
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        SmartRouter: expect.anything(),
+      })
+    );
+  });
+
+  it('persists only explicitly configured SmartRouter branches without writing derived default enhancements', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const requestBody = {
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+      SmartRouter: {
+        enabled: true,
+        rules: [
+          {
+            name: 'architecture',
+            priority: 90,
+            enabled: true,
+            patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+            model: 'opus',
+            description: '重构 系统 结构 模块 拆分 架构 设计',
+          },
+        ],
+      },
+    };
+
+    await handler({ body: requestBody }, reply);
+
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        SmartRouter: expect.objectContaining({
+          enabled: true,
+          rules: [
+            expect.objectContaining({
+              name: 'architecture',
+              model: 'opus',
+            }),
+          ],
+        }),
+      })
+    );
+
+    const persisted = mockWriteConfigFile.mock.calls.at(-1)?.[0] as any;
+    expect(persisted.SmartRouter.semantic).toBeUndefined();
+    expect(persisted.SmartRouter.sticky).toBeUndefined();
+  });
+
   it('persists configured Governance blocks after normalization', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('POST /api/config');
@@ -1550,22 +1639,18 @@ describe('createServer /api/config', () => {
           enabled: true,
           sticky: expect.objectContaining({
             enabled: true,
-            session_ttl_ms: 3600000,
             alignment: expect.objectContaining({
               enabled: true,
               summarizer_model: 'openrouter,anthropic/claude-sonnet-4',
-              max_summary_tokens: 256,
             }),
           }),
           cascade: expect.objectContaining({
             enabled: true,
-            max_attempts: 2,
           }),
           observability: expect.objectContaining({
             anomaly_thresholds: expect.objectContaining({
               min_sample_size: 5,
               latency_warn_ms: 1200,
-              cascade_warn_rate: 0.4,
             }),
           }),
         }),

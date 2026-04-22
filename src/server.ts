@@ -160,6 +160,60 @@ function analyzeModelReferenceImpact(config: any, nextCompiled: CompiledRegistry
   };
 }
 
+function projectConfiguredBranch(raw: any, normalized: any): any {
+  if (raw === undefined) {
+    return undefined;
+  }
+
+  if (raw === null || normalized === null) {
+    return normalized;
+  }
+
+  if (Array.isArray(raw)) {
+    return normalized;
+  }
+
+  if (typeof raw !== "object" || typeof normalized !== "object") {
+    return normalized;
+  }
+
+  const result: Record<string, unknown> = {};
+  Object.keys(raw).forEach((key) => {
+    if (normalized[key] === undefined) {
+      return;
+    }
+    result[key] = projectConfiguredBranch(raw[key], normalized[key]);
+  });
+  return result;
+}
+
+function buildPersistedConfig(rawConfig: any, normalizedConfig: any) {
+  const persisted = {
+    HOST: normalizedConfig.HOST,
+    PORT: normalizedConfig.PORT,
+    LOG: normalizedConfig.LOG,
+    LOG_LEVEL: normalizedConfig.LOG_LEVEL,
+    API_TIMEOUT_MS: normalizedConfig.API_TIMEOUT_MS,
+    NON_INTERACTIVE_MODE: normalizedConfig.NON_INTERACTIVE_MODE,
+    APIKEY: normalizedConfig.APIKEY,
+    PROXY_URL: normalizedConfig.PROXY_URL,
+    CUSTOM_ROUTER_PATH: normalizedConfig.CUSTOM_ROUTER_PATH,
+    Providers: normalizedConfig.Providers,
+    Models: normalizedConfig.Models,
+    Router: normalizedConfig.Router,
+  } as Record<string, unknown>;
+
+  const optionalSections = ["TriggerRouter", "SmartRouter", "Governance"] as const;
+  optionalSections.forEach((section) => {
+    const projected = projectConfiguredBranch(rawConfig?.[section], normalizedConfig?.[section]);
+    if (projected !== undefined && !(typeof projected === "object" && projected && Object.keys(projected).length === 0)) {
+      persisted[section] = projected;
+    }
+  });
+
+  return persisted;
+}
+
 function diffCompiledRegistry(base: CompiledRegistryView, next: CompiledRegistryView) {
   const providerNames = Array.from(new Set([
     ...base.providers.map((item) => item.name),
@@ -545,7 +599,7 @@ export const createServer = (config: any): Server => {
       log(`Backed up existing configuration file to ${backupPath}`);
     }
 
-    await writeConfigFile(result.config);
+    await writeConfigFile(buildPersistedConfig(req.body ?? {}, result.config));
     return { success: true, message: "Config saved successfully", warnings: result.warnings };
   });
 
