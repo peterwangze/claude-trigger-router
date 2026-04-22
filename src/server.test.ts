@@ -487,7 +487,7 @@ describe('createServer /api/config', () => {
           suggestions: [],
         }),
         expect.objectContaining({
-          path: 'Governance.sticky.alignment.summarizer_model',
+          path: 'SmartRouter.sticky.alignment.summarizer_model',
           value: 'missing-model-id',
           status: 'missing',
           suggestions: [],
@@ -551,7 +551,7 @@ describe('createServer /api/config', () => {
           ]),
         }),
         expect.objectContaining({
-          path: 'Governance.sticky.alignment.summarizer_model',
+          path: 'SmartRouter.sticky.alignment.summarizer_model',
           status: 'missing',
           suggestions: expect.arrayContaining([
             expect.objectContaining({

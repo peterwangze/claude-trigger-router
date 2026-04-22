@@ -5,7 +5,7 @@
  */
 
 import Server from "@musistudio/llms";
-import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig } from "./utils";
+import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig, deriveRuntimeSmartRouterConfig } from "./utils";
 import { log } from "./utils/log";
 import { SERVICE_NAME } from "./service-health";
 import {
@@ -56,6 +56,8 @@ function toInlineScriptJson(value: unknown): string {
 
 function collectModelReferences(config: any): ModelReferenceEntry[] {
   const refs: ModelReferenceEntry[] = [];
+  const normalizedConfig = normalizeAndValidateConfig(config ?? {}).config;
+  const runtimeSmartRouterConfig = deriveRuntimeSmartRouterConfig(normalizedConfig);
   const pushRef = (path: string, value: any) => {
     if (typeof value !== "string" || !value.trim()) {
       return;
@@ -67,22 +69,21 @@ function collectModelReferences(config: any): ModelReferenceEntry[] {
     });
   };
 
-  pushRef("Router.default", config?.Router?.default);
-  pushRef("TriggerRouter.intent_model", config?.TriggerRouter?.intent_model);
-  config?.TriggerRouter?.rules?.forEach((rule: any, index: number) => {
-    pushRef(`TriggerRouter.rules[${index}].model`, rule?.model);
+  pushRef("Router.default", normalizedConfig?.Router?.default);
+  pushRef("SmartRouter.router_model", runtimeSmartRouterConfig?.router_model);
+  runtimeSmartRouterConfig?.rules?.forEach((rule: any, index: number) => {
+    pushRef(`SmartRouter.rules[${index}].model`, rule?.model);
   });
-  pushRef("SmartRouter.router_model", config?.SmartRouter?.router_model);
-  config?.SmartRouter?.candidates?.forEach((candidate: any, index: number) => {
+  runtimeSmartRouterConfig?.candidates?.forEach((candidate: any, index: number) => {
     pushRef(`SmartRouter.candidates[${index}].model`, candidate?.model);
   });
-  pushRef("Governance.sticky.alignment.summarizer_model", config?.Governance?.sticky?.alignment?.summarizer_model);
-  config?.Governance?.cascade?.levels?.forEach((level: any, index: number) => {
+  pushRef("SmartRouter.sticky.alignment.summarizer_model", runtimeSmartRouterConfig?.sticky?.alignment?.summarizer_model);
+  pushRef("SmartRouter.semantic.classifier_model", runtimeSmartRouterConfig?.semantic?.classifier_model);
+  normalizedConfig?.Governance?.cascade?.levels?.forEach((level: any, index: number) => {
     pushRef(`Governance.cascade.levels[${index}].from`, level?.from);
     pushRef(`Governance.cascade.levels[${index}].to`, level?.to);
   });
-  pushRef("Governance.semantic.classifier_model", config?.Governance?.semantic?.classifier_model);
-  pushRef("Governance.shadow.verifier_model", config?.Governance?.shadow?.verifier_model);
+  pushRef("Governance.shadow.verifier_model", normalizedConfig?.Governance?.shadow?.verifier_model);
 
   return refs;
 }
