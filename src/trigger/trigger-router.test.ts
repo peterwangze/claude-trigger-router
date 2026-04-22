@@ -3,6 +3,7 @@ import { TriggerRouter } from '../trigger/index';
 import { modelSelector } from '../trigger/selector';
 import { IAppConfig } from '../trigger/types';
 import { sessionStateStore } from '../governance/session-store';
+import { semanticRouter } from '../governance/semantic-router';
 
 describe('TriggerRouter', () => {
   let router: TriggerRouter;
@@ -281,6 +282,54 @@ describe('TriggerRouter', () => {
       expect(result.matched).toBe(true);
       expect(result.model).toBe('openrouter,claude-opus-4');
       expect(result.routeSource).toBe('trigger_rule');
+    });
+
+    it('should fold legacy intent recognition into SmartRouter semantic routing instead of using intent_fallback', async () => {
+      const config = createAppConfig({
+        TriggerRouter: {
+          enabled: true,
+          analysis_scope: 'last_message',
+          llm_intent_recognition: true,
+          intent_model: 'glm,glm-5-air',
+          rules: [
+            {
+              name: 'architecture',
+              priority: 90,
+              enabled: true,
+              patterns: [{ type: 'exact', keywords: ['不会命中'] }],
+              model: 'openrouter,claude-opus-4',
+              description: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          ],
+        },
+      });
+      router.init(config);
+      const req = {
+        governanceTrace: {
+          requestId: 'req-legacy-intent',
+          routeReason: [],
+          stickyHit: false,
+          alignmentUsed: false,
+          cascadeTriggered: false,
+          shadowChecked: false,
+          startedAt: Date.now(),
+        },
+        body: { messages: [{ role: 'user', content: '请帮我重构系统结构并拆分核心模块' }] },
+      };
+      const semanticSpy = vi.spyOn(semanticRouter, 'analyzeWithClassifier').mockResolvedValue({
+        intent: 'architecture',
+        confidence: 0.92,
+        evidence: ['重构'],
+      });
+
+      const result = await router.route(req as any);
+
+      expect(result.matched).toBe(true);
+      expect(result.routeSource).toBe('semantic_match');
+      expect(result.model).toBe('openrouter,claude-opus-4');
+      expect(req.governanceTrace.routeReason).toContain('semantic_match:architecture');
+      expect(req.governanceTrace.routeReason).not.toContain('intent_fallback');
+      semanticSpy.mockRestore();
     });
 
     it('should record smart_router trace reason with unified naming', async () => {

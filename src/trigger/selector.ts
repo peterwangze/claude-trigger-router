@@ -383,7 +383,7 @@ export class ModelSelector {
     }
 
     // 第四步：保留 legacy intent fallback 作为兼容兜底
-    if (config.llm_intent_recognition && config.intent_model) {
+    if (!smartRouterConfig?.enabled && config.llm_intent_recognition && config.intent_model) {
       try {
         const intentResult = await intentDetector.detectIntent(text, config, port, undefined, apiKey, timeoutMs);
 

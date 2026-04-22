@@ -61,6 +61,13 @@ export class TriggerRouter {
 
   private buildRuntimeSmartRouterConfig(appConfig: IAppConfig): ISmartRouterConfig {
     const baseSmartRouterConfig = appConfig.SmartRouter ?? DEFAULT_SMART_ROUTER_CONFIG;
+    const legacyIntentEnabled = Boolean(appConfig.TriggerRouter?.llm_intent_recognition);
+    const legacyIntentModel = appConfig.TriggerRouter?.intent_model;
+    const legacySemanticPrototypes = Object.fromEntries(
+      (appConfig.TriggerRouter?.rules ?? [])
+        .filter((rule) => rule.enabled !== false && rule.description)
+        .map((rule) => [rule.name, rule.description as string])
+    );
     const hasExplicitSmartRouterConfig = Boolean(
       baseSmartRouterConfig.enabled ||
       baseSmartRouterConfig.router_model ||
@@ -78,7 +85,24 @@ export class TriggerRouter {
       rules: baseSmartRouterConfig.rules?.length
         ? baseSmartRouterConfig.rules
         : appConfig.TriggerRouter?.rules ?? [],
-      semantic: baseSmartRouterConfig.semantic ?? appConfig.Governance?.semantic,
+      semantic: baseSmartRouterConfig.semantic ?? (
+        legacyIntentEnabled || appConfig.Governance?.semantic
+          ? {
+              ...(appConfig.Governance?.semantic ?? {}),
+              ...(legacyIntentEnabled
+                ? {
+                    enabled: true,
+                    mode: 'classifier' as const,
+                    classifier_model: legacyIntentModel,
+                    prototypes: {
+                      ...(appConfig.Governance?.semantic?.prototypes ?? {}),
+                      ...legacySemanticPrototypes,
+                    },
+                  }
+                : {}),
+            }
+          : undefined
+      ),
       sticky: baseSmartRouterConfig.sticky ?? appConfig.Governance?.sticky,
     };
   }

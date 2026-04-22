@@ -219,6 +219,9 @@
   - 上下文摘要注入优先从 SmartRouter sticky alignment 读取
   - sticky 会话持久化不再强依赖 Governance 总开关
   - smart routing 的 trace reason 已开始去掉旧的 `smart_decision` 过渡命名
+- legacy intent 识别已开始内收到 SmartRouter 语义增强：
+  - 旧的 `llm_intent_recognition + intent_model` 会在 runtime 中被编译进 SmartRouter semantic classifier
+  - 启用 SmartRouter 时，不再默认并行跑独立的 `intent_fallback` 主链
 
 当前未完成：
 
