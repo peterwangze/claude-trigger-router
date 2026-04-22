@@ -662,6 +662,66 @@ describe('normalizeAndValidateConfig governance', () => {
     }));
   });
 
+  it('validates SmartRouter sticky alignment model references and bounds', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+      ],
+      SmartRouter: {
+        enabled: true,
+        sticky: {
+          enabled: true,
+          session_ttl_ms: 0,
+          fingerprint_similarity_threshold: 1.2,
+          alignment: {
+            enabled: true,
+            summarizer_model: 'missing-model',
+            max_summary_tokens: 0,
+          },
+        },
+      },
+    } as any);
+
+    expect(result.errors).toContain('SmartRouter.sticky.session_ttl_ms must be greater than 0 when sticky routing is enabled');
+    expect(result.errors).toContain('SmartRouter.sticky.fingerprint_similarity_threshold must be between 0 and 1');
+    expect(result.errors).toContain('SmartRouter.sticky.alignment.summarizer_model 格式不正确，应为 "provider,model"，当前值："missing-model"');
+    expect(result.errors).toContain('SmartRouter.sticky.alignment.max_summary_tokens must be greater than 0 when alignment is enabled');
+  });
+
+  it('validates SmartRouter semantic classifier references and mode values', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+      ],
+      SmartRouter: {
+        enabled: true,
+        semantic: {
+          enabled: true,
+          mode: 'classifier',
+          classifier_model: 'missing-model',
+          threshold: 1.2,
+        },
+      },
+    } as any);
+
+    expect(result.errors).toContain('SmartRouter.semantic.threshold must be between 0 and 1');
+    expect(result.errors).toContain('SmartRouter.semantic.classifier_model 格式不正确，应为 "provider,model"，当前值："missing-model"');
+  });
+
   it('treats unified Router model-id references as valid even when Providers still exist', () => {
     const result = normalizeAndValidateConfig({
       Providers: [

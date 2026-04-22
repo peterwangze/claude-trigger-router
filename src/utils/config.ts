@@ -179,6 +179,69 @@ function validateRoutingRule(
   }
 }
 
+function validateStickyRoutingConfig(
+  sticky: IGovernanceConfig['sticky'] | undefined,
+  config: Partial<IAppConfig>,
+  validProviders: IAppConfig['Providers'],
+  prefix: string,
+  errors: string[]
+): void {
+  if (!sticky?.enabled) {
+    return;
+  }
+
+  if ((sticky.session_ttl_ms ?? 0) <= 0) {
+    errors.push(`${prefix}.session_ttl_ms must be greater than 0 when sticky routing is enabled`);
+  }
+  const threshold = sticky.fingerprint_similarity_threshold;
+  if (threshold !== undefined && (threshold < 0 || threshold > 1)) {
+    errors.push(`${prefix}.fingerprint_similarity_threshold must be between 0 and 1`);
+  }
+  if (sticky.alignment?.enabled) {
+    if (!sticky.alignment.summarizer_model) {
+      errors.push(`${prefix}.alignment.summarizer_model is required when alignment is enabled`);
+    } else if (!isKnownModelReference(config as IAppConfig, sticky.alignment.summarizer_model)) {
+      const err = validateModelRef(
+        sticky.alignment.summarizer_model,
+        validProviders,
+        `${prefix}.alignment.summarizer_model`
+      );
+      if (err) errors.push(err);
+    }
+    if ((sticky.alignment.max_summary_tokens ?? 0) <= 0) {
+      errors.push(`${prefix}.alignment.max_summary_tokens must be greater than 0 when alignment is enabled`);
+    }
+  }
+}
+
+function validateSemanticRoutingConfig(
+  semantic: IGovernanceConfig['semantic'] | undefined,
+  config: Partial<IAppConfig>,
+  validProviders: IAppConfig['Providers'],
+  prefix: string,
+  errors: string[]
+): void {
+  if (!semantic?.enabled) {
+    return;
+  }
+
+  const threshold = semantic.threshold;
+  if (threshold !== undefined && (threshold < 0 || threshold > 1)) {
+    errors.push(`${prefix}.threshold must be between 0 and 1`);
+  }
+  if (semantic.mode && !['embedding', 'classifier'].includes(semantic.mode)) {
+    errors.push(`${prefix}.mode must be either "embedding" or "classifier"`);
+  }
+  if (semantic.mode === 'classifier') {
+    if (!semantic.classifier_model) {
+      errors.push(`${prefix}.classifier_model is required when semantic mode is "classifier"`);
+    } else if (!isKnownModelReference(config as IAppConfig, semantic.classifier_model)) {
+      const err = validateModelRef(semantic.classifier_model, validProviders, `${prefix}.classifier_model`);
+      if (err) errors.push(err);
+    }
+  }
+}
+
 /**
  * 验证配置
  */
@@ -325,35 +388,14 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
         validateRoutingRule(rule, index, 'SmartRouter.rules', config, validProviders, errors);
       });
     }
+    validateStickyRoutingConfig(config.SmartRouter.sticky, config, validProviders, 'SmartRouter.sticky', errors);
+    validateSemanticRoutingConfig(config.SmartRouter.semantic, config, validProviders, 'SmartRouter.semantic', errors);
   }
 
   // 验证 Governance 配置
   if (config.Governance?.enabled) {
     const sticky = config.Governance.sticky;
-    if (sticky?.enabled) {
-      if ((sticky.session_ttl_ms ?? 0) <= 0) {
-        errors.push('Governance.sticky.session_ttl_ms must be greater than 0 when sticky routing is enabled');
-      }
-      const threshold = sticky.fingerprint_similarity_threshold;
-      if (threshold !== undefined && (threshold < 0 || threshold > 1)) {
-        errors.push('Governance.sticky.fingerprint_similarity_threshold must be between 0 and 1');
-      }
-      if (sticky.alignment?.enabled) {
-        if (!sticky.alignment.summarizer_model) {
-          errors.push('Governance.sticky.alignment.summarizer_model is required when alignment is enabled');
-        } else if (!isKnownModelReference(config as IAppConfig, sticky.alignment.summarizer_model)) {
-          const err = validateModelRef(
-            sticky.alignment.summarizer_model,
-            validProviders,
-            'Governance.sticky.alignment.summarizer_model'
-          );
-          if (err) errors.push(err);
-        }
-        if ((sticky.alignment.max_summary_tokens ?? 0) <= 0) {
-          errors.push('Governance.sticky.alignment.max_summary_tokens must be greater than 0 when alignment is enabled');
-        }
-      }
-    }
+    validateStickyRoutingConfig(sticky, config, validProviders, 'Governance.sticky', errors);
 
     const cascade = config.Governance.cascade;
     if (cascade?.enabled) {
@@ -376,24 +418,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
       });
     }
 
-    const semantic = config.Governance.semantic;
-    if (semantic?.enabled) {
-      const threshold = semantic.threshold;
-      if (threshold !== undefined && (threshold < 0 || threshold > 1)) {
-        errors.push('Governance.semantic.threshold must be between 0 and 1');
-      }
-      if (semantic.mode && !['embedding', 'classifier'].includes(semantic.mode)) {
-        errors.push('Governance.semantic.mode must be either "embedding" or "classifier"');
-      }
-      if (semantic.mode === 'classifier') {
-        if (!semantic.classifier_model) {
-          errors.push('Governance.semantic.classifier_model is required when semantic mode is "classifier"');
-        } else if (!isKnownModelReference(config as IAppConfig, semantic.classifier_model)) {
-          const err = validateModelRef(semantic.classifier_model, validProviders, 'Governance.semantic.classifier_model');
-          if (err) errors.push(err);
-        }
-      }
-    }
+    validateSemanticRoutingConfig(config.Governance.semantic, config, validProviders, 'Governance.semantic', errors);
 
     const shadow = config.Governance.shadow;
     if (shadow?.enabled) {
@@ -648,6 +673,20 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
 
   if (normalizedInput.Governance) {
     normalizedConfig.Governance = deepMerge(DEFAULT_GOVERNANCE_CONFIG, normalizedInput.Governance) as IAppConfig['Governance'];
+  }
+
+  if (normalizedConfig.SmartRouter?.sticky) {
+    normalizedConfig.SmartRouter.sticky = deepMerge(
+      DEFAULT_GOVERNANCE_CONFIG.sticky,
+      normalizedConfig.SmartRouter.sticky
+    ) as NonNullable<IAppConfig['SmartRouter']>['sticky'];
+  }
+
+  if (normalizedConfig.SmartRouter?.semantic) {
+    normalizedConfig.SmartRouter.semantic = deepMerge(
+      DEFAULT_GOVERNANCE_CONFIG.semantic,
+      normalizedConfig.SmartRouter.semantic
+    ) as NonNullable<IAppConfig['SmartRouter']>['semantic'];
   }
 
   if (normalizedInput.Models) {
