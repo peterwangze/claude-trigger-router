@@ -214,6 +214,43 @@ function buildPersistedConfig(rawConfig: any, normalizedConfig: any) {
   return persisted;
 }
 
+function buildDraftConfigView(config: any) {
+  const normalizedConfig = normalizeAndValidateConfig(config ?? {}).config as any;
+  const runtimeSmartRouterConfig = deriveRuntimeSmartRouterConfig(normalizedConfig);
+  const draftConfig = {
+    ...normalizedConfig,
+    SmartRouter: runtimeSmartRouterConfig,
+  } as any;
+
+  delete draftConfig.TriggerRouter;
+
+  if (draftConfig.Governance) {
+    const projectedGovernance = {
+      ...draftConfig.Governance,
+    };
+    delete projectedGovernance.sticky;
+    delete projectedGovernance.semantic;
+
+    const hasResidualGovernance = Boolean(
+      projectedGovernance.shadow ||
+      projectedGovernance.cascade ||
+      projectedGovernance.observability
+    );
+
+    if (!hasResidualGovernance) {
+      delete draftConfig.Governance;
+    } else {
+      projectedGovernance.enabled = Boolean(
+        projectedGovernance.enabled &&
+        hasResidualGovernance
+      );
+      draftConfig.Governance = projectedGovernance;
+    }
+  }
+
+  return draftConfig;
+}
+
 function diffCompiledRegistry(base: CompiledRegistryView, next: CompiledRegistryView) {
   const providerNames = Array.from(new Set([
     ...base.providers.map((item) => item.name),
@@ -324,7 +361,7 @@ export const createServer = (config: any): Server => {
 
   // 读取配置 API
   server.app.get("/api/config", async (req: any, reply: any) => {
-    return await readConfigFile();
+    return buildDraftConfigView(await readConfigFile());
   });
 
   server.app.get("/api/models/compiled", async () => {
@@ -366,7 +403,7 @@ export const createServer = (config: any): Server => {
       success: true,
       providers: previewCompiled.providers,
       modelMap: previewCompiled.modelMap,
-      normalizedConfig: result.config,
+      normalizedConfig: buildDraftConfigView(result.config),
       diff: diffCompiledRegistry(currentCompiled, previewCompiled),
       referenceImpact: analyzeModelReferenceImpact(result.config, previewCompiled),
       capabilityWarnings: collectCapabilityWarnings(result.config),

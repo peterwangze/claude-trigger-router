@@ -280,6 +280,7 @@ describe('createServer /api/config', () => {
       source: 'models',
     });
     expect(result.normalizedConfig.Router?.default).toBe('haiku');
+    expect(result.normalizedConfig.TriggerRouter).toBeUndefined();
     expect(result.diff.summary).toEqual({
       addedProviders: 1,
       removedProviders: 1,
@@ -340,6 +341,85 @@ describe('createServer /api/config', () => {
     expect(result.warnings).toEqual([]);
     expect(mockWriteConfigFile).not.toHaveBeenCalled();
     expect(mockBackupConfigFile).not.toHaveBeenCalled();
+  });
+
+  it('returns a SmartRouter-centered draft view from GET /api/config', async () => {
+    const loadedConfig = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+      TriggerRouter: {
+        enabled: true,
+        analysis_scope: 'last_message',
+        llm_intent_recognition: true,
+        intent_model: 'sonnet',
+        rules: [
+          {
+            name: 'architecture',
+            priority: 90,
+            enabled: true,
+            patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+            model: 'opus',
+            description: '重构 系统 结构 模块 拆分 架构 设计',
+          },
+        ],
+      },
+      Governance: {
+        enabled: true,
+        sticky: {
+          enabled: true,
+          alignment: {
+            enabled: true,
+            summarizer_model: 'sonnet',
+          },
+        },
+      },
+    }).config;
+    mockReadConfigFile.mockResolvedValue(loadedConfig);
+
+    const server = createServer({});
+    const handler = server.app.routes.get('GET /api/config');
+
+    const result = await handler({}, {});
+
+    expect(result.TriggerRouter).toBeUndefined();
+    expect(result.SmartRouter).toEqual(
+      expect.objectContaining({
+        enabled: true,
+        rules: [
+          expect.objectContaining({
+            name: 'architecture',
+            model: 'opus',
+          }),
+        ],
+        semantic: expect.objectContaining({
+          enabled: true,
+          mode: 'classifier',
+          classifier_model: 'sonnet',
+        }),
+        sticky: expect.objectContaining({
+          enabled: true,
+          alignment: expect.objectContaining({
+            enabled: true,
+            summarizer_model: 'sonnet',
+          }),
+        }),
+      })
+    );
   });
 
   it('reports capability warnings in compiled preview results', async () => {

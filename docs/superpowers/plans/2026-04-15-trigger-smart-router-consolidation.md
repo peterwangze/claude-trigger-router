@@ -233,6 +233,9 @@
   - 引用影响分析优先显示 SmartRouter 运行时引用
   - 草稿表单回填优先从 SmartRouter 派生配置读取
   - 表单保存会优先产出 SmartRouter-centered 路由配置，而不是继续以 Trigger/Governance 并列为主
+- 服务端读取与预览配置也已开始 SmartRouter-centered：
+  - `GET /api/config` 返回 SmartRouter-centered 草稿视图
+  - `POST /api/models/compiled/preview` 的 `normalizedConfig` 也返回同样的草稿语义
 
 当前未完成：
 
