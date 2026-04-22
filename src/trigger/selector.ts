@@ -441,6 +441,7 @@ export class ModelSelector {
   ): IAnalysisResult {
     const startTime = Date.now();
     const appConfig = (req as any).appConfig as IAppConfig | undefined;
+    const effectiveGovernanceConfig = this.getEffectiveGovernanceConfig(smartRouterConfig, undefined);
 
     // 如果统一路由未启用，直接返回不匹配
     if (!this.isRoutingEnabled(config, smartRouterConfig)) {
@@ -464,8 +465,9 @@ export class ModelSelector {
     }
 
     const routingRules = this.getRoutingRules(config, smartRouterConfig);
+    const stickyCorrection = this.getStickyCorrection(text, req, effectiveGovernanceConfig);
 
-    // 关键词/正则匹配
+    // 第一步：关键词/正则匹配
     const matchResult = this.matchRuleFromText(text, routingRules);
 
     if (matchResult) {
@@ -474,6 +476,50 @@ export class ModelSelector {
         rule: matchResult.rule,
         model: appConfig ? resolveModelReference(appConfig, matchResult.rule.model) ?? matchResult.rule.model : matchResult.rule.model,
         confidence: 1.0,
+        analysisTime: Date.now() - startTime,
+        analyzedText: text,
+        routeSource: 'trigger_rule',
+      };
+    }
+
+    // 第二步：同步路径下也尽量执行语义增强（仅 embedding/prototype 分析，不触发 classifier/LLM）
+    const semanticCandidates = this.buildSemanticCandidates(routingRules, effectiveGovernanceConfig);
+    if (effectiveGovernanceConfig?.enabled && effectiveGovernanceConfig.semantic?.enabled && semanticCandidates.length > 0) {
+      const semanticResult = semanticRouter.analyzeCandidates(
+        text,
+        semanticCandidates.map((candidate) => ({
+          intent: candidate.rule.name,
+          prototype: candidate.prototype,
+          threshold: candidate.threshold,
+        })),
+        effectiveGovernanceConfig.semantic.threshold
+      );
+
+      if (semanticResult) {
+        const matchedRule = routingRules.find(
+          (rule) => rule.enabled !== false && rule.name.toLowerCase() === semanticResult.intent.toLowerCase()
+        );
+
+        if (matchedRule) {
+          const semanticSelection: IAnalysisResult = {
+            matched: true,
+            rule: matchedRule,
+            model: this.resolveRouteModel(appConfig, matchedRule.model),
+            confidence: semanticResult.confidence,
+            analysisTime: Date.now() - startTime,
+            analyzedText: text,
+            routeSource: 'semantic_match',
+          };
+          return this.applyStickyCorrection(semanticSelection, stickyCorrection, appConfig) ?? semanticSelection;
+        }
+      }
+    }
+
+    // 第三步：同步路径下若前层都未命中，再尝试 sticky 作为稳定修正
+    const stickyOnlySelection = this.applyStickyCorrection(null, stickyCorrection, appConfig);
+    if (stickyOnlySelection) {
+      return {
+        ...stickyOnlySelection,
         analysisTime: Date.now() - startTime,
         analyzedText: text,
       };

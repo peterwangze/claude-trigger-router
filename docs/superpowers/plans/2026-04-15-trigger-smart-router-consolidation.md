@@ -228,6 +228,7 @@
   - `sticky.alignment`
   在 SmartRouter 启用时默认生效，但仍可显式关闭
 - `routeSync` 已开始对齐统一路由主链，不再只是旧 Trigger-only 规则匹配
+- Trigger runtime 的启停语义已开始挂到派生后的 SmartRouter contract 上，不再继续双看 Trigger/Smart 两套开关
 
 当前未完成：
 

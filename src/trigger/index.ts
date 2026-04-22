@@ -64,7 +64,7 @@ export class TriggerRouter {
    * 检查触发路由是否启用
    */
   isEnabled(): boolean {
-    return Boolean(this.smartRouterConfig?.enabled || this.config?.enabled);
+    return Boolean(this.smartRouterConfig?.enabled);
   }
 
   /**
