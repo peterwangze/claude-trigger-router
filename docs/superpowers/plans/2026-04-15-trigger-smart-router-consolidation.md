@@ -229,11 +229,15 @@
   在 SmartRouter 启用时默认生效，但仍可显式关闭
 - `routeSync` 已开始对齐统一路由主链，不再只是旧 Trigger-only 规则匹配
 - Trigger runtime 的启停语义已开始挂到派生后的 SmartRouter contract 上，不再继续双看 Trigger/Smart 两套开关
+- server 侧引用分析、草稿回填与表单 payload 组装已开始按 SmartRouter 派生 contract 工作：
+  - 引用影响分析优先显示 SmartRouter 运行时引用
+  - 草稿表单回填优先从 SmartRouter 派生配置读取
+  - 表单保存会优先产出 SmartRouter-centered 路由配置，而不是继续以 Trigger/Governance 并列为主
 
 当前未完成：
 
 - Trigger 仍未完全内收到 SmartRouter 运行时主链，当前仍保留兼容分支
-- 治理默认能力尚未完全转化为 SmartRouter 默认增强层，当前仍处于“主请求链 / 响应链部分桥接，其他治理分支仍保留旧入口”的阶段
+- 治理默认能力尚未完全转化为 SmartRouter 默认增强层，当前仍处于“主请求链 / 响应链 / server 草稿链路部分桥接，其他治理分支仍保留旧入口”的阶段
 - routeSource / trace reason / diagnostics 仍未完全统一为 SmartRouter 统一路由引擎语义
 - README / setup / example config / `/ui` 的继续收口应后置，不再作为当前第一阶段目标
 

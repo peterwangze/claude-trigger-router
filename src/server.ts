@@ -1076,13 +1076,22 @@ export const createServer = (config: any): Server => {
       `  }` +
       `  return Array.isArray(pattern?.keywords) && pattern.keywords.some((keyword)=>String(keyword || '').trim()) ? { level:'ok', message:'exact keywords 已配置' } : { level:'warn', message:'exact 模式至少需要一个 keyword' };` +
       `}` +
+      `function getDraftSmartRouterConfig(config){` +
+      `  const smart={ ...((config && config.SmartRouter) || {}) };` +
+      `  if((!Array.isArray(smart.rules) || !smart.rules.length) && Array.isArray(config?.TriggerRouter?.rules)){ smart.rules=config.TriggerRouter.rules; }` +
+      `  if(!smart.semantic && (config?.Governance?.semantic || config?.TriggerRouter?.llm_intent_recognition)){ smart.semantic={ ...((config && config.Governance && config.Governance.semantic) || {}) }; if(config?.TriggerRouter?.llm_intent_recognition){ smart.semantic.enabled=true; smart.semantic.mode=smart.semantic.mode || 'classifier'; smart.semantic.classifier_model=smart.semantic.classifier_model || config.TriggerRouter.intent_model || ''; } }` +
+      `  if(!smart.sticky && config?.Governance?.sticky){ smart.sticky={ ...(config.Governance.sticky || {}) }; }` +
+      `  if(!smart.enabled && (config?.TriggerRouter?.enabled || smart.rules?.length || smart.router_model || smart.candidates?.length || smart.semantic || smart.sticky)){ smart.enabled=true; }` +
+      `  return smart;` +
+      `}` +
       `function renderDraftSummary(config){` +
       `  const models=Array.isArray(config?.Models) ? config.Models : [];` +
-      `  const triggerRules=Array.isArray(config?.TriggerRouter?.rules) ? config.TriggerRouter.rules : [];` +
+      `  const smart=getDraftSmartRouterConfig(config);` +
+      `  const triggerRules=Array.isArray(smart?.rules) ? smart.rules : [];` +
       `  const patternCount=triggerRules.reduce((sum,rule)=>sum + (Array.isArray(rule.patterns) ? rule.patterns.length : 0),0);` +
-      `  const smartCandidates=Array.isArray(config?.SmartRouter?.candidates) ? config.SmartRouter.candidates : [];` +
+      `  const smartCandidates=Array.isArray(smart?.candidates) ? smart.candidates : [];` +
       `  const cascadeLevels=Array.isArray(config?.Governance?.cascade?.levels) ? config.Governance.cascade.levels : [];` +
-      `  const modelRefCount=[config?.Router?.default, config?.TriggerRouter?.intent_model, config?.SmartRouter?.router_model, config?.Governance?.sticky?.alignment?.summarizer_model, config?.Governance?.semantic?.classifier_model, config?.Governance?.shadow?.verifier_model].filter(v=>typeof v === 'string' && v.trim()).length + triggerRules.filter(rule=>rule?.model).length + smartCandidates.filter(item=>item?.model).length + cascadeLevels.reduce((sum,level)=>sum + (level?.from ? 1 : 0) + (level?.to ? 1 : 0), 0);` +
+      `  const modelRefCount=[config?.Router?.default, smart?.router_model, smart?.sticky?.alignment?.summarizer_model, smart?.semantic?.classifier_model, config?.Governance?.shadow?.verifier_model].filter(v=>typeof v === 'string' && v.trim()).length + triggerRules.filter(rule=>rule?.model).length + smartCandidates.filter(item=>item?.model).length + cascadeLevels.reduce((sum,level)=>sum + (level?.from ? 1 : 0) + (level?.to ? 1 : 0), 0);` +
       `  draftSummaryGrid.innerHTML=[` +
       "    ['Models', models.length]," +
       "    ['Trigger rules', triggerRules.length]," +
@@ -1339,21 +1348,22 @@ export const createServer = (config: any): Server => {
         `  if(routerDefault){ payload.Router={ ...(payload.Router || {}), default: routerDefault }; }` +
         `  else if(payload.Router){ delete payload.Router.default; if(!Object.keys(payload.Router).length){ delete payload.Router; } }` +
       `  const triggerRules=extractTriggerRulesFromForm();` +
-      `  if(triggerEnabled.checked || triggerIntentEnabled.checked || triggerIntentModel.value.trim() || triggerRules.length){ payload.TriggerRouter={ ...(payload.TriggerRouter || {}), enabled: triggerEnabled.checked, analysis_scope: triggerAnalysisScope.value || 'last_message', llm_intent_recognition: triggerIntentEnabled.checked, intent_model: triggerIntentModel.value.trim(), rules: triggerRules }; } else { delete payload.TriggerRouter; }` +
       `  const smartCandidates=extractSmartCandidatesFromForm();` +
-      `  if(smartEnabled.checked || smartRouterModel.value.trim() || smartCandidates.length || smartCacheTtl.value.trim() || smartMaxTokens.value.trim()){ payload.SmartRouter={ ...(payload.SmartRouter || {}), enabled: smartEnabled.checked, router_model: smartRouterModel.value.trim(), fallback: smartFallback.value || 'default', candidates: smartCandidates, cache_ttl: smartCacheTtl.value.trim() ? Number(smartCacheTtl.value.trim()) : undefined, max_tokens: smartMaxTokens.value.trim() ? Number(smartMaxTokens.value.trim()) : undefined }; } else { delete payload.SmartRouter; }` +
+      `  const smartRouterEnabled=Boolean(smartEnabled.checked || triggerEnabled.checked || triggerIntentEnabled.checked || triggerIntentModel.value.trim() || triggerRules.length || smartRouterModel.value.trim() || smartCandidates.length || smartCacheTtl.value.trim() || smartMaxTokens.value.trim() || governanceAlignmentEnabled.checked || governanceSummarizerModel.value.trim() || governanceSemanticEnabled.checked || governanceClassifierModel.value.trim());` +
+      `  if(smartRouterEnabled){ payload.SmartRouter={ ...(payload.SmartRouter || {}), enabled: true, router_model: smartRouterModel.value.trim(), fallback: smartFallback.value || 'default', candidates: smartCandidates, cache_ttl: smartCacheTtl.value.trim() ? Number(smartCacheTtl.value.trim()) : undefined, max_tokens: smartMaxTokens.value.trim() ? Number(smartMaxTokens.value.trim()) : undefined, rules: triggerRules, semantic:(governanceSemanticEnabled.checked || triggerIntentEnabled.checked || governanceClassifierModel.value.trim() || triggerIntentModel.value.trim()) ? { ...(((payload.SmartRouter || {}).semantic) || {}), enabled:Boolean(governanceSemanticEnabled.checked || triggerIntentEnabled.checked), mode:'classifier', classifier_model: governanceClassifierModel.value.trim() || triggerIntentModel.value.trim() } : undefined, sticky:(governanceAlignmentEnabled.checked || governanceSummarizerModel.value.trim()) ? { ...(((payload.SmartRouter || {}).sticky) || {}), enabled:true, alignment:{ ...((((payload.SmartRouter || {}).sticky || {}).alignment) || {}), enabled:Boolean(governanceAlignmentEnabled.checked), summarizer_model: governanceSummarizerModel.value.trim() } } : undefined }; } else { delete payload.SmartRouter; }` +
+      `  delete payload.TriggerRouter;` +
       `  const cascadeLevels=extractCascadeLevelsFromForm();` +
-      `  if(governanceEnabled.checked || governanceAlignmentEnabled.checked || governanceSummarizerModel.value.trim() || governanceSemanticEnabled.checked || governanceClassifierModel.value.trim() || governanceShadowEnabled.checked || governanceVerifierModel.value.trim() || cascadeLevels.length){ payload.Governance={ ...(payload.Governance || {}), enabled: governanceEnabled.checked, sticky:{ ...((payload.Governance && payload.Governance.sticky) || {}), enabled: Boolean(governanceEnabled.checked || governanceAlignmentEnabled.checked), alignment:{ ...(((payload.Governance && payload.Governance.sticky && payload.Governance.sticky.alignment) || {})), enabled: governanceAlignmentEnabled.checked, summarizer_model: governanceSummarizerModel.value.trim() } }, semantic:{ ...((payload.Governance && payload.Governance.semantic) || {}), enabled: governanceSemanticEnabled.checked, mode:'classifier', classifier_model: governanceClassifierModel.value.trim() }, shadow:{ ...((payload.Governance && payload.Governance.shadow) || {}), enabled: governanceShadowEnabled.checked, verifier_model: governanceVerifierModel.value.trim() }, cascade:{ ...((payload.Governance && payload.Governance.cascade) || {}), enabled: Boolean(cascadeLevels.length), levels: cascadeLevels } }; } else { delete payload.Governance; }` +
+      `  if(governanceEnabled.checked || governanceShadowEnabled.checked || governanceVerifierModel.value.trim() || cascadeLevels.length){ payload.Governance={ ...(payload.Governance || {}), enabled: governanceEnabled.checked, shadow:{ ...((payload.Governance && payload.Governance.shadow) || {}), enabled: governanceShadowEnabled.checked, verifier_model: governanceVerifierModel.value.trim() }, cascade:{ ...((payload.Governance && payload.Governance.cascade) || {}), enabled: Boolean(cascadeLevels.length), levels: cascadeLevels } }; } else { delete payload.Governance; }` +
       `  return payload;` +
       `}` +
       `function renderConfigControlForms(config){` +
+      `  const smart=getDraftSmartRouterConfig(config);` +
       `  const trigger=config?.TriggerRouter || {};` +
-      `  triggerEnabled.checked=Boolean(trigger.enabled);` +
-      `  triggerIntentEnabled.checked=Boolean(trigger.llm_intent_recognition);` +
+      `  triggerEnabled.checked=Boolean(smart.enabled);` +
+      `  triggerIntentEnabled.checked=Boolean(smart.semantic?.enabled && smart.semantic?.mode === 'classifier');` +
       `  triggerAnalysisScope.value=trigger.analysis_scope || 'last_message';` +
-      `  triggerIntentModel.value=trigger.intent_model || '';` +
-      `  renderTriggerRulesList(trigger.rules || []);` +
-      `  const smart=config?.SmartRouter || {};` +
+      `  triggerIntentModel.value=smart.semantic?.classifier_model || trigger.intent_model || '';` +
+      `  renderTriggerRulesList(smart.rules || trigger.rules || []);` +
       `  smartEnabled.checked=Boolean(smart.enabled);` +
       `  smartRouterModel.value=smart.router_model || '';` +
       `  smartFallback.value=smart.fallback || 'default';` +
@@ -1362,10 +1372,10 @@ export const createServer = (config: any): Server => {
       `  renderSmartCandidatesList(smart.candidates || []);` +
       `  const governance=config?.Governance || {};` +
       `  governanceEnabled.checked=Boolean(governance.enabled);` +
-      `  governanceAlignmentEnabled.checked=Boolean(governance.sticky?.alignment?.enabled);` +
-      `  governanceSummarizerModel.value=governance.sticky?.alignment?.summarizer_model || '';` +
-      `  governanceSemanticEnabled.checked=Boolean(governance.semantic?.enabled);` +
-      `  governanceClassifierModel.value=governance.semantic?.classifier_model || '';` +
+      `  governanceAlignmentEnabled.checked=Boolean(smart.sticky?.alignment?.enabled);` +
+      `  governanceSummarizerModel.value=smart.sticky?.alignment?.summarizer_model || '';` +
+      `  governanceSemanticEnabled.checked=Boolean(smart.semantic?.enabled);` +
+      `  governanceClassifierModel.value=smart.semantic?.classifier_model || '';` +
       `  governanceShadowEnabled.checked=Boolean(governance.shadow?.enabled);` +
       `  governanceVerifierModel.value=governance.shadow?.verifier_model || '';` +
       `  renderCascadeLevelsList(governance.cascade?.levels || []);` +
