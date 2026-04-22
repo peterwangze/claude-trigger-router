@@ -222,6 +222,12 @@
 - legacy intent 识别已开始内收到 SmartRouter 语义增强：
   - 旧的 `llm_intent_recognition + intent_model` 会在 runtime 中被编译进 SmartRouter semantic classifier
   - 启用 SmartRouter 时，不再默认并行跑独立的 `intent_fallback` 主链
+- SmartRouter 默认增强已开始默认打开：
+  - `semantic`
+  - `sticky`
+  - `sticky.alignment`
+  在 SmartRouter 启用时默认生效，但仍可显式关闭
+- `routeSync` 已开始对齐统一路由主链，不再只是旧 Trigger-only 规则匹配
 
 当前未完成：
 

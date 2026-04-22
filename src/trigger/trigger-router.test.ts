@@ -433,12 +433,76 @@ describe('TriggerRouter', () => {
       const result = router.routeSync(req);
       expect(result.matched).toBe(true);
       expect(result.model).toBe('openrouter,dall-e-3');
+      expect(result.routeSource).toBe('trigger_rule');
     });
 
     it('should return not matched before init', () => {
       const req = { body: { messages: [{ role: 'user', content: '画图' }] } };
       const result = router.routeSync(req);
       expect(result.matched).toBe(false);
+    });
+
+    it('should use SmartRouter embedded rules synchronously even when TriggerRouter is disabled', () => {
+      const config = createAppConfig({
+        TriggerRouter: {
+          enabled: false,
+          analysis_scope: 'last_message',
+          llm_intent_recognition: false,
+          rules: [],
+        },
+        SmartRouter: {
+          enabled: true,
+          rules: [
+            {
+              name: 'architecture',
+              priority: 90,
+              enabled: true,
+              patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+              model: 'openrouter,claude-opus-4',
+            },
+          ],
+        } as any,
+      });
+      router.init(config);
+
+      const req = { body: { messages: [{ role: 'user', content: '请帮我做架构设计' }] } };
+      const result = router.routeSync(req as any);
+
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('openrouter,claude-opus-4');
+      expect(result.routeSource).toBe('trigger_rule');
+    });
+
+    it('should apply SmartRouter semantic enhancement synchronously when rules provide descriptions', () => {
+      const config = createAppConfig({
+        TriggerRouter: {
+          enabled: false,
+          analysis_scope: 'last_message',
+          llm_intent_recognition: false,
+          rules: [],
+        },
+        SmartRouter: {
+          enabled: true,
+          rules: [
+            {
+              name: 'architecture',
+              priority: 90,
+              enabled: true,
+              patterns: [{ type: 'exact', keywords: ['不会命中'] }],
+              model: 'openrouter,claude-opus-4',
+              description: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          ],
+        } as any,
+      });
+      router.init(config);
+
+      const req = { body: { messages: [{ role: 'user', content: '请帮我重构系统结构并拆分核心模块' }] } };
+      const result = router.routeSync(req as any);
+
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('openrouter,claude-opus-4');
+      expect(result.routeSource).toBe('semantic_match');
     });
   });
 });
