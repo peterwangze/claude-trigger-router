@@ -649,6 +649,54 @@ function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppC
   return nextConfig;
 }
 
+export function deriveRuntimeSmartRouterConfig(config: IAppConfig): IAppConfig['SmartRouter'] {
+  const baseSmartRouterConfig = config.SmartRouter ?? DEFAULT_SMART_ROUTER_CONFIG;
+  const legacyIntentEnabled = Boolean(config.TriggerRouter?.llm_intent_recognition);
+  const legacyIntentModel = config.TriggerRouter?.intent_model;
+  const legacySemanticPrototypes = Object.fromEntries(
+    (config.TriggerRouter?.rules ?? [])
+      .filter((rule) => rule.enabled !== false && rule.description)
+      .map((rule) => [rule.name, rule.description as string])
+  );
+  const hasExplicitSmartRouterConfig = Boolean(
+    baseSmartRouterConfig.enabled ||
+    baseSmartRouterConfig.router_model ||
+    baseSmartRouterConfig.candidates?.length ||
+    baseSmartRouterConfig.rules?.length ||
+    baseSmartRouterConfig.semantic ||
+    baseSmartRouterConfig.sticky
+  );
+
+  return {
+    ...baseSmartRouterConfig,
+    enabled: hasExplicitSmartRouterConfig
+      ? baseSmartRouterConfig.enabled
+      : Boolean(config.TriggerRouter?.enabled),
+    rules: baseSmartRouterConfig.rules?.length
+      ? baseSmartRouterConfig.rules
+      : config.TriggerRouter?.rules ?? [],
+    semantic: baseSmartRouterConfig.semantic ?? (
+      legacyIntentEnabled || config.Governance?.semantic
+        ? {
+            ...(config.Governance?.semantic ?? {}),
+            ...(legacyIntentEnabled
+              ? {
+                  enabled: true,
+                  mode: 'classifier' as const,
+                  classifier_model: legacyIntentModel,
+                  prototypes: {
+                    ...(config.Governance?.semantic?.prototypes ?? {}),
+                    ...legacySemanticPrototypes,
+                  },
+                }
+              : {}),
+          }
+        : undefined
+    ),
+    sticky: baseSmartRouterConfig.sticky ?? config.Governance?.sticky,
+  };
+}
+
 export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
   config: IAppConfig;
   errors: string[];
@@ -674,6 +722,11 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
   if (normalizedInput.Governance) {
     normalizedConfig.Governance = deepMerge(DEFAULT_GOVERNANCE_CONFIG, normalizedInput.Governance) as IAppConfig['Governance'];
   }
+
+  normalizedConfig.SmartRouter = deepMerge(
+    DEFAULT_SMART_ROUTER_CONFIG,
+    deriveRuntimeSmartRouterConfig(normalizedConfig)
+  ) as IAppConfig['SmartRouter'];
 
   if (normalizedConfig.SmartRouter?.sticky) {
     normalizedConfig.SmartRouter.sticky = deepMerge(

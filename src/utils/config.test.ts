@@ -662,6 +662,63 @@ describe('normalizeAndValidateConfig governance', () => {
     }));
   });
 
+  it('derives SmartRouter semantic classifier from legacy Trigger intent config during normalization', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+      TriggerRouter: {
+        enabled: true,
+        analysis_scope: 'last_message',
+        llm_intent_recognition: true,
+        intent_model: 'sonnet',
+        rules: [
+          {
+            name: 'architecture',
+            priority: 90,
+            enabled: true,
+            patterns: [{ type: 'exact', keywords: ['不会命中'] }],
+            model: 'opus',
+            description: '重构 系统 结构 模块 拆分 架构 设计',
+          },
+        ],
+      },
+    } as any);
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.SmartRouter).toEqual(expect.objectContaining({
+      enabled: true,
+      rules: [
+        expect.objectContaining({
+          name: 'architecture',
+          model: 'opus',
+        }),
+      ],
+      semantic: expect.objectContaining({
+        enabled: true,
+        mode: 'classifier',
+        classifier_model: 'sonnet',
+        prototypes: expect.objectContaining({
+          architecture: '重构 系统 结构 模块 拆分 架构 设计',
+        }),
+      }),
+    }));
+  });
+
   it('validates SmartRouter sticky alignment model references and bounds', () => {
     const result = normalizeAndValidateConfig({
       Router: { default: 'sonnet' },
