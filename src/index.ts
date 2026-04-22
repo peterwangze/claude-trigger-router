@@ -209,10 +209,12 @@ async function run(options: RunOptions = {}) {
       if (!bypassTriggerRouter && triggerResult.matched && triggerResult.model) {
           const previousSessionState = req.sessionId ? sessionStateStore.get(req.sessionId) : undefined;
           const previousModel = previousSessionState?.lastSuccessfulModel;
-          const alignmentConfig = config.Governance?.sticky?.alignment;
+          const alignmentConfig =
+            triggerRouter.getSmartRouterConfig()?.sticky?.alignment
+            ?? config.Governance?.sticky?.alignment;
 
         if (
-          config.Governance?.enabled &&
+          triggerRouter.getSmartRouterConfig()?.enabled &&
           alignmentConfig?.enabled &&
           previousModel &&
           previousModel !== triggerResult.model &&

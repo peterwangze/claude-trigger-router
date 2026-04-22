@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createGovernanceTrace } from './trace';
 import { applyResponseGovernance } from './response-governance';
 import { ModelSelector } from '../trigger/selector';
+import { sessionStateStore } from './session-store';
 
 describe('applyResponseGovernance', () => {
   it('executes cascade retry when response contains failure evidence', async () => {
@@ -198,5 +199,40 @@ describe('applyResponseGovernance', () => {
     });
 
     expect(req.body.model).toBe('model__opus,anthropic/claude-opus-4');
+  });
+
+  it('persists sticky session state when SmartRouter sticky defaults are enabled even without Governance.enabled', async () => {
+    const req: any = {
+      sessionId: 'smart-session',
+      body: {
+        model: 'provider,model-a',
+        metadata: {},
+      },
+      triggerResult: {
+        analyzedText: '请帮我重构系统结构并拆分核心模块',
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-smart-sticky' }),
+    };
+
+    await applyResponseGovernance({
+      req,
+      payload: { content: [{ text: 'done' }] },
+      config: {
+        SmartRouter: {
+          enabled: true,
+          sticky: {
+            enabled: true,
+          },
+        },
+      } as any,
+      servicePort: 5678,
+    });
+
+    expect(sessionStateStore.get('smart-session')).toEqual(
+      expect.objectContaining({
+        preferredModel: 'provider,model-a',
+        lastSuccessfulModel: 'provider,model-a',
+      })
+    );
   });
 });

@@ -282,6 +282,53 @@ describe('TriggerRouter', () => {
       expect(result.model).toBe('openrouter,claude-opus-4');
       expect(result.routeSource).toBe('trigger_rule');
     });
+
+    it('should record smart_router trace reason with unified naming', async () => {
+      const config = createAppConfig({
+        TriggerRouter: {
+          enabled: false,
+          analysis_scope: 'last_message',
+          llm_intent_recognition: false,
+          rules: [],
+        },
+        SmartRouter: {
+          enabled: true,
+          router_model: 'provider,router-model',
+          candidates: [
+            { model: 'provider,model-a', description: 'A' },
+            { model: 'provider,model-b', description: 'B' },
+          ],
+        } as any,
+      });
+      router.init(config);
+      const req = {
+        governanceTrace: {
+          requestId: 'req-smart',
+          routeReason: [],
+          stickyHit: false,
+          alignmentUsed: false,
+          cascadeTriggered: false,
+          shadowChecked: false,
+          startedAt: Date.now(),
+        },
+        body: { messages: [{ role: 'user', content: '帮我选一个模型' }] },
+      };
+      const selectSpy = vi.spyOn(modelSelector, 'selectModel').mockResolvedValue({
+        matched: true,
+        model: 'provider,model-a',
+        confidence: 0.9,
+        analysisTime: 0,
+        analyzedText: '帮我选一个模型',
+        routeSource: 'smart_router',
+      });
+
+      const result = await router.route(req as any);
+
+      expect(result.routeSource).toBe('smart_router');
+      expect(req.governanceTrace.routeReason).toContain('smart_router');
+      expect(req.governanceTrace.routeReason).not.toContain('smart_decision');
+      selectSpy.mockRestore();
+    });
   });
 
   // ============ routeSync ============

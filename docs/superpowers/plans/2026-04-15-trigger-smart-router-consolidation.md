@@ -215,11 +215,15 @@
   - `router_model` 改为可选
   - SmartRouter 已可直接承载内收规则、语义增强与 sticky 默认增强配置
   - selector / trigger 入口已开始优先消费 SmartRouter 的新 contract，而不再只看旧 Trigger/Governance 分支
+- 主请求链与响应链已开始接入 SmartRouter 默认增强：
+  - 上下文摘要注入优先从 SmartRouter sticky alignment 读取
+  - sticky 会话持久化不再强依赖 Governance 总开关
+  - smart routing 的 trace reason 已开始去掉旧的 `smart_decision` 过渡命名
 
 当前未完成：
 
 - Trigger 仍未完全内收到 SmartRouter 运行时主链，当前仍保留兼容分支
-- 治理默认能力尚未完全转化为 SmartRouter 默认增强层，当前仍处于部分桥接状态
+- 治理默认能力尚未完全转化为 SmartRouter 默认增强层，当前仍处于“主请求链 / 响应链部分桥接，其他治理分支仍保留旧入口”的阶段
 - routeSource / trace reason / diagnostics 仍未完全统一为 SmartRouter 统一路由引擎语义
 - README / setup / example config / `/ui` 的继续收口应后置，不再作为当前第一阶段目标
 

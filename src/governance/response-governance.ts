@@ -33,6 +33,12 @@ export async function applyResponseGovernance({
   deps,
 }: IApplyResponseGovernanceInput): Promise<any> {
   let nextPayload = payload;
+  const effectiveStickyConfig = config.SmartRouter?.sticky
+    ? {
+        ...(config.Governance?.sticky ?? {}),
+        ...config.SmartRouter.sticky,
+      }
+    : config.Governance?.sticky;
   const resolvedCascadeConfig = config.Governance?.cascade
     ? {
         ...config.Governance.cascade,
@@ -92,7 +98,7 @@ export async function applyResponseGovernance({
     }
   }
 
-  if (config.Governance?.enabled && config.Governance.sticky?.enabled && req.sessionId && req.body?.model) {
+  if (effectiveStickyConfig?.enabled && req.sessionId && req.body?.model) {
     const fingerprint = createTaskFingerprint(req.triggerResult?.analyzedText);
     if (fingerprint) {
       sessionStateStore.put(req.sessionId, {

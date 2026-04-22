@@ -97,6 +97,10 @@ export class TriggerRouter {
     return this.config;
   }
 
+  getSmartRouterConfig(): ISmartRouterConfig | undefined {
+    return this.smartRouterConfig;
+  }
+
   /**
    * 执行触发路由
    * 分析请求并返回匹配的模型
@@ -145,7 +149,7 @@ export class TriggerRouter {
         req.governanceTrace.stickyHit = true;
         appendTraceReason(req.governanceTrace, 'sticky_correction');
       } else if (result.routeSource === 'smart_router') {
-        appendTraceReason(req.governanceTrace, 'smart_decision');
+        appendTraceReason(req.governanceTrace, 'smart_router');
       } else if (result.routeSource === 'intent_fallback') {
         appendTraceReason(req.governanceTrace, 'intent_fallback');
       } else {
