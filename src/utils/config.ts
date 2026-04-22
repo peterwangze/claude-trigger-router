@@ -664,18 +664,16 @@ export function deriveRuntimeSmartRouterConfig(config: IAppConfig): IAppConfig['
     baseSmartRouterConfig.candidates?.length ||
     baseSmartRouterConfig.rules?.length ||
     baseSmartRouterConfig.semantic ||
-    baseSmartRouterConfig.sticky
+      baseSmartRouterConfig.sticky
   );
-
-  return {
-    ...baseSmartRouterConfig,
-    enabled: hasExplicitSmartRouterConfig
-      ? baseSmartRouterConfig.enabled
-      : Boolean(config.TriggerRouter?.enabled),
-    rules: baseSmartRouterConfig.rules?.length
-      ? baseSmartRouterConfig.rules
-      : config.TriggerRouter?.rules ?? [],
-    semantic: baseSmartRouterConfig.semantic ?? (
+  const defaultSummarizerModel =
+    baseSmartRouterConfig.router_model
+    || config.Router?.default
+    || legacyIntentModel
+    || '';
+  const derivedSemantic = deepMerge(
+    DEFAULT_GOVERNANCE_CONFIG.semantic,
+    baseSmartRouterConfig.semantic ?? (
       legacyIntentEnabled || config.Governance?.semantic
         ? {
             ...(config.Governance?.semantic ?? {}),
@@ -691,9 +689,68 @@ export function deriveRuntimeSmartRouterConfig(config: IAppConfig): IAppConfig['
                 }
               : {}),
           }
-        : undefined
-    ),
-    sticky: baseSmartRouterConfig.sticky ?? config.Governance?.sticky,
+        : {}
+    )
+  ) as NonNullable<IAppConfig['SmartRouter']>['semantic'];
+  const derivedSticky = deepMerge(
+    DEFAULT_GOVERNANCE_CONFIG.sticky,
+    baseSmartRouterConfig.sticky ?? config.Governance?.sticky ?? {}
+  ) as NonNullable<IAppConfig['SmartRouter']>['sticky'];
+  const smartRouterEnabled = hasExplicitSmartRouterConfig
+    ? baseSmartRouterConfig.enabled
+    : Boolean(config.TriggerRouter?.enabled);
+  const hasExplicitSemanticToggle = Boolean(
+    baseSmartRouterConfig.semantic ||
+    config.Governance?.semantic ||
+    legacyIntentEnabled
+  );
+  const hasExplicitStickyToggle = Boolean(
+    baseSmartRouterConfig.sticky ||
+    config.Governance?.sticky
+  );
+
+  const semantic = smartRouterEnabled
+    ? {
+        ...derivedSemantic,
+        enabled: hasExplicitSemanticToggle
+          ? (baseSmartRouterConfig.semantic?.enabled ?? derivedSemantic.enabled)
+          : true,
+        threshold: hasExplicitSemanticToggle
+          ? derivedSemantic.threshold
+          : 0.2,
+      }
+    : derivedSemantic;
+
+  const sticky = smartRouterEnabled
+    ? {
+        ...derivedSticky,
+        enabled: hasExplicitStickyToggle
+          ? (baseSmartRouterConfig.sticky?.enabled ?? derivedSticky.enabled)
+          : true,
+        alignment: {
+          ...derivedSticky.alignment,
+          enabled: hasExplicitStickyToggle && (
+            baseSmartRouterConfig.sticky?.alignment ||
+            config.Governance?.sticky?.alignment
+          )
+            ? (baseSmartRouterConfig.sticky?.alignment?.enabled ?? derivedSticky.alignment?.enabled)
+            : true,
+          summarizer_model:
+            baseSmartRouterConfig.sticky?.alignment?.summarizer_model
+            || derivedSticky.alignment?.summarizer_model
+            || defaultSummarizerModel,
+        },
+      }
+    : derivedSticky;
+
+  return {
+    ...baseSmartRouterConfig,
+    enabled: smartRouterEnabled,
+    rules: baseSmartRouterConfig.rules?.length
+      ? baseSmartRouterConfig.rules
+      : config.TriggerRouter?.rules ?? [],
+    semantic,
+    sticky,
   };
 }
 

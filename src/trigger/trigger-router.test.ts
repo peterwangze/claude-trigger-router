@@ -332,6 +332,50 @@ describe('TriggerRouter', () => {
       semanticSpy.mockRestore();
     });
 
+    it('should enable semantic enhancement by default when SmartRouter is enabled and rules provide descriptions', async () => {
+      const config = createAppConfig({
+        TriggerRouter: {
+          enabled: false,
+          analysis_scope: 'last_message',
+          llm_intent_recognition: false,
+          rules: [],
+        },
+        SmartRouter: {
+          enabled: true,
+          rules: [
+            {
+              name: 'architecture',
+              priority: 90,
+              enabled: true,
+              patterns: [{ type: 'exact', keywords: ['不会命中'] }],
+              model: 'openrouter,claude-opus-4',
+              description: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          ],
+        } as any,
+      });
+      router.init(config);
+      const req = {
+        governanceTrace: {
+          requestId: 'req-default-semantic',
+          routeReason: [],
+          stickyHit: false,
+          alignmentUsed: false,
+          cascadeTriggered: false,
+          shadowChecked: false,
+          startedAt: Date.now(),
+        },
+        body: { messages: [{ role: 'user', content: '请帮我重构系统结构并拆分核心模块' }] },
+      };
+
+      const result = await router.route(req as any);
+
+      expect(result.matched).toBe(true);
+      expect(result.routeSource).toBe('semantic_match');
+      expect(result.model).toBe('openrouter,claude-opus-4');
+      expect(req.governanceTrace.routeReason).toContain('semantic_match:architecture');
+    });
+
     it('should record smart_router trace reason with unified naming', async () => {
       const config = createAppConfig({
         TriggerRouter: {

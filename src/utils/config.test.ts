@@ -719,6 +719,57 @@ describe('normalizeAndValidateConfig governance', () => {
     }));
   });
 
+  it('enables SmartRouter semantic, sticky, and alignment defaults when SmartRouter is enabled', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+      SmartRouter: {
+        enabled: true,
+        rules: [
+          {
+            name: 'architecture',
+            priority: 90,
+            enabled: true,
+            patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+            model: 'opus',
+            description: '重构 系统 结构 模块 拆分 架构 设计',
+          },
+        ],
+      },
+    } as any);
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.SmartRouter).toEqual(expect.objectContaining({
+      enabled: true,
+      semantic: expect.objectContaining({
+        enabled: true,
+        threshold: 0.2,
+      }),
+      sticky: expect.objectContaining({
+        enabled: true,
+        alignment: expect.objectContaining({
+          enabled: true,
+          summarizer_model: 'sonnet',
+        }),
+      }),
+    }));
+  });
+
   it('validates SmartRouter sticky alignment model references and bounds', () => {
     const result = normalizeAndValidateConfig({
       Router: { default: 'sonnet' },
