@@ -187,6 +187,35 @@ function projectConfiguredBranch(raw: any, normalized: any): any {
   return result;
 }
 
+function mergeSmartRouterProjection(target: Record<string, unknown>, patch: Record<string, unknown> | undefined) {
+  if (!patch || !Object.keys(patch).length) {
+    return target;
+  }
+
+  return {
+    ...target,
+    ...patch,
+    semantic: patch.semantic
+      ? {
+          ...((target.semantic as Record<string, unknown>) || {}),
+          ...(patch.semantic as Record<string, unknown>),
+        }
+      : target.semantic,
+    sticky: patch.sticky
+      ? {
+          ...((target.sticky as Record<string, unknown>) || {}),
+          ...(patch.sticky as Record<string, unknown>),
+          alignment: (patch.sticky as any)?.alignment
+            ? {
+                ...(((target.sticky as any)?.alignment as Record<string, unknown>) || {}),
+                ...((patch.sticky as any).alignment as Record<string, unknown>),
+              }
+            : (target.sticky as any)?.alignment,
+        }
+      : target.sticky,
+  };
+}
+
 function buildPersistedConfig(rawConfig: any, normalizedConfig: any) {
   const persisted = {
     HOST: normalizedConfig.HOST,
@@ -203,13 +232,52 @@ function buildPersistedConfig(rawConfig: any, normalizedConfig: any) {
     Router: normalizedConfig.Router,
   } as Record<string, unknown>;
 
-  const optionalSections = ["TriggerRouter", "SmartRouter", "Governance"] as const;
-  optionalSections.forEach((section) => {
-    const projected = projectConfiguredBranch(rawConfig?.[section], normalizedConfig?.[section]);
-    if (projected !== undefined && !(typeof projected === "object" && projected && Object.keys(projected).length === 0)) {
-      persisted[section] = projected;
+  const runtimeSmartRouter = deriveRuntimeSmartRouterConfig(normalizedConfig);
+  let smartRouterProjection = projectConfiguredBranch(rawConfig?.SmartRouter, runtimeSmartRouter) ?? {};
+
+  if (rawConfig?.TriggerRouter) {
+    smartRouterProjection = mergeSmartRouterProjection(smartRouterProjection, {
+      ...(rawConfig.TriggerRouter.enabled !== undefined ? { enabled: runtimeSmartRouter.enabled } : {}),
+      ...(rawConfig.TriggerRouter.analysis_scope !== undefined ? { analysis_scope: runtimeSmartRouter.analysis_scope } : {}),
+      ...(rawConfig.TriggerRouter.rules !== undefined ? { rules: runtimeSmartRouter.rules } : {}),
+      ...((rawConfig.TriggerRouter.llm_intent_recognition !== undefined || rawConfig.TriggerRouter.intent_model !== undefined)
+        ? {
+            semantic: {
+              enabled: runtimeSmartRouter.semantic?.enabled,
+              mode: runtimeSmartRouter.semantic?.mode,
+              classifier_model: runtimeSmartRouter.semantic?.classifier_model,
+            },
+          }
+        : {}),
+    });
+  }
+
+  if (rawConfig?.Governance?.sticky) {
+    smartRouterProjection = mergeSmartRouterProjection(
+      smartRouterProjection,
+      { sticky: projectConfiguredBranch(rawConfig.Governance.sticky, runtimeSmartRouter.sticky) }
+    );
+  }
+
+  if (rawConfig?.Governance?.semantic) {
+    smartRouterProjection = mergeSmartRouterProjection(
+      smartRouterProjection,
+      { semantic: projectConfiguredBranch(rawConfig.Governance.semantic, runtimeSmartRouter.semantic) }
+    );
+  }
+
+  if (Object.keys(smartRouterProjection).length > 0) {
+    persisted.SmartRouter = smartRouterProjection;
+  }
+
+  const governanceProjection = projectConfiguredBranch(rawConfig?.Governance, normalizedConfig?.Governance);
+  if (governanceProjection && typeof governanceProjection === "object") {
+    delete governanceProjection.sticky;
+    delete governanceProjection.semantic;
+    if (Object.keys(governanceProjection).length > 0) {
+      persisted.Governance = governanceProjection;
     }
-  });
+  }
 
   return persisted;
 }

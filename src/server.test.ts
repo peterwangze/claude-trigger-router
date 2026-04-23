@@ -1579,6 +1579,75 @@ describe('createServer /api/config', () => {
     );
   });
 
+  it('canonicalizes explicit TriggerRouter config into SmartRouter on save', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const requestBody = {
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+      TriggerRouter: {
+        enabled: true,
+        analysis_scope: 'last_message',
+        llm_intent_recognition: true,
+        intent_model: 'sonnet',
+        rules: [
+          {
+            name: 'architecture',
+            priority: 90,
+            enabled: true,
+            patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+            model: 'opus',
+            description: '重构 系统 结构 模块 拆分 架构 设计',
+          },
+        ],
+      },
+    };
+
+    await handler({ body: requestBody }, reply);
+
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        SmartRouter: expect.objectContaining({
+          enabled: true,
+          analysis_scope: 'last_message',
+          rules: [
+            expect.objectContaining({
+              name: 'architecture',
+              model: 'opus',
+            }),
+          ],
+          semantic: expect.objectContaining({
+            enabled: true,
+            mode: 'classifier',
+            classifier_model: 'sonnet',
+          }),
+        }),
+      })
+    );
+
+    const persisted = mockWriteConfigFile.mock.calls.at(-1)?.[0] as any;
+    expect(persisted.TriggerRouter).toBeUndefined();
+  });
+
   it('does not persist derived SmartRouter defaults when user did not configure SmartRouter', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('POST /api/config');
@@ -1716,8 +1785,7 @@ describe('createServer /api/config', () => {
 
     expect(mockWriteConfigFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        Governance: expect.objectContaining({
-          enabled: true,
+        SmartRouter: expect.objectContaining({
           sticky: expect.objectContaining({
             enabled: true,
             alignment: expect.objectContaining({
@@ -1725,6 +1793,9 @@ describe('createServer /api/config', () => {
               summarizer_model: 'openrouter,anthropic/claude-sonnet-4',
             }),
           }),
+        }),
+        Governance: expect.objectContaining({
+          enabled: true,
           cascade: expect.objectContaining({
             enabled: true,
           }),
@@ -1737,5 +1808,9 @@ describe('createServer /api/config', () => {
         }),
       })
     );
+
+    const persisted = mockWriteConfigFile.mock.calls.at(-1)?.[0] as any;
+    expect(persisted.Governance?.sticky).toBeUndefined();
+    expect(persisted.Governance?.semantic).toBeUndefined();
   });
 });
