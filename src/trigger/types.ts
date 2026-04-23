@@ -296,6 +296,9 @@ export interface ISmartRouterConfig {
   /** 是否启用 SmartRouter，默认 false */
   enabled: boolean;
 
+  /** 路由分析范围，未配置时回退到 legacy trigger 的 last_message 语义 */
+  analysis_scope?: AnalysisScope;
+
   /**
    * 可选的路由 LLM。
    * - 未配置时：行为退化为“关键词/正则前置筛选 + 语义增强匹配 + 默认路由兜底”

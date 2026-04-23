@@ -746,6 +746,7 @@ export function deriveRuntimeSmartRouterConfig(config: IAppConfig): IAppConfig['
   return {
     ...baseSmartRouterConfig,
     enabled: smartRouterEnabled,
+    analysis_scope: baseSmartRouterConfig.analysis_scope ?? config.TriggerRouter?.analysis_scope ?? 'last_message',
     rules: baseSmartRouterConfig.rules?.length
       ? baseSmartRouterConfig.rules
       : config.TriggerRouter?.rules ?? [],

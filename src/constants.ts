@@ -90,6 +90,7 @@ export const DEFAULT_TRIGGER_CONFIG = {
  */
 export const DEFAULT_SMART_ROUTER_CONFIG = {
   enabled: false,
+  analysis_scope: 'last_message' as const,
   router_model: '',
   candidates: [] as Array<{ model: string; description: string }>,
   cache_ttl: 600000,

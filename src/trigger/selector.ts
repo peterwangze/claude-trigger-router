@@ -257,6 +257,12 @@ export class ModelSelector {
     const appConfig = (req as any).appConfig as IAppConfig | undefined;
     const effectiveGovernanceConfig = this.getEffectiveGovernanceConfig(smartRouterConfig, governanceConfig);
     const routingRules = this.getRoutingRules(config, smartRouterConfig);
+    const analysisConfig = smartRouterConfig?.analysis_scope
+      ? {
+          ...config,
+          analysis_scope: smartRouterConfig.analysis_scope,
+        }
+      : config;
 
     // 如果统一路由未启用，直接返回不匹配
     if (!this.isRoutingEnabled(config, smartRouterConfig)) {
@@ -268,7 +274,7 @@ export class ModelSelector {
     }
 
     // 提取待分析的文本
-    const text = contextAnalyzer.analyze(req, config);
+    const text = contextAnalyzer.analyze(req, analysisConfig);
 
     if (!text) {
       return {
@@ -442,6 +448,12 @@ export class ModelSelector {
     const startTime = Date.now();
     const appConfig = (req as any).appConfig as IAppConfig | undefined;
     const effectiveGovernanceConfig = this.getEffectiveGovernanceConfig(smartRouterConfig, undefined);
+    const analysisConfig = smartRouterConfig?.analysis_scope
+      ? {
+          ...config,
+          analysis_scope: smartRouterConfig.analysis_scope,
+        }
+      : config;
 
     // 如果统一路由未启用，直接返回不匹配
     if (!this.isRoutingEnabled(config, smartRouterConfig)) {
@@ -453,7 +465,7 @@ export class ModelSelector {
     }
 
     // 提取待分析的文本
-    const text = contextAnalyzer.analyze(req, config);
+    const text = contextAnalyzer.analyze(req, analysisConfig);
 
     if (!text) {
       return {

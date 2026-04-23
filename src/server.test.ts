@@ -400,6 +400,7 @@ describe('createServer /api/config', () => {
     expect(result.SmartRouter).toEqual(
       expect.objectContaining({
         enabled: true,
+        analysis_scope: 'last_message',
         rules: [
           expect.objectContaining({
             name: 'architecture',
