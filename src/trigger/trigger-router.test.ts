@@ -79,6 +79,16 @@ describe('TriggerRouter', () => {
       router.init(config);
       expect(router.isEnabled()).toBe(false);
     });
+
+    it('should respect explicit SmartRouter disable even when legacy TriggerRouter is enabled', () => {
+      const config = createAppConfig({
+        SmartRouter: {
+          enabled: false,
+        } as any,
+      });
+      router.init(config);
+      expect(router.isEnabled()).toBe(false);
+    });
   });
 
   // ============ route ============

@@ -42,7 +42,7 @@ export class TriggerRouter {
     this.appConfig = appConfig;
     this.config = appConfig.TriggerRouter || this.getDefaultConfig();
     this.port = appConfig.PORT || DEFAULT_CONFIG.PORT;
-    this.smartRouterConfig = deriveRuntimeSmartRouterConfig(appConfig);
+    this.smartRouterConfig = deriveRuntimeSmartRouterConfig(appConfig, appConfig);
     this.governanceConfig = appConfig.Governance;
     this.apiKey = appConfig.APIKEY;
     this.apiTimeoutMs = appConfig.API_TIMEOUT_MS;

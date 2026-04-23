@@ -649,7 +649,10 @@ function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppC
   return nextConfig;
 }
 
-export function deriveRuntimeSmartRouterConfig(config: IAppConfig): IAppConfig['SmartRouter'] {
+export function deriveRuntimeSmartRouterConfig(
+  config: IAppConfig,
+  source?: Partial<IAppConfig>
+): IAppConfig['SmartRouter'] {
   const baseSmartRouterConfig = config.SmartRouter ?? DEFAULT_SMART_ROUTER_CONFIG;
   const legacyIntentEnabled = Boolean(config.TriggerRouter?.llm_intent_recognition);
   const legacyIntentModel = config.TriggerRouter?.intent_model;
@@ -658,14 +661,7 @@ export function deriveRuntimeSmartRouterConfig(config: IAppConfig): IAppConfig['
       .filter((rule) => rule.enabled !== false && rule.description)
       .map((rule) => [rule.name, rule.description as string])
   );
-  const hasExplicitSmartRouterConfig = Boolean(
-    baseSmartRouterConfig.enabled ||
-    baseSmartRouterConfig.router_model ||
-    baseSmartRouterConfig.candidates?.length ||
-    baseSmartRouterConfig.rules?.length ||
-    baseSmartRouterConfig.semantic ||
-      baseSmartRouterConfig.sticky
-  );
+  const hasExplicitSmartRouterConfig = source?.SmartRouter !== undefined;
   const defaultSummarizerModel =
     baseSmartRouterConfig.router_model
     || config.Router?.default
@@ -783,7 +779,7 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
 
   normalizedConfig.SmartRouter = deepMerge(
     DEFAULT_SMART_ROUTER_CONFIG,
-    deriveRuntimeSmartRouterConfig(normalizedConfig)
+    deriveRuntimeSmartRouterConfig(normalizedConfig, config)
   ) as IAppConfig['SmartRouter'];
 
   if (normalizedConfig.SmartRouter?.sticky) {
