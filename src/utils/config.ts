@@ -653,7 +653,8 @@ export function deriveRuntimeSmartRouterConfig(
   config: IAppConfig,
   source?: Partial<IAppConfig>
 ): IAppConfig['SmartRouter'] {
-  const baseSmartRouterConfig = config.SmartRouter ?? DEFAULT_SMART_ROUTER_CONFIG;
+  const smartRouterInput = source?.SmartRouter ?? config.SmartRouter;
+  const baseSmartRouterConfig = smartRouterInput ?? DEFAULT_SMART_ROUTER_CONFIG;
   const legacyIntentEnabled = Boolean(config.TriggerRouter?.llm_intent_recognition);
   const legacyIntentModel = config.TriggerRouter?.intent_model;
   const legacySemanticPrototypes = Object.fromEntries(

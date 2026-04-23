@@ -232,7 +232,7 @@ function buildPersistedConfig(rawConfig: any, normalizedConfig: any) {
     Router: normalizedConfig.Router,
   } as Record<string, unknown>;
 
-  const runtimeSmartRouter = deriveRuntimeSmartRouterConfig(normalizedConfig);
+  const runtimeSmartRouter = deriveRuntimeSmartRouterConfig(normalizedConfig, rawConfig);
   let smartRouterProjection = projectConfiguredBranch(rawConfig?.SmartRouter, runtimeSmartRouter) ?? {};
 
   if (rawConfig?.TriggerRouter) {
@@ -1183,11 +1183,26 @@ export const createServer = (config: any): Server => {
       `}` +
       `function getDraftSmartRouterConfig(config){` +
       `  const smart={ ...((config && config.SmartRouter) || {}) };` +
+      `  const smartExplicit=config && Object.prototype.hasOwnProperty.call(config,'SmartRouter');` +
+      `  const legacyIntentEnabled=Boolean(config?.TriggerRouter?.llm_intent_recognition);` +
+      `  const legacyIntentModel=config?.TriggerRouter?.intent_model || '';` +
       `  if(!smart.analysis_scope && config?.TriggerRouter?.analysis_scope){ smart.analysis_scope=config.TriggerRouter.analysis_scope; }` +
       `  if((!Array.isArray(smart.rules) || !smart.rules.length) && Array.isArray(config?.TriggerRouter?.rules)){ smart.rules=config.TriggerRouter.rules; }` +
       `  if(!smart.semantic && (config?.Governance?.semantic || config?.TriggerRouter?.llm_intent_recognition)){ smart.semantic={ ...((config && config.Governance && config.Governance.semantic) || {}) }; if(config?.TriggerRouter?.llm_intent_recognition){ smart.semantic.enabled=true; smart.semantic.mode=smart.semantic.mode || 'classifier'; smart.semantic.classifier_model=smart.semantic.classifier_model || config.TriggerRouter.intent_model || ''; } }` +
       `  if(!smart.sticky && config?.Governance?.sticky){ smart.sticky={ ...(config.Governance.sticky || {}) }; }` +
-      `  if(!smart.enabled && (config?.TriggerRouter?.enabled || smart.rules?.length || smart.router_model || smart.candidates?.length || smart.semantic || smart.sticky)){ smart.enabled=true; }` +
+      `  if(!smartExplicit && !smart.enabled && (config?.TriggerRouter?.enabled || smart.rules?.length || smart.router_model || smart.candidates?.length || smart.semantic || smart.sticky)){ smart.enabled=true; }` +
+      `  if(smart.enabled){` +
+      `    smart.analysis_scope=smart.analysis_scope || 'last_message';` +
+      `    smart.semantic={ ...(smart.semantic || {}) };` +
+      `    smart.semantic.enabled=smart.semantic.enabled !== undefined ? smart.semantic.enabled : true;` +
+      `    smart.semantic.threshold=smart.semantic.threshold !== undefined ? smart.semantic.threshold : 0.2;` +
+      `    if(legacyIntentEnabled){ smart.semantic.mode=smart.semantic.mode || 'classifier'; smart.semantic.classifier_model=smart.semantic.classifier_model || legacyIntentModel; }` +
+      `    smart.sticky={ ...(smart.sticky || {}) };` +
+      `    smart.sticky.enabled=smart.sticky.enabled !== undefined ? smart.sticky.enabled : true;` +
+      `    smart.sticky.alignment={ ...((smart.sticky && smart.sticky.alignment) || {}) };` +
+      `    smart.sticky.alignment.enabled=smart.sticky.alignment.enabled !== undefined ? smart.sticky.alignment.enabled : true;` +
+      `    smart.sticky.alignment.summarizer_model=smart.sticky.alignment.summarizer_model || smart.router_model || config?.Router?.default || legacyIntentModel || '';` +
+      `  }` +
       `  return smart;` +
       `}` +
       `function renderDraftSummary(config){` +
