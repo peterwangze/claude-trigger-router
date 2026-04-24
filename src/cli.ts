@@ -508,6 +508,7 @@ export async function runClaudeCode() {
     env: {
       ...process.env,
       ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`,
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "ctr-local-proxy",
     },
   });
 

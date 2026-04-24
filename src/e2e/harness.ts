@@ -128,13 +128,13 @@ export async function createFakeClaude(binDir: string, markerPath: string): Prom
   if (process.platform === 'win32') {
     await writeFile(
       commandPath,
-      `@echo off\r\n> "${markerPath}" echo invoked\r\n>> "${markerPath}" echo ANTHROPIC_BASE_URL=%ANTHROPIC_BASE_URL%\r\nexit /b 0\r\n`,
+      `@echo off\r\n> "${markerPath}" echo invoked\r\n>> "${markerPath}" echo ANTHROPIC_BASE_URL=%ANTHROPIC_BASE_URL%\r\n>> "${markerPath}" echo ANTHROPIC_API_KEY=%ANTHROPIC_API_KEY%\r\nexit /b 0\r\n`,
       'utf-8'
     );
   } else {
     await writeFile(
       commandPath,
-      `#!/usr/bin/env sh\nprintf 'invoked\nANTHROPIC_BASE_URL=%s\n' "$ANTHROPIC_BASE_URL" > "${markerPath}"\nexit 0\n`,
+      `#!/usr/bin/env sh\nprintf 'invoked\nANTHROPIC_BASE_URL=%s\nANTHROPIC_API_KEY=%s\n' "$ANTHROPIC_BASE_URL" "$ANTHROPIC_API_KEY" > "${markerPath}"\nexit 0\n`,
       'utf-8'
     );
     await chmod(commandPath, 0o755);

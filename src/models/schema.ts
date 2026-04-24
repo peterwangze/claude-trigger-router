@@ -2,8 +2,73 @@ import { IModelEndpointConfig, IModelThinkingConfig, TModelThinkingAlias } from 
 
 export type ModelInterface = 'openai' | 'anthropic';
 
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+function inferInterfaceFromApi(api?: string): ModelInterface | undefined {
+  const trimmed = api?.trim().toLowerCase();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  return trimmed.includes('/v1/messages') ? 'anthropic' : 'openai';
+}
+
+function normalizeEndpointPath(pathname: string, modelInterface: ModelInterface): string {
+  const trimmedPath = trimTrailingSlash(pathname || '');
+  const normalizedPath = trimmedPath || '';
+  const lowerPath = normalizedPath.toLowerCase();
+
+  if (modelInterface === 'anthropic') {
+    if (lowerPath.endsWith('/v1/messages') || lowerPath.endsWith('/messages')) {
+      return normalizedPath || '/v1/messages';
+    }
+    if (lowerPath.endsWith('/v1')) {
+      return `${normalizedPath}/messages`;
+    }
+    if (!normalizedPath) {
+      return '/v1/messages';
+    }
+    return `${normalizedPath}/messages`;
+  }
+
+  if (lowerPath.endsWith('/chat/completions')) {
+    return normalizedPath || '/chat/completions';
+  }
+  if (lowerPath.endsWith('/v1')) {
+    return `${normalizedPath}/chat/completions`;
+  }
+  if (!normalizedPath) {
+    return '/v1/chat/completions';
+  }
+  return `${normalizedPath}/chat/completions`;
+}
+
+export function normalizeApiEndpoint(api?: string, explicitInterface?: ModelInterface): string {
+  const trimmed = api?.trim() || '';
+  if (!trimmed) {
+    return '';
+  }
+
+  const modelInterface = explicitInterface ?? inferInterfaceFromApi(trimmed) ?? 'openai';
+
+  try {
+    const url = new URL(trimmed);
+    url.pathname = normalizeEndpointPath(url.pathname, modelInterface);
+    return url.toString();
+  } catch {
+    const [base, suffix = ''] = trimmed.split(/([?#].*)/, 2);
+    const normalizedBase = trimTrailingSlash(base);
+    const normalizedPath = normalizeEndpointPath(normalizedBase, modelInterface);
+    return `${normalizedPath}${suffix}`;
+  }
+}
+
 export function getModelApi(item: Partial<IModelEndpointConfig>): string {
-  return item.api?.trim() || item.api_base_url?.trim() || '';
+  const rawApi = item.api?.trim() || item.api_base_url?.trim() || '';
+  const explicitInterface = item.interface || item.protocol;
+  return normalizeApiEndpoint(rawApi, explicitInterface);
 }
 
 export function getModelKey(item: Partial<IModelEndpointConfig>): string {

@@ -144,6 +144,7 @@ describe('isolated packaged CLI acceptance', () => {
       const markerText = await readText(markerPath);
       expect(markerText).toContain('invoked');
       expect(markerText).toContain(`ANTHROPIC_BASE_URL=http://127.0.0.1:${port}`);
+      expect(markerText).toContain('ANTHROPIC_API_KEY=ctr-local-proxy');
 
       const afterCode = await snapshotTree(env.homeDir);
       assertOnlyExpectedPathsChanged(diffSnapshots(before, afterCode), getAcceptanceMutationWhitelist());

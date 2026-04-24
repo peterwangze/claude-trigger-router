@@ -305,6 +305,7 @@ describe('runClaudeCode', () => {
       expect.objectContaining({
         env: expect.objectContaining({
           ANTHROPIC_BASE_URL: 'http://127.0.0.1:5678',
+          ANTHROPIC_API_KEY: 'ctr-local-proxy',
         }),
       })
     );

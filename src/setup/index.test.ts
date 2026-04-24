@@ -559,6 +559,57 @@ describe('runSetupCli', () => {
     expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
+  it('normalizes bare openai-compatible base urls during fresh setup', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('手动填写接口')
+        .mockResolvedValueOnce('先不添加')
+        .mockResolvedValueOnce('保持默认'),
+      input: vi
+        .fn()
+        .mockResolvedValueOnce('local_model')
+        .mockResolvedValueOnce('local-openai')
+        .mockResolvedValueOnce('http://127.0.0.1:11434/v1')
+        .mockResolvedValueOnce('sk-local')
+        .mockResolvedValueOnce('gpt-4.1'),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig,
+      executeStart,
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Models: [
+          expect.objectContaining({
+            id: 'local_model',
+            api: 'http://127.0.0.1:11434/v1/chat/completions',
+            api_base_url: 'http://127.0.0.1:11434/v1/chat/completions',
+            interface: 'openai',
+            model: 'gpt-4.1',
+          }),
+        ],
+      })
+    );
+  });
+
   it('offers direct reuse before reconfiguration when current config is valid', async () => {
     const writeConfig = vi.fn();
     const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
