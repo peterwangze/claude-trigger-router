@@ -70,6 +70,7 @@
 | UI 双层工作台收敛 | 持续演进特性 | in_progress | P2-能力扩展 | 当前 `/ui` 已同时承载配置编辑与治理观测，但使用者与维护者路径尚未显式分层；当前闭环结论是“UI 双层产品边界已立项，且首轮页面分层实施顺序已经明确，但信息架构、入口导航与角色分区仍待收口” | `docs/superpowers/specs/2026-04-17-dual-surface-ui-ux-design.md` ; `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` ; `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` |
 | SmartRouter 早期专项计划 | 历史专项 | archived | archived | SmartRouter 已不再是独立新增主线，当前闭环结论是“历史计划价值保留，但后续演进应纳入统一 Router 心智与配置产品化体系” | `docs/superpowers/plans/2026-03-22-smart-router.md` |
 | `ctr setup` 早期实施计划 | 历史专项 | archived | archived | setup 已完成从早期 checklist 到产品入口的阶段跃迁，当前闭环结论是“原始计划归档，后续演进转由 setup UX 与配置产品化文档承接” | `docs/superpowers/plans/2026-04-02-ctr-setup.md` ; `docs/superpowers/specs/2026-04-02-setup-usability-design.md` |
+| OpenAI-compatible 主路径兼容补强 | 持续演进特性 | in_progress | P0-基础功能闭环 | 已补上 `ctr code` 新环境默认代理凭证注入，以及 OpenAI-compatible / Anthropic endpoint 的 base url 自动归一；当前阶段结论是“关键用户主路径已止血，但仍需继续围绕 setup / doctor / runtime / packaged CLI 的真实用户流排查同类兼容裂缝，并增补系统性回归网”。该事项用于承接对“OpenAI-compatible 兼容差异内化”“legacy config migration 收敛”等已闭环事务复审后发现的剩余风险，不回退原结论。 | `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/specs/2026-04-12-cli-e2e-test-design.md` ; `docs/superpowers/plans/progress-issue-log.md` |
 | 配置产品化最终收口 | 持续演进特性 | in_progress | P1-主路径易用性 | `Models` 抽象、message IR、setup、`/ui` 与 warning 通道已建立基础闭环，当前闭环结论是“统一入口已形成，但最终产品心智与全入口一致性仍未完全收口” | `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` |
 | OpenAI-compatible 兼容差异内化 | 持续演进特性 | closed | closed | 行为型 compatibility contract、复杂消息块转换、capability 降级、runtime diagnostics 与 doctor/CLI 回归已形成首轮闭环，当前闭环结论是“默认 OpenAI-compatible 主路径已可按统一 contract 运行，后续剩余工作转入 migration / unified router / 产品入口收口，不再作为独立未闭环 P0 主线维护” | `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/specs/2026-04-11-legacy-config-migration-design.md` ; `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` |
 | legacy config migration 收敛 | 持续演进特性 | closed | closed | 真实 `.claude-code-router/config.json` 样本、宽松 JSON 读取、module id 稳定映射、supported 顶层字段与 Router 槽位迁移、skippedFields 提示、setup/doctor/packaged CLI 回归已形成首轮闭环，当前闭环结论是“legacy 迁移主路径已不再作为独立未闭环 P0 主线维护，后续剩余事项并入统一 Router 与配置产品化收口” | `docs/superpowers/specs/2026-04-11-legacy-config-migration-design.md` |
@@ -77,6 +78,7 @@
 | Trigger 收编到 SmartRouter（统一路由引擎化） | 持续演进特性 | closed | closed | SmartRouter 已成为统一路由运行时入口；Trigger 规则已内收为 SmartRouter 前置规则能力；legacy intent 已折入 SmartRouter semantic classifier；semantic / sticky / alignment 已作为 SmartRouter 默认增强层启用并支持显式关闭；统一 Router routes/defaults 归一不再派生并列 TriggerRouter / Governance semantic-sticky 分支；routeSource / trace reason 已切到 `smart_rule` / `semantic_match` / `smart_router` 等统一标签。当前闭环结论是“运行时主线已阶段闭环，后续对外模板、README、setup、UI 的叙事收口并入配置产品化与 CLI/setup UX 主线继续推进” | `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
 | CLI / setup UX 重设计 | 持续演进特性 | in_progress | P1-主路径易用性 | migration-first、model-id-first 主入口已继续落地：fresh setup 已改为先收集默认模型 ID，再进入接入方式；并支持在最小配置后可选追加复杂任务模型与 SmartRouter 起步模板。当前闭环结论是“setup 主路径已明显收口，但 CLI / README / 模板 / `/ui` 的统一叙事仍未完全闭环” | `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` ; `docs/superpowers/plans/2026-04-10-cli-setup-ux-redesign-implementation.md` |
 | CLI 稳定性与发布工程 | 持续演进特性 | in_progress | P3-治理支撑 | packaged CLI E2E、acceptance、release-stage wrapper 已形成首轮门禁，当前闭环结论是“发布前质量门槛已成型，但仍需持续覆盖新路径与压低回归概率” | `docs/superpowers/specs/2026-04-12-cli-e2e-test-design.md` |
+| 已闭环事项复审校准 | 治理事项 | in_progress | P3-治理支撑 | 已开始按统一基线顺序复审 closed 事项；当前阶段结论是“不回退既有 closed 结论，但对复审发现的问题通过新增事项持续跟踪，并要求文档、测试和用户主路径证据与原闭环事务建立显式关联”。当前已识别的首批问题包括 OpenAI-compatible 主路径兼容补强，以及统一 Router 运行时闭环描述与当前代码链路的校准需求。 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
 | 进展文档体系治理 | 治理事项 | in_progress | P3-治理支撑 | 公共入口已切换为不带日期标签的统一基线，当前闭环结论是“单一入口已经建立，但后续仍需按规则维护特性表与问题记录，防止再次膨胀或口径漂移” | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
 | 问题修改记录 | 治理事项 | in_progress | P3-治理支撑 | 问题记录文档已建立，当前闭环结论是“历史问题已开始沉淀为可追踪事项，后续所有文档治理偏差必须在此追加记录并闭环” | `docs/superpowers/plans/progress-issue-log.md` |
 
@@ -261,11 +263,14 @@
 
 #### P0：基础功能闭环
 
-当前无独立未闭环 P0 主线。
+1. OpenAI-compatible 主路径兼容补强
 
 ##### P0 主线离闭环还差什么
 
-- 当前没有独立未闭环的 P0 主线；后续若再出现会阻塞默认请求链路或兼容主路径的新 gap，再重新加入本节维护。
+- `OpenAI-compatible 主路径兼容补强`
+  - 继续把 OpenAI-compatible 的 endpoint 归一、鉴权注入、doctor 探测、setup 生成、legacy migration 写入与 packaged CLI 用户流串成同一套可验证 contract。
+  - 继续排查“配置可保存但用户真实调用不可用”的同类问题，尤其是新环境 fresh setup -> start -> code、本地部署兼容接口、以及迁移后直接使用三条主路径。
+  - 把当前已补的关键修复沉淀为更系统的用户视角 E2E / acceptance slice，避免再出现“历史上修过、后续又回归”的低级问题。
 
 #### P1：主路径易用性
 
@@ -307,8 +312,9 @@
 #### P3：治理支撑与持续维护
 
 10. CLI 稳定性与发布工程
-11. 进展文档体系治理
-12. 问题修改记录
+11. 已闭环事项复审校准
+12. 进展文档体系治理
+13. 问题修改记录
 
 ##### P3 主线离闭环还差什么
 
@@ -316,6 +322,10 @@
   - 继续把 packaged CLI、acceptance、release-stage wrapper 的验证切到真实用户流 contract，确保帮助、init、setup、start/stop/status、code、ui 等命令的 side effect 与行为承诺都能被稳定拦截回归。
   - 补齐隔离环境、允许写路径白名单、legacy migration 主路径与 alternate-port 等高风险 E2E slice，避免发布门禁只覆盖源码级逻辑而漏掉打包后行为。
   - 让 release verify 从“已有首轮门禁”进一步收口为可持续执行的稳定机制，压低新入口和新交互路径的回归概率。
+- `已闭环事项复审校准`
+  - 继续按统一基线顺序复审所有已标记为 closed 的事务，不仅看代码是否存在，还要看是否满足当初对应优先级的闭环标准。
+  - 若发现问题，不回退历史结论，而是新增后续事项承接，并在 issue log 中记录“问题点 -> 新增事项 -> 原闭环事务”的关联关系。
+  - 对存在文档与实现漂移的 closed 事项，补齐校准说明，避免“代码已变、闭环描述仍停留在旧链路”的隐性失真。
 - `进展文档体系治理`
   - 继续按统一基线规则维护总表、优先级、闭环判定和 remaining gap，避免后续新增事项时重新回到散文式入口或多入口并存。
   - 让新增特性、状态变化、历史文档收编和治理偏差都能先回到统一入口再下沉细节，确保入口职责边界不再漂移。
@@ -331,14 +341,16 @@
 
 | 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
 |---|---|---|---|---|
-| 1 | 配置产品化最终收口 | P1-主路径易用性 | 继续收拢 warning、capability hint、repair/save 与 setup 多模型引导 | SmartRouter 统一路由运行时已阶段闭环，下一步应把用户实际配置主路径围绕该运行时继续收口 |
-| 2 | CLI / setup UX 重设计 | P1-主路径易用性 | 继续完成 migration-first、model-id-first 与 help/README 一致性落地 | 它是 P1 的主入口收口动作，应建立在 SmartRouter 统一运行时和配置产品心智更稳定之后推进 |
-| 3 | 部署形态与远程接入收敛 | P2-能力扩展与体验增强 | 先补最小双端边界、remote status 与 setup/doctor/ui 本地-远程心智 | 这条线已经超出基础闭环，适合放在主路径可用后推进，否则容易让基础入口和远程能力交叉返工 |
-| 4 | UI 双层工作台收敛 | P2-能力扩展与体验增强 | 先完成 service context、surface 标识与首页双入口 | 它依赖前面配置主路径、远程语义和维护者边界更稳定，否则 UI 分层容易只做视觉拆分而不是产品收口 |
-| 5 | 治理观测增强 / 运营化 | P2-能力扩展与体验增强 | 继续补长期运营入口、验证抓手，并拉通输入侧优化 | 它在现阶段已经有首轮基础，适合放在部署与 UI 边界更清晰后再做长期运营化，避免观测入口再次分散 |
-| 6 | CLI 稳定性与发布工程 | P3-治理支撑 | 持续补 packaged CLI 用户流 E2E 与 release verify slice | 它需要持续跟随前面新路径一起扩 coverage，属于伴随式治理支撑，不应抢到主功能闭环之前 |
-| 7 | 进展文档体系治理 | P3-治理支撑 | 持续维护统一基线、优先级、闭环标准和执行顺序表 | 它是总台账机制，必须持续维护，但其价值建立在前面主线真实推进基础上 |
-| 8 | 问题修改记录 | P3-治理支撑 | 发现治理偏差就即时追加 issue log 并更新闭环结论 | 它是防重复踩坑机制，属于全程伴随动作，不单独抢占功能主线资源，但必须同步执行 |
+| 1 | OpenAI-compatible 主路径兼容补强 | P0-基础功能闭环 | 继续围绕新环境入口、本地部署兼容接口和迁移后直用路径扩排查与补回归 | 这是复审 closed 事务后新暴露出的真实用户主路径缺口，优先级必须重新前置，否则后续 P1 / P2 都建立在不稳底座上 |
+| 2 | 配置产品化最终收口 | P1-主路径易用性 | 继续收拢 warning、capability hint、repair/save 与 setup 多模型引导 | SmartRouter 统一路由运行时已阶段闭环，下一步应把用户实际配置主路径围绕该运行时继续收口 |
+| 3 | CLI / setup UX 重设计 | P1-主路径易用性 | 继续完成 migration-first、model-id-first 与 help/README 一致性落地 | 它是 P1 的主入口收口动作，应建立在 SmartRouter 统一运行时和配置产品心智更稳定之后推进 |
+| 4 | 部署形态与远程接入收敛 | P2-能力扩展与体验增强 | 先补最小双端边界、remote status 与 setup/doctor/ui 本地-远程心智 | 这条线已经超出基础闭环，适合放在主路径可用后推进，否则容易让基础入口和远程能力交叉返工 |
+| 5 | UI 双层工作台收敛 | P2-能力扩展与体验增强 | 先完成 service context、surface 标识与首页双入口 | 它依赖前面配置主路径、远程语义和维护者边界更稳定，否则 UI 分层容易只做视觉拆分而不是产品收口 |
+| 6 | 治理观测增强 / 运营化 | P2-能力扩展与体验增强 | 继续补长期运营入口、验证抓手，并拉通输入侧优化 | 它在现阶段已经有首轮基础，适合放在部署与 UI 边界更清晰后再做长期运营化，避免观测入口再次分散 |
+| 7 | CLI 稳定性与发布工程 | P3-治理支撑 | 持续补 packaged CLI 用户流 E2E 与 release verify slice | 它需要持续跟随前面新路径一起扩 coverage，属于伴随式治理支撑，不应抢到主功能闭环之前 |
+| 8 | 已闭环事项复审校准 | P3-治理支撑 | 持续复审 closed 事项，并把新发现的问题承接为增量事项 | 它能避免“历史上标 closed 后就再也不回看”，同时满足不回退旧结论、只做增量校准的治理策略 |
+| 9 | 进展文档体系治理 | P3-治理支撑 | 持续维护统一基线、优先级、闭环标准和执行顺序表 | 它是总台账机制，必须持续维护，但其价值建立在前面主线真实推进基础上 |
+| 10 | 问题修改记录 | P3-治理支撑 | 发现治理偏差就即时追加 issue log 并更新闭环结论 | 它是防重复踩坑机制，属于全程伴随动作，不单独抢占功能主线资源，但必须同步执行 |
 
 补充约束：
 

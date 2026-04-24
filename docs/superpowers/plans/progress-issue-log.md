@@ -40,6 +40,8 @@
 | PI-005 | 入口文档承载过多正文，存在持续膨胀风险 | 2026-04-16 | closed | 已明确入口文档只保留阶段判断、特性进展总表、问题记录入口和维护规则；详细设计、实施计划、详细进展统一下沉到特性文档 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
 | PI-006 | 事项 / 特性缺少制度化增量规则，后续容易被删除或重写覆盖 | 2026-04-16 | closed | 已新增“事项 / 特性只能新增不能删除”的制度约束，并要求失效、取消、合并、替代场景也必须保留原记录并更新闭环结论 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
 | PI-007 | 问题修正过程未形成独立事项文档，容易重复踩坑 | 2026-04-16 | closed | 已建立独立问题修改记录文档，并在统一进展入口中将其作为治理事项和关联文档接入，后续所有文档治理偏差统一在此追踪 | `docs/superpowers/plans/progress-issue-log.md` ; `docs/superpowers/plans/unified-progress-baseline.md` |
+| PI-008 | 已标记 closed 的兼容主线仍暴露真实用户主路径缺口 | 2026-04-24 | in_progress | 复审发现“OpenAI-compatible 兼容差异内化”等已闭环事务在真实用户流中仍存在兼容缺口；当前不回退原结论，而是已新增 `OpenAI-compatible 主路径兼容补强` 事项持续承接，后续继续按 setup / doctor / runtime / packaged CLI 用户流补排查与防护网 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` |
+| PI-009 | 已闭环事项的文档结论与当前实现链路发生漂移 | 2026-04-24 | in_progress | 复审发现部分 closed 事项的闭环描述仍停留在旧链路，如统一 Router 运行时文案仍写 `legacy intent fallback`；当前不回退原结论，而是已新增 `已闭环事项复审校准` 事项承接后续校准与持续复审 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
 
 ## 问题详细记录
 
@@ -154,3 +156,44 @@
 - 关联文档：
   - `docs/superpowers/plans/progress-issue-log.md`
   - `docs/superpowers/plans/unified-progress-baseline.md`
+
+### PI-008：已标记 closed 的兼容主线仍暴露真实用户主路径缺口
+
+- 首次暴露时间：2026-04-24
+- 问题描述：在对已闭环事项按顺序复审时，发现 `OpenAI-compatible 兼容差异内化` 虽然已标为 `closed`，但真实用户主路径仍出现明显缺口，例如：
+  - 新环境 setup 后执行 `ctr code` 仍可能回落到 `/login`
+  - 本地部署的 OpenAI-compatible 接口如果只配置 base url，运行时不会自动归一到 `/chat/completions`
+- 影响范围：
+  - 新用户 fresh setup -> start -> code 主路径体验
+  - 本地部署兼容接口与自定义 OpenAI-compatible 场景
+  - legacy migration 后直接使用的真实可用性判断
+- 修正动作：
+  - 不回退原 `closed` 结论
+  - 在统一进展入口中新增 `OpenAI-compatible 主路径兼容补强` 事项
+  - 将已暴露问题与该新增事项显式关联，后续继续按用户视角扩大排查与回归覆盖
+- 当前状态：`in_progress`
+- 闭环结论：当前阶段结论是“历史闭环结论保留，但已确认仍存在真实用户主路径剩余风险，因此新增独立事项持续承接”；后续只有当 setup / doctor / runtime / packaged CLI 在同类场景形成更系统的真实用户流回归网后，才能认为该问题阶段闭环。
+- 关联文档：
+  - `docs/superpowers/plans/unified-progress-baseline.md`
+  - `docs/superpowers/specs/2026-04-06-unified-model-config-design.md`
+
+### PI-009：已闭环事项的文档结论与当前实现链路发生漂移
+
+- 首次暴露时间：2026-04-24
+- 问题描述：复审时发现部分已闭环事项的文档结论与当前实现不再完全一致。例如：
+  - 统一基线仍把统一 Router 运行时描述为包含 `legacy intent fallback`
+  - 实际代码与测试已经转到 `smart_rule / semantic_match / smart_router`，legacy intent 已折入 SmartRouter semantic classifier
+- 影响范围：
+  - closed 事项的可追溯性和可信度
+  - 后续实施计划、进展校准与新事项关联判断
+  - 维护者对“代码现状 vs 历史闭环结论”的理解
+- 修正动作：
+  - 不回退原 `closed` 结论
+  - 在统一进展入口中新增 `已闭环事项复审校准` 治理事项
+  - 后续所有“closed 事项复审发现的描述漂移”统一由该事项承接，并要求在 issue log 中持续沉淀
+- 当前状态：`in_progress`
+- 闭环结论：当前阶段结论是“已建立专门承接机制，但首轮复审校准尚未完成”；后续需要把复审结果、文档校准动作和原闭环事务之间的关联长期维护下来，避免再次出现“代码已演进、闭环描述停留在旧状态”。
+- 关联文档：
+  - `docs/superpowers/plans/unified-progress-baseline.md`
+  - `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md`
+  - `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md`
