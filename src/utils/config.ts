@@ -379,9 +379,6 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
 
   // 验证 Governance 配置
   if (config.Governance?.enabled) {
-    const sticky = config.Governance.sticky;
-    validateStickyRoutingConfig(sticky, config, validProviders, 'Governance.sticky', errors);
-
     const cascade = config.Governance.cascade;
     if (cascade?.enabled) {
       if ((cascade.max_attempts ?? 0) < 1) {
@@ -402,8 +399,6 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
         }
       });
     }
-
-    validateSemanticRoutingConfig(config.Governance.semantic, config, validProviders, 'Governance.semantic', errors);
 
     const shadow = config.Governance.shadow;
     if (shadow?.enabled) {

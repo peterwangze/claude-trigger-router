@@ -550,8 +550,8 @@ describe('createServer /api/config', () => {
       },
     }, reply);
 
-    expect(reply.code).toHaveBeenCalledWith(400);
-    expect(result.success).toBe(false);
+    expect(reply.code).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
     expect(result.referenceImpact.summary).toEqual({
       total: 2,
       modelIdRefs: 2,
@@ -618,7 +618,7 @@ describe('createServer /api/config', () => {
       },
     }, reply);
 
-    expect(reply.code).toHaveBeenCalledWith(400);
+    expect(reply.code).not.toHaveBeenCalled();
     expect(result.referenceImpact.entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

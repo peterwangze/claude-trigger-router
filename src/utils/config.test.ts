@@ -50,10 +50,10 @@ describe('normalizeAndValidateConfig governance', () => {
     expect(result.config.Governance?.sticky?.alignment?.max_summary_tokens).toBe(256);
   });
 
-  it('validates Governance sticky alignment model references', () => {
+  it('validates SmartRouter sticky alignment model references', () => {
     const result = normalizeAndValidateConfig({
       ...baseConfig,
-      Governance: {
+      SmartRouter: {
         enabled: true,
         sticky: {
           enabled: true,
@@ -66,7 +66,7 @@ describe('normalizeAndValidateConfig governance', () => {
     });
 
     expect(result.errors).toContain(
-      'Governance.sticky.alignment.summarizer_model 引用的模型 "missing-model" 不在提供商 "glm" 的 models 列表中'
+      'SmartRouter.sticky.alignment.summarizer_model 引用的模型 "missing-model" 不在提供商 "glm" 的 models 列表中'
     );
   });
 
@@ -104,10 +104,10 @@ describe('normalizeAndValidateConfig governance', () => {
     );
   });
 
-  it('validates Governance semantic threshold bounds', () => {
+  it('validates SmartRouter semantic threshold bounds', () => {
     const result = normalizeAndValidateConfig({
       ...baseConfig,
-      Governance: {
+      SmartRouter: {
         enabled: true,
         semantic: {
           enabled: true,
@@ -117,7 +117,7 @@ describe('normalizeAndValidateConfig governance', () => {
     });
 
     expect(result.errors).toContain(
-      'Governance.semantic.threshold must be between 0 and 1'
+      'SmartRouter.semantic.threshold must be between 0 and 1'
     );
   });
 
@@ -142,10 +142,10 @@ describe('normalizeAndValidateConfig governance', () => {
     expect(result.config.Governance?.semantic?.classifier_model).toBe('glm,glm-5-air');
   });
 
-  it('requires Governance semantic classifier model when classifier mode is enabled', () => {
+  it('requires SmartRouter semantic classifier model when classifier mode is enabled', () => {
     const result = normalizeAndValidateConfig({
       ...baseConfig,
-      Governance: {
+      SmartRouter: {
         enabled: true,
         semantic: {
           enabled: true,
@@ -159,7 +159,7 @@ describe('normalizeAndValidateConfig governance', () => {
     });
 
     expect(result.errors).toContain(
-      'Governance.semantic.classifier_model is required when semantic mode is "classifier"'
+      'SmartRouter.semantic.classifier_model is required when semantic mode is "classifier"'
     );
   });
 
