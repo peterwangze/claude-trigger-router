@@ -245,14 +245,15 @@ describe('runSetupCli', () => {
         .fn()
         .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('openrouter')
+        .mockResolvedValueOnce('先不添加')
         .mockResolvedValueOnce('保持默认'),
       input: vi
         .fn()
+        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('')
         .mockResolvedValueOnce('sk-test')
-        .mockResolvedValueOnce('anthropic/claude-sonnet-4')
-        .mockResolvedValueOnce('sonnet'),
+        .mockResolvedValueOnce('anthropic/claude-sonnet-4'),
       info: vi.fn(),
     };
 
@@ -286,11 +287,13 @@ describe('runSetupCli', () => {
         },
       })
     );
+    expect(io.input).toHaveBeenNthCalledWith(1, '这个默认模型在本地要叫什么名字？', 'sonnet');
     expect(io.choose).toHaveBeenNthCalledWith(1, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '选择 provider 预设', expect.any(Array));
-    expect(io.input).toHaveBeenNthCalledWith(1, 'Provider 名称', 'openrouter');
-    expect(io.input).toHaveBeenNthCalledWith(4, '上游模型名', 'anthropic/claude-sonnet-4');
-    expect(io.input).toHaveBeenNthCalledWith(5, '默认模型 ID', 'sonnet');
+    expect(io.choose).toHaveBeenNthCalledWith(3, '现在要不要继续添加一个“复杂任务专用模型”？', ['先不添加', '添加一个复杂任务专用模型']);
+    expect(io.input).toHaveBeenNthCalledWith(2, 'Provider 名称', 'openrouter');
+    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名', 'anthropic/claude-sonnet-4');
+    expect(io.info).toHaveBeenCalledWith('我们先创建一份最小可用配置。');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).not.toHaveBeenCalled();
@@ -371,6 +374,7 @@ describe('runSetupCli', () => {
         .fn()
         .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('openrouter')
+        .mockResolvedValueOnce('先不添加')
         .mockResolvedValueOnce('配置 capability 提示')
         .mockResolvedValueOnce('编辑 capability')
         .mockResolvedValueOnce('禁用')
@@ -378,11 +382,11 @@ describe('runSetupCli', () => {
         .mockResolvedValueOnce('支持'),
       input: vi
         .fn()
+        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('')
         .mockResolvedValueOnce('sk-test')
         .mockResolvedValueOnce('anthropic/claude-sonnet-4')
-        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('openrouter'),
       info: vi.fn(),
     };
@@ -417,6 +421,80 @@ describe('runSetupCli', () => {
     );
   });
 
+  it('can scaffold a complex-task SmartRouter profile during fresh setup', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('使用常见接入模板')
+        .mockResolvedValueOnce('openrouter')
+        .mockResolvedValueOnce('添加一个复杂任务专用模型')
+        .mockResolvedValueOnce('使用常见接入模板')
+        .mockResolvedValueOnce('deepseek')
+        .mockResolvedValueOnce('开启复杂任务规则 + 智能兜底')
+        .mockResolvedValueOnce('保持默认'),
+      input: vi
+        .fn()
+        .mockResolvedValueOnce('sonnet')
+        .mockResolvedValueOnce('openrouter')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('sk-main')
+        .mockResolvedValueOnce('anthropic/claude-sonnet-4')
+        .mockResolvedValueOnce('reasoner')
+        .mockResolvedValueOnce('deepseek')
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('sk-reasoner')
+        .mockResolvedValueOnce('deepseek-reasoner'),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig,
+      executeStart,
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Models: [
+          expect.objectContaining({ id: 'sonnet', model: 'anthropic/claude-sonnet-4' }),
+          expect.objectContaining({ id: 'reasoner', model: 'deepseek-reasoner' }),
+        ],
+        Router: {
+          default: 'sonnet',
+        },
+        SmartRouter: expect.objectContaining({
+          enabled: true,
+          router_model: 'sonnet',
+          candidates: [
+            expect.objectContaining({ model: 'sonnet' }),
+            expect.objectContaining({ model: 'reasoner' }),
+          ],
+          rules: expect.arrayContaining([
+            expect.objectContaining({ name: 'architecture', model: 'reasoner' }),
+            expect.objectContaining({ name: 'code_review', model: 'reasoner' }),
+            expect.objectContaining({ name: 'deep_reasoning', model: 'reasoner' }),
+          ]),
+        }),
+      })
+    );
+    expect(io.info).toHaveBeenCalledWith(
+      '已为你生成 SmartRouter 路由模板，默认模型仍是 sonnet，复杂任务会优先使用 reasoner。'
+    );
+  });
+
   it('supports the anthropic preset during fresh setup', async () => {
     const writeConfig = vi.fn().mockResolvedValue(undefined);
     const executeStart = vi.fn().mockResolvedValue(undefined);
@@ -428,14 +506,15 @@ describe('runSetupCli', () => {
         .fn()
         .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('anthropic')
+        .mockResolvedValueOnce('先不添加')
         .mockResolvedValueOnce('保持默认'),
       input: vi
         .fn()
+        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('anthropic')
         .mockResolvedValueOnce('')
         .mockResolvedValueOnce('sk-ant')
-        .mockResolvedValueOnce('claude-sonnet-4-5')
-        .mockResolvedValueOnce('sonnet'),
+        .mockResolvedValueOnce('claude-sonnet-4-5'),
       info: vi.fn(),
     };
 
@@ -472,9 +551,9 @@ describe('runSetupCli', () => {
     );
     expect(io.choose).toHaveBeenNthCalledWith(1, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '选择 provider 预设', expect.any(Array));
-    expect(io.input).toHaveBeenNthCalledWith(1, 'Provider 名称', 'anthropic');
-    expect(io.input).toHaveBeenNthCalledWith(4, '上游模型名', 'claude-sonnet-4-5');
-    expect(io.input).toHaveBeenNthCalledWith(5, '默认模型 ID', 'claude');
+    expect(io.input).toHaveBeenNthCalledWith(1, '这个默认模型在本地要叫什么名字？', 'sonnet');
+    expect(io.input).toHaveBeenNthCalledWith(2, 'Provider 名称', 'anthropic');
+    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名', 'claude-sonnet-4-5');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).not.toHaveBeenCalled();
@@ -542,14 +621,15 @@ describe('runSetupCli', () => {
         .mockResolvedValueOnce('放弃当前配置，重新开始')
         .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('openrouter')
+        .mockResolvedValueOnce('先不添加')
         .mockResolvedValueOnce('保持默认'),
       input: vi
         .fn()
+        .mockResolvedValueOnce('sonnet')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('')
         .mockResolvedValueOnce('sk-test')
-        .mockResolvedValueOnce('anthropic/claude-sonnet-4')
-        .mockResolvedValueOnce('sonnet'),
+        .mockResolvedValueOnce('anthropic/claude-sonnet-4'),
       info: vi.fn(),
     };
 

@@ -482,3 +482,18 @@ git commit -m "feat: redesign setup cli flow"
 - Do not let README or help text get ahead of the code. The docs update task comes after the behavior changes for that reason.
 
 Plan complete and saved to `docs/superpowers/plans/2026-04-10-cli-setup-ux-redesign-implementation.md`. Ready to execute?
+
+## 2026-04-24 阶段推进记录
+
+- fresh setup 主路径已切到 model-id-first：
+  - 先问“这个默认模型在本地要叫什么名字？”
+  - 再进入接入模板 / 手动接口选择
+  - provider preset 退化为接入辅助输入，不再是 fresh path 首屏入口
+- fresh setup 完成最小配置后，已支持可选追加“复杂任务专用模型”
+- 当存在第二模型时，setup 已支持直接生成两类 SmartRouter 起步模板：
+  - 复杂任务规则模板
+  - 复杂任务规则 + 智能兜底模板
+- `README.md` 已同步补充该行为，避免继续把 setup 描述成纯 preset-first 流程
+- 当前闭环结论：
+  - setup 新建主路径已基本符合 migration-first / model-id-first / advanced-later 设计
+  - 但 CLI help、`ctr init`、模板与 `/ui` 的统一叙事仍需继续收口，因此本主线状态暂不切为 closed

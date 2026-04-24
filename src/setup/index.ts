@@ -31,6 +31,16 @@ interface ISetupIO {
 
 type TCapabilityChoice = '默认' | '支持' | '禁用';
 type TCapabilityEditChoice = '保持当前值' | '编辑 capability';
+type TRoutingBootstrapChoice = '先保持最小配置' | '开启复杂任务规则模板' | '开启复杂任务规则 + 智能兜底';
+
+interface ISetupCollectedModelInput {
+  name: string;
+  model_id: string;
+  api_key: string;
+  models: string[];
+  preset: ProviderPresetKey;
+  api_base_url?: string;
+}
 
 interface IRunSetupCliDeps {
   readCurrentConfig: () => Promise<RawCurrentConfigResult>;
@@ -544,17 +554,145 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
   };
 }
 
-function toSuggestedModelId(providerName: string, model: string, preset: ProviderPresetKey): string {
-  const presetDefinition = getProviderPreset(preset);
-  if (presetDefinition?.suggested_id) {
-    return presetDefinition.suggested_id;
+function toUniqueSuggestedModelId(preferredId: string, existingIds: string[]): string {
+  const normalizedPreferredId = preferredId.trim() || 'model';
+  if (!existingIds.includes(normalizedPreferredId)) {
+    return normalizedPreferredId;
   }
 
-  const source = model || providerName || 'model';
-  return source.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'model';
+  let suffix = 2;
+  while (existingIds.includes(`${normalizedPreferredId}_${suffix}`)) {
+    suffix += 1;
+  }
+  return `${normalizedPreferredId}_${suffix}`;
 }
 
-async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
+function appendModelToDraft(
+  draft: ISetupConfigDraft,
+  modelInput: ISetupCollectedModelInput,
+  options: { setAsDefault?: boolean } = {}
+): ISetupConfigDraft {
+  const fragment = buildMinimalConfig({
+    providers: [modelInput],
+    defaultModel: options.setAsDefault ? modelInput.model_id : undefined,
+  });
+
+  const nextDraft: ISetupConfigDraft = {
+    ...draft,
+    Models: [...(draft.Models ?? [])],
+    Router: { ...(draft.Router ?? {}) },
+  };
+
+  if (fragment.Models?.[0]) {
+    nextDraft.Models?.push(fragment.Models[0]);
+  }
+
+  if (options.setAsDefault) {
+    nextDraft.Router.default = modelInput.model_id;
+  } else if (!nextDraft.Router.default) {
+    nextDraft.Router.default = modelInput.model_id;
+  }
+
+  return nextDraft;
+}
+
+function createComplexTaskRules(modelId: string) {
+  return [
+    {
+      name: 'architecture',
+      priority: 90,
+      enabled: true,
+      description: '架构设计、系统规划和大范围重构任务',
+      patterns: [
+        { type: 'exact', keywords: ['架构设计', '系统设计', '技术方案', 'architecture', 'system design'] },
+        { type: 'regex', pattern: '(架构|系统设计|技术方案|architecture|system design)' },
+      ],
+      model: modelId,
+    },
+    {
+      name: 'code_review',
+      priority: 80,
+      enabled: true,
+      description: '代码审查、风险评估和质量分析任务',
+      patterns: [
+        { type: 'exact', keywords: ['代码审查', 'code review', 'review code', '风险评估'] },
+        { type: 'regex', pattern: '(代码|code).{0,6}(审查|review|审核|检查)' },
+      ],
+      model: modelId,
+    },
+    {
+      name: 'deep_reasoning',
+      priority: 70,
+      enabled: true,
+      description: '复杂推理、深入分析和多步决策任务',
+      patterns: [
+        { type: 'exact', keywords: ['深入分析', '复杂推理', '严谨分析', 'deep analysis', 'reasoning'] },
+        { type: 'regex', pattern: '(深入|复杂|严谨).{0,6}(分析|推理|论证)' },
+      ],
+      model: modelId,
+    },
+  ];
+}
+
+function applyRoutingBootstrap(
+  draft: ISetupConfigDraft,
+  choice: TRoutingBootstrapChoice,
+  specializedModelId: string
+): ISetupConfigDraft {
+  if (choice === '先保持最小配置') {
+    return draft;
+  }
+
+  const defaultModelId = draft.Router.default;
+  if (!defaultModelId) {
+    return draft;
+  }
+
+  const specializedModel = draft.Models?.find((item) => item.id === specializedModelId);
+  if (!specializedModel) {
+    return draft;
+  }
+
+  const nextDraft: ISetupConfigDraft = {
+    ...draft,
+    SmartRouter: {
+      enabled: true,
+      analysis_scope: 'last_message',
+      rules: createComplexTaskRules(specializedModelId),
+      ...(choice === '开启复杂任务规则 + 智能兜底'
+        ? {
+            router_model: defaultModelId,
+            candidates: [
+              {
+                model: defaultModelId,
+                description: '默认模型，适合通用编程、日常修复和快速响应任务',
+              },
+              {
+                model: specializedModelId,
+                description: `复杂任务模型（${specializedModel.model}），适合架构设计、代码审查和深入推理`,
+              },
+            ],
+          }
+        : {}),
+    },
+  };
+
+  return nextDraft;
+}
+
+async function promptModelConnection(
+  io: ISetupIO,
+  input: {
+    intro?: string;
+    modelIdPrompt: string;
+    suggestedModelId: string;
+  }
+): Promise<ISetupCollectedModelInput> {
+  if (input.intro) {
+    io.info(input.intro);
+  }
+
+  const modelId = await io.input(input.modelIdPrompt, input.suggestedModelId);
   const connectMode = await io.choose('这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
 
   let preset: ProviderPresetKey = 'custom';
@@ -574,22 +712,57 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
   const apiKey = await io.input('API Key');
   const presetDefinition = getProviderPreset(preset);
   const model = await io.input('上游模型名', presetDefinition?.default_model ?? '');
-  const modelId = await io.input('默认模型 ID', toSuggestedModelId(providerName, model, preset));
-  const capabilityMode = await io.choose('是否配置 capability 提示', ['保持默认', '配置 capability 提示']);
 
-  const draft = buildMinimalConfig({
-    providers: [
-      {
-        name: providerName,
-        model_id: modelId,
-        api_key: apiKey,
-        models: [model],
-        preset,
-        api_base_url: apiBaseUrl,
-      },
-    ],
-    defaultModel: modelId,
+  return {
+    name: providerName,
+    model_id: modelId,
+    api_key: apiKey,
+    models: [model],
+    preset,
+    api_base_url: apiBaseUrl,
+  };
+}
+
+async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
+  const primaryModel = await promptModelConnection(io, {
+    intro: '我们先创建一份最小可用配置。',
+    modelIdPrompt: '这个默认模型在本地要叫什么名字？',
+    suggestedModelId: 'sonnet',
   });
+
+  let draft = buildMinimalConfig({
+    providers: [primaryModel],
+    defaultModel: primaryModel.model_id,
+  });
+
+  const addSecondModelChoice = await io.choose('现在要不要继续添加一个“复杂任务专用模型”？', [
+    '先不添加',
+    '添加一个复杂任务专用模型',
+  ]);
+
+  if (addSecondModelChoice === '添加一个复杂任务专用模型') {
+    const suggestedSecondModelId = toUniqueSuggestedModelId('reasoner', draft.Models?.map((item) => item.id) ?? []);
+    const specializedModel = await promptModelConnection(io, {
+      intro: '这个模型通常用于架构设计、代码审查或复杂推理等更重的任务。',
+      modelIdPrompt: '这个复杂任务模型在本地要叫什么名字？',
+      suggestedModelId: suggestedSecondModelId,
+    });
+    draft = appendModelToDraft(draft, specializedModel);
+
+    const routingChoice = await io.choose('现在要不要开启高级路由？', [
+      '先保持最小配置',
+      '开启复杂任务规则模板',
+      '开启复杂任务规则 + 智能兜底',
+    ]) as TRoutingBootstrapChoice;
+
+    draft = applyRoutingBootstrap(draft, routingChoice, specializedModel.model_id);
+
+    if (routingChoice !== '先保持最小配置') {
+      io.info(`已为你生成 SmartRouter 路由模板，默认模型仍是 ${primaryModel.model_id}，复杂任务会优先使用 ${specializedModel.model_id}。`);
+    }
+  }
+
+  const capabilityMode = await io.choose('是否配置 capability 提示', ['保持默认', '配置 capability 提示']);
 
   if (capabilityMode === '配置 capability 提示' && draft.Models?.[0]) {
     await promptCapabilityMetadataForDraft(draft, io);

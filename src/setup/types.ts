@@ -76,6 +76,8 @@ export interface ISetupConfigDraft {
     longContextThreshold?: number;
     webSearch?: string;
   };
+  SmartRouter?: IAppConfig['SmartRouter'];
+  Governance?: IAppConfig['Governance'];
 }
 
 /**
