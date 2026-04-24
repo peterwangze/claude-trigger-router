@@ -26,7 +26,10 @@ interface IStickyCorrectionContext {
  */
 export class ModelSelector {
   private isRoutingEnabled(config: ITriggerConfig, smartRouterConfig?: ISmartRouterConfig): boolean {
-    return Boolean(smartRouterConfig?.enabled || config.enabled);
+    if (smartRouterConfig) {
+      return Boolean(smartRouterConfig.enabled);
+    }
+    return Boolean(config.enabled);
   }
 
   private getRoutingRules(config: ITriggerConfig, smartRouterConfig?: ISmartRouterConfig): ITriggerRule[] {

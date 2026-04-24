@@ -400,6 +400,27 @@ describe('ModelSelector', () => {
       expect(result.routeSource).toBeUndefined();
     });
 
+    it('should respect explicit SmartRouter disable even if legacy Trigger config is enabled', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '请帮我生成图片' }],
+        },
+      };
+
+      const result = await selector.selectModel(
+        req as any,
+        config,
+        5678,
+        {
+          enabled: false,
+          rules: config.rules,
+        } as any
+      );
+
+      expect(result.matched).toBe(false);
+      expect(result.routeSource).toBeUndefined();
+    });
+
     it('should match semantic intent before SmartRouter when semantic routing is enabled', async () => {
       const req = {
         body: {
@@ -793,6 +814,20 @@ describe('ModelSelector', () => {
       expect(result.routeSource).toBe('semantic_match');
       expect(smartSpy).not.toHaveBeenCalled();
       smartSpy.mockRestore();
+    });
+
+    it('should continue supporting legacy Trigger-only direct selector usage when no SmartRouter config is passed', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '请帮我生成图片' }],
+        },
+      };
+
+      const result = await selector.selectModel(req as any, config);
+
+      expect(result.matched).toBe(true);
+      expect(result.routeSource).toBe('smart_rule');
+      expect(result.model).toBe('openrouter,dall-e-3');
     });
   });
 

@@ -323,6 +323,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
 
   // Provider/model 交叉引用校验（仅在 Providers 列表有效时执行）
   const validProviders = config.Providers?.filter(p => p.name && p.models?.length) ?? [];
+  const runtimeSmartRouter = deriveRuntimeSmartRouterConfig(config as IAppConfig, config);
   if (validProviders.length > 0) {
     const router = config.Router;
     if (router) {
@@ -343,35 +344,19 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
     }
   }
 
-  // 验证触发路由配置
-  if (config.TriggerRouter) {
-    if (config.TriggerRouter.llm_intent_recognition && !config.TriggerRouter.intent_model) {
-      errors.push('TriggerRouter.intent_model is required when llm_intent_recognition is enabled');
-    } else if (config.TriggerRouter.intent_model && validProviders.length > 0) {
-      const err = validateKnownModelRef(config.TriggerRouter.intent_model, config, validProviders, 'TriggerRouter.intent_model');
+  // 验证统一 SmartRouter 运行时 contract（兼容 Trigger/Governance 输入后统一落到这里）
+  if (runtimeSmartRouter?.enabled) {
+    if (runtimeSmartRouter.router_model && validProviders.length > 0) {
+      const err = validateKnownModelRef(runtimeSmartRouter.router_model, config, validProviders, 'SmartRouter.router_model');
       if (err) errors.push(err);
     }
-
-    if (config.TriggerRouter.rules) {
-      config.TriggerRouter.rules.forEach((rule, index) => {
-        validateRoutingRule(rule, index, 'TriggerRouter.rules', config, validProviders, errors);
-      });
-    }
-  }
-
-  // 验证 SmartRouter 配置
-  if (config.SmartRouter?.enabled) {
-    if (config.SmartRouter.router_model && validProviders.length > 0) {
-      const err = validateKnownModelRef(config.SmartRouter.router_model, config, validProviders, 'SmartRouter.router_model');
-      if (err) errors.push(err);
-    }
-    if (config.SmartRouter.router_model) {
-      if (!config.SmartRouter.candidates || config.SmartRouter.candidates.length < 2) {
+    if (runtimeSmartRouter.router_model) {
+      if (!runtimeSmartRouter.candidates || runtimeSmartRouter.candidates.length < 2) {
         errors.push('SmartRouter.candidates must have at least 2 entries when SmartRouter.router_model is configured');
       }
     }
-    if (config.SmartRouter.candidates && config.SmartRouter.candidates.length > 0) {
-      config.SmartRouter.candidates.forEach((candidate, index) => {
+    if (runtimeSmartRouter.candidates && runtimeSmartRouter.candidates.length > 0) {
+      runtimeSmartRouter.candidates.forEach((candidate, index) => {
         if (!candidate.model) {
           errors.push(`SmartRouter.candidates[${index}].model is required`);
         } else if (validProviders.length > 0) {
@@ -383,13 +368,13 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
         }
       });
     }
-    if (config.SmartRouter.rules) {
-      config.SmartRouter.rules.forEach((rule, index) => {
+    if (runtimeSmartRouter.rules) {
+      runtimeSmartRouter.rules.forEach((rule, index) => {
         validateRoutingRule(rule, index, 'SmartRouter.rules', config, validProviders, errors);
       });
     }
-    validateStickyRoutingConfig(config.SmartRouter.sticky, config, validProviders, 'SmartRouter.sticky', errors);
-    validateSemanticRoutingConfig(config.SmartRouter.semantic, config, validProviders, 'SmartRouter.semantic', errors);
+    validateStickyRoutingConfig(runtimeSmartRouter.sticky, config, validProviders, 'SmartRouter.sticky', errors);
+    validateSemanticRoutingConfig(runtimeSmartRouter.semantic, config, validProviders, 'SmartRouter.semantic', errors);
   }
 
   // 验证 Governance 配置

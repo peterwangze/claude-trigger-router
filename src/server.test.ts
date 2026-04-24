@@ -1515,7 +1515,7 @@ describe('createServer /api/config', () => {
     expect(reply.code).toHaveBeenCalledWith(400);
     expect(result.success).toBe(false);
     expect(result.errors).toContain(
-      'TriggerRouter.intent_model 引用的模型 "anthropic/claude-opus-4" 不在提供商 "openrouter" 的 models 列表中'
+      'SmartRouter.semantic.classifier_model 引用的模型 "anthropic/claude-opus-4" 不在提供商 "openrouter" 的 models 列表中'
     );
     expect(mockWriteConfigFile).not.toHaveBeenCalled();
   });
