@@ -90,6 +90,9 @@ export interface IMinimalProviderInput {
   /** API Key */
   api_key: string;
 
+  /** 接口类型（手动填写接口时可显式指定） */
+  interface?: 'openai' | 'anthropic';
+
   /** 模型列表 */
   models: string[];
 

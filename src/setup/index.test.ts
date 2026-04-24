@@ -569,6 +569,7 @@ describe('runSetupCli', () => {
       choose: vi
         .fn()
         .mockResolvedValueOnce('手动填写接口')
+        .mockResolvedValueOnce('openai')
         .mockResolvedValueOnce('先不添加')
         .mockResolvedValueOnce('保持默认'),
       input: vi
@@ -604,6 +605,58 @@ describe('runSetupCli', () => {
             api_base_url: 'http://127.0.0.1:11434/v1/chat/completions',
             interface: 'openai',
             model: 'gpt-4.1',
+          }),
+        ],
+      })
+    );
+  });
+
+  it('normalizes bare anthropic base urls during fresh setup', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('手动填写接口')
+        .mockResolvedValueOnce('anthropic')
+        .mockResolvedValueOnce('先不添加')
+        .mockResolvedValueOnce('保持默认'),
+      input: vi
+        .fn()
+        .mockResolvedValueOnce('claude_local')
+        .mockResolvedValueOnce('anthropic-local')
+        .mockResolvedValueOnce('https://api.anthropic.com')
+        .mockResolvedValueOnce('sk-ant-local')
+        .mockResolvedValueOnce('claude-sonnet-4-5'),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig,
+      executeStart,
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Models: [
+          expect.objectContaining({
+            id: 'claude_local',
+            api: 'https://api.anthropic.com/v1/messages',
+            api_base_url: 'https://api.anthropic.com/v1/messages',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
           }),
         ],
       })

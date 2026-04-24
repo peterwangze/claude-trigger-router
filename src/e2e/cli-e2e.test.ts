@@ -127,6 +127,72 @@ async function startFakeOpenAiUpstream(): Promise<{
   };
 }
 
+async function startFakeAnthropicUpstream(): Promise<{
+  port: number;
+  requests: IFakeUpstreamRequest[];
+  close: () => Promise<void>;
+}> {
+  const requests: IFakeUpstreamRequest[] = [];
+  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    if (req.method !== 'POST') {
+      res.statusCode = 405;
+      res.end('method not allowed');
+      return;
+    }
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(Buffer.from(chunk));
+    }
+
+    const body = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+    requests.push({
+      url: req.url || '/',
+      body,
+    });
+
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({
+      id: 'msg_fake',
+      type: 'message',
+      role: 'assistant',
+      model: body.model,
+      stop_reason: 'end_turn',
+      stop_sequence: null,
+      content: [
+        {
+          type: 'text',
+          text: 'ok from fake anthropic upstream',
+        },
+      ],
+      usage: {
+        input_tokens: 1,
+        output_tokens: 1,
+      },
+    }));
+  });
+
+  const port = await new Promise<number>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        reject(new Error('Failed to resolve anthropic upstream port'));
+        return;
+      }
+      resolve(address.port);
+    });
+  });
+
+  return {
+    port,
+    requests,
+    close: async () => {
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    },
+  };
+}
+
 async function postAnthropicMessage(port: number, model: string, text: string): Promise<Response> {
   return postAnthropicPayload(port, {
     model,
@@ -654,6 +720,53 @@ describe('packaged CLI E2E', () => {
       expect(result.stdout).toContain('模型探测成功：local_model');
       expect(upstream.requests.length).toBeGreaterThan(0);
       expect(upstream.requests[0]?.url).toBe('/v1/chat/completions');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('doctor can probe a local anthropic-compatible model when the config only provides a bare base url', async () => {
+    const env = await createTestEnvironment('ctr-doctor-probe-bare-anthropic-endpoint-');
+    const upstream = await startFakeAnthropicUpstream();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          'PORT: 5678',
+          'LOG: true',
+          'LOG_LEVEL: "debug"',
+          'Models:',
+          '  - id: claude_local',
+          `    api: "http://127.0.0.1:${upstream.port}"`,
+          '    key: "sk-anthropic-local"',
+          '    interface: "anthropic"',
+          '    model: "claude-sonnet-4-5"',
+          'Router:',
+          '  default: "claude_local"',
+        ].join('\n')
+      );
+
+      const result = await runCtr(cliPath, ['doctor', '--check-models'], env, {
+        timeoutMs: 60000,
+        input: 'y\n',
+        extraEnv: {
+          CTR_DOCTOR_FORCE_SCRIPTED_INPUT: '1',
+        },
+      });
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('模型探测成功：claude_local');
+      expect(upstream.requests.length).toBeGreaterThan(0);
+      expect(upstream.requests[0]?.url).toBe('/v1/messages');
     } finally {
       try {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
@@ -1421,6 +1534,49 @@ describe('packaged CLI E2E', () => {
       expect(response.ok).toBe(true);
       expect(upstream.requests.length).toBeGreaterThan(0);
       expect(upstream.requests[0]?.url).toBe('/v1/chat/completions');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('runtime requests normalize bare anthropic-compatible endpoints before dispatching upstream', async () => {
+    const env = await createTestEnvironment('ctr-bare-anthropic-runtime-e2e-');
+    const upstream = await startFakeAnthropicUpstream();
+    const port = await getFreePort();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'LOG: false',
+          'Models:',
+          '  - id: claude_local',
+          `    api: "http://127.0.0.1:${upstream.port}"`,
+          '    key: "sk-anthropic-local"',
+          '    interface: "anthropic"',
+          '    model: "claude-sonnet-4-5"',
+          'Router:',
+          '  default: "claude_local"',
+        ].join('\n')
+      );
+
+      const startResult = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
+        timeoutMs: 20000,
+      });
+      expect(startResult.code).toBe(0);
+
+      await postAnthropicMessage(port, 'claude_local', '请回复 bare anthropic endpoint runtime test');
+      expect(upstream.requests.length).toBeGreaterThan(0);
+      expect(upstream.requests[0]?.url).toBe('/v1/messages');
     } finally {
       try {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });

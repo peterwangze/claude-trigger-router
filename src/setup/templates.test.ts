@@ -234,6 +234,24 @@ describe('setup templates', () => {
       );
     });
 
+    it('should respect an explicit interface override for manual custom endpoints', () => {
+      const input = {
+        providers: [
+          {
+            name: 'anthropic-local',
+            preset: 'custom',
+            interface: 'anthropic',
+            api_base_url: 'https://api.anthropic.com',
+            api_key: 'sk-custom',
+            models: ['claude-sonnet-4-5'],
+          },
+        ],
+      };
+      const config = buildMinimalConfig(input);
+      expect(config.Models?.[0].interface).toBe('anthropic');
+      expect(config.Models?.[0].protocol).toBe('anthropic');
+    });
+
     it('should not inject empty api_base_url for custom preset without explicit URL', () => {
       const input = {
         providers: [

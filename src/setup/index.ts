@@ -37,6 +37,7 @@ interface ISetupCollectedModelInput {
   name: string;
   model_id: string;
   api_key: string;
+  interface?: 'openai' | 'anthropic';
   models: string[];
   preset: ProviderPresetKey;
   api_base_url?: string;
@@ -712,11 +713,15 @@ async function promptModelConnection(
   const apiKey = await io.input('API Key');
   const presetDefinition = getProviderPreset(preset);
   const model = await io.input('上游模型名', presetDefinition?.default_model ?? '');
+  const interfaceChoice = connectMode === '手动填写接口'
+    ? await io.choose('接口类型', ['openai', 'anthropic']) as 'openai' | 'anthropic'
+    : presetDefinition?.interface;
 
   return {
     name: providerName,
     model_id: modelId,
     api_key: apiKey,
+    interface: interfaceChoice,
     models: [model],
     preset,
     api_base_url: apiBaseUrl,
