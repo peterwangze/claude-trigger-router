@@ -334,6 +334,19 @@ function getSetupMutationWhitelist(): string[] {
   ];
 }
 
+async function readCurrentCtrConfigText(homeDir: string): Promise<string> {
+  const candidates = [
+    join(homeDir, '.claude-trigger-router', 'config.yaml'),
+    join(homeDir, '.claude-trigger-router', 'config.yml'),
+    join(homeDir, '.claude-trigger-router', 'config.json'),
+  ];
+  const existing = candidates.find((item) => existsSync(item));
+  if (!existing) {
+    throw new Error(`No ctr config file found under ${join(homeDir, '.claude-trigger-router')}`);
+  }
+  return readText(existing);
+}
+
 async function canBindPort(port: number): Promise<boolean> {
   const server = createServer();
   try {
@@ -1843,13 +1856,14 @@ describe('packaged CLI E2E', () => {
       const before = await snapshotTree(env.homeDir);
       const result = await runCtr(cliPath, ['setup'], env, {
         input: [
+          'sonnet',
           '使用常见接入模板',
           'openrouter',
           'openrouter',
           'https://openrouter.ai/api/v1/chat/completions',
           'sk-first-use',
           'anthropic/claude-sonnet-4',
-          'sonnet',
+          '先不添加',
           '保持默认',
         ].join('\n'),
         timeoutMs: 180000,
@@ -1859,7 +1873,7 @@ describe('packaged CLI E2E', () => {
         },
       });
       const after = await snapshotTree(env.homeDir);
-      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      const configText = await readCurrentCtrConfigText(env.homeDir);
 
       expect(result.code).toBe(0);
       expect(configText).toContain('id: sonnet');
@@ -1911,13 +1925,14 @@ describe('packaged CLI E2E', () => {
       const result = await runCtr(cliPath, ['setup'], env, {
         input: [
           '2',
+          'sonnet',
           '使用常见接入模板',
           'openrouter',
           'openrouter',
           'https://openrouter.ai/api/v1/chat/completions',
           'sk-skip-legacy',
           'anthropic/claude-sonnet-4',
-          'sonnet',
+          '先不添加',
           '保持默认',
         ].join('\n'),
         timeoutMs: 180000,
@@ -1927,7 +1942,7 @@ describe('packaged CLI E2E', () => {
         },
       });
       const after = await snapshotTree(env.homeDir);
-      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      const configText = await readCurrentCtrConfigText(env.homeDir);
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain('跳过迁移，手动新建');
@@ -1956,13 +1971,14 @@ describe('packaged CLI E2E', () => {
       const before = await snapshotTree(env.homeDir);
       const result = await runCtr(cliPath, ['setup'], env, {
         input: [
+          'sonnet',
           '使用常见接入模板',
           'openrouter',
           'openrouter',
           'https://openrouter.ai/api/v1/chat/completions',
           'sk-read-error',
           'anthropic/claude-sonnet-4',
-          'sonnet',
+          '先不添加',
           '保持默认',
         ].join('\n'),
         timeoutMs: 180000,
@@ -1972,7 +1988,7 @@ describe('packaged CLI E2E', () => {
         },
       });
       const after = await snapshotTree(env.homeDir);
-      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      const configText = await readCurrentCtrConfigText(env.homeDir);
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain('旧 ccr 配置读取失败');
@@ -2288,13 +2304,14 @@ describe('packaged CLI E2E', () => {
       const result = await runCtr(cliPath, ['setup'], env, {
         input: [
           '2',
+          'sonnet45',
           '使用常见接入模板',
           'anthropic',
           'anthropic',
           'https://api.anthropic.com/v1/messages',
           'sk-overwrite',
           'claude-sonnet-4-5',
-          'sonnet45',
+          '先不添加',
           '保持默认',
         ].join('\n'),
         timeoutMs: 180000,
@@ -2304,7 +2321,7 @@ describe('packaged CLI E2E', () => {
         },
       });
       const after = await snapshotTree(env.homeDir);
-      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      const configText = await readCurrentCtrConfigText(env.homeDir);
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain('检查并调整当前配置');
@@ -2353,13 +2370,14 @@ describe('packaged CLI E2E', () => {
         input: [
           '3',
           '2',
+          'fresh_sonnet',
           '使用常见接入模板',
           'openrouter',
           'openrouter',
           'https://openrouter.ai/api/v1/chat/completions',
           'sk-fresh-after-skip',
           'anthropic/claude-sonnet-4',
-          'fresh_sonnet',
+          '先不添加',
           '保持默认',
         ].join('\n'),
         timeoutMs: 180000,
@@ -2369,7 +2387,7 @@ describe('packaged CLI E2E', () => {
         },
       });
       const after = await snapshotTree(env.homeDir);
-      const configText = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      const configText = await readCurrentCtrConfigText(env.homeDir);
 
       expect(result.code).toBe(0);
       expect(configText).toContain('id: fresh_sonnet');
@@ -2573,13 +2591,14 @@ describe('packaged CLI E2E', () => {
       const result = await runCtr(cliPath, ['setup'], env, {
         input: [
           'rebuild',
+          'sonnet',
           '使用常见接入模板',
           'openrouter',
           'openrouter',
           'https://openrouter.ai/api/v1/chat/completions',
           'sk-fresh',
           'anthropic/claude-sonnet-4',
-          'sonnet',
+          '先不添加',
           '保持默认',
         ].join('\n'),
         timeoutMs: 180000,
@@ -2589,7 +2608,7 @@ describe('packaged CLI E2E', () => {
         },
       });
       const after = await snapshotTree(env.homeDir);
-      const rebuiltConfig = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      const rebuiltConfig = await readCurrentCtrConfigText(env.homeDir);
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain('当前配置无法解析');

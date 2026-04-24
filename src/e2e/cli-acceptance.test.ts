@@ -630,7 +630,7 @@ describe('isolated packaged CLI acceptance', () => {
       expect(versionResult.code).toBe(0);
       expectNoTerminalCorruption(`${versionResult.stdout}\n${versionResult.stderr}`);
       expect(versionResult.stdout).toContain('Package: @peterwangze/claude-trigger-router');
-      expect(versionResult.stdout).toContain('Version: 1.0.6');
+      expect(versionResult.stdout).toContain('Version: 1.0.7');
 
       const upgradeResult = await runCommandInShell(toWrapperCommand('upgrade'), env, {
         cwd: repoRoot,
