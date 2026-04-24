@@ -107,7 +107,7 @@ export interface IAnalysisResult {
   analyzedText?: string;
 
   /** 路由来源 */
-  routeSource?: 'smart_rule' | 'semantic_match' | 'smart_router' | 'sticky_correction' | 'intent_fallback';
+  routeSource?: 'smart_rule' | 'semantic_match' | 'smart_router' | 'sticky_correction';
 }
 
 /**

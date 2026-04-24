@@ -407,7 +407,7 @@ export class ModelSelector {
               confidence: intentResult.confidence,
               analysisTime: Date.now() - startTime,
               analyzedText: text,
-              routeSource: 'intent_fallback',
+              routeSource: 'semantic_match',
             };
             return this.applyStickyCorrection(intentSelection, stickyCorrection, appConfig) ?? intentSelection;
           }

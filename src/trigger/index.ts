@@ -128,8 +128,6 @@ export class TriggerRouter {
         appendTraceReason(req.governanceTrace, 'sticky_correction');
       } else if (result.routeSource === 'smart_router') {
         appendTraceReason(req.governanceTrace, 'smart_router');
-      } else if (result.routeSource === 'intent_fallback') {
-        appendTraceReason(req.governanceTrace, 'intent_fallback');
       } else {
         appendTraceReason(req.governanceTrace, 'smart_router:no_match');
       }
@@ -209,9 +207,7 @@ export class TriggerRouter {
                   ? `Semantic match "${result.rule?.name}"`
                   : result.routeSource === 'smart_router'
                     ? 'Smart fallback selected'
-                    : result.routeSource === 'intent_fallback'
-                      ? `Intent fallback "${result.rule?.name}"`
-                      : result.rule
+                    : result.rule
                         ? `Matched rule "${result.rule.name}"`
                         : 'Unified router selected'
             } -> model "${result.model}" ` +
