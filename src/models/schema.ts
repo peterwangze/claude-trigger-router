@@ -6,10 +6,14 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
-export function inferInterfaceFromApiEndpoint(api?: string): ModelInterface | undefined {
+export function inferInterfaceFromApiEndpoint(api?: string, modelName?: string): ModelInterface | undefined {
   const trimmed = api?.trim().toLowerCase();
   if (!trimmed) {
     return undefined;
+  }
+
+  if (trimmed.includes('/chat/completions')) {
+    return 'openai';
   }
 
   if (trimmed.includes('api.anthropic.com')) {
@@ -17,6 +21,15 @@ export function inferInterfaceFromApiEndpoint(api?: string): ModelInterface | un
   }
 
   if (trimmed.includes('/messages')) {
+    return 'anthropic';
+  }
+
+  const normalizedModelName = modelName?.trim().toLowerCase() || '';
+  if (
+    normalizedModelName.startsWith('claude') &&
+    !trimmed.includes('/v1/chat/completions') &&
+    (trimmed.endsWith('/v1') || /^https?:\/\/[^/]+\/?$/.test(trimmed))
+  ) {
     return 'anthropic';
   }
 

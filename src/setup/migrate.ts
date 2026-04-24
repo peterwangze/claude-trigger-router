@@ -64,8 +64,8 @@ const KNOWN_UNSUPPORTED_TOP_LEVEL_FIELDS = new Set([
   'trigger_router',
 ]);
 
-function inferProtocolFromApiBaseUrl(apiBaseUrl?: string): 'openai' | 'anthropic' {
-  return inferInterfaceFromApiEndpoint(apiBaseUrl) ?? 'openai';
+function inferProtocolFromApiBaseUrl(apiBaseUrl?: string, modelName?: string): 'openai' | 'anthropic' {
+  return inferInterfaceFromApiEndpoint(apiBaseUrl, modelName) ?? 'openai';
 }
 
 function normalizeSegment(value: string): string {
@@ -305,15 +305,15 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
       .map((model) => ({
         candidateId: toModelId(provider.name, model, providerIndex),
         api: provider.api_base_url
-          ? normalizeApiEndpoint(provider.api_base_url, inferProtocolFromApiBaseUrl(provider.api_base_url))
+          ? normalizeApiEndpoint(provider.api_base_url, inferProtocolFromApiBaseUrl(provider.api_base_url, model))
           : undefined,
         api_base_url: provider.api_base_url
-          ? normalizeApiEndpoint(provider.api_base_url, inferProtocolFromApiBaseUrl(provider.api_base_url))
+          ? normalizeApiEndpoint(provider.api_base_url, inferProtocolFromApiBaseUrl(provider.api_base_url, model))
           : undefined,
         key: provider.api_key,
         api_key: provider.api_key,
-        interface: inferProtocolFromApiBaseUrl(provider.api_base_url),
-        protocol: inferProtocolFromApiBaseUrl(provider.api_base_url),
+        interface: inferProtocolFromApiBaseUrl(provider.api_base_url, model),
+        protocol: inferProtocolFromApiBaseUrl(provider.api_base_url, model),
         model,
         providerName: provider.name,
       }))

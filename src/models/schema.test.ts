@@ -33,6 +33,12 @@ describe('model schema endpoint normalization', () => {
     ).toBe('anthropic');
   });
 
+  it('infers anthropic interface from a bare local host when the model name is Claude and no openai path is present', () => {
+    expect(
+      inferInterfaceFromApiEndpoint('http://127.0.0.1:8080/v1', 'claude-sonnet-4-5')
+    ).toBe('anthropic');
+  });
+
   it('preserves query strings while normalizing endpoint paths', () => {
     expect(
       normalizeApiEndpoint('https://example.com/openai/v1?key=test', 'openai')

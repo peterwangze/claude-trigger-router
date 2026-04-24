@@ -2222,6 +2222,62 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
+  it('setup migration normalizes bare legacy anthropic endpoints and the migrated runtime can use them directly', async () => {
+    const env = await createTestEnvironment('ctr-setup-migrate-bare-anthropic-endpoint-');
+    const upstream = await startFakeAnthropicUpstream();
+    const port = await getFreePort();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-code-router/config.json',
+        `{
+  "LOG": false,
+  "HOST": "127.0.0.1",
+  "PORT": ${port},
+  "Providers": [
+    {
+      "name": "legacy_claude",
+      "api_base_url": "http://127.0.0.1:${upstream.port}",
+      "api_key": "sk-legacy-claude",
+      "models": ["claude-sonnet-4-5"]
+    }
+  ],
+  "Router": {
+    "default": "legacy_claude,claude-sonnet-4-5"
+  }
+}`
+      );
+
+      const setupResult = await runCtr(cliPath, ['setup'], env, {
+        input: '1\n',
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+
+      const migratedConfig = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      expect(setupResult.code).toBe(0);
+      expect(migratedConfig).toContain(`api: http://127.0.0.1:${upstream.port}/v1/messages`);
+      expect(migratedConfig).toContain('interface: anthropic');
+      expect(migratedConfig).toContain('default: legacy_claude_claude_sonnet_4_5');
+
+      await postAnthropicMessage(port, 'legacy_claude_claude_sonnet_4_5', '请验证迁移后的 bare anthropic endpoint runtime');
+      expect(upstream.requests.length).toBeGreaterThan(0);
+      expect(upstream.requests[0]?.url).toBe('/v1/messages');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('setup can overwrite a valid current config with a newly guided configuration', async () => {
     const env = await createTestEnvironment('ctr-setup-overwrite-valid-e2e-');
     const port = await getFreePort();

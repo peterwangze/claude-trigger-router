@@ -220,8 +220,8 @@ function getConfigCandidates(): string[] {
   return [CONFIG_FILE, CONFIG_FILE_YML, CONFIG_FILE_JSON];
 }
 
-function inferInterfaceFromApi(api?: string): 'openai' | 'anthropic' | undefined {
-  return inferInterfaceFromApiEndpoint(api);
+function inferInterfaceFromApi(api?: string, modelName?: string): 'openai' | 'anthropic' | undefined {
+  return inferInterfaceFromApiEndpoint(api, modelName);
 }
 
 function sanitizeModelId(value: string): string {
@@ -297,7 +297,7 @@ function repairDeterministicConfig(config: Partial<IAppConfig>): { config: Parti
     nextConfig.Models = config.Models.map((item, index) => {
       const api = getModelApi(item);
       const key = getModelKey(item);
-      const inferredInterface = getModelInterface(item) ?? inferInterfaceFromApi(api);
+      const inferredInterface = getModelInterface(item) ?? inferInterfaceFromApi(api, item.model);
       const id = item.id?.trim() || (item.model ? sanitizeModelId(item.model) : `model_${index + 1}`);
 
       if (!item.id?.trim()) {

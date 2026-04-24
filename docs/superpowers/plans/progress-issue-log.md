@@ -40,7 +40,7 @@
 | PI-005 | 入口文档承载过多正文，存在持续膨胀风险 | 2026-04-16 | closed | 已明确入口文档只保留阶段判断、特性进展总表、问题记录入口和维护规则；详细设计、实施计划、详细进展统一下沉到特性文档 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
 | PI-006 | 事项 / 特性缺少制度化增量规则，后续容易被删除或重写覆盖 | 2026-04-16 | closed | 已新增“事项 / 特性只能新增不能删除”的制度约束，并要求失效、取消、合并、替代场景也必须保留原记录并更新闭环结论 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
 | PI-007 | 问题修正过程未形成独立事项文档，容易重复踩坑 | 2026-04-16 | closed | 已建立独立问题修改记录文档，并在统一进展入口中将其作为治理事项和关联文档接入，后续所有文档治理偏差统一在此追踪 | `docs/superpowers/plans/progress-issue-log.md` ; `docs/superpowers/plans/unified-progress-baseline.md` |
-| PI-008 | 已标记 closed 的兼容主线仍暴露真实用户主路径缺口 | 2026-04-24 | in_progress | 复审发现“OpenAI-compatible 兼容差异内化”等已闭环事务在真实用户流中仍存在兼容缺口；当前不回退原结论，而是已新增 `OpenAI-compatible 主路径兼容补强` 事项持续承接，后续继续按 setup / doctor / runtime / packaged CLI 用户流补排查与防护网 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` |
+| PI-008 | 已标记 closed 的兼容主线仍暴露真实用户主路径缺口 | 2026-04-24 | closed | 复审发现“OpenAI-compatible 兼容差异内化”等已闭环事务在真实用户流中仍存在兼容缺口；当前未回退原结论，而是通过新增 `OpenAI-compatible 主路径兼容补强` 事项完成了首轮止血与用户流回归补强，现已不再作为独立未闭环 P0 问题维护 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` |
 | PI-009 | 已闭环事项的文档结论与当前实现链路发生漂移 | 2026-04-24 | in_progress | 复审发现部分 closed 事项的闭环描述仍停留在旧链路，如统一 Router 运行时文案仍写 `legacy intent fallback`；当前不回退原结论，而是已新增 `已闭环事项复审校准` 事项承接后续校准与持续复审 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
 
 ## 问题详细记录
@@ -171,8 +171,8 @@
   - 不回退原 `closed` 结论
   - 在统一进展入口中新增 `OpenAI-compatible 主路径兼容补强` 事项
   - 将已暴露问题与该新增事项显式关联，后续继续按用户视角扩大排查与回归覆盖
-- 当前状态：`in_progress`
-- 闭环结论：当前阶段结论是“历史闭环结论保留，但已确认仍存在真实用户主路径剩余风险，因此新增独立事项持续承接”；后续只有当 setup / doctor / runtime / packaged CLI 在同类场景形成更系统的真实用户流回归网后，才能认为该问题阶段闭环。
+- 当前状态：`closed`
+- 闭环结论：历史闭环结论保持不回退；同时通过新增 `OpenAI-compatible 主路径兼容补强` 事项，已补齐 `ctr code` 新环境代理凭证注入、OpenAI-compatible / Anthropic bare endpoint 归一，以及 fresh setup / doctor / runtime / legacy migration 的首轮真实用户流回归。当前已不再作为独立未闭环 P0 问题维护，后续剩余工作转入 CLI 稳定性与发布工程、配置产品化和持续复审校准伴随推进。
 - 关联文档：
   - `docs/superpowers/plans/unified-progress-baseline.md`
   - `docs/superpowers/specs/2026-04-06-unified-model-config-design.md`
