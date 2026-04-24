@@ -1155,10 +1155,10 @@ describe('createServer /api/config', () => {
     expect(html).toContain('data-apply-warning-code');
     expect(html).toContain('移除 thinking');
     expect(html).toContain('恢复默认 capability');
-    expect(html).toContain('TriggerRouter');
+    expect(html).toContain('Routing rules');
     expect(html).toContain('SmartRouter');
     expect(html).toContain('Governance');
-    expect(html).toContain('Trigger rules');
+    expect(html).toContain('Routing rules');
     expect(html).toContain('Patterns');
     expect(html).toContain('Smart candidates');
     expect(html).toContain('Cascade levels');
@@ -1173,12 +1173,12 @@ describe('createServer /api/config', () => {
     expect(html).toContain('draftPresetModeHint');
     expect(html).toContain('append / merge');
     expect(html).toContain('overwrite');
-    expect(html).toContain('TriggerRouter / SmartRouter / Governance');
+    expect(html).toContain('SmartRouter / Governance');
     expect(html).toContain('平衡预设');
     expect(html).toContain('快速预设');
     expect(html).toContain('治理预设');
     expect(html).toContain('Routing Controls');
-    expect(html).toContain('TriggerRouter');
+    expect(html).toContain('Routing rules');
     expect(html).toContain('SmartRouter');
     expect(html).toContain('Governance');
     expect(html).toContain('triggerEnabled');
@@ -1273,7 +1273,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('renderDraftSummary');
     expect(html).toContain('renderDraftValidation');
     expect(html).toContain("text.startsWith('Models')");
-    expect(html).toContain("text.startsWith('TriggerRouter')");
+    expect(html).toContain("text.startsWith('TriggerRouter') ? 'SmartRouter'");
     expect(html).toContain('extractPath');
     expect(html).toContain('issues</span>');
     expect(html).toContain('findValidationTarget');

@@ -836,7 +836,7 @@ export const createServer = (config: any): Server => {
       `</div>` +
       `<div id="draftSummaryGrid" class="stats">` +
       `<div class="stat"><span class="muted">Models</span><strong>0</strong></div>` +
-      `<div class="stat"><span class="muted">Trigger rules</span><strong>0</strong></div>` +
+      `<div class="stat"><span class="muted">Routing rules</span><strong>0</strong></div>` +
       `<div class="stat"><span class="muted">Patterns</span><strong>0</strong></div>` +
       `<div class="stat"><span class="muted">Smart candidates</span><strong>0</strong></div>` +
       `<div class="stat"><span class="muted">Cascade levels</span><strong>0</strong></div>` +
@@ -859,10 +859,10 @@ export const createServer = (config: any): Server => {
       `<div><label>Models count</label><input id="draftModelsCount" value="0" readonly></div>` +
       `</div>` +
       `<div class="subpanel">` +
-      `<div class="row"><strong>Routing Controls</strong><span class="muted">首批表单化编辑 TriggerRouter / SmartRouter / Governance 的核心引用</span></div>` +
+      `<div class="row"><strong>Routing Controls</strong><span class="muted">围绕 SmartRouter 统一路由引擎编辑规则、候选与治理增强兼容配置</span></div>` +
       `<div class="detail-grid">` +
       `<div class="panel" style="margin-bottom:0">` +
-      `<div class="row"><strong>TriggerRouter</strong><span class="muted">规则路由与意图识别</span></div>` +
+      `<div class="row"><strong>Routing rules</strong><span class="muted">显式规则、语义提示与兼容输入</span></div>` +
       `<div class="control-grid">` +
       `<div><label><input id="triggerEnabled" type="checkbox"> Enabled</label></div>` +
       `<div><label><input id="triggerIntentEnabled" type="checkbox"> Intent recognition</label></div>` +
@@ -883,7 +883,7 @@ export const createServer = (config: any): Server => {
       `<div style="margin-top:.75rem"><div class="action-row"><label>Candidates</label><button id="addSmartCandidateBtn" type="button">新增 Candidate</button></div><div id="smartCandidatesList" class="list-editor"><div class="panel" style="margin-bottom:0"><span class="muted">No smart candidates yet</span></div></div></div>` +
       `</div>` +
       `<div class="panel" style="margin-bottom:0">` +
-      `<div class="row"><strong>Governance</strong><span class="muted">对齐、语义、影子校验与级联</span></div>` +
+      `<div class="row"><strong>Governance</strong><span class="muted">影子校验、级联与观测相关配置</span></div>` +
       `<div class="control-grid">` +
       `<div><label><input id="governanceEnabled" type="checkbox"> Enabled</label></div>` +
       `<div><label><input id="governanceAlignmentEnabled" type="checkbox"> Alignment</label></div>` +
@@ -917,7 +917,7 @@ export const createServer = (config: any): Server => {
       `</table>` +
       `</div>` +
       `<div class="subpanel">` +
-      `<div class="row"><strong>Reference Impact</strong><span class="muted">分析 Router / TriggerRouter / Governance 等 modelId 引用是否仍然有效</span></div>` +
+      `<div class="row"><strong>Reference Impact</strong><span class="muted">分析 Router / SmartRouter / Governance（shadow/cascade）等 modelId 引用是否仍然有效</span></div>` +
       `<div id="referenceImpactSummary" class="diff-summary">` +
       `<div class="diff-chip"><span class="muted">Total refs</span><strong>0</strong></div>` +
       `<div class="diff-chip"><span class="muted">modelId refs</span><strong>0</strong></div>` +
@@ -1126,8 +1126,8 @@ export const createServer = (config: any): Server => {
       `let activeValidationHighlight=null;` +
       `const draftPresets={` +
       `  balanced:{ label:'平衡预设', description:'启用 SmartRouter，并填充平衡/快速候选模型组合。', affects:['Router.default','SmartRouter.enabled','SmartRouter.candidates'], routerDefault:'sonnet', smartEnabled:true, smartCandidates:[{ model:'sonnet', description:'balanced default' },{ model:'haiku', description:'fast lightweight' }] },` +
-      `  fast:{ label:'快速预设', description:'默认走轻量模型，并添加一条快速响应 TriggerRule。', affects:['Router.default','TriggerRouter.enabled','TriggerRouter.rules'], routerDefault:'haiku', triggerEnabled:true, triggerRules:[{ name:'quick-response', enabled:true, priority:20, model:'haiku', patterns:[{ type:'exact', keywords:['快速处理','快速回答'] }] }] },` +
-      `  governance:{ label:'治理预设', description:'打开治理核心能力，并填入 summarizer/classifier/verifier 示例模型。', affects:['Governance.enabled','Governance.sticky.alignment','Governance.semantic','Governance.shadow'], governanceEnabled:true, governanceAlignmentEnabled:true, governanceSemanticEnabled:true, governanceShadowEnabled:true, governanceSummarizerModel:'sonnet', governanceClassifierModel:'sonnet', governanceVerifierModel:'haiku' }` +
+      `  fast:{ label:'快速预设', description:'默认走轻量模型，并添加一条快速响应路由规则。', affects:['Router.default','SmartRouter.enabled','SmartRouter.rules'], routerDefault:'haiku', triggerEnabled:true, triggerRules:[{ name:'quick-response', enabled:true, priority:20, model:'haiku', patterns:[{ type:'exact', keywords:['快速处理','快速回答'] }] }] },` +
+      `  governance:{ label:'治理预设', description:'打开治理增强与校验能力，并填入 summarizer/classifier/verifier 示例模型。', affects:['Governance.enabled','SmartRouter.sticky.alignment','SmartRouter.semantic','Governance.shadow'], governanceEnabled:true, governanceAlignmentEnabled:true, governanceSemanticEnabled:true, governanceShadowEnabled:true, governanceSummarizerModel:'sonnet', governanceClassifierModel:'sonnet', governanceVerifierModel:'haiku' }` +
       `};` +
       `const modelProviderTemplates=${toInlineScriptJson(getUiProviderTemplates())};` +
       `const defaultProviderTemplateKey='openrouter';` +
@@ -1215,7 +1215,7 @@ export const createServer = (config: any): Server => {
       `  const modelRefCount=[config?.Router?.default, smart?.router_model, smart?.sticky?.alignment?.summarizer_model, smart?.semantic?.classifier_model, config?.Governance?.shadow?.verifier_model].filter(v=>typeof v === 'string' && v.trim()).length + triggerRules.filter(rule=>rule?.model).length + smartCandidates.filter(item=>item?.model).length + cascadeLevels.reduce((sum,level)=>sum + (level?.from ? 1 : 0) + (level?.to ? 1 : 0), 0);` +
       `  draftSummaryGrid.innerHTML=[` +
       "    ['Models', models.length]," +
-      "    ['Trigger rules', triggerRules.length]," +
+      "    ['Routing rules', triggerRules.length]," +
       "    ['Patterns', patternCount]," +
       "    ['Smart candidates', smartCandidates.length]," +
       "    ['Cascade levels', cascadeLevels.length]," +
@@ -1229,7 +1229,7 @@ export const createServer = (config: any): Server => {
       `  const extractPath=(text)=>{ const match=String(text).match(/^(Models(?:\\[[0-9]+\\])?(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|Router(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|TriggerRouter(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|SmartRouter(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|Governance(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?)/); return match ? match[1] : ''; };` +
       `  const grouped=[...errorList.map(item=>({ text:String(item), severity:'error' })), ...warningList.map(item=>({ text:String(item), severity:'warning' }))].reduce((acc,item)=>{` +
       `    const text=item.text;` +
-      `    const bucket=text.startsWith('Models') ? 'Models' : text.startsWith('Router') ? 'Router' : text.startsWith('TriggerRouter') ? 'TriggerRouter' : text.startsWith('SmartRouter') ? 'SmartRouter' : text.startsWith('Governance') ? 'Governance' : text.startsWith('JSON parse error') ? 'Draft JSON' : 'Other';` +
+      `    const bucket=text.startsWith('Models') ? 'Models' : text.startsWith('Router') ? 'Router' : text.startsWith('TriggerRouter') ? 'SmartRouter' : text.startsWith('SmartRouter') ? 'SmartRouter' : (text.startsWith('Governance.sticky') || text.startsWith('Governance.semantic')) ? 'SmartRouter' : text.startsWith('Governance') ? 'Governance' : text.startsWith('JSON parse error') ? 'Draft JSON' : 'Other';` +
       `    acc[bucket]=acc[bucket] || [];` +
       `    acc[bucket].push({ text, path: extractPath(text), severity:item.severity });` +
       `    return acc;` +
@@ -1273,7 +1273,7 @@ export const createServer = (config: any): Server => {
       `}` +
       `function renderDraftPresetModeHint(){` +
       `  const overwriteMode=draftPresetMode.value === 'replace';` +
-      `  draftPresetModeHint.textContent=overwriteMode ? 'overwrite 会重置 TriggerRouter / SmartRouter / Governance 相关表单，再应用预设' : 'append / merge 会尽量保留当前草稿，仅补充预设相关字段';` +
+      `  draftPresetModeHint.textContent=overwriteMode ? 'overwrite 会重置 SmartRouter / Governance 相关表单，再应用预设' : 'append / merge 会尽量保留当前草稿，仅补充 SmartRouter / Governance 相关字段';` +
       `}` +
       `function deriveActualAffectedAreas(preview){` +
       `  const areas=new Set();` +
@@ -1283,8 +1283,9 @@ export const createServer = (config: any): Server => {
       `  (impact.entries || []).forEach((entry)=>{` +
       `    const path=String(entry.path || '');` +
       `    if(path.startsWith('Router.')){ areas.add('Router'); }` +
-      `    else if(path.startsWith('TriggerRouter.')){ areas.add('TriggerRouter'); }` +
+      `    else if(path.startsWith('TriggerRouter.')){ areas.add('SmartRouter'); }` +
       `    else if(path.startsWith('SmartRouter.')){ areas.add('SmartRouter'); }` +
+      `    else if(path.startsWith('Governance.sticky') || path.startsWith('Governance.semantic')){ areas.add('SmartRouter'); }` +
       `    else if(path.startsWith('Governance.')){ areas.add('Governance'); }` +
       `  });` +
       `  return Array.from(areas);` +
