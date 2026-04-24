@@ -696,10 +696,6 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
     normalizedInput
   ) as IAppConfig;
 
-  if (normalizedInput.TriggerRouter) {
-    normalizedConfig.TriggerRouter = deepMerge(DEFAULT_TRIGGER_CONFIG, normalizedInput.TriggerRouter) as IAppConfig['TriggerRouter'];
-  }
-
   if (normalizedInput.Governance) {
     normalizedConfig.Governance = deepMerge(DEFAULT_GOVERNANCE_CONFIG, normalizedInput.Governance) as IAppConfig['Governance'];
   }
