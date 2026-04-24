@@ -709,6 +709,16 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
     deriveRuntimeSmartRouterConfig(normalizedConfig, normalizedInput)
   ) as IAppConfig['SmartRouter'];
 
+  if (
+    normalizedInput.TriggerRouter ||
+    normalizedInput.SmartRouter ||
+    normalizedInput.Router?.routes ||
+    normalizedInput.Router?.decision ||
+    normalizedInput.Router?.defaults
+  ) {
+    delete (normalizedConfig as Partial<IAppConfig>).TriggerRouter;
+  }
+
   if (normalizedConfig.SmartRouter?.sticky) {
     normalizedConfig.SmartRouter.sticky = deepMerge(
       DEFAULT_GOVERNANCE_CONFIG.sticky,

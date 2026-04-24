@@ -27,7 +27,7 @@ import JSON5 from "json5";
 import { IAgent } from "./agents/type";
 import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
-import { triggerRouter } from "./trigger";
+import { triggerRouter as smartRouterRuntime } from "./trigger";
 import { createStream } from 'rotating-file-stream';
 import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, governStreamingResponse, sessionStateStore } from "./governance";
 import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
@@ -180,8 +180,8 @@ async function run(options: RunOptions = {}) {
   });
 
   // 初始化 SmartRouter 统一路由引擎
-  triggerRouter.init(config);
-  log(`[SmartRouter] Initialized, enabled: ${triggerRouter.isEnabled()}`);
+  smartRouterRuntime.init(config);
+  log(`[SmartRouter] Initialized, enabled: ${smartRouterRuntime.isEnabled()}`);
 
   // SmartRouter 统一路由中间件（在原有路由之前）
   server.addHook("preHandler", async (req: any, reply: any) => {
@@ -200,21 +200,21 @@ async function run(options: RunOptions = {}) {
       });
       appendTraceReason(req.governanceTrace, "request_received");
 
-      const bypassTriggerRouter = req.headers["x-ctr-smart-router"] === "1";
-      const triggerResult = bypassTriggerRouter
+      const bypassSmartRouter = req.headers["x-ctr-smart-router"] === "1";
+      const triggerResult = bypassSmartRouter
         ? { matched: false, confidence: 0, analysisTime: 0 }
-        : await triggerRouter.route(req);
+        : await smartRouterRuntime.route(req);
       req.triggerResult = triggerResult;
 
-      if (!bypassTriggerRouter && triggerResult.matched && triggerResult.model) {
+      if (!bypassSmartRouter && triggerResult.matched && triggerResult.model) {
           const previousSessionState = req.sessionId ? sessionStateStore.get(req.sessionId) : undefined;
           const previousModel = previousSessionState?.lastSuccessfulModel;
           const alignmentConfig =
-            triggerRouter.getSmartRouterConfig()?.sticky?.alignment
+            smartRouterRuntime.getSmartRouterConfig()?.sticky?.alignment
             ?? config.Governance?.sticky?.alignment;
 
         if (
-          triggerRouter.getSmartRouterConfig()?.enabled &&
+          smartRouterRuntime.getSmartRouterConfig()?.enabled &&
           alignmentConfig?.enabled &&
           previousModel &&
           previousModel !== triggerResult.model &&

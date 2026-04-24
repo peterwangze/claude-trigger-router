@@ -689,6 +689,7 @@ describe('normalizeAndValidateConfig governance', () => {
         }),
       }),
     }));
+    expect(result.config.TriggerRouter).toBeUndefined();
   });
 
   it('enables SmartRouter semantic, sticky, and alignment defaults when SmartRouter is enabled', () => {
