@@ -137,6 +137,31 @@ describe('migrateLegacyConfig', () => {
     expect(result.missingFields).toEqual(['apiBaseUrl']);
   });
 
+  it('infers anthropic protocol from a bare anthropic host during migration', () => {
+    const result = migrateLegacyConfig({
+      Providers: [
+        {
+          name: 'anthropic_local',
+          api_base_url: 'https://api.anthropic.com',
+          api_key: 'sk-ant',
+          models: ['claude-sonnet-4-5'],
+        },
+      ],
+      Router: {
+        default: 'anthropic_local,claude-sonnet-4-5',
+      },
+    });
+
+    expect(result.draft.Models?.[0]).toEqual(
+      expect.objectContaining({
+        api: 'https://api.anthropic.com/v1/messages',
+        api_base_url: 'https://api.anthropic.com/v1/messages',
+        interface: 'anthropic',
+        protocol: 'anthropic',
+      })
+    );
+  });
+
   it('marks migration as incomplete when default model is missing', () => {
     const result = migrateLegacyConfig({
       providers: [

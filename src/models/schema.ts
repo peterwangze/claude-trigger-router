@@ -6,10 +6,18 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
-function inferInterfaceFromApi(api?: string): ModelInterface | undefined {
+export function inferInterfaceFromApiEndpoint(api?: string): ModelInterface | undefined {
   const trimmed = api?.trim().toLowerCase();
   if (!trimmed) {
     return undefined;
+  }
+
+  if (trimmed.includes('api.anthropic.com')) {
+    return 'anthropic';
+  }
+
+  if (trimmed.includes('/messages')) {
+    return 'anthropic';
   }
 
   return trimmed.includes('/v1/messages') ? 'anthropic' : 'openai';
@@ -51,7 +59,7 @@ export function normalizeApiEndpoint(api?: string, explicitInterface?: ModelInte
     return '';
   }
 
-  const modelInterface = explicitInterface ?? inferInterfaceFromApi(trimmed) ?? 'openai';
+  const modelInterface = explicitInterface ?? inferInterfaceFromApiEndpoint(trimmed) ?? 'openai';
 
   try {
     const url = new URL(trimmed);

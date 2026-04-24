@@ -1,4 +1,5 @@
 import { ISetupConfigDraft } from './types';
+import { inferInterfaceFromApiEndpoint, normalizeApiEndpoint } from '../models/schema';
 
 export interface IMigrateLegacyConfigResult {
   draft: ISetupConfigDraft;
@@ -64,11 +65,7 @@ const KNOWN_UNSUPPORTED_TOP_LEVEL_FIELDS = new Set([
 ]);
 
 function inferProtocolFromApiBaseUrl(apiBaseUrl?: string): 'openai' | 'anthropic' {
-  if (apiBaseUrl?.includes('/v1/messages')) {
-    return 'anthropic';
-  }
-
-  return 'openai';
+  return inferInterfaceFromApiEndpoint(apiBaseUrl) ?? 'openai';
 }
 
 function normalizeSegment(value: string): string {
@@ -307,8 +304,12 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
     (provider.models.length ? provider.models : [''])
       .map((model) => ({
         candidateId: toModelId(provider.name, model, providerIndex),
-        api: provider.api_base_url,
-        api_base_url: provider.api_base_url,
+        api: provider.api_base_url
+          ? normalizeApiEndpoint(provider.api_base_url, inferProtocolFromApiBaseUrl(provider.api_base_url))
+          : undefined,
+        api_base_url: provider.api_base_url
+          ? normalizeApiEndpoint(provider.api_base_url, inferProtocolFromApiBaseUrl(provider.api_base_url))
+          : undefined,
         key: provider.api_key,
         api_key: provider.api_key,
         interface: inferProtocolFromApiBaseUrl(provider.api_base_url),

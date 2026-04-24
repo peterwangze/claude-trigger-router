@@ -203,4 +203,59 @@ describe('runDoctorCli', () => {
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('运行时兼容提示：工具调用已降级为文本'));
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('运行时建议：如需保留工具调用'));
   });
+
+  it('infers anthropic interface from a bare anthropic host when repairing config', async () => {
+    const io = createIo({
+      confirm: vi.fn().mockResolvedValue(false),
+    });
+
+    vi.doMock('fs', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('fs')>();
+      return {
+        ...actual,
+        existsSync: vi.fn((filePath: string) => String(filePath).endsWith('config.yaml')),
+        readFileSync: vi.fn((filePath: string) => {
+          if (String(filePath).endsWith('config.yaml')) {
+            return [
+              'Models:',
+              '  - api: "https://api.anthropic.com"',
+              '    key: "sk-ant-test"',
+              '    model: "claude-sonnet-4-5"',
+              'Router: {}',
+            ].join('\n');
+          }
+          return '';
+        }),
+      };
+    });
+
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+
+    const { runDoctorCli } = await import('./index');
+    await runDoctorCli({
+      io: io as any,
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue('/tmp/backup.yaml'),
+      writeConfig,
+      isServiceRunning: vi.fn().mockReturnValue(false),
+      readServiceInfo: vi.fn().mockReturnValue(null),
+      killProcess: vi.fn(),
+      probeServiceHealth: vi.fn().mockResolvedValue(false),
+      isTcpPortOccupied: vi.fn().mockResolvedValue(false),
+      waitForService: vi.fn().mockResolvedValue(true),
+      startDaemon: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Models: [
+          expect.objectContaining({
+            api: 'https://api.anthropic.com/v1/messages',
+            interface: 'anthropic',
+            protocol: 'anthropic',
+          }),
+        ],
+      })
+    );
+  });
 });

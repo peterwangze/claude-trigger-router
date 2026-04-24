@@ -12,7 +12,7 @@ import { normalizeAndValidateConfig, writeConfigFile, backupConfigFile } from '.
 import { migrateLegacyConfig } from '../setup/migrate';
 import { readLegacyConfig } from '../setup';
 import { IAppConfig, IModelEndpointConfig } from '../trigger/types';
-import { getModelApi, getModelInterface, getModelKey } from '../models/schema';
+import { getModelApi, getModelInterface, getModelKey, inferInterfaceFromApiEndpoint } from '../models/schema';
 import { buildModelRegistry, describeCompatibilityProfile, describeDispatchFormat } from '../models/compile';
 import { buildProviderDispatchRequest, describeProtocolDiagnostic, TProtocolDiagnosticCode } from '../protocols';
 import { isServiceRunning, killProcess, readServiceInfo } from '../utils/processCheck';
@@ -221,11 +221,7 @@ function getConfigCandidates(): string[] {
 }
 
 function inferInterfaceFromApi(api?: string): 'openai' | 'anthropic' | undefined {
-  const trimmed = api?.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  return trimmed.includes('/v1/messages') ? 'anthropic' : 'openai';
+  return inferInterfaceFromApiEndpoint(api);
 }
 
 function sanitizeModelId(value: string): string {

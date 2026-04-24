@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getModelApi, normalizeApiEndpoint, normalizeModelEndpointConfig } from './schema';
+import { getModelApi, inferInterfaceFromApiEndpoint, normalizeApiEndpoint, normalizeModelEndpointConfig } from './schema';
 
 describe('model schema endpoint normalization', () => {
   it('appends chat/completions for openai-compatible endpoints that stop at /v1', () => {
@@ -25,6 +25,18 @@ describe('model schema endpoint normalization', () => {
     expect(
       normalizeApiEndpoint('https://api.anthropic.com', 'anthropic')
     ).toBe('https://api.anthropic.com/v1/messages');
+  });
+
+  it('infers anthropic interface from a bare anthropic host endpoint', () => {
+    expect(
+      inferInterfaceFromApiEndpoint('https://api.anthropic.com')
+    ).toBe('anthropic');
+  });
+
+  it('preserves query strings while normalizing endpoint paths', () => {
+    expect(
+      normalizeApiEndpoint('https://example.com/openai/v1?key=test', 'openai')
+    ).toBe('https://example.com/openai/v1/chat/completions?key=test');
   });
 
   it('uses the normalized endpoint when reading a model config', () => {
