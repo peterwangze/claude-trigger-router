@@ -2010,6 +2010,62 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
+  it('setup migration normalizes bare legacy openai-compatible endpoints and the migrated runtime can use them directly', async () => {
+    const env = await createTestEnvironment('ctr-setup-migrate-bare-openai-endpoint-');
+    const upstream = await startFakeOpenAiUpstream();
+    const port = await getFreePort();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-code-router/config.json',
+        `{
+  "LOG": false,
+  "HOST": "127.0.0.1",
+  "PORT": ${port},
+  "Providers": [
+    {
+      "name": "legacy_local",
+      "api_base_url": "http://127.0.0.1:${upstream.port}/v1",
+      "api_key": "sk-legacy-local",
+      "models": ["gpt-4.1"]
+    }
+  ],
+  "Router": {
+    "default": "legacy_local,gpt-4.1"
+  }
+}`
+      );
+
+      const setupResult = await runCtr(cliPath, ['setup'], env, {
+        input: '1\n',
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+
+      const migratedConfig = await readText(join(env.homeDir, '.claude-trigger-router', 'config.yaml'));
+      expect(setupResult.code).toBe(0);
+      expect(migratedConfig).toContain(`api: http://127.0.0.1:${upstream.port}/v1/chat/completions`);
+      expect(migratedConfig).toContain('default: legacy_local_gpt_4_1');
+
+      const response = await postAnthropicMessage(port, 'legacy_local_gpt_4_1', '请验证迁移后的 bare endpoint runtime');
+      expect(response.ok).toBe(true);
+      expect(upstream.requests.length).toBeGreaterThan(0);
+      expect(upstream.requests[0]?.url).toBe('/v1/chat/completions');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('setup can overwrite a valid current config with a newly guided configuration', async () => {
     const env = await createTestEnvironment('ctr-setup-overwrite-valid-e2e-');
     const port = await getFreePort();
