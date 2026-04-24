@@ -45,12 +45,12 @@ describe('governance trace', () => {
   it('deduplicates route reasons when appending', () => {
     const trace = createGovernanceTrace({ requestId: 'req-2' });
 
-    appendTraceReason(trace, 'trigger_rule:architecture');
-    appendTraceReason(trace, 'trigger_rule:architecture');
+    appendTraceReason(trace, 'smart_rule:architecture');
+    appendTraceReason(trace, 'smart_rule:architecture');
     appendTraceReason(trace, 'smart_router');
 
     expect(trace.routeReason).toEqual([
-      'trigger_rule:architecture',
+      'smart_rule:architecture',
       'smart_router',
     ]);
   });
@@ -59,7 +59,7 @@ describe('governance trace', () => {
     const trace = createGovernanceTrace({
       requestId: 'req-3',
       startedAt: 100,
-      routeReason: ['trigger_rule:image_generation'],
+      routeReason: ['smart_rule:image_generation'],
     });
 
     const finalized = finalizeTrace(trace, {
@@ -70,7 +70,7 @@ describe('governance trace', () => {
     expect(finalized.finalModel).toBe('openrouter,dall-e-3');
     expect(finalized.completedAt).toBe(180);
     expect(finalized.latencyMs).toBe(80);
-    expect(finalized.routeReason).toEqual(['trigger_rule:image_generation']);
+    expect(finalized.routeReason).toEqual(['smart_rule:image_generation']);
   });
 
   it('persists traces to disk and reloads them on restart', () => {

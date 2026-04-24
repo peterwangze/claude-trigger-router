@@ -543,45 +543,6 @@ function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppC
       }))
     : [];
 
-  if (Array.isArray(routes) && routes.length > 0) {
-    const semanticExplicitlyEnabled = defaults?.semantic?.enabled;
-    nextConfig.TriggerRouter = {
-      ...(config.TriggerRouter ?? DEFAULT_TRIGGER_CONFIG),
-      enabled: true,
-      rules: normalizedRules,
-    };
-
-    const semanticPrototypes = Object.fromEntries(
-      routes
-        .filter((route) => route.match?.semantic || route.match?.semantic_profile?.prototype || route.description)
-        .map((route) => [
-          route.name,
-          route.match?.semantic_profile?.prototype ?? route.description ?? '',
-        ])
-        .filter(([, prototype]) => typeof prototype === 'string' && prototype.trim().length > 0)
-    );
-
-    if (Object.keys(semanticPrototypes).length > 0 || defaults?.semantic) {
-      nextConfig.Governance = {
-        ...(config.Governance ?? DEFAULT_GOVERNANCE_CONFIG),
-        enabled: config.Governance?.enabled ?? (
-          semanticExplicitlyEnabled !== undefined
-            ? semanticExplicitlyEnabled
-            : Object.keys(semanticPrototypes).length > 0
-        ),
-        semantic: {
-          ...((config.Governance?.semantic ?? {}) as NonNullable<IAppConfig['Governance']>['semantic']),
-          ...(defaults?.semantic ?? {}),
-          enabled: defaults?.semantic?.enabled ?? true,
-          prototypes: {
-            ...(config.Governance?.semantic?.prototypes ?? {}),
-            ...semanticPrototypes,
-          },
-        },
-      };
-    }
-  }
-
   const semanticPrototypes = Object.fromEntries(
     normalizedRules
       .filter((rule) => rule.semantic_profile?.enabled !== false && (rule.semantic_profile?.prototype || rule.description))
@@ -623,29 +584,6 @@ function normalizeUnifiedRouterInput(config: Partial<IAppConfig>): Partial<IAppC
     };
   }
 
-  if (defaults?.sticky || defaults?.semantic) {
-    nextConfig.Governance = {
-      ...(nextConfig.Governance ?? config.Governance ?? DEFAULT_GOVERNANCE_CONFIG),
-      enabled: config.Governance?.enabled ?? Boolean(
-        defaults?.sticky?.enabled ||
-        defaults?.semantic?.enabled ||
-        nextConfig.Governance?.semantic?.enabled
-      ),
-      sticky: defaults?.sticky
-        ? {
-            ...((config.Governance?.sticky ?? {}) as NonNullable<IAppConfig['Governance']>['sticky']),
-            ...defaults.sticky,
-          }
-        : config.Governance?.sticky,
-      semantic: defaults?.semantic
-        ? {
-            ...((nextConfig.Governance?.semantic ?? config.Governance?.semantic ?? {}) as NonNullable<IAppConfig['Governance']>['semantic']),
-            ...defaults.semantic,
-          }
-        : nextConfig.Governance?.semantic ?? config.Governance?.semantic,
-    };
-  }
-
   return nextConfig;
 }
 
@@ -662,7 +600,15 @@ export function deriveRuntimeSmartRouterConfig(
       .filter((rule) => rule.enabled !== false && rule.description)
       .map((rule) => [rule.name, rule.description as string])
   );
-  const hasExplicitSmartRouterConfig = source?.SmartRouter !== undefined;
+  const hasExplicitSmartRouterConfig = Boolean(
+    source?.SmartRouter !== undefined ||
+    baseSmartRouterConfig.enabled ||
+    baseSmartRouterConfig.router_model ||
+    baseSmartRouterConfig.rules?.length ||
+    baseSmartRouterConfig.candidates?.length ||
+    baseSmartRouterConfig.semantic ||
+    baseSmartRouterConfig.sticky
+  );
   const defaultSummarizerModel =
     baseSmartRouterConfig.router_model
     || config.Router?.default
@@ -780,7 +726,7 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
 
   normalizedConfig.SmartRouter = deepMerge(
     DEFAULT_SMART_ROUTER_CONFIG,
-    deriveRuntimeSmartRouterConfig(normalizedConfig, config)
+    deriveRuntimeSmartRouterConfig(normalizedConfig, normalizedInput)
   ) as IAppConfig['SmartRouter'];
 
   if (normalizedConfig.SmartRouter?.sticky) {

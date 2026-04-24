@@ -1,5 +1,5 @@
 /**
- * Trigger Router Module
+ * SmartRouter runtime module
  *
  * 触发路由模块入口
  */
@@ -21,8 +21,9 @@ import { IGovernanceConfig } from '../governance/types';
 import { deriveRuntimeSmartRouterConfig } from '../utils/config';
 
 /**
- * 触发路由器类
- * 封装完整的触发路由逻辑
+ * SmartRouter 运行时引擎。
+ *
+ * TriggerRouter 类名保留为兼容导出；运行时 contract 已以 SmartRouter 为统一入口。
  */
 export class TriggerRouter {
   private config: ITriggerConfig | null = null;
@@ -34,7 +35,7 @@ export class TriggerRouter {
   private apiTimeoutMs?: number;
 
   /**
-   * 初始化触发路由器
+   * 初始化 SmartRouter 运行时
    *
    * @param appConfig 应用配置
    */
@@ -61,7 +62,7 @@ export class TriggerRouter {
   }
 
   /**
-   * 检查触发路由是否启用
+   * 检查 SmartRouter 运行时是否启用
    */
   isEnabled(): boolean {
     return Boolean(this.smartRouterConfig?.enabled);
@@ -79,7 +80,7 @@ export class TriggerRouter {
   }
 
   /**
-   * 执行触发路由
+   * 执行 SmartRouter 统一路由
    * 分析请求并返回匹配的模型
    *
    * @param req 请求对象
@@ -118,8 +119,8 @@ export class TriggerRouter {
     );
 
     if (req.governanceTrace) {
-      if (result.routeSource === 'trigger_rule' && result.rule?.name) {
-        appendTraceReason(req.governanceTrace, `trigger_rule:${result.rule.name}`);
+      if (result.routeSource === 'smart_rule' && result.rule?.name) {
+        appendTraceReason(req.governanceTrace, `smart_rule:${result.rule.name}`);
       } else if (result.routeSource === 'semantic_match' && result.rule?.name) {
         appendTraceReason(req.governanceTrace, `semantic_match:${result.rule.name}`);
       } else if (result.routeSource === 'sticky_correction') {
@@ -130,7 +131,7 @@ export class TriggerRouter {
       } else if (result.routeSource === 'intent_fallback') {
         appendTraceReason(req.governanceTrace, 'intent_fallback');
       } else {
-        appendTraceReason(req.governanceTrace, 'trigger_router:no_match');
+        appendTraceReason(req.governanceTrace, 'smart_router:no_match');
       }
     }
 
@@ -138,8 +139,7 @@ export class TriggerRouter {
   }
 
   /**
-   * 同步版本的触发路由
-   * 仅使用关键词匹配
+   * 同步版本的 SmartRouter 统一路由
    *
    * @param req 请求对象
    * @returns 分析结果
@@ -171,7 +171,7 @@ export class TriggerRouter {
 
   /**
    * 创建 Fastify 中间件
-   * 用于在请求处理前执行触发路由
+   * 用于在请求处理前执行 SmartRouter 统一路由
    *
    * @param appConfig 应用配置
    * @returns Fastify 中间件函数
@@ -202,7 +202,7 @@ export class TriggerRouter {
           req.triggerResult = result;
 
           log(
-            `[TriggerRouter] ${
+            `[SmartRouter] ${
               result.routeSource === 'sticky_correction'
                 ? 'Sticky correction selected'
                 : result.routeSource === 'semantic_match'
@@ -219,7 +219,7 @@ export class TriggerRouter {
           );
         }
       } catch (error) {
-        logError('[TriggerRouter] Error in trigger routing:', error);
+        logError('[SmartRouter] Error in routing:', error);
       }
     };
   }

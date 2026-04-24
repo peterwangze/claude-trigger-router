@@ -718,7 +718,7 @@ describe('ModelSelector', () => {
       );
 
       expect(result.matched).toBe(true);
-      expect(result.routeSource).toBe('trigger_rule');
+      expect(result.routeSource).toBe('smart_rule');
       expect(result.model).toBe('openrouter,dall-e-3');
     });
 
@@ -748,7 +748,7 @@ describe('ModelSelector', () => {
 
       expect(result.matched).toBe(true);
       expect(result.model).toBe('provider,model-architecture');
-      expect(result.routeSource).toBe('trigger_rule');
+      expect(result.routeSource).toBe('smart_rule');
     });
 
     it('should skip LLM router selection when SmartRouter has no router_model and rely on semantic enhancement before default fallback', async () => {

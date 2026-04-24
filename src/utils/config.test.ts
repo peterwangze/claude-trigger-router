@@ -525,30 +525,7 @@ describe('normalizeAndValidateConfig governance', () => {
     } as any);
 
     expect(result.errors).toEqual([]);
-    expect(result.config.TriggerRouter).toEqual(expect.objectContaining({
-      enabled: true,
-      rules: [
-        expect.objectContaining({
-          name: 'architecture',
-          model: 'opus',
-          description: '重构 系统 结构 模块 拆分 架构 设计',
-          semantic_profile: expect.objectContaining({
-            enabled: true,
-            threshold: 0.2,
-          }),
-        }),
-        expect.objectContaining({
-          name: 'coding',
-          model: 'sonnet',
-          patterns: [
-            expect.objectContaining({
-              type: 'exact',
-              keywords: ['写代码', 'debug'],
-            }),
-          ],
-        }),
-      ],
-    }));
+    expect(result.config.TriggerRouter).toBeUndefined();
     expect(result.config.SmartRouter).toEqual(expect.objectContaining({
       enabled: true,
       router_model: 'sonnet',
@@ -586,12 +563,7 @@ describe('normalizeAndValidateConfig governance', () => {
         include_top_route_candidates: true,
       },
     }));
-    expect(result.config.Governance?.semantic?.prototypes).toEqual(expect.objectContaining({
-      architecture: '重构 系统 结构 模块 拆分 架构 设计',
-      coding: '通用编程与调试',
-    }));
-    expect(result.config.Governance?.enabled).toBe(true);
-    expect(result.config.Governance?.sticky?.alignment?.summarizer_model).toBe('sonnet');
+    expect(result.config.Governance).toBeUndefined();
     expect(result.config.Router.routes).toHaveLength(2);
   });
 

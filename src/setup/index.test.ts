@@ -296,10 +296,10 @@ describe('runSetupCli', () => {
     expect(enterClaudeCode).not.toHaveBeenCalled();
     expect(io.info).toHaveBeenCalledWith('你可以按需继续配置路由能力：');
     expect(io.info).toHaveBeenCalledWith(
-      '  - 显式规则：适合高确定性任务，把架构设计、代码审查等请求固定切到指定模型'
+      '  - SmartRouter.rules：适合高确定性任务，把架构设计、代码审查等请求固定切到指定模型'
     );
     expect(io.info).toHaveBeenCalledWith(
-      '  - 智能兜底：适合模糊任务，在候选模型之间自动选择更合适的模型'
+      '  - SmartRouter candidates：适合模糊任务，在候选模型之间自动选择更合适的模型'
     );
     expect(io.info).toHaveBeenCalledWith('  - 配置模板参考：config/trigger.advanced.yaml');
     expect(io.info).toHaveBeenCalledWith('为避免 setup 结束后接管当前终端，请手动运行：ctr code');

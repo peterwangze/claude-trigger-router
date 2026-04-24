@@ -179,11 +179,11 @@ async function run(options: RunOptions = {}) {
     });
   });
 
-  // 初始化触发路由器
+  // 初始化 SmartRouter 统一路由引擎
   triggerRouter.init(config);
-  log(`[TriggerRouter] Initialized, enabled: ${triggerRouter.isEnabled()}`);
+  log(`[SmartRouter] Initialized, enabled: ${triggerRouter.isEnabled()}`);
 
-  // 触发路由中间件（在原有路由之前）
+  // SmartRouter 统一路由中间件（在原有路由之前）
   server.addHook("preHandler", async (req: any, reply: any) => {
     if (req.url.startsWith("/v1/messages")) {
       if (req.body.metadata?.user_id) {
@@ -251,7 +251,7 @@ async function run(options: RunOptions = {}) {
         req.governanceTrace.finalModel = triggerResult.model;
 
         log(
-          `[TriggerRouter] Matched rule "${triggerResult.rule?.name}" -> "${triggerResult.model}"`
+          `[SmartRouter] Selected "${triggerResult.rule?.name ?? triggerResult.routeSource ?? 'route'}" -> "${triggerResult.model}"`
         );
       }
 

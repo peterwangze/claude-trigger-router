@@ -77,7 +77,7 @@
 
 ### 路由功能
 
-- TriggerRouter 命中后切到目标模型
+- SmartRouter.rules 命中后切到目标模型
 - SmartRouter 在候选模型间做选择
 
 ### 发布前 staged 包路径

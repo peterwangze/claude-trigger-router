@@ -55,11 +55,10 @@ Router:
   longContextThreshold: 60000
   webSearch: "sonnet"
 
-# 3) TriggerRouter：高确定性任务优先走规则路由
-TriggerRouter:
+# 3) SmartRouter：统一路由入口。先走高确定性规则，再用候选模型智能兜底
+SmartRouter:
   enabled: true
   analysis_scope: "last_message"
-  llm_intent_recognition: false
   rules:
     - name: "architecture"
       priority: 90
@@ -121,9 +120,6 @@ TriggerRouter:
             - "simple"
       model: "ollama_qwen"
 
-# 4) SmartRouter：规则没命中时，从候选模型中自动挑选
-SmartRouter:
-  enabled: true
   router_model: "sonnet"
   candidates:
     - model: "sonnet"
@@ -139,10 +135,6 @@ SmartRouter:
   max_tokens: 256
   fallback: "default"
 
-# 5) Governance：治理模块也直接引用 model id
-Governance:
-  enabled: true
-
   sticky:
     enabled: true
     session_ttl_ms: 3600000
@@ -152,6 +144,19 @@ Governance:
       enabled: true
       summarizer_model: "sonnet"
       max_summary_tokens: 256
+
+  semantic:
+    enabled: true
+    mode: "embedding"
+    threshold: 0.2
+    prototypes:
+      architecture: "重构 系统 结构 模块 拆分 架构 设计"
+      code_review: "代码 审查 风险 评审 review"
+      complex_reasoning: "复杂 推理 分析 严谨 逻辑 reasoning"
+
+# 4) Governance：保留响应治理、级联与观测能力；semantic / sticky 已归入 SmartRouter
+Governance:
+  enabled: true
 
   cascade:
     enabled: true
@@ -167,15 +172,6 @@ Governance:
       - from: "sonnet"
         to: "opus"
         reasoning: "high"
-
-  semantic:
-    enabled: true
-    mode: "embedding"
-    threshold: 0.2
-    prototypes:
-      architecture: "重构 系统 结构 模块 拆分 架构 设计"
-      code_review: "代码 审查 风险 评审 review"
-      complex_reasoning: "复杂 推理 分析 严谨 逻辑 reasoning"
 
   shadow:
     enabled: true
@@ -199,7 +195,7 @@ Governance:
       spike_warn_rate: 0.5
       spike_delta_rate: 0.3
 
-# 6) Legacy 兼容：旧 `Providers` 仅作为兼容层保留，不建议新配置继续扩展
+# 5) Legacy 兼容：旧 `Providers` 仅作为兼容层保留，不建议新配置继续扩展
 # Providers:
 #   - name: openrouter
 #     api_base_url: "https://openrouter.ai/api/v1/chat/completions"

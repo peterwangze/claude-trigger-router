@@ -994,7 +994,7 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
-  it('TriggerRouter routes matched requests to the configured target model in packaged CLI mode', async () => {
+  it('SmartRouter rules route matched requests to the configured target model in packaged CLI mode', async () => {
     const env = await createTestEnvironment('ctr-trigger-router-e2e-');
     const port = await getFreePort();
     const upstream = await startFakeOpenAiUpstream();
@@ -1020,7 +1020,7 @@ describe('packaged CLI E2E', () => {
           '    model: "anthropic/claude-opus-4"',
           'Router:',
           '  default: "default_model"',
-          'TriggerRouter:',
+          'SmartRouter:',
           '  enabled: true',
           '  analysis_scope: "last_message"',
           '  rules:',
@@ -1081,13 +1081,10 @@ describe('packaged CLI E2E', () => {
           '    thinking: "high"',
           'Router:',
           '  default: "default_model"',
-          'TriggerRouter:',
-          '  enabled: true',
-          '  analysis_scope: "last_message"',
-          '  llm_intent_recognition: false',
-          '  rules: []',
           'SmartRouter:',
           '  enabled: true',
+          '  analysis_scope: "last_message"',
+          '  rules: []',
           '  router_model: "default_model"',
           '  candidates:',
           '    - model: "default_model"',
@@ -1621,7 +1618,6 @@ describe('packaged CLI E2E', () => {
       expect(configText).toContain('key: sk-first-use');
       expect(configText).toContain('default: sonnet');
       expect(result.stdout).toContain('你可以按需继续配置路由能力：');
-      expect(result.stdout).toContain('TriggerRouter');
       expect(result.stdout).toContain('SmartRouter');
       expect(result.stdout).toContain('config/trigger.advanced.yaml');
       assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());

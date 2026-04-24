@@ -296,7 +296,7 @@ export class ModelSelector {
         confidence: 1.0, // 关键词匹配置信度为 1
         analysisTime: Date.now() - startTime,
         analyzedText: text,
-        routeSource: 'trigger_rule',
+        routeSource: 'smart_rule',
       };
     }
 
@@ -490,7 +490,7 @@ export class ModelSelector {
         confidence: 1.0,
         analysisTime: Date.now() - startTime,
         analyzedText: text,
-        routeSource: 'trigger_rule',
+        routeSource: 'smart_rule',
       };
     }
 

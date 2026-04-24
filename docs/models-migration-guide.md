@@ -141,7 +141,7 @@ Router:
 规则路由：
 
 ```yaml
-TriggerRouter:
+SmartRouter:
   rules:
     - name: architecture
       model: "provider_a,model-opus"
@@ -150,7 +150,7 @@ TriggerRouter:
 改成：
 
 ```yaml
-TriggerRouter:
+SmartRouter:
   rules:
     - name: architecture
       model: "opus"
@@ -224,7 +224,7 @@ ctr setup
 
 1. 先把 `Providers` 展开成 `Models`
 2. 再改 `Router.*`
-3. 再改 `TriggerRouter.rules[].model`
+3. 再改 `SmartRouter.rules[].model`
 4. 再改 `SmartRouter.router_model / candidates[].model`
 5. 最后再改 `Governance` 里的模型引用
 

@@ -204,57 +204,31 @@
 6. 对应 runtime / config / integration / E2E 测试已更新并通过
 7. 在此基础上，对外口径、模板和 UI 再完成统一收口
 
-## 7. 当前状态（2026-04-21）
+## 7. 当前状态（2026-04-24）
 
-当前已完成：
+当前状态：`closed`
 
-- 在统一进展基线中单独列出该主线
-- 已识别此前把“对外口径收口”放在“核心逻辑演进”之前的顺序偏差
-- 已将这条主线重新校准为：先完成 SmartRouter 统一路由引擎化，再继续收口对外口径
-- SmartRouter runtime contract 第一轮已开始落地：
-  - `router_model` 改为可选
-  - SmartRouter 已可直接承载内收规则、语义增强与 sticky 默认增强配置
-  - selector / trigger 入口已开始优先消费 SmartRouter 的新 contract，而不再只看旧 Trigger/Governance 分支
-- 主请求链与响应链已开始接入 SmartRouter 默认增强：
-  - 上下文摘要注入优先从 SmartRouter sticky alignment 读取
-  - sticky 会话持久化不再强依赖 Governance 总开关
-  - smart routing 的 trace reason 已开始去掉旧的 `smart_decision` 过渡命名
-- legacy intent 识别已开始内收到 SmartRouter 语义增强：
-  - 旧的 `llm_intent_recognition + intent_model` 会在 runtime 中被编译进 SmartRouter semantic classifier
-  - 启用 SmartRouter 时，不再默认并行跑独立的 `intent_fallback` 主链
-- SmartRouter 默认增强已开始默认打开：
-  - `semantic`
-  - `sticky`
-  - `sticky.alignment`
-  在 SmartRouter 启用时默认生效，但仍可显式关闭
-- `routeSync` 已开始对齐统一路由主链，不再只是旧 Trigger-only 规则匹配
-- Trigger runtime 的启停语义已开始挂到派生后的 SmartRouter contract 上，不再继续双看 Trigger/Smart 两套开关
-- server 侧引用分析、草稿回填与表单 payload 组装已开始按 SmartRouter 派生 contract 工作：
-  - 引用影响分析优先显示 SmartRouter 运行时引用
-  - 草稿表单回填优先从 SmartRouter 派生配置读取
-  - 表单保存会优先产出 SmartRouter-centered 路由配置，而不是继续以 Trigger/Governance 并列为主
-- 服务端读取与预览配置也已开始 SmartRouter-centered：
-  - `GET /api/config` 返回 SmartRouter-centered 草稿视图
-  - `POST /api/models/compiled/preview` 的 `normalizedConfig` 也返回同样的草稿语义
+当前闭环结论：
 
-当前未完成：
+- SmartRouter 已成为统一路由运行时入口；`TriggerRouter` 类名仅作为兼容导出和文件边界保留。
+- 关键词 / 正则规则已作为 SmartRouter 的 `rules` 前置能力执行，routeSource 与 trace reason 已从 `trigger_rule` 切换为 `smart_rule`。
+- `router_model` 已是可选增强器：未配置时执行规则与语义增强后回落默认路由，配置时再进入 LLM 候选选择。
+- legacy `llm_intent_recognition + intent_model` 已折入 SmartRouter semantic classifier；启用 SmartRouter 时不再并行跑独立 `intent_fallback` 主链。
+- `semantic`、`sticky`、`sticky.alignment` 已作为 SmartRouter 默认增强层启用，并保留显式关闭开关。
+- `Router.routes` / `Router.defaults` 归一后直接进入 SmartRouter runtime contract，不再额外派生并列的 `TriggerRouter` 或 Governance semantic / sticky 分支。
+- 主请求链、响应链、同步路由、server 草稿视图、引用影响分析与保存 payload 已围绕 SmartRouter 派生 contract 工作。
 
-- Trigger 仍未完全内收到 SmartRouter 运行时主链，当前仍保留兼容分支
-- 治理默认能力尚未完全转化为 SmartRouter 默认增强层，当前仍处于“主请求链 / 响应链 / server 草稿链路部分桥接，其他治理分支仍保留旧入口”的阶段
-- routeSource / trace reason / diagnostics 仍未完全统一为 SmartRouter 统一路由引擎语义
-- README / setup / example config / `/ui` 的继续收口应后置，不再作为当前第一阶段目标
+本次阶段闭环验证：
 
-## 8. 推荐执行顺序
+- `npm test -- --run src/trigger/selector.test.ts src/trigger/trigger-router.test.ts src/utils/config.test.ts src/governance/trace.test.ts`
+- `npm run build`
 
-建议按下面顺序推进，而不是继续先改口径：
+后续不再把“Trigger 收编到 SmartRouter”作为独立未闭环 P1 主线推进。README、setup、example config 与 `/ui` 的对外叙事和模板继续由“配置产品化最终收口”和“CLI / setup UX 重设计”承接。
 
-1. 先做 SmartRouter runtime contract
-2. 再做 Trigger 前置能力内收
-3. 再做治理默认能力内收
-4. 最后再做 README / setup / example config / `/ui` 收口
+## 8. 后续承接
 
-这样可以保证：
+后续应避免重新引入三套并列入口心智：
 
-- 逻辑先成立
-- 口径再统一
-- 避免再次出现“文案先行、行为滞后”的问题
+1. 运行时以 SmartRouter 为统一路由入口。
+2. Trigger 只作为 SmartRouter 前置规则能力或 legacy 配置兼容名存在。
+3. Governance 中的 semantic / sticky / alignment 默认路由增强能力优先投射到 SmartRouter；cascade、shadow、observability 继续作为治理/观测能力承接。

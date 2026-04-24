@@ -192,7 +192,7 @@ describe('TriggerRouter', () => {
       const result = await router.route(req as any);
 
       expect(result.matched).toBe(true);
-      expect(req.governanceTrace.routeReason).toContain('trigger_rule:image_generation');
+      expect(req.governanceTrace.routeReason).toContain('smart_rule:image_generation');
     });
 
     it('should keep route source for sticky results', async () => {
@@ -291,7 +291,7 @@ describe('TriggerRouter', () => {
 
       expect(result.matched).toBe(true);
       expect(result.model).toBe('openrouter,claude-opus-4');
-      expect(result.routeSource).toBe('trigger_rule');
+      expect(result.routeSource).toBe('smart_rule');
     });
 
     it('should fold legacy intent recognition into SmartRouter semantic routing instead of using intent_fallback', async () => {
@@ -443,7 +443,7 @@ describe('TriggerRouter', () => {
       const result = router.routeSync(req);
       expect(result.matched).toBe(true);
       expect(result.model).toBe('openrouter,dall-e-3');
-      expect(result.routeSource).toBe('trigger_rule');
+      expect(result.routeSource).toBe('smart_rule');
     });
 
     it('should return not matched before init', () => {
@@ -480,7 +480,7 @@ describe('TriggerRouter', () => {
 
       expect(result.matched).toBe(true);
       expect(result.model).toBe('openrouter,claude-opus-4');
-      expect(result.routeSource).toBe('trigger_rule');
+      expect(result.routeSource).toBe('smart_rule');
     });
 
     it('should apply SmartRouter semantic enhancement synchronously when rules provide descriptions', () => {

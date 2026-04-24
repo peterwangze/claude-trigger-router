@@ -119,7 +119,7 @@ Router:
 规则路由：
 
 ```yaml
-TriggerRouter:
+SmartRouter:
   enabled: true
   analysis_scope: "last_message"
   rules:
@@ -132,7 +132,7 @@ TriggerRouter:
       model: "opus"
 ```
 
-智能路由：
+智能兜底：
 
 ```yaml
 SmartRouter:
@@ -150,12 +150,6 @@ SmartRouter:
 ```yaml
 Governance:
   enabled: true
-  sticky:
-    enabled: true
-    alignment:
-      enabled: true
-      summarizer_model: "sonnet"
-
   cascade:
     enabled: true
     levels:
@@ -231,9 +225,9 @@ Models:
 
 1. 先保证 `Models + Router.default` 可用
 2. 再增加 `Router.think / longContext / background`
-3. 再加 `TriggerRouter`
-4. 再加 `SmartRouter`
-5. 最后再加 `Governance`
+3. 再加 `SmartRouter.rules`
+4. 再加 `SmartRouter.router_model / candidates`
+5. 最后再加 `Governance` 的 cascade / shadow / observability
 
 这样排查问题最简单，也最符合当前文档和测试覆盖的主路径。
 

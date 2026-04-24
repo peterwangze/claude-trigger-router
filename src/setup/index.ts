@@ -664,8 +664,8 @@ function createDefaultDeps(io = createConsoleIO()): IRunSetupCliDeps {
 
 function printRoutingNextSteps(io: ISetupIO): void {
   io.info('你可以按需继续配置路由能力：');
-  io.info('  - 显式规则：适合高确定性任务，把架构设计、代码审查等请求固定切到指定模型');
-  io.info('  - 智能兜底：适合模糊任务，在候选模型之间自动选择更合适的模型');
+  io.info('  - SmartRouter.rules：适合高确定性任务，把架构设计、代码审查等请求固定切到指定模型');
+  io.info('  - SmartRouter candidates：适合模糊任务，在候选模型之间自动选择更合适的模型');
   io.info('  - 配置模板参考：config/trigger.advanced.yaml');
 }
 

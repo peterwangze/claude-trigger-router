@@ -91,7 +91,7 @@ Router:
 
 这类任务通常可以通过关键词或规则稳定识别，然后直接路由到你指定的模型。
 
-当前实现里，这一层能力仍由 `TriggerRouter` 模块承载；但对使用者来说，更重要的是理解：
+当前这层能力由 `SmartRouter.rules` 承载：
 
 - 默认请求先走 `Router.default`
 - 命中显式规则的请求，优先切到规则指定模型
@@ -115,7 +115,7 @@ Models:
 Router:
   default: "sonnet"
 
-TriggerRouter:
+SmartRouter:
   enabled: true
   analysis_scope: "last_message"
   rules:
@@ -139,8 +139,6 @@ TriggerRouter:
 - 常规回答 vs 长上下文分析
 
 你提供一个路由模型和一组候选模型，路由器会在规则未命中时，从候选模型里自动挑一个更合适的目标。
-
-当前实现里，这一层能力仍由 `SmartRouter` 模块承载；但对使用者来说，可以先把它理解成：
 
 - 规则负责稳定命中
 - 智能兜底负责补上规则没覆盖到的模糊任务
