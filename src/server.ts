@@ -869,7 +869,7 @@ export const createServer = (config: any): Server => {
       `<div><label>Analysis scope</label><select id="triggerAnalysisScope"><option value="last_message">last_message</option><option value="full_context">full_context</option></select></div>` +
       `<div><label>Intent model</label><input id="triggerIntentModel" list="topLevelTriggerIntentSuggestions" placeholder="modelId"><datalist id="topLevelTriggerIntentSuggestions"></datalist></div>` +
       `</div>` +
-      `<div style="margin-top:.75rem"><div class="action-row"><label>Rules</label><button id="addTriggerRuleBtn" type="button">新增 Rule</button></div><div id="triggerRulesList" class="list-editor"><div class="panel" style="margin-bottom:0"><span class="muted">No trigger rules yet</span></div></div></div>` +
+      `<div style="margin-top:.75rem"><div class="action-row"><label>Rules</label><button id="addTriggerRuleBtn" type="button">新增 Rule</button></div><div id="triggerRulesList" class="list-editor"><div class="panel" style="margin-bottom:0"><span class="muted">No routing rules yet</span></div></div></div>` +
       `</div>` +
       `<div class="panel" style="margin-bottom:0">` +
       `<div class="row"><strong>SmartRouter</strong><span class="muted">智能候选选择</span></div>` +
@@ -1389,7 +1389,7 @@ export const createServer = (config: any): Server => {
       `}` +
       `function renderTriggerRulesList(rules){` +
       `  const list=Array.isArray(rules) ? rules : [];` +
-      `  if(!list.length){ triggerRulesList.innerHTML='<div class="panel" style="margin-bottom:0"><span class="muted">No trigger rules yet</span></div>'; return; }` +
+      `  if(!list.length){ triggerRulesList.innerHTML='<div class="panel" style="margin-bottom:0"><span class="muted">No routing rules yet</span></div>'; return; }` +
       `  triggerRulesList.innerHTML=list.map((rule,index)=>'<div class="list-item" data-trigger-rule=\"'+index+'\">' +` +
       `    '<div class="action-row"><strong>Rule #'+(index+1)+'</strong><button type="button" data-remove-trigger-rule=\"'+index+'\">删除</button></div>' +` +
       `    '<div class="list-item-grid">' +` +
