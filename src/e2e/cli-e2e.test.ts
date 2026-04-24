@@ -618,6 +618,53 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
+  it('doctor can probe a local openai-compatible model when the config only provides a bare /v1 base url', async () => {
+    const env = await createTestEnvironment('ctr-doctor-probe-bare-openai-endpoint-');
+    const upstream = await startFakeOpenAiUpstream();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          'PORT: 5678',
+          'LOG: true',
+          'LOG_LEVEL: "debug"',
+          'Models:',
+          '  - id: local_model',
+          `    api: "http://127.0.0.1:${upstream.port}/v1"`,
+          '    key: "sk-local"',
+          '    interface: "openai"',
+          '    model: "gpt-4.1"',
+          'Router:',
+          '  default: "local_model"',
+        ].join('\n')
+      );
+
+      const result = await runCtr(cliPath, ['doctor', '--check-models'], env, {
+        timeoutMs: 60000,
+        input: 'y\n',
+        extraEnv: {
+          CTR_DOCTOR_FORCE_SCRIPTED_INPUT: '1',
+        },
+      });
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('模型探测成功：local_model');
+      expect(upstream.requests.length).toBeGreaterThan(0);
+      expect(upstream.requests[0]?.url).toBe('/v1/chat/completions');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('doctor reports probe failures with user-readable guidance instead of internal compatibility terms', async () => {
     const env = await createTestEnvironment('ctr-doctor-probe-failure-e2e-');
     const failingServer = createServer(async (_req: IncomingMessage, res: ServerResponse) => {
@@ -1340,6 +1387,50 @@ describe('packaged CLI E2E', () => {
       await removePath(env.rootDir);
     }
   });
+
+  it('runtime requests normalize bare openai-compatible endpoints before dispatching upstream', async () => {
+    const env = await createTestEnvironment('ctr-bare-openai-runtime-e2e-');
+    const upstream = await startFakeOpenAiUpstream();
+    const port = await getFreePort();
+
+    try {
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${port}`,
+          'LOG: false',
+          'Models:',
+          '  - id: local_model',
+          `    api: "http://127.0.0.1:${upstream.port}/v1"`,
+          '    key: "sk-local"',
+          '    interface: "openai"',
+          '    model: "gpt-4.1"',
+          'Router:',
+          '  default: "local_model"',
+        ].join('\n')
+      );
+
+      const startResult = await runCtr(cliPath, ['start', '--daemon', '--port', String(port)], env, {
+        timeoutMs: 20000,
+      });
+      expect(startResult.code).toBe(0);
+
+      const response = await postAnthropicMessage(port, 'local_model', '请回复 bare endpoint runtime test');
+      expect(response.ok).toBe(true);
+      expect(upstream.requests.length).toBeGreaterThan(0);
+      expect(upstream.requests[0]?.url).toBe('/v1/chat/completions');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await upstream.close();
+      await removePath(env.rootDir);
+    }
+  }, 300000);
 
   it('code reuses the running service and invokes Claude with the routed base URL', async () => {
     const env = await createTestEnvironment('ctr-code-service-e2e-');

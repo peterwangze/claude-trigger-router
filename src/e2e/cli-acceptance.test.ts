@@ -164,6 +164,80 @@ describe('isolated packaged CLI acceptance', () => {
     }
   }, 300000);
 
+  it('fresh setup can start a usable service and ctr code works in a brand-new packaged user environment', async () => {
+    const env = await createTestEnvironment('ctr-acceptance-fresh-shell-');
+    const markerPath = join(env.homeDir, 'claude-invoked.txt');
+
+    try {
+      await createFakeClaude(env.binDir, markerPath);
+
+      const before = await snapshotTree(env.homeDir);
+      const setupResult = await runCtrThroughUserShell(cliPath, ['setup'], env, {
+        input: [
+          'sonnet',
+          '使用常见接入模板',
+          'openrouter',
+          'openrouter',
+          'https://openrouter.ai/api/v1/chat/completions',
+          'sk-fresh-acceptance',
+          'anthropic/claude-sonnet-4',
+          '先不添加',
+          '保持默认',
+        ].join('\n'),
+        timeoutMs: 240000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+        },
+      });
+      const afterSetup = await snapshotTree(env.homeDir);
+
+      expect(setupResult.code).toBe(0);
+      expectNoTerminalCorruption(`${setupResult.stdout}\n${setupResult.stderr}`);
+      expect(setupResult.stdout).toContain('我们先创建一份最小可用配置。');
+      expect(setupResult.stdout).toContain('为避免 setup 结束后接管当前终端，请手动运行：ctr code');
+      const configPathCandidates = [
+        join(env.homeDir, '.claude-trigger-router', 'config.yaml'),
+        join(env.homeDir, '.claude-trigger-router', 'config.yml'),
+        join(env.homeDir, '.claude-trigger-router', 'config.json'),
+      ];
+      const configPath = configPathCandidates.find((item) => existsSync(item));
+      expect(configPath).toBeTruthy();
+      const configText = await readText(configPath!);
+      expect(configText).toContain('id: sonnet');
+      expect(configText).toContain('default: sonnet');
+      expect(existsSync(markerPath)).toBe(false);
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, afterSetup), getAcceptanceMutationWhitelist());
+
+      const statusResult = await runCtrThroughUserShell(cliPath, ['status'], env, {
+        timeoutMs: 30000,
+      });
+      expect(statusResult.code).toBe(0);
+      expect(statusResult.stdout).toContain('服务运行中');
+
+      const codeResult = await runCtrThroughUserShell(cliPath, ['code'], env, {
+        timeoutMs: 30000,
+      });
+      expect(codeResult.code).toBe(0);
+      expectNoTerminalCorruption(`${codeResult.stdout}\n${codeResult.stderr}`);
+      expect(codeResult.stdout).toContain('Starting Claude Code with Trigger Router');
+      expect(existsSync(markerPath)).toBe(true);
+
+      const markerText = await readText(markerPath);
+      expect(markerText).toContain('invoked');
+      expect(markerText).toContain('ANTHROPIC_API_KEY=ctr-local-proxy');
+
+      const afterCode = await snapshotTree(env.homeDir);
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, afterCode), getAcceptanceMutationWhitelist());
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('setup can abandon current config and still migrate claude-code-router config through the packaged user shell wrapper', async () => {
     const env = await createTestEnvironment('ctr-acceptance-migrate-shell-');
     const port = await getFreePort();
