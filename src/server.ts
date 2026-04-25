@@ -737,8 +737,15 @@ export const createServer = (config: any): Server => {
     }, 500);
   });
 
-  // Web UI 入口（简易 governance trace 调试页）
+  // Web UI 入口（配置状态与治理观测工作台）
   server.app.get("/ui", async (_: any, reply: any) => {
+    const initialConfig = config.initialConfig ?? {};
+    const modelsCount = Array.isArray(initialConfig.Models)
+      ? initialConfig.Models.length
+      : 0;
+    const routerDefault = initialConfig.Router?.default ?? '-';
+    const displayPort = initialConfig.PORT ?? '-';
+
     reply.header("Content-Type", "text/html; charset=utf-8");
     return reply.send(
       `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Claude Trigger Router</title>` +
@@ -746,6 +753,13 @@ export const createServer = (config: any): Server => {
       `body{font-family:ui-sans-serif,system-ui,sans-serif;padding:2rem;max-width:1100px;margin:0 auto;background:#f7f7f5;color:#1f2328}` +
       `.panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem}` +
       `.muted{color:#6b7280}` +
+      `.hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);gap:1rem;align-items:stretch;margin-bottom:1rem}` +
+      `.hero h2{margin:.2rem 0 .5rem;font-size:1.55rem}` +
+      `.hero-copy{display:flex;flex-direction:column;justify-content:center}` +
+      `.status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}` +
+      `.status-tile{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:.75rem;min-width:0}` +
+      `.status-tile strong{display:block;margin-top:.2rem;word-break:break-word}` +
+      `@media (max-width:760px){.hero{grid-template-columns:1fr}.status-grid{grid-template-columns:1fr}}` +
       `.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
       `.stat{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:.85rem}` +
       `.stat strong{display:block;font-size:1.1rem;margin-top:.25rem}` +
@@ -789,9 +803,27 @@ export const createServer = (config: any): Server => {
       `.pill{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:.8rem}` +
       `</style></head>` +
       `<body>` +
-      `<h2>Claude Trigger Router</h2>` +
-      `<p class="muted">简易 Governance Trace 调试页。可查看最近治理链路，按 requestId / sessionKey / routeReason 过滤，并按 cascade / shadow 状态筛选；治理 trace 现已支持本地持久化，重启后可继续查看近期窗口。</p>` +
+      `<div class="hero">` +
+      `<div class="panel hero-copy">` +
+      `<h2>配置与状态工作台</h2>` +
+      `<p class="muted">查看当前路由服务、模型配置和默认去向；需要排查时，下方维护者区域可继续查看 Governance Trace、metrics 和归档。</p>` +
+      `<div class="action-row">` +
+      `<button id="loadConfigDraftHeroBtn" type="button">载入当前配置</button>` +
+      `<button id="previewConfigDraftHeroBtn" type="button">预览 compiled models</button>` +
+      `<button id="refreshStatusHeroBtn" type="button">刷新状态</button>` +
+      `</div>` +
+      `</div>` +
       `<div class="panel">` +
+      `<div class="status-grid">` +
+      `<div class="status-tile"><span class="muted">Service</span><strong id="serviceReadyStatus">ready</strong></div>` +
+      `<div class="status-tile"><span class="muted">Port</span><strong id="servicePortStatus">${displayPort}</strong></div>` +
+      `<div class="status-tile"><span class="muted">Models</span><strong id="modelCountStatus">${modelsCount}</strong></div>` +
+      `<div class="status-tile"><span class="muted">Router.default</span><strong id="routerDefaultStatus">${routerDefault}</strong></div>` +
+      `</div>` +
+      `</div>` +
+      `</div>` +
+      `<div class="panel">` +
+      `<div class="row"><strong>维护者观测</strong><span class="muted">按 requestId / sessionKey / routeReason 过滤 Governance Trace，并查看近期治理指标。</span></div>` +
       `<div class="row">` +
       `<input id="requestId" placeholder="requestId">` +
       `<input id="sessionKey" placeholder="sessionKey">` +
@@ -1076,6 +1108,10 @@ export const createServer = (config: any): Server => {
       `const modelsFormGrid=document.getElementById('modelsFormGrid');` +
       `const draftRouterDefault=document.getElementById('draftRouterDefault');` +
       `const draftModelsCount=document.getElementById('draftModelsCount');` +
+      `const serviceReadyStatus=document.getElementById('serviceReadyStatus');` +
+      `const servicePortStatus=document.getElementById('servicePortStatus');` +
+      `const modelCountStatus=document.getElementById('modelCountStatus');` +
+      `const routerDefaultStatus=document.getElementById('routerDefaultStatus');` +
       `const triggerEnabled=document.getElementById('triggerEnabled');` +
       `const triggerIntentEnabled=document.getElementById('triggerIntentEnabled');` +
       `const triggerAnalysisScope=document.getElementById('triggerAnalysisScope');` +
@@ -1221,6 +1257,11 @@ export const createServer = (config: any): Server => {
       "    ['Cascade levels', cascadeLevels.length]," +
       "    ['Model refs', modelRefCount]" +
       `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
+      `}` +
+      `function updateStatusSummary(config){` +
+      `  const models=Array.isArray(config?.Models) ? config.Models : [];` +
+      `  modelCountStatus.textContent=String(models.length);` +
+      `  routerDefaultStatus.textContent=config?.Router?.default || '-';` +
       `}` +
       `function renderDraftValidation(errors,warnings){` +
       `  const errorList=Array.isArray(errors) ? errors.filter(Boolean) : [];` +
@@ -1654,6 +1695,7 @@ export const createServer = (config: any): Server => {
       `  draftRouterDefault.value=currentDraftConfig.Router?.default || '';` +
       `  configDraftEditor.value=JSON.stringify(data,null,2);` +
       `  renderDraftSummary(currentDraftConfig);` +
+      `  updateStatusSummary(currentDraftConfig);` +
       `  renderDraftValidation([],[]);` +
       `  renderCapabilityWarnings();` +
       `  renderDraftPreviewMeta();` +
@@ -1691,6 +1733,17 @@ export const createServer = (config: any): Server => {
       `  renderCompiledModels(data);` +
       `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='预览完成：已按草稿配置刷新 compiled models';` +
+      `}` +
+      `async function loadServiceStatus(){` +
+      `  serviceReadyStatus.textContent='checking';` +
+      `  try {` +
+      `    const res=await fetch('/api/health');` +
+      `    const data=await res.json();` +
+      `    serviceReadyStatus.textContent=data.ready ? 'ready' : 'not ready';` +
+      `    servicePortStatus.textContent=data.port || '-';` +
+      `  } catch (_error) {` +
+      `    serviceReadyStatus.textContent='unreachable';` +
+      `  }` +
       `}` +
       `async function saveConfigDraft(){` +
       `  let payload;` +
@@ -1952,6 +2005,9 @@ export const createServer = (config: any): Server => {
       `  saveThresholdsStatus.textContent='已保存到配置文件';` +
       `}` +
       `document.getElementById('refreshBtn').addEventListener('click',loadTraces);` +
+      `document.getElementById('loadConfigDraftHeroBtn').addEventListener('click',loadConfigDraft);` +
+      `document.getElementById('previewConfigDraftHeroBtn').addEventListener('click',previewConfigDraft);` +
+      `document.getElementById('refreshStatusHeroBtn').addEventListener('click',loadServiceStatus);` +
       `document.getElementById('loadConfigDraftBtn').addEventListener('click',loadConfigDraft);` +
       `document.getElementById('addModelDraftBtn').addEventListener('click',addDraftModel);` +
       `document.getElementById('applyBalancedPresetBtn').addEventListener('click',()=>applyDraftPreset('balanced'));` +
@@ -1974,6 +2030,7 @@ export const createServer = (config: any): Server => {
       `renderDraftPresetGuide();` +
       `renderDraftPresetModeHint();` +
       `renderDraftPreviewMeta();` +
+      `loadServiceStatus();` +
       `loadConfigDraft();` +
       `loadCompiledModels();` +
       `loadExports();` +

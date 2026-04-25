@@ -800,7 +800,7 @@ git commit -m "feat: unify router decision flow and config experience"
 截至 2026-04-18，本实施计划中“统一 Router 运行时收敛”对应的首轮 P0 目标已完成：
 
 - runtime decision chain 已调整为：
-  - `rule -> semantic_match -> smart_router fallback -> sticky_correction -> legacy intent fallback`
+  - 当前统一 SmartRouter 运行时主链路已校准为 `smart_rule -> semantic_match -> smart_router -> sticky_correction`；历史 legacy intent fallback 仅保留为 SmartRouter 关闭时的兼容代码路径，不再作为统一运行时闭环描述。
 - `routeSource` 与 trigger trace reason 已统一为新的运行时标签：
   - `trigger_rule`
   - `semantic_match`

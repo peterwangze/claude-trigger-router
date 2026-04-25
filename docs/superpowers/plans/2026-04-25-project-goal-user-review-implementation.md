@@ -48,7 +48,7 @@
 
 ### 当前摩擦
 
-- `ctr ui` 文案仍以“简易 Governance Trace 调试页”为第一印象，但页面已经承载配置草稿、compiled models、capability warning、治理指标等多种职责；这会让普通使用者误以为 UI 只是维护者调试页。
+- 复审时 `ctr ui` 文案仍以“简易 Governance Trace 调试页”为第一印象，但页面已经承载配置草稿、compiled models、capability warning、治理指标等多种职责；这会让普通使用者误以为 UI 只是维护者调试页。
 - README、configuration guide、setup 输出、UI 页面之间虽然都在讲 `Models`，但“使用者入口”和“维护者入口”尚未分层。
 - 顶层 `PLAN.md` 仍指向已不存在的状态报告路径，容易让维护者误判当前权威文档。
 - 远程部署、双层 UI、治理运营化都已立项，但还没有成为用户可直觉进入的产品路径。
@@ -271,7 +271,20 @@ P3-3：持续 closed 事项复审
 | 8 | P3 | coverage 口径扩展 | 先建立新 coverage include/exclude 与基线 | 让看护报告跟上项目重心 |
 | 9 | P3 | release / CLI 看护同步 | 新增路径随功能一起补矩阵 | 防止发布门禁逐步失真 |
 
-## 六、关联文件
+## 六、本轮闭环记录
+
+### 2026-04-25 P1 闭环
+
+- P1-1 `修正权威入口与文档漂移`：已在首个审查归档提交中修正顶层 `PLAN.md` 的失效状态报告入口，并将统一进展基线和本计划作为当前事实源；同时已在 `progress-issue-log.md` 追加 PI-010。
+- P1-2 `把 ctr ui 从调试页收口为使用者入口`：已将 `/ui` 第一屏改为“配置与状态工作台”，展示服务状态、端口、模型数量、`Router.default`，并保留维护者观测区域进入 Governance Trace / metrics。
+- 运行时闭环描述校准：已将统一基线中的统一 Router 运行时链路从旧的 `legacy intent fallback` 口径校准为当前 `smart_rule -> semantic_match -> smart_router -> sticky_correction` 口径。
+- 看护补充：已更新 `/ui` HTML 渲染测试，覆盖新的状态工作台入口、状态字段和首屏操作按钮。
+
+下一项按优先级继续推进：
+
+- P1-3 `统一 setup / UI / config save 的验证与提示 contract`。
+
+## 七、关联文件
 
 本次复审重点参考：
 

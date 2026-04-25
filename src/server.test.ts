@@ -1117,8 +1117,24 @@ describe('createServer /api/config', () => {
     expect(result.message).toBe('Anomaly thresholds saved successfully');
   });
 
-  it('renders a governance trace debug page at /ui', async () => {
-    const server = createServer({});
+  it('renders a configuration and status workspace at /ui', async () => {
+    const server = createServer({
+      initialConfig: {
+        PORT: 6789,
+        Models: [
+          {
+            id: 'sonnet',
+            api: 'https://api.example.com/v1/chat/completions',
+            key: 'sk-test',
+            interface: 'openai',
+            model: 'vendor/sonnet',
+          },
+        ],
+        Router: {
+          default: 'sonnet',
+        },
+      },
+    });
     const handler = server.app.routes.get('GET /ui');
     const reply = {
       header: vi.fn().mockReturnThis(),
@@ -1128,6 +1144,18 @@ describe('createServer /api/config', () => {
     const html = await handler({}, reply);
 
     expect(reply.header).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
+    expect(html).toContain('配置与状态工作台');
+    expect(html).toContain('serviceReadyStatus');
+    expect(html).toContain('servicePortStatus');
+    expect(html).toContain('modelCountStatus');
+    expect(html).toContain('routerDefaultStatus');
+    expect(html).toContain('6789');
+    expect(html).toContain('sonnet');
+    expect(html).toContain('loadConfigDraftHeroBtn');
+    expect(html).toContain('previewConfigDraftHeroBtn');
+    expect(html).toContain('refreshStatusHeroBtn');
+    expect(html).toContain('loadServiceStatus');
+    expect(html).toContain('维护者观测');
     expect(html).toContain('Governance Trace');
     expect(html).toContain('/api/models/compiled');
     expect(html).toContain('/api/models/compiled/preview');
