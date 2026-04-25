@@ -281,6 +281,7 @@ P3-3：持续 closed 事项复审
 - 看护补充：已更新 `/ui` HTML 渲染测试，覆盖新的状态工作台入口、状态字段和首屏操作按钮。
 - 复审补强：已闭环 P1-2 复审发现的真实启动路径偏差，`src/index.ts` 现在会把完整运行配置传给 `createServer.initialConfig`，避免生产 `/ui` 首屏缺失 `Models` 和 `Router.default`；同时已对 `/ui` 服务端状态插值做 HTML escape，并补充生产形状 initialConfig 与恶意配置值回归测试。
 - P1-3 `统一 setup / UI / config save 的验证与提示 contract`：已新增共享 validation issue contract，将 schema error、capability warning、path、severity 与 action 归一为同一结构；server preview/save API 返回 `issueReport`，`/ui` 预览与保存失败/告警展示同一 action，setup 与 doctor 输出也改用同一格式化结果。
+- P1-3 复审补强：已闭环纯 warning 字符串路径丢失 `info` severity 的问题，`supports_tools` / `supports_images` fallback 在 setup、doctor、server save 与 UI save 中仍按 info 呈现，并已追加 PI-012 与回归测试。
 - P1-4 `UI 静态资源拆出`：已将 `/ui` 大段 HTML/CSS/JS 渲染从 `src/server.ts` 移入 `src/ui/workbench.ts`，`server.ts` 只保留 `/ui` 路由注册、Content-Type 与初始状态注入；这一步先完成职责边界拆分，后续更细的 CSS/JS 文件化可并入 UI 双层工作台收敛继续推进。
 
 下一项按优先级继续推进：

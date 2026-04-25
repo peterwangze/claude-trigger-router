@@ -1584,6 +1584,53 @@ describe('createServer /api/config', () => {
     ]);
   });
 
+  it('keeps info severity for non-blocking capability hints when saving config', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      body: {
+        Router: { default: 'restricted' },
+        Models: [
+          {
+            id: 'restricted',
+            api: 'https://api.example.com/v1/chat/completions',
+            key: 'sk-test',
+            interface: 'openai',
+            model: 'vendor/text-only',
+            metadata: {
+              supports_tools: false,
+              supports_images: false,
+            },
+          },
+        ],
+      },
+    }, reply);
+
+    expect(reply.code).not.toHaveBeenCalled();
+    expect(result.issueReport.summary).toEqual({
+      total: 2,
+      error: 0,
+      warning: 0,
+      info: 2,
+    });
+    expect(result.issueReport.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: 'info',
+          path: 'Models[0].metadata.supports_tools',
+        }),
+        expect.objectContaining({
+          severity: 'info',
+          path: 'Models[0].metadata.supports_images',
+        }),
+      ])
+    );
+  });
+
   it('does not persist TriggerRouter when user did not configure it', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('POST /api/config');

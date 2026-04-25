@@ -68,6 +68,16 @@ function inferCapabilityAction(code: string | undefined, message: string): strin
   return 'Review the capability hint and decide whether the fallback behavior is acceptable.';
 }
 
+function inferCapabilitySeverity(message: string): ValidationIssueSeverity {
+  if (
+    /^Models\[\d+\]\.metadata\.supports_tools disables tools/.test(message) ||
+    /^Models\[\d+\]\.metadata\.supports_images disables image input/.test(message)
+  ) {
+    return 'info';
+  }
+  return 'warning';
+}
+
 export function buildValidationIssueReport(input: {
   errors?: string[];
   warnings?: string[];
@@ -101,7 +111,7 @@ export function buildValidationIssueReport(input: {
       continue;
     }
     issues.push({
-      severity: 'warning',
+      severity: inferCapabilitySeverity(message),
       source: 'capability',
       message,
       path,

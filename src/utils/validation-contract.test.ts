@@ -76,4 +76,30 @@ describe('validation issue contract', () => {
       })
     );
   });
+
+  it('keeps info severity when only capability warning strings are available', () => {
+    const report = buildValidationIssueReport({
+      warnings: [
+        'Models[0].metadata.supports_tools disables tools for model "restricted". Tool definitions and tool call/result blocks will fall back to plain text.',
+        'Models[0].metadata.supports_images disables image input for model "restricted". Image blocks will fall back to plain text descriptions.',
+      ],
+    });
+
+    expect(report.summary).toEqual({
+      total: 2,
+      error: 0,
+      warning: 0,
+      info: 2,
+    });
+    expect(report.issues).toEqual([
+      expect.objectContaining({
+        severity: 'info',
+        path: 'Models[0].metadata.supports_tools',
+      }),
+      expect.objectContaining({
+        severity: 'info',
+        path: 'Models[0].metadata.supports_images',
+      }),
+    ]);
+  });
 });

@@ -44,6 +44,7 @@
 | PI-009 | 已闭环事项的文档结论与当前实现链路发生漂移 | 2026-04-24 | in_progress | 复审发现部分 closed 事项的闭环描述仍停留在旧链路，如统一 Router 运行时文案仍写 `legacy intent fallback`；当前不回退原结论，而是已新增 `已闭环事项复审校准` 事项承接后续校准与持续复审 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
 | PI-010 | 顶层 PLAN 指向已不存在的状态报告 | 2026-04-25 | closed | 项目目标与用户使用视角复审发现 `PLAN.md` 归档说明仍指向已不存在的 `docs/project-review-2026-03-24.md`；已修正为统一进展基线和本次复审实施计划，当前结论是“顶层归档入口已重新指向当前事实源，但后续仍需避免历史入口继续漂移” | `PLAN.md` ; `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
 | PI-011 | `ctr ui` 第一屏闭环证据与真实启动路径不一致 | 2026-04-26 | closed | P1-2 复审发现 `/ui` 首屏测试使用完整 `initialConfig`，但生产启动只传 providers/HOST/PORT/LOG_FILE，导致真实首屏可能显示 `Models=0` 与 `Router.default=-`；已改为把完整运行配置传入 `createServer.initialConfig`，并补齐生产形状 initialConfig 与 HTML escape 回归测试 | `src/index.ts` ; `src/server.ts` ; `src/server.test.ts` ; `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
+| PI-012 | validation issue contract 在纯 warning 字符串路径丢失 info 级别 | 2026-04-26 | closed | P1-3 复审发现 setup/doctor/server save 只拿到 warning 字符串时，会把 `supports_tools` / `supports_images` 这类非阻断 capability info 误归为 warning；已按 warning 文案恢复 info 级别，并补充 contract 与 server save 回归测试 | `src/utils/validation-contract.ts` ; `src/utils/validation-contract.test.ts` ; `src/server.test.ts` |
 
 ## 问题详细记录
 
@@ -238,3 +239,22 @@
   - `src/server.ts`
   - `src/server.test.ts`
   - `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md`
+
+### PI-012：validation issue contract 在纯 warning 字符串路径丢失 info 级别
+
+- 首次暴露时间：2026-04-26
+- 问题描述：P1-3 复审发现共享 validation issue contract 在收到 structured capability warning report 时能保留 `warn` / `info`，但 setup、doctor 和 server save 等路径只传入 `normalizeAndValidateConfig(...).warnings` 字符串数组时，会把所有 capability 提示统一归为 `warning`。
+- 影响范围：
+  - `supports_tools=false` 与 `supports_images=false` 这类非阻断提示会被误呈现为 warning
+  - setup / doctor / UI save 的提示 contract 与 compiled preview 的 severity 语义不一致
+  - P1-3 “error 必须修、warning 可接受、info 仅提示”的闭环证据不完整
+- 修正动作：
+  - 在 `buildValidationIssueReport` 中按 capability warning 文案推断纯字符串路径的 severity
+  - 将 tools/images fallback 文案恢复为 `info`，thinking ignored 继续保持 `warning`
+  - 补充 validation contract 单元测试与 server save 回归测试
+- 当前状态：`closed`
+- 闭环结论：纯字符串 warning 与 structured capability warning 两条路径现在都能保持同一 severity 语义；后续新增 capability warning code 时，需要同步补充 contract 映射和回归测试。
+- 关联文档：
+  - `src/utils/validation-contract.ts`
+  - `src/utils/validation-contract.test.ts`
+  - `src/server.test.ts`
