@@ -54,6 +54,15 @@ function toInlineScriptJson(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function collectModelReferences(config: any): ModelReferenceEntry[] {
   const refs: ModelReferenceEntry[] = [];
   const normalizedConfig = normalizeAndValidateConfig(config ?? {}).config;
@@ -745,6 +754,9 @@ export const createServer = (config: any): Server => {
       : 0;
     const routerDefault = initialConfig.Router?.default ?? '-';
     const displayPort = initialConfig.PORT ?? '-';
+    const escapedDisplayPort = escapeHtml(displayPort);
+    const escapedModelsCount = escapeHtml(modelsCount);
+    const escapedRouterDefault = escapeHtml(routerDefault);
 
     reply.header("Content-Type", "text/html; charset=utf-8");
     return reply.send(
@@ -816,9 +828,9 @@ export const createServer = (config: any): Server => {
       `<div class="panel">` +
       `<div class="status-grid">` +
       `<div class="status-tile"><span class="muted">Service</span><strong id="serviceReadyStatus">ready</strong></div>` +
-      `<div class="status-tile"><span class="muted">Port</span><strong id="servicePortStatus">${displayPort}</strong></div>` +
-      `<div class="status-tile"><span class="muted">Models</span><strong id="modelCountStatus">${modelsCount}</strong></div>` +
-      `<div class="status-tile"><span class="muted">Router.default</span><strong id="routerDefaultStatus">${routerDefault}</strong></div>` +
+      `<div class="status-tile"><span class="muted">Port</span><strong id="servicePortStatus">${escapedDisplayPort}</strong></div>` +
+      `<div class="status-tile"><span class="muted">Models</span><strong id="modelCountStatus">${escapedModelsCount}</strong></div>` +
+      `<div class="status-tile"><span class="muted">Router.default</span><strong id="routerDefaultStatus">${escapedRouterDefault}</strong></div>` +
       `</div>` +
       `</div>` +
       `</div>` +

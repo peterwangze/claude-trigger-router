@@ -43,6 +43,7 @@
 | PI-008 | 已标记 closed 的兼容主线仍暴露真实用户主路径缺口 | 2026-04-24 | closed | 复审发现“OpenAI-compatible 兼容差异内化”等已闭环事务在真实用户流中仍存在兼容缺口；当前未回退原结论，而是通过新增 `OpenAI-compatible 主路径兼容补强` 事项完成了首轮止血与用户流回归补强，现已不再作为独立未闭环 P0 问题维护 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` |
 | PI-009 | 已闭环事项的文档结论与当前实现链路发生漂移 | 2026-04-24 | in_progress | 复审发现部分 closed 事项的闭环描述仍停留在旧链路，如统一 Router 运行时文案仍写 `legacy intent fallback`；当前不回退原结论，而是已新增 `已闭环事项复审校准` 事项承接后续校准与持续复审 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
 | PI-010 | 顶层 PLAN 指向已不存在的状态报告 | 2026-04-25 | closed | 项目目标与用户使用视角复审发现 `PLAN.md` 归档说明仍指向已不存在的 `docs/project-review-2026-03-24.md`；已修正为统一进展基线和本次复审实施计划，当前结论是“顶层归档入口已重新指向当前事实源，但后续仍需避免历史入口继续漂移” | `PLAN.md` ; `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
+| PI-011 | `ctr ui` 第一屏闭环证据与真实启动路径不一致 | 2026-04-26 | closed | P1-2 复审发现 `/ui` 首屏测试使用完整 `initialConfig`，但生产启动只传 providers/HOST/PORT/LOG_FILE，导致真实首屏可能显示 `Models=0` 与 `Router.default=-`；已改为把完整运行配置传入 `createServer.initialConfig`，并补齐生产形状 initialConfig 与 HTML escape 回归测试 | `src/index.ts` ; `src/server.ts` ; `src/server.test.ts` ; `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
 
 ## 问题详细记录
 
@@ -216,4 +217,24 @@
 - 关联文档：
   - `PLAN.md`
   - `docs/superpowers/plans/unified-progress-baseline.md`
+  - `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md`
+
+### PI-011：`ctr ui` 第一屏闭环证据与真实启动路径不一致
+
+- 首次暴露时间：2026-04-26
+- 问题描述：P1-2 复审发现 `/ui` 第一屏闭环证据只覆盖了测试中手工注入完整 `initialConfig` 的路径；真实 `src/index.ts` 启动服务时只传入 compiled providers、HOST、PORT 和 LOG_FILE，未把 `Models` 与 `Router.default` 传给 `createServer`。同时，`Router.default` 等服务端状态值直接拼入 HTML，存在本地管理 UI 被配置值污染的风险。
+- 影响范围：
+  - `ctr ui` 新用户第一屏对“默认模型是谁、当前配置是否可用”的判断
+  - P1-2 闭环证据与真实生产路径的一致性
+  - 本地管理 UI 对用户可控配置值的安全呈现
+- 修正动作：
+  - 新增 `buildServerInitialConfig`，在生产启动时保留完整运行配置并叠加 compiled providers、实际 HOST/PORT 和 LOG_FILE
+  - 对 `/ui` 服务端渲染的状态值增加 HTML escape
+  - 补充生产形状 initialConfig 回归测试和恶意配置值转义测试
+- 当前状态：`closed`
+- 闭环结论：真实启动路径、首屏状态证据和安全呈现已经补齐到同一条 P1-2 用户路径；后续若继续调整 `/ui` 第一屏，必须同时覆盖生产形状数据源与用户可控配置值转义。
+- 关联文档：
+  - `src/index.ts`
+  - `src/server.ts`
+  - `src/server.test.ts`
   - `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md`

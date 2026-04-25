@@ -279,6 +279,7 @@ P3-3：持续 closed 事项复审
 - P1-2 `把 ctr ui 从调试页收口为使用者入口`：已将 `/ui` 第一屏改为“配置与状态工作台”，展示服务状态、端口、模型数量、`Router.default`，并保留维护者观测区域进入 Governance Trace / metrics。
 - 运行时闭环描述校准：已将统一基线中的统一 Router 运行时链路从旧的 `legacy intent fallback` 口径校准为当前 `smart_rule -> semantic_match -> smart_router -> sticky_correction` 口径。
 - 看护补充：已更新 `/ui` HTML 渲染测试，覆盖新的状态工作台入口、状态字段和首屏操作按钮。
+- 复审补强：已闭环 P1-2 复审发现的真实启动路径偏差，`src/index.ts` 现在会把完整运行配置传给 `createServer.initialConfig`，避免生产 `/ui` 首屏缺失 `Models` 和 `Router.default`；同时已对 `/ui` 服务端状态插值做 HTML escape，并补充生产形状 initialConfig 与恶意配置值回归测试。
 
 下一项按优先级继续推进：
 

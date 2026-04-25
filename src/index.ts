@@ -73,6 +73,20 @@ interface RunOptions {
   port?: number;
 }
 
+function buildServerInitialConfig(config: any, registry: any, host: string, servicePort: number) {
+  return {
+    ...config,
+    providers: registry.providers,
+    HOST: host,
+    PORT: servicePort,
+    LOG_FILE: join(
+      homedir(),
+      ".claude-trigger-router",
+      "claude-trigger-router.log"
+    ),
+  };
+}
+
 /**
  * 运行服务
  */
@@ -155,16 +169,7 @@ async function run(options: RunOptions = {}) {
   const registry = buildModelRegistry(config);
   const server = createServer({
     useJsonFile: false,
-    initialConfig: {
-      providers: registry.providers,
-      HOST: HOST,
-      PORT: servicePort,
-      LOG_FILE: join(
-        homedir(),
-        ".claude-trigger-router",
-        "claude-trigger-router.log"
-      ),
-    },
+    initialConfig: buildServerInitialConfig(config, registry, HOST, servicePort),
     logger: loggerConfig,
   });
 
@@ -529,4 +534,4 @@ async function run(options: RunOptions = {}) {
   await server.start();
 }
 
-export { run, initializeClaudeConfig };
+export { buildServerInitialConfig, run, initializeClaudeConfig };

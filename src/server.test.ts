@@ -45,6 +45,7 @@ vi.mock('@musistudio/llms', () => {
 });
 
 import { createServer } from './server';
+import { buildServerInitialConfig } from './index';
 import { governanceMetricsExportStore, governanceTraceStore } from './governance';
 import { normalizeAndValidateConfig } from './utils/config';
 
@@ -1384,6 +1385,68 @@ describe('createServer /api/config', () => {
     expect(html).toContain('routeReason');
     expect(html).toContain('cascadeTriggered');
     expect(html).toContain('shadowChecked');
+  });
+
+  it('keeps full runtime config in server initialConfig for the /ui first screen', () => {
+    const runtimeConfig = {
+      HOST: '0.0.0.0',
+      PORT: 3456,
+      Providers: [],
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://api.example.com/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'vendor/sonnet',
+        },
+      ],
+      Router: {
+        default: 'sonnet',
+      },
+    };
+    const registry = {
+      providers: [
+        {
+          name: 'model__sonnet',
+          api_base_url: 'https://api.example.com/v1/chat/completions',
+          models: ['vendor/sonnet'],
+        },
+      ],
+    };
+
+    const initialConfig = buildServerInitialConfig(runtimeConfig, registry, '127.0.0.1', 6789);
+
+    expect(initialConfig.Models).toBe(runtimeConfig.Models);
+    expect(initialConfig.Router).toEqual({ default: 'sonnet' });
+    expect(initialConfig.providers).toBe(registry.providers);
+    expect(initialConfig.HOST).toBe('127.0.0.1');
+    expect(initialConfig.PORT).toBe(6789);
+    expect(initialConfig.LOG_FILE).toContain('claude-trigger-router.log');
+  });
+
+  it('escapes server-rendered /ui status values from config', async () => {
+    const server = createServer({
+      initialConfig: {
+        PORT: '<img src=x onerror=alert(1)>',
+        Models: [],
+        Router: {
+          default: '<script>alert(1)</script>',
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /ui');
+    const reply = {
+      header: vi.fn().mockReturnThis(),
+      send: vi.fn((html: string) => html),
+    };
+
+    const html = await handler({}, reply);
+
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    expect(html).not.toContain('<script>alert(1)</script>');
+    expect(html).not.toContain('<img src=x onerror=alert(1)>');
   });
 
   it('rejects invalid config before writing', async () => {
