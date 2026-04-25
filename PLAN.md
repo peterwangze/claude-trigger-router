@@ -7,7 +7,8 @@
 > **请以以下资源作为当前项目权威文档：**
 > - **README.md** — 功能说明、配置参考、使用指南
 > - **src/** — 实际实现代码
-> - **docs/project-review-2026-03-24.md** — 最新状态检视报告
+> - **docs/superpowers/plans/unified-progress-baseline.md** — 当前统一进展基线与优先级入口
+> - **docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md** — 项目目标与用户使用视角复审实施计划
 >
 > 本文件保留仅供了解项目早期设计思路。
 

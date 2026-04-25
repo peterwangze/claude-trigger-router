@@ -42,6 +42,7 @@
 | PI-007 | 问题修正过程未形成独立事项文档，容易重复踩坑 | 2026-04-16 | closed | 已建立独立问题修改记录文档，并在统一进展入口中将其作为治理事项和关联文档接入，后续所有文档治理偏差统一在此追踪 | `docs/superpowers/plans/progress-issue-log.md` ; `docs/superpowers/plans/unified-progress-baseline.md` |
 | PI-008 | 已标记 closed 的兼容主线仍暴露真实用户主路径缺口 | 2026-04-24 | closed | 复审发现“OpenAI-compatible 兼容差异内化”等已闭环事务在真实用户流中仍存在兼容缺口；当前未回退原结论，而是通过新增 `OpenAI-compatible 主路径兼容补强` 事项完成了首轮止血与用户流回归补强，现已不再作为独立未闭环 P0 问题维护 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` |
 | PI-009 | 已闭环事项的文档结论与当前实现链路发生漂移 | 2026-04-24 | in_progress | 复审发现部分 closed 事项的闭环描述仍停留在旧链路，如统一 Router 运行时文案仍写 `legacy intent fallback`；当前不回退原结论，而是已新增 `已闭环事项复审校准` 事项承接后续校准与持续复审 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
+| PI-010 | 顶层 PLAN 指向已不存在的状态报告 | 2026-04-25 | closed | 项目目标与用户使用视角复审发现 `PLAN.md` 归档说明仍指向已不存在的 `docs/project-review-2026-03-24.md`；已修正为统一进展基线和本次复审实施计划，当前结论是“顶层归档入口已重新指向当前事实源，但后续仍需避免历史入口继续漂移” | `PLAN.md` ; `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
 
 ## 问题详细记录
 
@@ -197,3 +198,22 @@
   - `docs/superpowers/plans/unified-progress-baseline.md`
   - `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md`
   - `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md`
+
+### PI-010：顶层 PLAN 指向已不存在的状态报告
+
+- 首次暴露时间：2026-04-25
+- 问题描述：顶层 `PLAN.md` 已被标记为历史归档，但其归档说明仍将 `docs/project-review-2026-03-24.md` 列为当前项目权威文档；该文件在当前仓库中不存在，容易让新维护者或复审者进入失效路径。
+- 影响范围：
+  - 顶层历史计划的可信度
+  - 当前统一进展入口的可发现性
+  - 新维护者对“代码现状、README、进展台账”的判断路径
+- 修正动作：
+  - 将 `PLAN.md` 中的失效状态报告链接替换为 `docs/superpowers/plans/unified-progress-baseline.md`
+  - 同步补入本次 `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md`
+  - 在统一进展基线新增 `项目目标与用户使用视角复审` 条目，并列入近期执行顺序
+- 当前状态：`closed`
+- 闭环结论：顶层归档入口已重新指向当前事实源；后续若历史入口、README 或实施计划出现失效链接，必须继续增量追加到 issue log，而不是只在会话中修正。
+- 关联文档：
+  - `PLAN.md`
+  - `docs/superpowers/plans/unified-progress-baseline.md`
+  - `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md`
