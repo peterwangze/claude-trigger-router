@@ -1093,7 +1093,7 @@ describe('runSetupCli', () => {
 
     expect(io.info).toHaveBeenCalledWith('检测到当前 claude-trigger-router 配置已可用。');
     expect(io.info).toHaveBeenCalledWith(
-      '当前配置提示：Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.'
+      '当前配置提示：[warning] Models[0].thinking: Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking. Action: Remove the thinking setting for this model, or change metadata.supports_reasoning to true only if the endpoint supports reasoning.'
     );
     expect(enterClaudeCode).not.toHaveBeenCalled();
   });

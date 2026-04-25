@@ -16,6 +16,7 @@ import {
 } from "./governance";
 import { buildModelRegistry, collectCapabilityWarnings } from "./models/compile";
 import { getUiProviderTemplates } from "./provider-presets";
+import { buildValidationIssueReport } from "./utils/validation-contract";
 
 type CompiledProviderView = {
   name: string;
@@ -445,10 +446,16 @@ export const createServer = (config: any): Server => {
     const normalizedResult = normalizeAndValidateConfig(config.initialConfig ?? {});
     const normalized = normalizedResult.config;
     const compiled = toCompiledRegistryView(normalized);
+    const capabilityWarnings = collectCapabilityWarnings(normalized);
     return {
       ...compiled,
-      capabilityWarnings: collectCapabilityWarnings(normalized),
+      capabilityWarnings,
       warnings: normalizedResult.warnings,
+      issueReport: buildValidationIssueReport({
+        errors: normalizedResult.errors,
+        warnings: normalizedResult.warnings,
+        capabilityWarnings,
+      }),
     };
   });
 
@@ -462,6 +469,7 @@ export const createServer = (config: any): Server => {
     }
 
     const result = normalizeAndValidateConfig(rawConfig);
+    const capabilityWarnings = rawCompiled ? collectCapabilityWarnings(rawConfig) : undefined;
     if (result.errors.length > 0) {
       reply.code(400);
       return {
@@ -469,13 +477,19 @@ export const createServer = (config: any): Server => {
         message: "Invalid configuration preview",
         errors: result.errors,
         referenceImpact: rawCompiled ? analyzeModelReferenceImpact(rawConfig, rawCompiled) : undefined,
-        capabilityWarnings: rawCompiled ? collectCapabilityWarnings(rawConfig) : undefined,
+        capabilityWarnings,
         warnings: result.warnings,
+        issueReport: buildValidationIssueReport({
+          errors: result.errors,
+          warnings: result.warnings,
+          capabilityWarnings,
+        }),
       };
     }
 
     const currentCompiled = toCompiledRegistryView(config.initialConfig ?? {});
     const previewCompiled = toCompiledRegistryView(result.config);
+    const previewCapabilityWarnings = collectCapabilityWarnings(result.config);
     return {
       success: true,
       providers: previewCompiled.providers,
@@ -483,8 +497,12 @@ export const createServer = (config: any): Server => {
       normalizedConfig: buildDraftConfigView(result.config),
       diff: diffCompiledRegistry(currentCompiled, previewCompiled),
       referenceImpact: analyzeModelReferenceImpact(result.config, previewCompiled),
-      capabilityWarnings: collectCapabilityWarnings(result.config),
+      capabilityWarnings: previewCapabilityWarnings,
       warnings: result.warnings,
+      issueReport: buildValidationIssueReport({
+        warnings: result.warnings,
+        capabilityWarnings: previewCapabilityWarnings,
+      }),
     };
   });
 
@@ -704,6 +722,10 @@ export const createServer = (config: any): Server => {
         message: "Invalid configuration",
         errors: result.errors,
         warnings: result.warnings,
+        issueReport: buildValidationIssueReport({
+          errors: result.errors,
+          warnings: result.warnings,
+        }),
       };
     }
 
@@ -714,7 +736,12 @@ export const createServer = (config: any): Server => {
     }
 
     await writeConfigFile(buildPersistedConfig(req.body ?? {}, result.config));
-    return { success: true, message: "Config saved successfully", warnings: result.warnings };
+    return {
+      success: true,
+      message: "Config saved successfully",
+      warnings: result.warnings,
+      issueReport: buildValidationIssueReport({ warnings: result.warnings }),
+    };
   });
 
   // 重启服务 API
@@ -1275,20 +1302,25 @@ export const createServer = (config: any): Server => {
       `  modelCountStatus.textContent=String(models.length);` +
       `  routerDefaultStatus.textContent=config?.Router?.default || '-';` +
       `}` +
-      `function renderDraftValidation(errors,warnings){` +
+      `function renderDraftValidation(errors,warnings,issueReport){` +
       `  const errorList=Array.isArray(errors) ? errors.filter(Boolean) : [];` +
       `  const warningList=Array.isArray(warnings) ? warnings.filter(Boolean) : [];` +
-      `  if(!errorList.length && !warningList.length){ draftValidationList.innerHTML='<div class="alert info"><strong>No validation issues</strong><div class="muted">当前草稿未发现集中展示的问题</div></div>'; return; }` +
+      `  const contractIssues=Array.isArray(issueReport?.issues) ? issueReport.issues : [];` +
+      `  if(!errorList.length && !warningList.length && !contractIssues.length){ draftValidationList.innerHTML='<div class="alert info"><strong>No validation issues</strong><div class="muted">当前草稿未发现集中展示的问题</div></div>'; return; }` +
       `  const extractPath=(text)=>{ const match=String(text).match(/^(Models(?:\\[[0-9]+\\])?(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|Router(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|TriggerRouter(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|SmartRouter(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?|Governance(?:\\.[A-Za-z0-9_\\[\\]\\.]+)?)/); return match ? match[1] : ''; };` +
-      `  const grouped=[...errorList.map(item=>({ text:String(item), severity:'error' })), ...warningList.map(item=>({ text:String(item), severity:'warning' }))].reduce((acc,item)=>{` +
+      `  const sourceItems=contractIssues.length ? contractIssues.map(item=>({ text:String(item.message || ''), severity:item.severity==='error' ? 'error' : 'warning', path:item.path || '', action:item.action || '' })) : [...errorList.map(item=>({ text:String(item), severity:'error', path:'', action:'' })), ...warningList.map(item=>({ text:String(item), severity:'warning', path:'', action:'' }))];` +
+      `  const grouped=sourceItems.reduce((acc,item)=>{` +
       `    const text=item.text;` +
-      `    const bucket=text.startsWith('Models') ? 'Models' : text.startsWith('Router') ? 'Router' : text.startsWith('TriggerRouter') ? 'SmartRouter' : text.startsWith('SmartRouter') ? 'SmartRouter' : (text.startsWith('Governance.sticky') || text.startsWith('Governance.semantic')) ? 'SmartRouter' : text.startsWith('Governance') ? 'Governance' : text.startsWith('JSON parse error') ? 'Draft JSON' : 'Other';` +
+      `    const path=item.path || extractPath(text);` +
+      `    const bucket=path.startsWith('Models') || text.startsWith('Models') ? 'Models' : path.startsWith('Router') || text.startsWith('Router') ? 'Router' : path.startsWith('TriggerRouter') || text.startsWith('TriggerRouter') ? 'SmartRouter' : path.startsWith('SmartRouter') || text.startsWith('SmartRouter') ? 'SmartRouter' : (path.startsWith('Governance.sticky') || path.startsWith('Governance.semantic') || text.startsWith('Governance.sticky') || text.startsWith('Governance.semantic')) ? 'SmartRouter' : path.startsWith('Governance') || text.startsWith('Governance') ? 'Governance' : text.startsWith('JSON parse error') ? 'Draft JSON' : 'Other';` +
       `    acc[bucket]=acc[bucket] || [];` +
-      `    acc[bucket].push({ text, path: extractPath(text), severity:item.severity });` +
+      `    acc[bucket].push({ text, path, severity:item.severity, action:item.action || '' });` +
       `    return acc;` +
       `  }, {});` +
-      `  const summary='<div class="alert info"><div class="row"><strong>Validation summary</strong><span class="pill">'+esc(errorList.length)+' errors / '+esc(warningList.length)+' warnings</span></div><div class="muted">'+(errorList.length ? '请优先修复 errors，再决定是否接受 warnings。' : '当前无阻断错误，可按需处理 warnings。')+'</div></div>';` +
-      `  draftValidationList.innerHTML=summary + Object.entries(grouped).map(([bucket,items])=>{ const hasError=items.some(item=>item.severity==='error'); const levelClass=hasError ? 'warn' : 'info'; const actionLabel=hasError ? 'repair first' : 'review before save'; return '<div class="alert '+levelClass+'"><div class="row"><strong>'+esc(bucket)+'</strong><span class="pill">'+esc(items.length)+' issues</span></div><div class="muted">'+esc(actionLabel)+'</div><div>'+items.slice(0,4).map(item=>'<div>'+(item.path ? ('<button type="button" class="pill" data-validation-path=\"'+esc(item.path)+'\">'+esc(item.path)+'</button> ') : '')+'<span class=\"pill\">'+esc(item.severity==='error' ? 'error' : 'warning')+'</span> '+esc(item.text)+'</div>').join('')+'</div></div>'; }).join('');` +
+      `  const errorCount=contractIssues.length ? contractIssues.filter(item=>item.severity==='error').length : errorList.length;` +
+      `  const warningCount=contractIssues.length ? contractIssues.filter(item=>item.severity!=='error').length : warningList.length;` +
+      `  const summary='<div class="alert info"><div class="row"><strong>Validation summary</strong><span class="pill">'+esc(errorCount)+' errors / '+esc(warningCount)+' warnings</span></div><div class="muted">'+(errorCount ? '请优先修复 errors，再决定是否接受 warnings。' : '当前无阻断错误，可按需处理 warnings。')+'</div></div>';` +
+      `  draftValidationList.innerHTML=summary + Object.entries(grouped).map(([bucket,items])=>{ const hasError=items.some(item=>item.severity==='error'); const levelClass=hasError ? 'warn' : 'info'; const actionLabel=hasError ? 'repair first' : 'review before save'; return '<div class="alert '+levelClass+'"><div class="row"><strong>'+esc(bucket)+'</strong><span class="pill">'+esc(items.length)+' issues</span></div><div class="muted">'+esc(actionLabel)+'</div><div>'+items.slice(0,4).map(item=>'<div>'+(item.path ? ('<button type="button" class="pill" data-validation-path=\"'+esc(item.path)+'\">'+esc(item.path)+'</button> ') : '')+'<span class=\"pill\">'+esc(item.severity==='error' ? 'error' : 'warning')+'</span> '+esc(item.text)+(item.action ? ('<div class=\"muted\">Action: '+esc(item.action)+'</div>') : '')+'</div>').join('')+'</div></div>'; }).join('');` +
       `}` +
       `function getCapabilityWarningActionLabel(code){` +
       `  if(code==='thinking_ignored'){ return '移除 thinking'; }` +
@@ -1734,14 +1766,14 @@ export const createServer = (config: any): Server => {
       `  const data=await res.json();` +
       `  if(!res.ok){` +
       `    draftPreviewStatus.textContent='预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error');` +
-      `    renderDraftValidation(data.errors || [data.message || 'unknown error'], data.warnings || []);` +
+      `    renderDraftValidation(data.errors || [data.message || 'unknown error'], data.warnings || [], data.issueReport);` +
       `    renderCapabilityWarnings(data.capabilityWarnings);` +
       `    renderCompiledDiff();` +
       `    renderReferenceImpact(data.referenceImpact);` +
       `    renderDraftPreviewMeta();` +
       `    return;` +
       `  }` +
-      `  renderDraftValidation([], data.warnings || []);` +
+      `  renderDraftValidation([], data.warnings || [], data.issueReport);` +
       `  renderCompiledModels(data);` +
       `  renderDraftPreviewMeta();` +
       `  draftPreviewStatus.textContent='预览完成：已按草稿配置刷新 compiled models';` +
@@ -1771,7 +1803,7 @@ export const createServer = (config: any): Server => {
       `  draftPreviewStatus.textContent='保存配置中...';` +
       `  const res=await fetch('/api/config',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });` +
       `  const data=await res.json();` +
-      `  renderDraftValidation(data.errors || [], data.warnings || []);` +
+      `  renderDraftValidation(data.errors || [], data.warnings || [], data.issueReport);` +
       `  if(!res.ok){` +
       `    draftPreviewStatus.textContent='保存失败：'+((data.errors || []).join('; ') || data.message || 'unknown error');` +
       `    return;` +
@@ -1853,8 +1885,8 @@ export const createServer = (config: any): Server => {
       `  draftPreviewStatus.textContent='预览预设中：'+presetName;` +
       `  const res=await fetch('/api/models/compiled/preview',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });` +
       `  const data=await res.json();` +
-      `  if(!res.ok){ renderDraftValidation(data.errors || [data.message || 'unknown error'], data.warnings || []); renderCapabilityWarnings(data.capabilityWarnings); renderCompiledDiff(); renderReferenceImpact(data.referenceImpact); renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 预览失败，以下为当前预览尝试命中的区域。', affects:preset?.affects || [], actualAffects:deriveActualAffectedAreas(data), mode:modeLabel }); draftPreviewStatus.textContent='预设预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error'); return; }` +
-      `  renderDraftValidation([], data.warnings || []);` +
+      `  if(!res.ok){ renderDraftValidation(data.errors || [data.message || 'unknown error'], data.warnings || [], data.issueReport); renderCapabilityWarnings(data.capabilityWarnings); renderCompiledDiff(); renderReferenceImpact(data.referenceImpact); renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 预览失败，以下为当前预览尝试命中的区域。', affects:preset?.affects || [], actualAffects:deriveActualAffectedAreas(data), mode:modeLabel }); draftPreviewStatus.textContent='预设预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error'); return; }` +
+      `  renderDraftValidation([], data.warnings || [], data.issueReport);` +
       `  renderCompiledModels(data);` +
       `  renderDraftPreviewMeta({ title:'Preset dry-run', description:(preset?.label || presetName)+' 仅预览，不会写回当前草稿。', affects:preset?.affects || [], actualAffects:deriveActualAffectedAreas(data), mode:modeLabel });` +
       `  draftPreviewStatus.textContent='已预览预设：'+presetName+'（未写回草稿）';` +
@@ -1906,7 +1938,7 @@ export const createServer = (config: any): Server => {
       `  compiledModelsStatus.textContent='加载 compiled models 中...';` +
       `  const res=await fetch('/api/models/compiled');` +
       `  const data=await res.json();` +
-      `  renderDraftValidation([], data.warnings || []);` +
+      `  renderDraftValidation([], data.warnings || [], data.issueReport);` +
       `  renderCompiledModels(data);` +
       `  renderCompiledDiff();` +
       `  renderReferenceImpact();` +

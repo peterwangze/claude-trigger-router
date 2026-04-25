@@ -9,6 +9,7 @@ import yaml from 'js-yaml';
 
 import { CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from '../constants';
 import { normalizeAndValidateConfig, writeConfigFile, backupConfigFile } from '../utils';
+import { buildValidationIssueReport, formatValidationIssueReport } from '../utils/validation-contract';
 import { migrateLegacyConfig } from '../setup/migrate';
 import { readLegacyConfig } from '../setup';
 import { IAppConfig, IModelEndpointConfig } from '../trigger/types';
@@ -664,11 +665,11 @@ export async function runDoctorCli(customDeps?: Partial<IDoctorDeps>): Promise<v
 
     const normalized = normalizeAndValidateConfig(workingConfig);
     if (normalized.errors.length > 0) {
-      deps.io.error(`doctor 仍发现无法自动修复的配置错误：${normalized.errors.join('; ')}`);
+      deps.io.error(`doctor 仍发现无法自动修复的配置错误：${formatValidationIssueReport(buildValidationIssueReport({ errors: normalized.errors })).join('; ')}`);
       throw new Error('doctor could not fully repair config');
     }
     if (normalized.warnings.length > 0) {
-      deps.io.info(`配置提示：${normalized.warnings.join('; ')}`);
+      deps.io.info(`配置提示：${formatValidationIssueReport(buildValidationIssueReport({ warnings: normalized.warnings })).join('; ')}`);
     }
 
     const registry = buildModelRegistry(normalized.config);

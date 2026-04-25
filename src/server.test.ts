@@ -461,6 +461,20 @@ describe('createServer /api/config', () => {
       warn: 1,
       info: 2,
     });
+    expect(result.issueReport.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: 'warning',
+          path: 'Models[0].thinking',
+          action: expect.stringContaining('Remove the thinking setting'),
+        }),
+        expect.objectContaining({
+          severity: 'info',
+          path: 'Models[0].metadata.supports_tools',
+          action: expect.stringContaining('Accept text fallback behavior'),
+        }),
+      ])
+    );
     expect(result.capabilityWarnings.entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -1301,6 +1315,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Metadata (advanced JSON)');
     expect(html).toContain('renderDraftSummary');
     expect(html).toContain('renderDraftValidation');
+    expect(html).toContain('issueReport');
+    expect(html).toContain('Action:');
     expect(html).toContain("text.startsWith('Models')");
     expect(html).toContain("text.startsWith('TriggerRouter') ? 'SmartRouter'");
     expect(html).toContain('extractPath');
@@ -1463,6 +1479,15 @@ describe('createServer /api/config', () => {
     expect(result.message).toBe('Invalid configuration');
     expect(result.errors).toContain('Providers is required and must be a non-empty array');
     expect(result.warnings).toEqual([]);
+    expect(result.issueReport.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: 'error',
+          path: 'Providers',
+          action: expect.stringContaining('Add at least one model'),
+        }),
+      ])
+    );
     expect(mockBackupConfigFile).not.toHaveBeenCalled();
     expect(mockWriteConfigFile).not.toHaveBeenCalled();
   });
@@ -1504,7 +1529,20 @@ describe('createServer /api/config', () => {
         Providers: requestBody.Providers,
       })
     );
-    expect(result).toEqual({ success: true, message: 'Config saved successfully', warnings: [] });
+    expect(result).toEqual({
+      success: true,
+      message: 'Config saved successfully',
+      warnings: [],
+      issueReport: {
+        issues: [],
+        summary: {
+          total: 0,
+          error: 0,
+          warning: 0,
+          info: 0,
+        },
+      },
+    });
   });
 
   it('returns warnings when saving a config with capability downgrade hints', async () => {
@@ -1536,6 +1574,13 @@ describe('createServer /api/config', () => {
     expect(reply.code).not.toHaveBeenCalled();
     expect(result.warnings).toEqual([
       'Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.',
+    ]);
+    expect(result.issueReport.issues).toEqual([
+      expect.objectContaining({
+        severity: 'warning',
+        path: 'Models[0].thinking',
+        action: expect.stringContaining('Remove the thinking setting'),
+      }),
     ]);
   });
 

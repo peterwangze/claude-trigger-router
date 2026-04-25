@@ -280,10 +280,11 @@ P3-3：持续 closed 事项复审
 - 运行时闭环描述校准：已将统一基线中的统一 Router 运行时链路从旧的 `legacy intent fallback` 口径校准为当前 `smart_rule -> semantic_match -> smart_router -> sticky_correction` 口径。
 - 看护补充：已更新 `/ui` HTML 渲染测试，覆盖新的状态工作台入口、状态字段和首屏操作按钮。
 - 复审补强：已闭环 P1-2 复审发现的真实启动路径偏差，`src/index.ts` 现在会把完整运行配置传给 `createServer.initialConfig`，避免生产 `/ui` 首屏缺失 `Models` 和 `Router.default`；同时已对 `/ui` 服务端状态插值做 HTML escape，并补充生产形状 initialConfig 与恶意配置值回归测试。
+- P1-3 `统一 setup / UI / config save 的验证与提示 contract`：已新增共享 validation issue contract，将 schema error、capability warning、path、severity 与 action 归一为同一结构；server preview/save API 返回 `issueReport`，`/ui` 预览与保存失败/告警展示同一 action，setup 与 doctor 输出也改用同一格式化结果。
 
 下一项按优先级继续推进：
 
-- P1-3 `统一 setup / UI / config save 的验证与提示 contract`。
+- P1-4 `UI 静态资源拆出`。
 
 ## 七、关联文件
 

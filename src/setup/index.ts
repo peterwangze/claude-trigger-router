@@ -12,6 +12,7 @@ import { getProviderPreset, listProviderPresetKeys } from '../provider-presets';
 import { run } from '../index';
 import { isTcpPortOccupied, waitForService } from '../service-health';
 import { backupConfigFile, normalizeAndValidateConfig, writeConfigFile } from '../utils';
+import { buildValidationIssueReport, formatValidationIssueReport } from '../utils/validation-contract';
 import { isServiceRunning, killProcess, readServiceInfo, waitForProcessExit } from '../utils/processCheck';
 import { decideServiceAction, applyServiceAction } from './service';
 import { getRepairFields } from './repair';
@@ -396,6 +397,10 @@ function mapConfigErrorsToRepairFields(errors: string[]) {
   return fields.includes('manualReview')
     ? { mode: 'manualReview' as const, fields }
     : { mode: 'repair' as const, fields };
+}
+
+function formatConfigIssues(input: { errors?: string[]; warnings?: string[] }) {
+  return formatValidationIssueReport(buildValidationIssueReport(input)).join('; ');
 }
 
 function mapValidCurrentConfigChoice(choice: string): 'reuse' | 'overwrite' | 'fresh' | 'cancel' {
@@ -866,7 +871,7 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
         if (currentConfig.kind === 'valid') {
           deps.io.info('检测到当前 claude-trigger-router 配置已可用。');
           if (currentConfig.warnings.length > 0) {
-            deps.io.info(`当前配置提示：${currentConfig.warnings.join('; ')}`);
+            deps.io.info(`当前配置提示：${formatConfigIssues({ warnings: currentConfig.warnings })}`);
           }
           return mapValidCurrentConfigChoice(
             await deps.io.choose('你想直接使用它，还是重新调整？', [
@@ -877,9 +882,9 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
           );
         }
         if (currentConfig.kind === 'invalid') {
-          deps.io.info(`当前配置校验失败：${currentConfig.errors.join('; ')}`);
+          deps.io.info(`当前配置校验失败：${formatConfigIssues({ errors: currentConfig.errors })}`);
           if (currentConfig.warnings.length > 0) {
-            deps.io.info(`当前配置提示：${currentConfig.warnings.join('; ')}`);
+            deps.io.info(`当前配置提示：${formatConfigIssues({ warnings: currentConfig.warnings })}`);
           }
           return (await deps.io.choose('选择下一步', ['repair', 'overwrite', 'cancel'])) as 'repair' | 'overwrite' | 'cancel';
         }
@@ -933,7 +938,7 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
           writeConfig: deps.writeConfig,
         });
         if (normalized.warnings.length > 0) {
-          deps.io.info(`配置提示：${normalized.warnings.join('; ')}`);
+          deps.io.info(`配置提示：${formatConfigIssues({ warnings: normalized.warnings })}`);
         }
         return persisted;
       },
