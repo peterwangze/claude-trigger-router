@@ -206,6 +206,62 @@ describe('createServer /api/config', () => {
     });
   });
 
+  it('probes enabled remote service from the remote status endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        service: 'claude-trigger-router',
+        ready: true,
+        runtimeMode: 'server',
+        remoteEnabled: false,
+      }),
+    });
+    const originalFetch = globalThis.fetch;
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      const server = createServer({
+        initialConfig: {
+          Runtime: {
+            mode: 'local',
+            remote_service: {
+              enabled: true,
+              base_url: 'https://router.example.com/',
+              auth_token: 'token-1',
+            },
+          },
+          Router: {},
+        },
+      });
+      const handler = server.app.routes.get('GET /api/remote-status');
+
+      const result = await handler({ query: {} }, {});
+
+      expect(fetchMock).toHaveBeenCalledWith('https://router.example.com/api/service-info', expect.objectContaining({
+        headers: {
+          Authorization: 'Bearer token-1',
+        },
+      }));
+      expect(result.remote).toEqual({
+        enabled: true,
+        configured: true,
+        reachable: true,
+        ready: true,
+        baseUrl: 'https://router.example.com',
+        service: 'claude-trigger-router',
+        runtimeMode: 'server',
+        remoteEnabled: false,
+      });
+      expect(result.compiledModels).toEqual(expect.objectContaining({
+        providerCount: 0,
+        modelCount: 0,
+      }));
+      expect(result.issueReport.summary.error).toBe(0);
+    } finally {
+      vi.stubGlobal('fetch', originalFetch);
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     governanceTraceStore.clear();

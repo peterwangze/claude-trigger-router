@@ -189,6 +189,7 @@ Expected: PASS.
 
 - Remote client config now has a template-level draft path via `buildRemoteServiceConfig()`: it records `Runtime.mode = local`, enables `Runtime.remote_service`, stores the base URL and token placeholder, and no longer requires local `Providers` / `Router.default` when a remote service is enabled.
 - `GET /api/remote-status` now reuses existing runtime, compiled-model and governance primitives to expose remote health, compiled model count/capability summary and governance anomaly counts in one status contract.
+- Review closure tightened the contract by normalizing returned remote `baseUrl` and adding an enabled-remote integration assertion for `/api/remote-status`.
 - Targeted verification used: `npm test -- --run src/setup/templates.test.ts src/utils/config.test.ts src/service-health.test.ts src/server.test.ts`.
 
 ---

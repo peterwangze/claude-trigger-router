@@ -53,6 +53,7 @@ export async function probeRemoteServiceStatus(
 ): Promise<IRemoteServiceStatusSummary> {
   const enabled = Boolean(remoteService?.enabled);
   const baseUrl = remoteService?.base_url?.trim() ?? '';
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
 
   if (!enabled) {
     return {
@@ -60,7 +61,7 @@ export async function probeRemoteServiceStatus(
       configured: false,
       reachable: false,
       ready: false,
-      baseUrl,
+      baseUrl: normalizedBaseUrl,
     };
   }
 
@@ -70,7 +71,7 @@ export async function probeRemoteServiceStatus(
       configured: false,
       reachable: false,
       ready: false,
-      baseUrl,
+      baseUrl: normalizedBaseUrl,
       error: 'Runtime.remote_service.base_url is required when remote_service is enabled',
     };
   }
@@ -80,7 +81,7 @@ export async function probeRemoteServiceStatus(
     if (remoteService?.auth_token) {
       headers.Authorization = `Bearer ${remoteService.auth_token}`;
     }
-    const res = await fetchFn(`${baseUrl.replace(/\/+$/, '')}${SERVICE_INFO_PATH}`, {
+    const res = await fetchFn(`${normalizedBaseUrl}${SERVICE_INFO_PATH}`, {
       headers,
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -91,7 +92,7 @@ export async function probeRemoteServiceStatus(
         configured: true,
         reachable: false,
         ready: false,
-        baseUrl,
+        baseUrl: normalizedBaseUrl,
         error: `HTTP ${res.status}`,
       };
     }
@@ -105,7 +106,7 @@ export async function probeRemoteServiceStatus(
       configured: true,
       reachable: true,
       ready: isExpectedServiceHealth(payload),
-      baseUrl,
+      baseUrl: normalizedBaseUrl,
       service: info.service,
       runtimeMode: info.runtimeMode,
       remoteEnabled: info.remoteEnabled,
@@ -116,7 +117,7 @@ export async function probeRemoteServiceStatus(
       configured: true,
       reachable: false,
       ready: false,
-      baseUrl,
+      baseUrl: normalizedBaseUrl,
       error: error?.message || String(error),
     };
   }

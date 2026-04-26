@@ -287,6 +287,7 @@ P3-3：持续 closed 事项复审
 - P2-2 `部署形态与远程接入最小闭环`（Chunk 1）：已新增 `Runtime.mode`、`Runtime.remote_service` 与 `Registration` 的保守归一化/校验，默认仍为 `local`；同时新增 `/api/service-info` 暴露 runtime mode、service role、remote enabled 与 registration 摘要，为后续 remote status / setup / doctor / UI 对齐提供稳定 contract。
 - P2-2 复审补强：已修正 `/api/config` 保存路径遗漏 `Runtime` / `Registration` 的问题，确保用户显式配置的运行形态与远程注册摘要不会在保存时被静默丢弃；未配置时仍不写入默认远程块，避免污染本地默认配置。
 - P2-2 `部署形态与远程接入`（Chunk 2）：已新增远程服务配置草稿 `buildRemoteServiceConfig()`，支持 base URL、auth token placeholder 与 `Runtime.mode = local` 的远程连接心智；校验层允许启用 remote service 的 client 草稿不带本地 `Providers` / `Router.default`。同时新增 `/api/remote-status`，以一个 contract 返回 remote health、compiled model count/capability summary 与 governance alert summary。
+- P2-2 Chunk 2 复审补强：已收紧 remote status contract，返回的 remote `baseUrl` 统一去除尾部斜杠，并补齐 `/api/remote-status` 在 remote service 已启用时的服务端集成断言，覆盖 `/api/service-info` 探测路径和 bearer token 透传。
 
 下一项按优先级继续推进：
 

@@ -77,7 +77,7 @@ describe('service health helpers', () => {
       configured: true,
       reachable: true,
       ready: true,
-      baseUrl: 'https://router.example.com/',
+      baseUrl: 'https://router.example.com',
       service: SERVICE_NAME,
       runtimeMode: 'server',
       remoteEnabled: false,
