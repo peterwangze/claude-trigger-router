@@ -16,6 +16,7 @@
    - workflow: `publish.yml`
    - environment: 留空
 3. 确认 npm 包权限为 `public`
+4. 确认发布 workflow 使用 Node 24 / npm 11.5.1+；npm trusted publishing 依赖新版 npm CLI，旧版 npm 可能在 publish PUT 阶段表现为误导性的 404。
 
 ## 推荐正式发布流程
 
@@ -191,7 +192,8 @@ git push origin v1.0.1
    - `npm run build`
    - `npm test -- --run`
    - `npm run test:e2e:cli`
-   - `npm publish --access public --provenance`
+   - npm trusted publishing 版本门禁
+   - `npm publish --access public`
 
 也支持两种补充触发方式：
 
@@ -204,7 +206,23 @@ git push origin v1.0.1
 
 - tag / release 与 `package.json` 版本一致性校验
 - npm 已发布版本检查，避免重复发布同一版本
+- npm trusted publishing CLI 版本检查，避免旧 npm 在发布阶段才失败
 - 发布前 tarball 预检查
+
+## 处理 GitHub Actions 发布 404
+
+如果发布日志中已经完成 build、pack 和 provenance 生成，但最后在：
+
+```text
+PUT https://registry.npmjs.org/@peterwangze%2fclaude-trigger-router - Not found
+```
+
+失败，优先检查两件事：
+
+- npm 包设置里 trusted publisher 是否精确指向 `peterwangze/claude-trigger-router` 的 `publish.yml`
+- workflow 是否使用 Node 24 / npm 11.5.1+；旧 npm 不支持 trusted publishing 的正式发布路径
+
+如果目标版本还没有发布，可以在修复 workflow 后从 Actions 页面用 `workflow_dispatch` 触发当前 `master` 的 `Publish Package`。如果当前代码已经继续演进，建议 bump 到下一个 patch 版本并重新打 tag，避免同一个版本号对应不同源码快照；单纯 rerun 旧 tag 的失败 job 仍会使用旧 tag 上的 workflow 文件。
 
 建议统一使用 `vX.Y.Z` 形式的 tag，例如 `v1.0.1`。
 

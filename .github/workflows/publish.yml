@@ -28,8 +28,24 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.14.0
+          node-version: 24
           registry-url: https://registry.npmjs.org
+
+      - name: Verify npm trusted publishing support
+        shell: bash
+        run: |
+          node --version
+          npm --version
+          node - <<'NODE'
+          const { execSync } = require('node:child_process');
+          const npmVersion = execSync('npm --version', { encoding: 'utf8' }).trim();
+          const [major = 0, minor = 0, patch = 0] = npmVersion.split('.').map(Number);
+          const supported = major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1)));
+          if (!supported) {
+            console.error(`npm ${npmVersion || 'unknown'} does not support npm trusted publishing. Use npm >= 11.5.1.`);
+            process.exit(1);
+          }
+          NODE
 
       - name: Install dependencies
         run: npm ci
@@ -82,7 +98,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          if ! npm publish --access public --provenance 2>&1 | tee publish.log; then
+          if ! npm publish --access public 2>&1 | tee publish.log; then
             DETAILS="$(tail -n 50 publish.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')"
             echo "::error title=npm publish failed::${DETAILS}"
             exit 1
