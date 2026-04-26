@@ -259,6 +259,19 @@ function buildPersistedConfig(rawConfig: any, normalizedConfig: any) {
 
   const runtimeSmartRouter = deriveRuntimeSmartRouterConfig(normalizedConfig, rawConfig);
   let smartRouterProjection = projectConfiguredBranch(rawConfig?.SmartRouter, runtimeSmartRouter) ?? {};
+  const runtimeProjection = projectConfiguredBranch(rawConfig?.Runtime, normalizedConfig.Runtime);
+  if (runtimeProjection && typeof runtimeProjection === "object" && Object.keys(runtimeProjection).length > 0) {
+    persisted.Runtime = runtimeProjection;
+  }
+
+  const registrationProjection = projectConfiguredBranch(rawConfig?.Registration, normalizedConfig.Registration);
+  if (
+    registrationProjection &&
+    typeof registrationProjection === "object" &&
+    Object.keys(registrationProjection).length > 0
+  ) {
+    persisted.Registration = registrationProjection;
+  }
 
   if (rawConfig?.TriggerRouter) {
     smartRouterProjection = mergeSmartRouterProjection(smartRouterProjection, {

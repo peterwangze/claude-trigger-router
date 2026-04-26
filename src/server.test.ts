@@ -1610,6 +1610,9 @@ describe('createServer /api/config', () => {
         Providers: requestBody.Providers,
       })
     );
+    const persisted = mockWriteConfigFile.mock.calls.at(-1)?.[0] as any;
+    expect(persisted.Runtime).toBeUndefined();
+    expect(persisted.Registration).toBeUndefined();
     expect(result).toEqual({
       success: true,
       message: 'Config saved successfully',
@@ -1624,6 +1627,66 @@ describe('createServer /api/config', () => {
         },
       },
     });
+  });
+
+  it('persists configured Runtime and Registration blocks after normalization', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+    const requestBody = {
+      Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+      Providers: [
+        {
+          name: 'openrouter',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4'],
+        },
+      ],
+      Runtime: {
+        mode: 'server',
+        remote_service: {
+          enabled: true,
+          base_url: 'https://router.example.com',
+        },
+      },
+      Registration: {
+        enabled: true,
+        upstream_services: [
+          {
+            id: 'edge-router',
+            base_url: 'https://edge.example.com',
+          },
+        ],
+      },
+    };
+
+    const result = await handler({ body: requestBody }, reply);
+
+    expect(reply.code).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Runtime: {
+          mode: 'server',
+          remote_service: {
+            enabled: true,
+            base_url: 'https://router.example.com',
+          },
+        },
+        Registration: {
+          enabled: true,
+          upstream_services: [
+            {
+              id: 'edge-router',
+              base_url: 'https://edge.example.com',
+            },
+          ],
+        },
+      })
+    );
   });
 
   it('returns warnings when saving a config with capability downgrade hints', async () => {

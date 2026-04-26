@@ -285,6 +285,7 @@ P3-3：持续 closed 事项复审
 - P1-4 `UI 静态资源拆出`：已将 `/ui` 大段 HTML/CSS/JS 渲染从 `src/server.ts` 移入 `src/ui/workbench.ts`，`server.ts` 只保留 `/ui` 路由注册、Content-Type 与初始状态注入；这一步先完成职责边界拆分，后续更细的 CSS/JS 文件化可并入 UI 双层工作台收敛继续推进。
 - P2-1 `UI 双层工作台继续落地`：已在 `/ui` 增加“使用者工作台 / 维护者工作台”顶层 surface 切换；默认停留在使用者工作台，承载配置草稿、模型、路由、compiled preview 与保存动作，维护者工作台独立承接 Governance Trace、metrics、异常阈值、快照和归档，现有 `/api/governance/*` 能力仍可达。
 - P2-2 `部署形态与远程接入最小闭环`（Chunk 1）：已新增 `Runtime.mode`、`Runtime.remote_service` 与 `Registration` 的保守归一化/校验，默认仍为 `local`；同时新增 `/api/service-info` 暴露 runtime mode、service role、remote enabled 与 registration 摘要，为后续 remote status / setup / doctor / UI 对齐提供稳定 contract。
+- P2-2 复审补强：已修正 `/api/config` 保存路径遗漏 `Runtime` / `Registration` 的问题，确保用户显式配置的运行形态与远程注册摘要不会在保存时被静默丢弃；未配置时仍不写入默认远程块，避免污染本地默认配置。
 
 下一项按优先级继续推进：
 
