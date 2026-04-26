@@ -82,6 +82,11 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `code,pre{font-family:ui-monospace,SFMono-Regular,monospace}` +
     `pre{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:12px;overflow:auto}` +
     `.pill{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:.8rem}` +
+    `.surface-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}` +
+    `.surface-tab{background:#fff;color:#1f2328;border-color:#d1d5db}` +
+    `.surface-tab.active{background:#111827;color:#fff;border-color:#111827}` +
+    `.surface-panel[hidden]{display:none}` +
+    `.surface-heading{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem}` +
     `</style></head>` +
     `<body>` +
     `<div class="hero">` +
@@ -103,24 +108,13 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `</div>` +
     `</div>` +
-    `<div class="panel">` +
-    `<div class="row"><strong>维护者观测</strong><span class="muted">按 requestId / sessionKey / routeReason 过滤 Governance Trace，并查看近期治理指标。</span></div>` +
-    `<div class="row">` +
-    `<input id="requestId" placeholder="requestId">` +
-    `<input id="sessionKey" placeholder="sessionKey">` +
-    `<input id="routeReason" placeholder="routeReason">` +
-    `<select id="cascadeTriggered"><option value="">cascadeTriggered</option><option value="true">cascade=true</option><option value="false">cascade=false</option></select>` +
-    `<select id="shadowChecked"><option value="">shadowChecked</option><option value="true">shadow=true</option><option value="false">shadow=false</option></select>` +
-    `<select id="windowMs">` +
-    `<option value="900000">15m window</option>` +
-    `<option value="3600000" selected>1h window</option>` +
-    `<option value="21600000">6h window</option>` +
-    `<option value="86400000">24h window</option>` +
-    `</select>` +
-    `<input id="limit" placeholder="limit" value="20">` +
-    `<button id="refreshBtn">刷新</button>` +
+    `<div class="surface-tabs" role="tablist" aria-label="工作台切换">` +
+    `<button id="userSurfaceTab" class="surface-tab active" type="button" role="tab" aria-selected="true" data-surface-target="user">使用者工作台</button>` +
+    `<button id="maintainerSurfaceTab" class="surface-tab" type="button" role="tab" aria-selected="false" data-surface-target="maintainer">维护者工作台</button>` +
     `</div>` +
-    `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/models/compiled/preview</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
+    `<section id="userSurface" class="surface-panel" data-surface="user">` +
+    `<div class="panel">` +
+    `<div class="surface-heading"><strong>使用者工作台</strong><span class="muted">配置、模型、路由、服务状态与下一步保存动作。</span></div>` +
     `<div class="subpanel">` +
     `<div class="row"><strong>Draft Config Preview</strong><span class="muted">编辑当前配置草稿并即时预览 compiled models 结果，不落盘</span></div>` +
     `<div class="action-row">` +
@@ -264,6 +258,28 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `</div>` +
     `</div>` +
+    `</div>` +
+    `</section>` +
+    `<section id="maintainerSurface" class="surface-panel" data-surface="maintainer" hidden>` +
+    `<div class="panel">` +
+    `<div class="surface-heading"><strong>维护者工作台</strong><span class="muted">运行观测、Governance Trace、metrics、归档与维护操作。</span></div>` +
+    `<div class="row"><strong>维护者观测</strong><span class="muted">按 requestId / sessionKey / routeReason 过滤 Governance Trace，并查看近期治理指标。</span></div>` +
+    `<div class="row">` +
+    `<input id="requestId" placeholder="requestId">` +
+    `<input id="sessionKey" placeholder="sessionKey">` +
+    `<input id="routeReason" placeholder="routeReason">` +
+    `<select id="cascadeTriggered"><option value="">cascadeTriggered</option><option value="true">cascade=true</option><option value="false">cascade=false</option></select>` +
+    `<select id="shadowChecked"><option value="">shadowChecked</option><option value="true">shadow=true</option><option value="false">shadow=false</option></select>` +
+    `<select id="windowMs">` +
+    `<option value="900000">15m window</option>` +
+    `<option value="3600000" selected>1h window</option>` +
+    `<option value="21600000">6h window</option>` +
+    `<option value="86400000">24h window</option>` +
+    `</select>` +
+    `<input id="limit" placeholder="limit" value="20">` +
+    `<button id="refreshBtn">刷新</button>` +
+    `</div>` +
+    `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/models/compiled/preview</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
     `<div id="metricsGrid" class="stats">` +
     `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
     `<div class="stat"><span class="muted">Sticky hit rate</span><strong>-</strong></div>` +
@@ -373,6 +389,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<li><code>POST /api/governance/metrics/schedules</code> — 注册定时快照任务</li>` +
     `</ul>` +
     `</div>` +
+    `</section>` +
     `<script>` +
     `const tbody=document.querySelector('#traceTable tbody');` +
     `const detail=document.getElementById('traceDetail');` +
@@ -438,6 +455,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const scheduleTableBody=document.querySelector('#scheduleTable tbody');` +
     `const archiveTableBody=document.querySelector('#archiveTable tbody');` +
     `const trendTableBody=document.querySelector('#trendTable tbody');` +
+    `const surfaceTabs=Array.from(document.querySelectorAll('[data-surface-target]'));` +
+    `const surfacePanels=Array.from(document.querySelectorAll('[data-surface]'));` +
     `let currentDraftConfig={};` +
     `let knownModelIds=[];` +
     `let activeValidationHighlight=null;` +
@@ -452,6 +471,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
     `function fmt(v){return Number(v || 0).toFixed(2);}` +
     `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
+    `function setActiveSurface(surfaceName){` +
+    `  surfacePanels.forEach((panel)=>{ panel.hidden=panel.dataset.surface !== surfaceName; });` +
+    `  surfaceTabs.forEach((tab)=>{ const active=tab.dataset.surfaceTarget === surfaceName; tab.classList.toggle('active',active); tab.setAttribute('aria-selected', active ? 'true' : 'false'); });` +
+    `}` +
     `function inferProviderTemplateKey(model){` +
     `  const explicit=String(model?.provider_template || '').trim();` +
     `  if(explicit && modelProviderTemplates[explicit]){ return explicit; }` +
@@ -1082,6 +1105,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `capabilityWarningsList.addEventListener('click',(e)=>{ const applyBtn=e.target.closest('button[data-apply-warning-path]'); if(applyBtn){ applyCapabilityWarningSuggestion(applyBtn.dataset.applyWarningPath, applyBtn.dataset.applyWarningCode); return; } const btn=e.target.closest('button[data-validation-path]'); if(!btn){ return; } jumpToValidationPath(btn.dataset.validationPath); });` +
     `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
     `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
+    `surfaceTabs.forEach((tab)=>tab.addEventListener('click',()=>setActiveSurface(tab.dataset.surfaceTarget || 'user')));` +
+    `setActiveSurface('user');` +
     `function renderMetrics(metrics){` +
     `  metricsGrid.innerHTML=[` +
     "    ['Recent traces', metrics.totalTraces ?? 0]," +

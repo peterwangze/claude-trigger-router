@@ -1170,6 +1170,18 @@ describe('createServer /api/config', () => {
     expect(html).toContain('previewConfigDraftHeroBtn');
     expect(html).toContain('refreshStatusHeroBtn');
     expect(html).toContain('loadServiceStatus');
+    expect(html).toContain('userSurfaceTab');
+    expect(html).toContain('maintainerSurfaceTab');
+    expect(html).toContain('id="userSurface"');
+    expect(html).toContain('id="maintainerSurface"');
+    expect(html).toContain('data-surface-target="user"');
+    expect(html).toContain('data-surface-target="maintainer"');
+    expect(html).toContain('使用者工作台');
+    expect(html).toContain('维护者工作台');
+    expect(html).toContain('setActiveSurface');
+    expect(html).toContain('setActiveSurface(\'user\')');
+    expect(html).toContain('<section id="maintainerSurface" class="surface-panel" data-surface="maintainer" hidden>');
+    expect(html.indexOf('Draft Config Preview')).toBeLessThan(html.indexOf('维护者观测'));
     expect(html).toContain('维护者观测');
     expect(html).toContain('Governance Trace');
     expect(html).toContain('/api/models/compiled');
