@@ -321,6 +321,7 @@ function validateRegistrationUpstreamServices(services: any[], errors: string[])
     }
 
     const id = typeof service.id === 'string' ? service.id.trim() : '';
+    const baseUrl = typeof service.base_url === 'string' ? service.base_url.trim() : '';
     if (!id) {
       errors.push(`Registration.upstream_services[${index}].id is required`);
     } else if (ids.has(id)) {
@@ -329,7 +330,7 @@ function validateRegistrationUpstreamServices(services: any[], errors: string[])
       ids.add(id);
     }
 
-    if (!service.base_url?.trim()) {
+    if (!baseUrl) {
       errors.push(`Registration.upstream_services[${index}].base_url is required`);
     }
 

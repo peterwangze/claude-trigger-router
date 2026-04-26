@@ -162,6 +162,40 @@ describe('normalizeAndValidateConfig governance', () => {
     expect(result.errors).toContain('Registration.models[0].model is required');
   });
 
+  it('reports malformed registration payload fields instead of throwing', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 123,
+            api: 456,
+            key: 789,
+            interface: 123,
+            model: false,
+          },
+        ],
+        upstream_services: [
+          {
+            id: 123,
+            base_url: 456,
+            auth_token: 789,
+          },
+        ],
+      } as any,
+    });
+
+    expect(result.errors).toContain('Registration.models[0].id is required');
+    expect(result.errors).toContain('Registration.models[0].api is required');
+    expect(result.errors).toContain('Registration.models[0].key is required');
+    expect(result.errors).toContain('Registration.models[0].interface is required');
+    expect(result.errors).toContain('Registration.models[0].model is required');
+    expect(result.errors).toContain('Registration.upstream_services[0].id is required');
+    expect(result.errors).toContain('Registration.upstream_services[0].base_url is required');
+    expect(result.errors).toContain('Registration.upstream_services[0].auth_token must be a string when provided');
+  });
+
   it('rejects node-only registration fields until orchestration semantics exist', () => {
     const result = normalizeAndValidateConfig({
       ...baseConfig,

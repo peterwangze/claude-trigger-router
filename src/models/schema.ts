@@ -6,6 +6,10 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
+function trimString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 export function inferInterfaceFromApiEndpoint(api?: string, modelName?: string): ModelInterface | undefined {
   const trimmed = api?.trim().toLowerCase();
   if (!trimmed) {
@@ -87,17 +91,23 @@ export function normalizeApiEndpoint(api?: string, explicitInterface?: ModelInte
 }
 
 export function getModelApi(item: Partial<IModelEndpointConfig>): string {
-  const rawApi = item.api?.trim() || item.api_base_url?.trim() || '';
-  const explicitInterface = item.interface || item.protocol;
+  const rawApi = trimString(item.api) || trimString(item.api_base_url) || '';
+  const explicitInterface =
+    item.interface === 'openai' || item.interface === 'anthropic'
+      ? item.interface
+      : item.protocol === 'openai' || item.protocol === 'anthropic'
+        ? item.protocol
+        : undefined;
   return normalizeApiEndpoint(rawApi, explicitInterface);
 }
 
 export function getModelKey(item: Partial<IModelEndpointConfig>): string {
-  return item.key?.trim() || item.api_key?.trim() || '';
+  return trimString(item.key) || trimString(item.api_key) || '';
 }
 
 export function getModelInterface(item: Partial<IModelEndpointConfig>): ModelInterface | undefined {
-  return item.interface || item.protocol;
+  const modelInterface = item.interface || item.protocol;
+  return typeof modelInterface === 'string' ? modelInterface as ModelInterface : undefined;
 }
 
 export function normalizeThinkingConfig(
@@ -152,24 +162,27 @@ export function toThinkingAlias(
 }
 
 export function normalizeModelEndpointConfig(item: Partial<IModelEndpointConfig>): IModelEndpointConfig {
-  const api = getModelApi(item);
-  const key = getModelKey(item);
-  const modelInterface = getModelInterface(item);
+  const source = (
+    item && typeof item === 'object' && !Array.isArray(item) ? item : {}
+  ) as Partial<IModelEndpointConfig>;
+  const api = getModelApi(source);
+  const key = getModelKey(source);
+  const modelInterface = getModelInterface(source);
 
   return {
-    ...item,
-    id: item.id?.trim() ?? '',
+    ...source,
+    id: trimString(source.id),
     api,
     api_base_url: api,
     key,
     api_key: key,
     interface: modelInterface,
     protocol: modelInterface,
-    model: item.model?.trim() ?? '',
-    thinking: normalizeThinkingConfig(item.thinking),
-    metadata: item.metadata
+    model: trimString(source.model),
+    thinking: normalizeThinkingConfig(source.thinking),
+    metadata: source.metadata
       ? {
-          ...item.metadata,
+          ...source.metadata,
         }
       : undefined,
   };
