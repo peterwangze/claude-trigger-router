@@ -59,7 +59,7 @@ Do not start step 3 before step 2 is test-backed and green.
 - Modify: `src/utils/config.ts`
 - Test: `src/utils/config.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add tests for:
 
@@ -73,12 +73,12 @@ it('normalizes remote_service config without breaking local defaults', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- src/utils/config.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Add conservative config normalization for:
 - `Runtime.mode`
@@ -87,7 +87,7 @@ Add conservative config normalization for:
 
 Default remains `local`.
 
-- [ ] **Step 4: Run targeted tests**
+- [x] **Step 4: Run targeted tests**
 
 Run: `npm test -- src/utils/config.test.ts`
 Expected: PASS.
@@ -99,7 +99,7 @@ Expected: PASS.
 - Modify: `src/server.ts`
 - Test: `src/server.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add assertions for a service info endpoint or equivalent response helper:
 
@@ -109,16 +109,16 @@ expect(body.serviceRole).toBe('router_service');
 expect(body.remoteEnabled).toBe(false);
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- src/server.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Expose service runtime metadata using existing server / health primitives.
 
-- [ ] **Step 4: Run targeted tests**
+- [x] **Step 4: Run targeted tests**
 
 Run: `npm test -- src/server.test.ts`
 Expected: PASS.

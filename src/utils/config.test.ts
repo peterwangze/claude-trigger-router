@@ -30,6 +30,93 @@ describe('normalizeAndValidateConfig governance', () => {
     expect(result.config).not.toHaveProperty('Governance');
   });
 
+  it('keeps local Runtime defaults implicit when Runtime is not configured', () => {
+    const result = normalizeAndValidateConfig(baseConfig);
+
+    expect(result.errors).toEqual([]);
+    expect(result.config).not.toHaveProperty('Runtime');
+    expect(result.config).not.toHaveProperty('Registration');
+  });
+
+  it('accepts Runtime mode as local, server, or cloud', () => {
+    (['local', 'server', 'cloud'] as const).forEach((mode) => {
+      const result = normalizeAndValidateConfig({
+        ...baseConfig,
+        Runtime: { mode },
+      });
+
+      expect(result.errors).toEqual([]);
+      expect(result.config.Runtime?.mode).toBe(mode);
+    });
+  });
+
+  it('normalizes remote service and registration config without breaking local defaults', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Runtime: {
+        mode: 'server',
+        remote_service: {
+          enabled: true,
+          base_url: 'https://router.example.com',
+        },
+      },
+      Registration: {
+        enabled: true,
+        upstream_services: [
+          {
+            id: 'edge-router',
+            base_url: 'https://edge.example.com',
+          },
+        ],
+      },
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.Runtime).toEqual({
+      mode: 'server',
+      remote_service: {
+        enabled: true,
+        base_url: 'https://router.example.com',
+        auth_token: '',
+      },
+    });
+    expect(result.config.Registration).toEqual({
+      enabled: true,
+      models: [],
+      upstream_services: [
+        {
+          id: 'edge-router',
+          base_url: 'https://edge.example.com',
+        },
+      ],
+    });
+  });
+
+  it('reports invalid Runtime and remote service status config', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Runtime: {
+        mode: 'edge' as any,
+        remote_service: {
+          enabled: true,
+        },
+      },
+      Registration: {
+        upstream_services: [
+          {
+            id: '',
+            base_url: '',
+          },
+        ],
+      },
+    });
+
+    expect(result.errors).toContain('Runtime.mode must be one of "local", "server", or "cloud"');
+    expect(result.errors).toContain('Runtime.remote_service.base_url is required when remote_service is enabled');
+    expect(result.errors).toContain('Registration.upstream_services[0].id is required');
+    expect(result.errors).toContain('Registration.upstream_services[0].base_url is required');
+  });
+
   it('merges Governance defaults when configured', () => {
     const result = normalizeAndValidateConfig({
       ...baseConfig,

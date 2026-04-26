@@ -68,6 +68,75 @@ describe('createServer /api/config', () => {
     });
   });
 
+  it('exposes service info with runtime mode and remote boundary metadata', async () => {
+    const server = createServer({
+      initialConfig: {
+        HOST: '0.0.0.0',
+        PORT: 4567,
+        Runtime: {
+          mode: 'server',
+          remote_service: {
+            enabled: false,
+          },
+        },
+        Registration: {
+          enabled: true,
+          upstream_services: [
+            {
+              id: 'edge-router',
+              base_url: 'https://edge.example.com',
+            },
+          ],
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/service-info');
+
+    const result = await handler({}, {});
+
+    expect(result).toEqual({
+      service: 'claude-trigger-router',
+      ready: true,
+      host: '0.0.0.0',
+      port: 4567,
+      runtimeMode: 'server',
+      serviceRole: 'router_service',
+      remoteEnabled: false,
+      remoteService: {
+        enabled: false,
+        baseUrl: '',
+        authTokenConfigured: false,
+      },
+      registration: {
+        enabled: true,
+        models: 0,
+        upstreamServices: 1,
+      },
+    });
+  });
+
+  it('reports local service info when Runtime is not configured', async () => {
+    const server = createServer({
+      initialConfig: {
+        PORT: 4567,
+      },
+    });
+    const handler = server.app.routes.get('GET /api/service-info');
+
+    const result = await handler({}, {});
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        service: 'claude-trigger-router',
+        ready: true,
+        port: 4567,
+        runtimeMode: 'local',
+        serviceRole: 'local_agent',
+        remoteEnabled: false,
+      })
+    );
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     governanceTraceStore.clear();

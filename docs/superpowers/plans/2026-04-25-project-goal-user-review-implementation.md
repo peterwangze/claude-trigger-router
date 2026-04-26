@@ -284,10 +284,11 @@ P3-3：持续 closed 事项复审
 - P1-3 复审补强：已闭环纯 warning 字符串路径丢失 `info` severity 的问题，`supports_tools` / `supports_images` fallback 在 setup、doctor、server save 与 UI save 中仍按 info 呈现，并已追加 PI-012 与回归测试。
 - P1-4 `UI 静态资源拆出`：已将 `/ui` 大段 HTML/CSS/JS 渲染从 `src/server.ts` 移入 `src/ui/workbench.ts`，`server.ts` 只保留 `/ui` 路由注册、Content-Type 与初始状态注入；这一步先完成职责边界拆分，后续更细的 CSS/JS 文件化可并入 UI 双层工作台收敛继续推进。
 - P2-1 `UI 双层工作台继续落地`：已在 `/ui` 增加“使用者工作台 / 维护者工作台”顶层 surface 切换；默认停留在使用者工作台，承载配置草稿、模型、路由、compiled preview 与保存动作，维护者工作台独立承接 Governance Trace、metrics、异常阈值、快照和归档，现有 `/api/governance/*` 能力仍可达。
+- P2-2 `部署形态与远程接入最小闭环`（Chunk 1）：已新增 `Runtime.mode`、`Runtime.remote_service` 与 `Registration` 的保守归一化/校验，默认仍为 `local`；同时新增 `/api/service-info` 暴露 runtime mode、service role、remote enabled 与 registration 摘要，为后续 remote status / setup / doctor / UI 对齐提供稳定 contract。
 
 下一项按优先级继续推进：
 
-- P2-2 `部署形态与远程接入`。
+- P2-2 `部署形态与远程接入` Chunk 2：remote connection config 与 status queries。
 
 ## 七、关联文件
 

@@ -24,6 +24,21 @@ import { collectCapabilityWarnings, isKnownModelReference } from '../models/comp
 import { getModelApi, getModelInterface, getModelKey, normalizeModelEndpointConfig, toExternalModelConfig } from '../models/schema';
 import { logError, logWarn } from './log';
 
+const DEFAULT_RUNTIME_CONFIG: NonNullable<IAppConfig['Runtime']> = {
+  mode: 'local',
+  remote_service: {
+    enabled: false,
+    base_url: '',
+    auth_token: '',
+  },
+};
+
+const DEFAULT_REGISTRATION_CONFIG: NonNullable<IAppConfig['Registration']> = {
+  enabled: false,
+  models: [],
+  upstream_services: [],
+};
+
 /**
  * 确保配置目录存在
  */
@@ -319,6 +334,31 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
   // 验证 Router
   if (!config.Router?.default) {
     errors.push('Router.default is required');
+  }
+
+  if (config.Runtime?.mode && !['local', 'server', 'cloud'].includes(config.Runtime.mode)) {
+    errors.push('Runtime.mode must be one of "local", "server", or "cloud"');
+  }
+
+  if (config.Runtime?.remote_service?.enabled && !config.Runtime.remote_service.base_url?.trim()) {
+    errors.push('Runtime.remote_service.base_url is required when remote_service is enabled');
+  }
+
+  if (config.Registration?.models && !Array.isArray(config.Registration.models)) {
+    errors.push('Registration.models must be an array when provided');
+  }
+
+  if (config.Registration?.upstream_services && !Array.isArray(config.Registration.upstream_services)) {
+    errors.push('Registration.upstream_services must be an array when provided');
+  } else {
+    config.Registration?.upstream_services?.forEach((service, index) => {
+      if (!service.id?.trim()) {
+        errors.push(`Registration.upstream_services[${index}].id is required`);
+      }
+      if (!service.base_url?.trim()) {
+        errors.push(`Registration.upstream_services[${index}].base_url is required`);
+      }
+    });
   }
 
   // Provider/model 交叉引用校验（仅在 Providers 列表有效时执行）
@@ -696,6 +736,24 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
     normalizedInput
   ) as IAppConfig;
 
+  if (normalizedInput.Runtime) {
+    normalizedConfig.Runtime = deepMerge(
+      DEFAULT_RUNTIME_CONFIG,
+      normalizedInput.Runtime
+    ) as IAppConfig['Runtime'];
+    normalizedConfig.Runtime.remote_service = deepMerge(
+      DEFAULT_RUNTIME_CONFIG.remote_service ?? {},
+      normalizedInput.Runtime.remote_service ?? {}
+    );
+  }
+
+  if (normalizedInput.Registration) {
+    normalizedConfig.Registration = deepMerge(
+      DEFAULT_REGISTRATION_CONFIG,
+      normalizedInput.Registration
+    ) as IAppConfig['Registration'];
+  }
+
   if (normalizedInput.Governance) {
     normalizedConfig.Governance = deepMerge(DEFAULT_GOVERNANCE_CONFIG, normalizedInput.Governance) as IAppConfig['Governance'];
   }
@@ -731,6 +789,10 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
 
   if (normalizedInput.Models) {
     normalizedConfig.Models = normalizedInput.Models.map((item) => normalizeModelEndpointConfig(item));
+  }
+
+  if (normalizedInput.Registration?.models && normalizedConfig.Registration) {
+    normalizedConfig.Registration.models = normalizedInput.Registration.models.map((item) => normalizeModelEndpointConfig(item));
   }
 
   return {

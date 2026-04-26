@@ -85,6 +85,34 @@ function collectModelReferences(config: any): ModelReferenceEntry[] {
   return refs;
 }
 
+function buildServiceInfo(rawConfig: any) {
+  const normalized = normalizeAndValidateConfig(rawConfig ?? {}).config;
+  const runtime = normalized.Runtime ?? {};
+  const remoteService = runtime.remote_service ?? {};
+  const registration = normalized.Registration ?? {};
+  const runtimeMode = runtime.mode ?? "local";
+
+  return {
+    service: SERVICE_NAME,
+    ready: true,
+    host: rawConfig?.HOST ?? normalized.HOST,
+    port: rawConfig?.PORT ?? normalized.PORT,
+    runtimeMode,
+    serviceRole: runtimeMode === "local" ? "local_agent" : "router_service",
+    remoteEnabled: Boolean(remoteService.enabled),
+    remoteService: {
+      enabled: Boolean(remoteService.enabled),
+      baseUrl: remoteService.base_url || "",
+      authTokenConfigured: Boolean(remoteService.auth_token),
+    },
+    registration: {
+      enabled: Boolean(registration.enabled),
+      models: Array.isArray(registration.models) ? registration.models.length : 0,
+      upstreamServices: Array.isArray(registration.upstream_services) ? registration.upstream_services.length : 0,
+    },
+  };
+}
+
 function scoreModelIdSuggestion(source: string, candidateId: string, candidate: any) {
   const sourceText = String(source || "").toLowerCase();
   const candidateText = `${candidateId} ${candidate?.modelName || ""}`.toLowerCase();
@@ -499,6 +527,10 @@ export const createServer = (config: any): Server => {
       ready: true,
       port: config.initialConfig?.PORT,
     };
+  });
+
+  server.app.get("/api/service-info", async () => {
+    return buildServiceInfo(config.initialConfig ?? {});
   });
 
   server.app.get("/api/governance/traces", async (req: any) => {

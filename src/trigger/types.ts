@@ -173,11 +173,38 @@ export interface IAppConfig {
   /** 治理层配置 */
   Governance?: IGovernanceConfig;
 
+  /** 运行形态与远程服务目标 */
+  Runtime?: IRuntimeConfig;
+
+  /** 远程注册配置 */
+  Registration?: IRegistrationConfig;
+
   /** 自定义路由器路径 */
   CUSTOM_ROUTER_PATH?: string;
 
   /** 强制所有图片请求走 Image Agent 模式（默认 false） */
   forceUseImageAgent?: boolean;
+}
+
+export type TRuntimeMode = 'local' | 'server' | 'cloud';
+
+export interface IRuntimeConfig {
+  mode?: TRuntimeMode;
+  remote_service?: {
+    enabled?: boolean;
+    base_url?: string;
+    auth_token?: string;
+  };
+}
+
+export interface IRegistrationConfig {
+  enabled?: boolean;
+  models?: IModelEndpointConfig[];
+  upstream_services?: Array<{
+    id: string;
+    base_url: string;
+    auth_token?: string;
+  }>;
 }
 
 /**
