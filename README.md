@@ -1,12 +1,27 @@
 # Claude Trigger Router
 
-Claude Code 的本地路由代理。
+Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 
-它的目标很简单：
+你可以把它理解成 Claude Code 和上游模型之间的一层本地服务：Claude Code 仍然照常使用，但请求会先经过 `ctr`，再按你的配置转发到 OpenAI、Anthropic、OpenRouter、DeepSeek 或其他 OpenAI-compatible 接口。
 
-- 用一个本地服务接管 Claude Code 的上游请求
-- 按你的配置把请求路由到不同模型
-- 用统一的模型配置格式管理 OpenAI / Anthropic 及兼容接口
+它适合这些场景：
+
+- 想用统一配置管理多个模型和供应商
+- 想让日常任务走便宜/快的模型，复杂任务自动切到更强模型
+- 想在 Claude Code 外层增加配置校验、健康检查、治理观测和 UI 工作台
+- 想从 `claude-code-router` 迁移到更清晰的 `Models + Router` 配置心智
+
+## 功能概览
+
+- **本地代理服务**：默认监听 `127.0.0.1:5678`，接管 Claude Code 上游请求。
+- **统一模型配置**：用 `Models[]` 描述模型接入项，路由直接引用 `Models[].id`。
+- **协议兼容**：支持 `openai` / `anthropic` 两类接口协议，OpenRouter、DeepSeek 等 OpenAI-compatible 服务按 `openai` 配。
+- **基础路由**：用 `Router.default`、`Router.think`、`Router.longContext` 等槽位指定不同任务的默认模型。
+- **SmartRouter**：先用显式规则命中高确定性任务，也可以在规则未命中时让路由模型从候选模型中自动选择。
+- **Governance 观测**：记录 trace、metrics、异常摘要，帮助你理解路由选择和运行状态。
+- **doctor 诊断**：检查配置、服务可启动性、模型兼容策略和可选模型探测。
+- **UI 工作台**：`ctr ui` 打开本地页面，查看配置草稿、compiled models、capability warnings、治理 trace 和 metrics。
+- **远程状态基础**：可配置 `Runtime.remote_service`，通过 `/api/remote-status` 查看远程服务健康、compiled model 摘要和治理告警摘要。默认用户不需要配置远程模式。
 
 ## 安装
 
@@ -14,44 +29,61 @@ Claude Code 的本地路由代理。
 npm install -g @peterwangze/claude-trigger-router
 ```
 
-安装后先确认：
+安装后确认命令可用：
 
 ```bash
 ctr version
 ctr help
 ```
 
-## 最推荐的开始方式
+## 5 分钟跑起来
 
-直接运行：
+首次使用最推荐走交互式 setup：
 
 ```bash
 ctr setup
 ```
 
-`ctr setup` 会按顺序处理这些事情：
+`ctr setup` 会自动处理：
 
-- 检查当前 `~/.claude-trigger-router` 配置是否可以直接复用
-- 检查旧的 `claude-code-router` 配置是否可以迁移
-- 如果都不适用，就按“默认模型 ID -> 接入方式 -> API 信息”的顺序引导你创建最小可用配置
-- 完成最小配置后，可选继续添加一个复杂任务模型，并直接生成 SmartRouter 路由模板
+- 复用已有 `~/.claude-trigger-router/config.yaml`
+- 探测并迁移旧 `claude-code-router` 配置
+- 在没有可用配置时创建最小可用配置
+- 引导填写默认模型 ID、接口地址、API Key 和模型名
+- 可选追加复杂任务模型，并生成 SmartRouter 起步模板
 - 保存配置后启动本地服务
 
-这是当前最推荐、也是覆盖最完整的用户入口。
+完成后按这个顺序使用：
 
-## 最小配置
+```bash
+ctr status
+ctr code
+```
 
-如果你想手动编辑，可以先生成模板：
+`ctr code` 会带着本地代理环境启动 Claude Code。之后你在 Claude Code 里的请求会经过 Trigger Router。
+
+## 手动配置
+
+如果你更喜欢手动编辑，可以先生成模板：
 
 ```bash
 ctr init --force
 ```
 
-然后编辑 `~/.claude-trigger-router/config.yaml`，最小可用配置类似这样：
+配置文件位置：
+
+```text
+~/.claude-trigger-router/config.yaml
+```
+
+最小可用配置如下：
 
 ```yaml
 HOST: "127.0.0.1"
 PORT: 5678
+
+LOG: true
+LOG_LEVEL: "debug"
 
 Models:
   - id: sonnet
@@ -65,97 +97,48 @@ Router:
   default: "sonnet"
 ```
 
-`ctr init --force` 现在和 `ctr setup` 一样，都会落到同一类“最小可用配置”心智：
+你第一次通常只需要改：
 
-- 必要运行时字段已补齐
-- `Models[0]` 已是可校验的最小接入结构
-- `Router.default` 已指向默认模型 ID
-- 修改最少必要字段后即可直接 `ctr start`
+- `Models[0].api`：上游接口地址
+- `Models[0].key`：API Key
+- `Models[0].interface`：接口协议，通常是 `openai` 或 `anthropic`
+- `Models[0].model`：上游真实模型名
+- `Router.default`：默认使用哪个 `Models[].id`
 
-最少只需要关心这几个字段：
+改完后启动：
 
-- `api`：目标接口地址
-- `key`：API Key
-- `interface`：接口类型，当前支持 `openai` / `anthropic`
-- `thinking`：可选，支持的模型才需要配置
-
-消息格式转换由路由层统一处理，不需要你自己按不同厂商手写消息体。
-
-如果你在 `ctr setup` 中选择继续添加“复杂任务专用模型”，setup 还可以直接帮你补一层 SmartRouter 模板：
-
-- 规则模板：把架构设计、代码审查、深入分析等高确定性任务切到复杂任务模型
-- 规则 + 智能兜底：在规则之外，再让 `router_model` 在默认模型和复杂任务模型之间自动选择
-
-这样首次接入时就能同时得到：
-
-- 一个默认模型
-- 一个复杂任务模型
-- 一套可直接修改的 SmartRouter 起步模板
-
-## Router：显式规则优先
-
-统一 `Router` 的第一层能力，是先用显式规则处理“高确定性任务”：
-
-- 架构设计
-- 代码审查
-- 长文档评审
-- 复杂推理
-
-这类任务通常可以通过关键词或规则稳定识别，然后直接路由到你指定的模型。
-
-当前这层能力由 `SmartRouter.rules` 承载：
-
-- 默认请求先走 `Router.default`
-- 命中显式规则的请求，优先切到规则指定模型
-
-示例：
-
-```yaml
-Models:
-  - id: sonnet
-    api: "https://openrouter.ai/api/v1/chat/completions"
-    key: "sk-xxx"
-    interface: "openai"
-    model: "anthropic/claude-sonnet-4"
-
-  - id: opus
-    api: "https://openrouter.ai/api/v1/chat/completions"
-    key: "sk-xxx"
-    interface: "openai"
-    model: "anthropic/claude-opus-4"
-
-Router:
-  default: "sonnet"
-
-SmartRouter:
-  enabled: true
-  analysis_scope: "last_message"
-  rules:
-    - name: "architecture"
-      priority: 90
-      enabled: true
-      patterns:
-        - type: exact
-          keywords: ["架构设计", "system design"]
-      model: "opus"
+```bash
+ctr start
+ctr code
 ```
 
-## Router：候选模型智能兜底
+后台运行：
 
-统一 `Router` 的第二层能力，是在显式规则未命中时，用候选模型做智能兜底。
+```bash
+ctr start --daemon
+ctr status
+ctr code
+```
 
-它适合“规则难以穷举，但模型选择仍然很重要”的任务：
+## `interface` 怎么选
 
-- 通用编程 vs 深度推理
-- 日常修复 vs 架构设计
-- 常规回答 vs 长上下文分析
+`interface` 表示上游接口协议，不是厂商名。
 
-你提供一个路由模型和一组候选模型，路由器会在规则未命中时，从候选模型里自动挑一个更合适的目标。
+常见写法：
 
-- 规则负责稳定命中
-- 智能兜底负责补上规则没覆盖到的模糊任务
+| 服务 | interface |
+|---|---|
+| OpenAI 官方 | `openai` |
+| Anthropic 官方 | `anthropic` |
+| OpenRouter | `openai` |
+| DeepSeek | `openai` |
+| 其他 OpenAI-compatible 服务 | `openai` |
 
-示例：
+路由层会负责请求格式转换，你不需要自己按不同供应商手写消息体。
+
+## 配多个模型
+
+每个 `Models[]` 项都是一个可被路由引用的模型接入项：
 
 ```yaml
 Models:
@@ -175,7 +158,38 @@ Models:
 Router:
   default: "sonnet"
   think: "reasoner"
+```
 
+推荐所有路由字段都引用 `Models[].id`，比如上面的 `sonnet`、`reasoner`。
+
+## 显式规则路由
+
+适合能用关键词稳定识别的任务，例如架构设计、代码审查、长文档评审。
+
+```yaml
+Router:
+  default: "sonnet"
+
+SmartRouter:
+  enabled: true
+  analysis_scope: "last_message"
+  rules:
+    - name: "architecture"
+      priority: 90
+      enabled: true
+      patterns:
+        - type: exact
+          keywords: ["架构设计", "system design"]
+      model: "reasoner"
+```
+
+规则命中时优先使用规则指定模型；没命中时回到 `Router.default`。
+
+## 智能模型选择
+
+如果任务边界比较模糊，可以让 SmartRouter 用一个路由模型从候选模型中选择：
+
+```yaml
 SmartRouter:
   enabled: true
   router_model: "sonnet"
@@ -183,164 +197,157 @@ SmartRouter:
     - model: "sonnet"
       description: "通用编程、代码生成、日常调试"
     - model: "reasoner"
-      description: "复杂推理、严谨分析"
+      description: "复杂推理、严谨分析、架构设计"
 ```
 
-可以简单理解成：
+推荐心智：
 
 - `Router.default` 负责默认去向
-- 显式规则负责“能明确命中的任务”
-- 智能兜底负责“规则没命中时的动态选模”
+- `SmartRouter.rules` 负责高确定性任务
+- `SmartRouter.candidates` 负责规则未命中时的智能兜底
 
-这两层能力可以同时启用：
+## capability hint
 
-- 先让显式规则处理高确定性任务
-- 再让智能兜底处理剩余的模糊任务
+如果你明确知道某个模型能力受限，可以配置 `metadata`：
 
-## `interface` 怎么选
-
-`interface` 表示目标上游接口协议，不是厂商名。
-
-常见场景：
-
-- OpenAI 官方：`interface: openai`
-- Anthropic 官方：`interface: anthropic`
-- OpenRouter：`interface: openai`
-- DeepSeek 兼容接口：`interface: openai`
-- 其他 OpenAI-compatible 服务：`interface: openai`
-
-## 常用命令
-
-初始化或修复配置：
-
-```bash
-ctr setup
-ctr init
+```yaml
+Models:
+  - id: text_only
+    api: "https://api.example.com/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "vendor/text-only"
+    metadata:
+      supports_reasoning: false
+      supports_tools: false
+      supports_images: false
 ```
 
-服务生命周期：
+当前行为：
 
-```bash
-ctr start
-ctr start --daemon
-ctr status
-ctr restart
-ctr restart --daemon
-ctr stop
-```
+- `supports_reasoning: false`：忽略 `thinking`
+- `supports_tools: false`：工具调用退化为文本表达
+- `supports_images: false`：图片输入退化为文本描述
 
-配合 Claude Code 使用：
+不确定时可以先不配，等主路径跑通后再补。
 
-```bash
-ctr code
-```
+## UI 工作台
 
-其它：
-
-```bash
-ctr version
-ctr upgrade
-ctr doctor
-ctr ui
-```
-
-## doctor
-
-如果你已经有配置，但不确定为什么服务起不来、模型不可用，或者迁移后想做一次统一体检，可以运行：
-
-```bash
-ctr doctor
-```
-
-`ctr doctor` 会按顺序执行：
-
-- 诊断当前配置文件是否存在格式问题
-- 自动修复低风险、可确定补全的结构问题
-- 确认修复后的配置是否还能通过本地校验并让服务启动
-- 用可理解的说明展示当前模型的兼容策略与请求编译方式
-- 预览 capability 配置可能触发的运行时降级，例如 thinking 忽略、工具降级为文本、图片降级为文本
-- 在征得你同意后，对配置中的模型发送最小探测请求，确认模型是否真实可用
-
-其中模型探测会消耗少量额度，所以 doctor 会先征求你的确认。探测失败时，doctor 会优先给出面向用户的失败说明和处理建议，再保留原始远端报错供继续排查。
-
-## 推荐使用顺序
-
-首次使用：
-
-```bash
-ctr help
-ctr version
-ctr setup
-ctr status
-ctr code
-```
-
-如果你更喜欢手动配置：
-
-```bash
-ctr init --force
-ctr start
-ctr code
-```
-
-后台运行：
-
-```bash
-ctr start --daemon
-ctr status
-ctr ui
-ctr code
-```
-
-补充说明：
-
-- `ctr restart` 当前默认按后台模式重启
-- `ctr restart --daemon` 只是更显式的等价写法
-
-## 旧配置迁移
-
-如果你之前在用 `claude-code-router`：
-
-- `ctr setup` 会自动探测旧配置
-- 会优先提供迁移选项
-- 迁移后的新配置会落到 `~/.claude-trigger-router/config.yaml`
-
-当前推荐的新配置心智是：
-
-- 每个模型直接写成一个 `Models[]` 项
-- 路由规则直接引用 `Models[].id`
-- 不再让用户到处手写 `provider,model`
-
-## UI
-
-运行：
+启动服务后运行：
 
 ```bash
 ctr ui
 ```
 
-当前会打开：
+默认打开：
 
 ```text
 http://127.0.0.1:5678/ui
 ```
 
-如果本地服务还没启动，CLI 会先提醒你运行 `ctr start` 或 `ctr start --daemon`。
+当前 UI 分成两层：
 
-它适合做配置查看和调试，但主线入口仍然建议优先使用 `ctr setup`。
+- **使用者工作台**：查看和编辑配置草稿、模型、路由、compiled preview 和保存结果。
+- **维护者工作台**：查看 Governance trace、metrics、异常阈值、快照和归档。
 
-## 示例配置
+如果服务没有启动，`ctr ui` 会提示先运行：
 
-最小示例：
+```bash
+ctr start
+```
 
-- `config/trigger.example.yaml`
+或：
 
-完整高级示例：
+```bash
+ctr start --daemon
+```
 
-- `config/trigger.advanced.yaml`
+## doctor 诊断
 
-如果你需要高级路由能力，再继续看这些文档：
+配置不确定、服务起不来、模型不可用、迁移后想体检，都可以运行：
 
-- `docs/configuration-guide.md`
-- `docs/models-migration-guide.md`
-- `docs/releasing.md`
+```bash
+ctr doctor
+```
+
+它会检查：
+
+- 配置文件是否存在或能否解析
+- 缺失字段和低风险结构问题
+- 配置是否能通过本地校验
+- 服务是否可启动
+- 模型兼容策略和请求编译方式
+- capability hint 可能触发的运行时降级
+- 在你确认后，对模型发送最小探测请求
+
+模型探测会消耗少量额度，所以 doctor 会先征求确认。
+
+## 远程服务状态
+
+默认情况下，你只需要本地模式，不需要配置远程服务。
+
+如果你已经有一个远程 Trigger Router 服务，可以在本地配置远程目标：
+
+```yaml
+Runtime:
+  mode: "local"
+  remote_service:
+    enabled: true
+    base_url: "https://router.example.com"
+    auth_token: "${CTR_REMOTE_AUTH_TOKEN}"
+
+Router: {}
+```
+
+启用后，服务状态接口会返回远程健康、compiled model 摘要和治理告警摘要：
+
+```text
+GET /api/remote-status
+```
+
+这条能力当前作为远程接入基础 contract 提供；首次使用仍建议从本地 `ctr setup -> ctr start -> ctr code` 开始。
+
+## 常用命令
+
+| 命令 | 用途 |
+|---|---|
+| `ctr setup` | 首次配置、复用、迁移、修复配置 |
+| `ctr init --force` | 生成最小配置模板 |
+| `ctr start` | 前台启动本地服务 |
+| `ctr start --daemon` | 后台启动本地服务 |
+| `ctr status` | 查看服务状态 |
+| `ctr restart` | 重启服务，默认按后台模式 |
+| `ctr stop` | 停止服务 |
+| `ctr code` | 带 Trigger Router 环境启动 Claude Code |
+| `ctr doctor` | 配置和服务诊断 |
+| `ctr ui` | 打开本地 UI 工作台 |
+| `ctr version` | 查看版本 |
+| `ctr upgrade` | 升级 |
+
+## 旧配置迁移
+
+如果你之前使用 `claude-code-router`：
+
+```bash
+ctr setup
+```
+
+setup 会自动探测旧配置，并优先提供迁移选项。迁移后的配置会写入：
+
+```text
+~/.claude-trigger-router/config.yaml
+```
+
+迁移后的推荐心智是：
+
+- 每个模型写成一个 `Models[]` 项
+- 路由引用 `Models[].id`
+- 少写旧式 `provider,model`
+
+## 更多示例和文档
+
+- 最小示例：`config/trigger.example.yaml`
+- 高级示例：`config/trigger.advanced.yaml`
+- 配置细节：`docs/configuration-guide.md`
+- Models 迁移：`docs/models-migration-guide.md`
+- 发布验证：`docs/releasing.md`
