@@ -92,6 +92,94 @@ describe('normalizeAndValidateConfig governance', () => {
     });
   });
 
+  it('normalizes minimal registration model and upstream service payloads', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: ' edge-sonnet ',
+            api: ' https://api.example.com/v1 ',
+            key: ' sk-registration ',
+            interface: 'anthropic',
+            model: ' claude-sonnet-4-5 ',
+          },
+        ],
+        upstream_services: [
+          {
+            id: ' edge-router ',
+            base_url: ' https://edge.example.com/ ',
+            auth_token: ' remote-token ',
+          },
+        ],
+      },
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.Registration?.models?.[0]).toEqual(
+      expect.objectContaining({
+        id: 'edge-sonnet',
+        api: 'https://api.example.com/v1/messages',
+        api_base_url: 'https://api.example.com/v1/messages',
+        key: 'sk-registration',
+        api_key: 'sk-registration',
+        interface: 'anthropic',
+        protocol: 'anthropic',
+        model: 'claude-sonnet-4-5',
+      })
+    );
+    expect(result.config.Registration?.upstream_services).toEqual([
+      {
+        id: 'edge-router',
+        base_url: 'https://edge.example.com',
+        auth_token: 'remote-token',
+      },
+    ]);
+  });
+
+  it('validates registration model entries with the same minimal model contract', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: '',
+            api: '',
+            key: '',
+            interface: 'invalid' as any,
+            model: '',
+          },
+        ],
+      },
+    });
+
+    expect(result.errors).toContain('Registration.models[0].id is required');
+    expect(result.errors).toContain('Registration.models[0].api is required');
+    expect(result.errors).toContain('Registration.models[0].key is required');
+    expect(result.errors).toContain('Registration.models[0].interface must be either "openai" or "anthropic"');
+    expect(result.errors).toContain('Registration.models[0].model is required');
+  });
+
+  it('rejects node-only registration fields until orchestration semantics exist', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Registration: {
+        enabled: true,
+        nodes: [
+          {
+            id: 'node-a',
+          },
+        ],
+      } as any,
+    });
+
+    expect(result.errors).toContain(
+      'Registration.nodes is not supported yet; use Registration.models or Registration.upstream_services'
+    );
+  });
+
   it('accepts a remote-service client draft without local models or providers', () => {
     const result = normalizeAndValidateConfig({
       Runtime: {

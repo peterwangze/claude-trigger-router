@@ -204,19 +204,19 @@ Expected: PASS.
 - Test: `src/utils/config.test.ts`
 - Test: `src/server.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Cover:
 - model registration list normalization
 - upstream service reference normalization
 - rejecting ambiguous node-only registration in first phase
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- src/utils/config.test.ts src/server.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Keep registration semantics narrow:
 - `models`
@@ -224,10 +224,18 @@ Keep registration semantics narrow:
 
 Do not introduce cluster/node orchestration in this phase.
 
-- [ ] **Step 4: Run targeted tests**
+- [x] **Step 4: Run targeted tests**
 
 Run: `npm test -- src/utils/config.test.ts src/server.test.ts`
 Expected: PASS.
+
+2026-04-27 closure note:
+
+- `Registration.models` now reuses the same minimal model endpoint normalization and validation contract as `Models`, including aliases, endpoint normalization, required fields, duplicate IDs, and thinking hints.
+- `Registration.upstream_services` now normalizes service references by trimming IDs, URLs and tokens, removing trailing slashes from base URLs, validating duplicates and malformed entries, and preserving normalized values through `/api/config` persistence.
+- `GET /api/registration` exposes a redacted registration view with counts, model IDs/interfaces and upstream service IDs/base URLs while returning only `*Configured` booleans for secrets.
+- Node / cluster registration fields remain explicitly rejected in this phase, keeping registration semantics limited to `models` and `upstream_services`.
+- Targeted verification used: `npm test -- --run src/utils/config.test.ts src/server.test.ts`; build verification used: `npm run build`.
 
 ---
 

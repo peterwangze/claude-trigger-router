@@ -137,6 +137,78 @@ describe('createServer /api/config', () => {
     );
   });
 
+  it('exposes normalized registration payloads without secrets', async () => {
+    const server = createServer({
+      initialConfig: {
+        Router: { default: 'sonnet' },
+        Models: [
+          {
+            id: 'sonnet',
+            api: 'https://api.example.com/v1/chat/completions',
+            key: 'sk-test',
+            interface: 'openai',
+            model: 'vendor/sonnet',
+          },
+        ],
+        Registration: {
+          enabled: true,
+          models: [
+            {
+              id: ' edge-sonnet ',
+              api: ' https://api.example.com/v1 ',
+              key: ' sk-registration ',
+              interface: 'anthropic',
+              model: ' claude-sonnet-4-5 ',
+            },
+          ],
+          upstream_services: [
+            {
+              id: ' edge-router ',
+              base_url: ' https://edge.example.com/ ',
+              auth_token: ' remote-token ',
+            },
+          ],
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/registration');
+
+    const result = await handler({}, {});
+
+    expect(result).toEqual({
+      enabled: true,
+      summary: {
+        models: 1,
+        upstreamServices: 1,
+      },
+      models: [
+        {
+          id: 'edge-sonnet',
+          model: 'claude-sonnet-4-5',
+          interface: 'anthropic',
+          apiConfigured: true,
+          keyConfigured: true,
+        },
+      ],
+      upstreamServices: [
+        {
+          id: 'edge-router',
+          baseUrl: 'https://edge.example.com',
+          authTokenConfigured: true,
+        },
+      ],
+      issueReport: {
+        issues: [],
+        summary: {
+          total: 0,
+          error: 0,
+          warning: 0,
+          info: 0,
+        },
+      },
+    });
+  });
+
   it('exposes remote status with compiled model and governance alert summaries', async () => {
     const server = createServer({
       initialConfig: {
@@ -1779,10 +1851,20 @@ describe('createServer /api/config', () => {
       },
       Registration: {
         enabled: true,
+        models: [
+          {
+            id: ' edge-sonnet ',
+            api: ' https://api.example.com/v1 ',
+            key: ' sk-registration ',
+            interface: 'anthropic',
+            model: ' claude-sonnet-4-5 ',
+          },
+        ],
         upstream_services: [
           {
-            id: 'edge-router',
-            base_url: 'https://edge.example.com',
+            id: ' edge-router ',
+            base_url: ' https://edge.example.com/ ',
+            auth_token: ' remote-token ',
           },
         ],
       },
@@ -1803,10 +1885,20 @@ describe('createServer /api/config', () => {
         },
         Registration: {
           enabled: true,
+          models: [
+            expect.objectContaining({
+              id: 'edge-sonnet',
+              api: 'https://api.example.com/v1/messages',
+              key: 'sk-registration',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+            }),
+          ],
           upstream_services: [
             {
               id: 'edge-router',
               base_url: 'https://edge.example.com',
+              auth_token: 'remote-token',
             },
           ],
         },

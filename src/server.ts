@@ -113,6 +113,37 @@ function buildServiceInfo(rawConfig: any) {
   };
 }
 
+function buildRegistrationInfo(rawConfig: any) {
+  const normalizedResult = normalizeAndValidateConfig(rawConfig ?? {});
+  const registration = normalizedResult.config.Registration ?? {};
+  const models = Array.isArray(registration.models) ? registration.models : [];
+  const upstreamServices = Array.isArray(registration.upstream_services) ? registration.upstream_services : [];
+
+  return {
+    enabled: Boolean(registration.enabled),
+    summary: {
+      models: models.length,
+      upstreamServices: upstreamServices.length,
+    },
+    models: models.map((model: any) => ({
+      id: model.id,
+      model: model.model,
+      interface: model.interface ?? model.protocol,
+      apiConfigured: Boolean(model.api ?? model.api_base_url),
+      keyConfigured: Boolean(model.key ?? model.api_key),
+    })),
+    upstreamServices: upstreamServices.map((service: any) => ({
+      id: service.id,
+      baseUrl: service.base_url,
+      authTokenConfigured: Boolean(service.auth_token),
+    })),
+    issueReport: buildValidationIssueReport({
+      errors: normalizedResult.errors,
+      warnings: normalizedResult.warnings,
+    }),
+  };
+}
+
 function summarizeCompiledModels(normalized: any) {
   const compiled = toCompiledRegistryView(normalized);
   const capabilityWarnings = collectCapabilityWarnings(normalized);
@@ -572,6 +603,10 @@ export const createServer = (config: any): Server => {
 
   server.app.get("/api/service-info", async () => {
     return buildServiceInfo(config.initialConfig ?? {});
+  });
+
+  server.app.get("/api/registration", async () => {
+    return buildRegistrationInfo(config.initialConfig ?? {});
   });
 
   server.app.get("/api/remote-status", async (req: any) => {

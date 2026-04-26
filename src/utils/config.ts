@@ -258,6 +258,110 @@ function validateSemanticRoutingConfig(
   }
 }
 
+function validateModelEndpointList(
+  models: any[],
+  prefix: string,
+  errors: string[]
+): void {
+  const ids = new Set<string>();
+  models.forEach((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      errors.push(`${prefix}[${index}] must be an object`);
+      return;
+    }
+
+    if (!item.id?.trim()) {
+      errors.push(`${prefix}[${index}].id is required`);
+    } else if (ids.has(item.id.trim())) {
+      errors.push(`${prefix}[${index}].id must be unique`);
+    } else {
+      ids.add(item.id.trim());
+    }
+
+    if (!getModelApi(item)) {
+      errors.push(`${prefix}[${index}].api is required`);
+    }
+
+    if (!getModelKey(item)) {
+      errors.push(`${prefix}[${index}].key is required`);
+    }
+
+    const modelInterface = getModelInterface(item);
+    if (!modelInterface) {
+      errors.push(`${prefix}[${index}].interface is required`);
+    } else if (!['openai', 'anthropic'].includes(modelInterface)) {
+      errors.push(`${prefix}[${index}].interface must be either "openai" or "anthropic"`);
+    }
+
+    if (!item.model?.trim()) {
+      errors.push(`${prefix}[${index}].model is required`);
+    }
+
+    const thinking = item.thinking;
+    if (thinking?.mode && !['off', 'auto', 'on'].includes(thinking.mode)) {
+      errors.push(`${prefix}[${index}].thinking.mode must be one of "off", "auto", "on"`);
+    }
+
+    if (thinking?.effort && !['low', 'medium', 'high'].includes(thinking.effort)) {
+      errors.push(`${prefix}[${index}].thinking.effort must be one of "low", "medium", "high"`);
+    }
+
+    if (thinking?.budget_tokens !== undefined && thinking.budget_tokens <= 0) {
+      errors.push(`${prefix}[${index}].thinking.budget_tokens must be greater than 0`);
+    }
+  });
+}
+
+function validateRegistrationUpstreamServices(services: any[], errors: string[]): void {
+  const ids = new Set<string>();
+  services.forEach((service, index) => {
+    if (!service || typeof service !== 'object' || Array.isArray(service)) {
+      errors.push(`Registration.upstream_services[${index}] must be an object`);
+      return;
+    }
+
+    const id = typeof service.id === 'string' ? service.id.trim() : '';
+    if (!id) {
+      errors.push(`Registration.upstream_services[${index}].id is required`);
+    } else if (ids.has(id)) {
+      errors.push(`Registration.upstream_services[${index}].id must be unique`);
+    } else {
+      ids.add(id);
+    }
+
+    if (!service.base_url?.trim()) {
+      errors.push(`Registration.upstream_services[${index}].base_url is required`);
+    }
+
+    if (service.auth_token !== undefined && typeof service.auth_token !== 'string') {
+      errors.push(`Registration.upstream_services[${index}].auth_token must be a string when provided`);
+    }
+  });
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+function normalizeRegistrationUpstreamService(service: any) {
+  if (!service || typeof service !== 'object' || Array.isArray(service)) {
+    return service;
+  }
+
+  const normalized: Record<string, string> = {
+    id: typeof service.id === 'string' ? service.id.trim() : service.id,
+    base_url: typeof service.base_url === 'string' ? trimTrailingSlash(service.base_url.trim()) : service.base_url,
+  };
+
+  if (service.auth_token !== undefined) {
+    normalized.auth_token = typeof service.auth_token === 'string'
+      ? service.auth_token.trim()
+      : service.auth_token;
+  }
+
+  return normalized;
+}
+
 /**
  * 验证配置
  */
@@ -268,48 +372,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
     if (!Array.isArray(config.Models)) {
       errors.push('Models must be an array when provided');
     } else {
-      const ids = new Set<string>();
-      config.Models.forEach((item, index) => {
-        if (!item.id?.trim()) {
-          errors.push(`Models[${index}].id is required`);
-        } else if (ids.has(item.id.trim())) {
-          errors.push(`Models[${index}].id must be unique`);
-        } else {
-          ids.add(item.id.trim());
-        }
-
-        if (!getModelApi(item)) {
-          errors.push(`Models[${index}].api is required`);
-        }
-
-        if (!getModelKey(item)) {
-          errors.push(`Models[${index}].key is required`);
-        }
-
-        const modelInterface = getModelInterface(item);
-        if (!modelInterface) {
-          errors.push(`Models[${index}].interface is required`);
-        } else if (!['openai', 'anthropic'].includes(modelInterface)) {
-          errors.push(`Models[${index}].interface must be either "openai" or "anthropic"`);
-        }
-
-        if (!item.model?.trim()) {
-          errors.push(`Models[${index}].model is required`);
-        }
-
-        const thinking = item.thinking;
-        if (thinking?.mode && !['off', 'auto', 'on'].includes(thinking.mode)) {
-          errors.push(`Models[${index}].thinking.mode must be one of "off", "auto", "on"`);
-        }
-
-        if (thinking?.effort && !['low', 'medium', 'high'].includes(thinking.effort)) {
-          errors.push(`Models[${index}].thinking.effort must be one of "low", "medium", "high"`);
-        }
-
-        if (thinking?.budget_tokens !== undefined && thinking.budget_tokens <= 0) {
-          errors.push(`Models[${index}].thinking.budget_tokens must be greater than 0`);
-        }
-      });
+      validateModelEndpointList(config.Models, 'Models', errors);
     }
   }
 
@@ -346,21 +409,27 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
     errors.push('Runtime.remote_service.base_url is required when remote_service is enabled');
   }
 
-  if (config.Registration?.models && !Array.isArray(config.Registration.models)) {
-    errors.push('Registration.models must be an array when provided');
+  const registration = config.Registration as any;
+  if (registration?.nodes !== undefined) {
+    errors.push('Registration.nodes is not supported yet; use Registration.models or Registration.upstream_services');
+  }
+  if (registration?.node_id !== undefined) {
+    errors.push('Registration.node_id is not supported yet; use Registration.models or Registration.upstream_services');
+  }
+  if (registration?.cluster !== undefined || registration?.cluster_id !== undefined) {
+    errors.push('Registration cluster fields are not supported yet; use Registration.models or Registration.upstream_services');
   }
 
-  if (config.Registration?.upstream_services && !Array.isArray(config.Registration.upstream_services)) {
+  if (config.Registration?.models !== undefined && !Array.isArray(config.Registration.models)) {
+    errors.push('Registration.models must be an array when provided');
+  } else if (Array.isArray(config.Registration?.models)) {
+    validateModelEndpointList(config.Registration.models, 'Registration.models', errors);
+  }
+
+  if (config.Registration?.upstream_services !== undefined && !Array.isArray(config.Registration.upstream_services)) {
     errors.push('Registration.upstream_services must be an array when provided');
-  } else {
-    config.Registration?.upstream_services?.forEach((service, index) => {
-      if (!service.id?.trim()) {
-        errors.push(`Registration.upstream_services[${index}].id is required`);
-      }
-      if (!service.base_url?.trim()) {
-        errors.push(`Registration.upstream_services[${index}].base_url is required`);
-      }
-    });
+  } else if (Array.isArray(config.Registration?.upstream_services)) {
+    validateRegistrationUpstreamServices(config.Registration.upstream_services, errors);
   }
 
   // Provider/model 交叉引用校验（仅在 Providers 列表有效时执行）
@@ -795,6 +864,10 @@ export function normalizeAndValidateConfig(config: Partial<IAppConfig> = {}): {
 
   if (normalizedInput.Registration?.models && normalizedConfig.Registration) {
     normalizedConfig.Registration.models = normalizedInput.Registration.models.map((item) => normalizeModelEndpointConfig(item));
+  }
+
+  if (normalizedInput.Registration?.upstream_services && normalizedConfig.Registration) {
+    normalizedConfig.Registration.upstream_services = normalizedInput.Registration.upstream_services.map((item) => normalizeRegistrationUpstreamService(item));
   }
 
   return {
