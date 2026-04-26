@@ -20,6 +20,7 @@ import {
   HOME_DIR,
 } from '../constants';
 import { IAppConfig, ITriggerConfig } from '../trigger/types';
+import type { IGovernanceConfig } from '../governance/types';
 import { collectCapabilityWarnings, isKnownModelReference } from '../models/compile';
 import { getModelApi, getModelInterface, getModelKey, normalizeModelEndpointConfig, toExternalModelConfig } from '../models/schema';
 import { logError, logWarn } from './log';
@@ -314,8 +315,9 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
 
   // 验证 Providers
   const hasModels = Array.isArray(config.Models) && config.Models.length > 0;
+  const remoteServiceEnabled = Boolean(config.Runtime?.remote_service?.enabled);
 
-  if (!hasModels && (!config.Providers || !Array.isArray(config.Providers) || config.Providers.length === 0)) {
+  if (!remoteServiceEnabled && !hasModels && (!config.Providers || !Array.isArray(config.Providers) || config.Providers.length === 0)) {
     errors.push('Providers is required and must be a non-empty array');
   } else if (config.Providers && Array.isArray(config.Providers)) {
     config.Providers.forEach((provider, index) => {
@@ -332,7 +334,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
   }
 
   // 验证 Router
-  if (!config.Router?.default) {
+  if (!remoteServiceEnabled && !config.Router?.default) {
     errors.push('Router.default is required');
   }
 

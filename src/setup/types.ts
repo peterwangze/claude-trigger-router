@@ -78,6 +78,13 @@ export interface ISetupConfigDraft {
   };
   SmartRouter?: IAppConfig['SmartRouter'];
   Governance?: IAppConfig['Governance'];
+  Runtime?: IAppConfig['Runtime'];
+  Registration?: IAppConfig['Registration'];
+}
+
+export interface IRemoteServiceConfigInput {
+  baseUrl: string;
+  authToken?: string;
 }
 
 /**

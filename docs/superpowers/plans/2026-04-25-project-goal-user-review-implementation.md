@@ -286,10 +286,11 @@ P3-3：持续 closed 事项复审
 - P2-1 `UI 双层工作台继续落地`：已在 `/ui` 增加“使用者工作台 / 维护者工作台”顶层 surface 切换；默认停留在使用者工作台，承载配置草稿、模型、路由、compiled preview 与保存动作，维护者工作台独立承接 Governance Trace、metrics、异常阈值、快照和归档，现有 `/api/governance/*` 能力仍可达。
 - P2-2 `部署形态与远程接入最小闭环`（Chunk 1）：已新增 `Runtime.mode`、`Runtime.remote_service` 与 `Registration` 的保守归一化/校验，默认仍为 `local`；同时新增 `/api/service-info` 暴露 runtime mode、service role、remote enabled 与 registration 摘要，为后续 remote status / setup / doctor / UI 对齐提供稳定 contract。
 - P2-2 复审补强：已修正 `/api/config` 保存路径遗漏 `Runtime` / `Registration` 的问题，确保用户显式配置的运行形态与远程注册摘要不会在保存时被静默丢弃；未配置时仍不写入默认远程块，避免污染本地默认配置。
+- P2-2 `部署形态与远程接入`（Chunk 2）：已新增远程服务配置草稿 `buildRemoteServiceConfig()`，支持 base URL、auth token placeholder 与 `Runtime.mode = local` 的远程连接心智；校验层允许启用 remote service 的 client 草稿不带本地 `Providers` / `Router.default`。同时新增 `/api/remote-status`，以一个 contract 返回 remote health、compiled model count/capability summary 与 governance alert summary。
 
 下一项按优先级继续推进：
 
-- P2-2 `部署形态与远程接入` Chunk 2：remote connection config 与 status queries。
+- P2-2 `部署形态与远程接入` Chunk 3：registration semantics。
 
 ## 七、关联文件
 

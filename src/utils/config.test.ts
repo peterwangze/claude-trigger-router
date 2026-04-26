@@ -92,6 +92,32 @@ describe('normalizeAndValidateConfig governance', () => {
     });
   });
 
+  it('accepts a remote-service client draft without local models or providers', () => {
+    const result = normalizeAndValidateConfig({
+      Runtime: {
+        mode: 'local',
+        remote_service: {
+          enabled: true,
+          base_url: 'https://router.example.com',
+          auth_token: '${CTR_REMOTE_AUTH_TOKEN}',
+        },
+      },
+      Router: {},
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.Runtime).toEqual({
+      mode: 'local',
+      remote_service: {
+        enabled: true,
+        base_url: 'https://router.example.com',
+        auth_token: '${CTR_REMOTE_AUTH_TOKEN}',
+      },
+    });
+    expect(result.config.Providers).toEqual([]);
+    expect(result.config.Router.default).toBe('');
+  });
+
   it('reports invalid Runtime and remote service status config', () => {
     const result = normalizeAndValidateConfig({
       ...baseConfig,

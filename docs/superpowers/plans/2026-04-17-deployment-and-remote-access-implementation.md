@@ -133,27 +133,27 @@ Expected: PASS.
 - Modify: `src/utils/config.ts`
 - Modify: `src/setup/templates.ts`
 - Test: `src/utils/config.test.ts`
-- Test: `src/setup/index.test.ts`
+- Test: `src/setup/templates.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add tests ensuring remote-service drafts can be created with:
 - base URL
 - auth token placeholder
 - mode `local` with remote target enabled, or explicit remote client semantics if introduced
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
-Run: `npm test -- src/utils/config.test.ts src/setup/index.test.ts`
+Run: `npm test -- src/utils/config.test.ts src/setup/templates.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Reuse current setup flow to generate a remote target draft without asking provider-specific questions first.
 
-- [ ] **Step 4: Run targeted tests**
+- [x] **Step 4: Run targeted tests**
 
-Run: `npm test -- src/utils/config.test.ts src/setup/index.test.ts`
+Run: `npm test -- src/utils/config.test.ts src/setup/templates.test.ts`
 Expected: PASS.
 
 ### Task 4: Expose remote status and compiled-model summary queries
@@ -163,7 +163,7 @@ Expected: PASS.
 - Modify: `src/service-health.ts`
 - Test: `src/server.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add assertions for remote status summary including:
 - health
@@ -171,19 +171,25 @@ Add assertions for remote status summary including:
 - capabilities summary
 - governance alert summary
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- src/server.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Extend existing summary endpoints instead of inventing parallel APIs when possible.
 
-- [ ] **Step 4: Run targeted tests**
+- [x] **Step 4: Run targeted tests**
 
 Run: `npm test -- src/server.test.ts`
 Expected: PASS.
+
+2026-04-26 closure note:
+
+- Remote client config now has a template-level draft path via `buildRemoteServiceConfig()`: it records `Runtime.mode = local`, enables `Runtime.remote_service`, stores the base URL and token placeholder, and no longer requires local `Providers` / `Router.default` when a remote service is enabled.
+- `GET /api/remote-status` now reuses existing runtime, compiled-model and governance primitives to expose remote health, compiled model count/capability summary and governance anomaly counts in one status contract.
+- Targeted verification used: `npm test -- --run src/setup/templates.test.ts src/utils/config.test.ts src/service-health.test.ts src/server.test.ts`.
 
 ---
 

@@ -1,7 +1,21 @@
 import { Socket } from 'net';
+import type { IRuntimeConfig } from './trigger/types';
 
 export const SERVICE_NAME = 'claude-trigger-router';
 export const SERVICE_HEALTH_PATH = '/api/health';
+export const SERVICE_INFO_PATH = '/api/service-info';
+
+export interface IRemoteServiceStatusSummary {
+  enabled: boolean;
+  configured: boolean;
+  reachable: boolean;
+  ready: boolean;
+  baseUrl: string;
+  service?: unknown;
+  runtimeMode?: unknown;
+  remoteEnabled?: unknown;
+  error?: string;
+}
 
 export function isExpectedServiceHealth(payload: unknown): boolean {
   if (!payload || typeof payload !== 'object') {
@@ -29,6 +43,82 @@ export async function probeServiceHealth(port: number, timeoutMs = 500): Promise
     return isExpectedServiceHealth(await res.json());
   } catch {
     return false;
+  }
+}
+
+export async function probeRemoteServiceStatus(
+  remoteService: NonNullable<IRuntimeConfig['remote_service']> | undefined,
+  timeoutMs = 800,
+  fetchFn: typeof fetch = fetch
+): Promise<IRemoteServiceStatusSummary> {
+  const enabled = Boolean(remoteService?.enabled);
+  const baseUrl = remoteService?.base_url?.trim() ?? '';
+
+  if (!enabled) {
+    return {
+      enabled: false,
+      configured: false,
+      reachable: false,
+      ready: false,
+      baseUrl,
+    };
+  }
+
+  if (!baseUrl) {
+    return {
+      enabled: true,
+      configured: false,
+      reachable: false,
+      ready: false,
+      baseUrl,
+      error: 'Runtime.remote_service.base_url is required when remote_service is enabled',
+    };
+  }
+
+  try {
+    const headers: Record<string, string> = {};
+    if (remoteService?.auth_token) {
+      headers.Authorization = `Bearer ${remoteService.auth_token}`;
+    }
+    const res = await fetchFn(`${baseUrl.replace(/\/+$/, '')}${SERVICE_INFO_PATH}`, {
+      headers,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!res.ok) {
+      return {
+        enabled: true,
+        configured: true,
+        reachable: false,
+        ready: false,
+        baseUrl,
+        error: `HTTP ${res.status}`,
+      };
+    }
+
+    const payload = await res.json();
+    const info = payload && typeof payload === 'object'
+      ? payload as { service?: unknown; ready?: unknown; runtimeMode?: unknown; remoteEnabled?: unknown }
+      : {};
+    return {
+      enabled: true,
+      configured: true,
+      reachable: true,
+      ready: isExpectedServiceHealth(payload),
+      baseUrl,
+      service: info.service,
+      runtimeMode: info.runtimeMode,
+      remoteEnabled: info.remoteEnabled,
+    };
+  } catch (error: any) {
+    return {
+      enabled: true,
+      configured: true,
+      reachable: false,
+      ready: false,
+      baseUrl,
+      error: error?.message || String(error),
+    };
   }
 }
 

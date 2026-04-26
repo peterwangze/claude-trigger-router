@@ -3,7 +3,7 @@ import { join } from 'path';
 import yaml from 'js-yaml';
 import { describe, it, expect } from 'vitest';
 import { normalizeAndValidateConfig } from '../utils/config';
-import { getProviderPreset, buildMinimalConfig, buildUsableMinimalTemplateConfig } from './templates';
+import { getProviderPreset, buildMinimalConfig, buildRemoteServiceConfig, buildUsableMinimalTemplateConfig } from './templates';
 
 describe('setup templates', () => {
   // ============ getProviderPreset ============
@@ -331,6 +331,26 @@ describe('setup templates', () => {
         thinking: 'auto',
       }));
       expect(template.Router.default).toBe('sonnet');
+    });
+
+    it('builds a remote service draft without local provider questions', () => {
+      const draft = buildRemoteServiceConfig({
+        baseUrl: ' https://router.example.com ',
+      });
+      const normalized = normalizeAndValidateConfig(draft as any);
+
+      expect(normalized.errors).toEqual([]);
+      expect(draft.Models).toBeUndefined();
+      expect(draft.Providers).toBeUndefined();
+      expect(draft.Router.default).toBeUndefined();
+      expect(draft.Runtime).toEqual({
+        mode: 'local',
+        remote_service: {
+          enabled: true,
+          base_url: 'https://router.example.com',
+          auth_token: '${CTR_REMOTE_AUTH_TOKEN}',
+        },
+      });
     });
 
     it('keeps config/trigger.example.yaml aligned with the generated usable minimal template', () => {

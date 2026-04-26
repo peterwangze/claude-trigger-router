@@ -137,6 +137,75 @@ describe('createServer /api/config', () => {
     );
   });
 
+  it('exposes remote status with compiled model and governance alert summaries', async () => {
+    const server = createServer({
+      initialConfig: {
+        PORT: 4567,
+        Models: [
+          {
+            id: 'sonnet',
+            api: 'https://router.example.com/v1/messages',
+            key: 'sk-test',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              supports_tools: false,
+            },
+          },
+        ],
+        Router: {
+          default: 'sonnet',
+        },
+        Runtime: {
+          mode: 'local',
+          remote_service: {
+            enabled: false,
+          },
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/remote-status');
+
+    const result = await handler({ query: {} }, {});
+
+    expect(result).toEqual(expect.objectContaining({
+      service: 'claude-trigger-router',
+      ready: true,
+      runtimeMode: 'local',
+      remote: {
+        enabled: false,
+        configured: false,
+        reachable: false,
+        ready: false,
+        baseUrl: '',
+      },
+      compiledModels: {
+        providerCount: 1,
+        modelCount: 1,
+        capabilities: {
+          reasoning: 1,
+          tools: 0,
+          images: 1,
+          warningCount: 1,
+          warnCount: 0,
+          infoCount: 1,
+        },
+      },
+      governance: {
+        totalTraces: 0,
+        alertCount: 0,
+        warnCount: 0,
+        criticalCount: 0,
+      },
+    }));
+    expect(result.issueReport.summary).toEqual({
+      total: 1,
+      error: 0,
+      warning: 0,
+      info: 1,
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     governanceTraceStore.clear();

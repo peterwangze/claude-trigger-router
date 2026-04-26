@@ -6,7 +6,7 @@
 
 import { DEFAULT_CONFIG } from '../constants';
 import { getProviderPreset as getSharedProviderPreset } from '../provider-presets';
-import { IProviderPreset, IMinimalConfigInput, ISetupConfigDraft, ISetupModelDraft, IUsableMinimalTemplateConfig, ProviderPresetKey } from './types';
+import { IProviderPreset, IMinimalConfigInput, IRemoteServiceConfigInput, ISetupConfigDraft, ISetupModelDraft, IUsableMinimalTemplateConfig, ProviderPresetKey } from './types';
 
 type IModelIdAwareProviderInput = IMinimalConfigInput['providers'][number] & {
   model_id?: string;
@@ -85,6 +85,20 @@ export function buildMinimalConfig(input: IMinimalConfigInput): ISetupConfigDraf
   return {
     Models: models,
     Router: defaultModel ? { default: defaultModel } : {},
+  };
+}
+
+export function buildRemoteServiceConfig(input: IRemoteServiceConfigInput): ISetupConfigDraft {
+  return {
+    Runtime: {
+      mode: 'local',
+      remote_service: {
+        enabled: true,
+        base_url: input.baseUrl.trim(),
+        auth_token: input.authToken?.trim() || '${CTR_REMOTE_AUTH_TOKEN}',
+      },
+    },
+    Router: {},
   };
 }
 

@@ -7,7 +7,7 @@
 import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig, deriveRuntimeSmartRouterConfig } from "./utils";
 import { log } from "./utils/log";
-import { SERVICE_NAME } from "./service-health";
+import { probeRemoteServiceStatus, SERVICE_NAME } from "./service-health";
 import {
   governanceTraceStore,
   getGovernanceMetricsReport,
@@ -110,6 +110,34 @@ function buildServiceInfo(rawConfig: any) {
       models: Array.isArray(registration.models) ? registration.models.length : 0,
       upstreamServices: Array.isArray(registration.upstream_services) ? registration.upstream_services.length : 0,
     },
+  };
+}
+
+function summarizeCompiledModels(normalized: any) {
+  const compiled = toCompiledRegistryView(normalized);
+  const capabilityWarnings = collectCapabilityWarnings(normalized);
+  const modelEntries = Object.values(compiled.modelMap ?? {});
+
+  return {
+    providerCount: compiled.providers.length,
+    modelCount: modelEntries.length,
+    capabilities: {
+      reasoning: modelEntries.filter((item: any) => item.capabilities?.thinking?.supported !== false).length,
+      tools: modelEntries.filter((item: any) => item.capabilities?.tools !== false).length,
+      images: modelEntries.filter((item: any) => item.capabilities?.images !== false).length,
+      warningCount: capabilityWarnings.summary.total,
+      warnCount: capabilityWarnings.summary.warn,
+      infoCount: capabilityWarnings.summary.info,
+    },
+  };
+}
+
+function summarizeGovernanceAlerts(report: ReturnType<typeof getGovernanceMetricsReport>) {
+  return {
+    totalTraces: report.metrics.totalTraces,
+    alertCount: report.anomalies.length,
+    warnCount: report.anomalies.filter((item) => item.severity === "warn").length,
+    criticalCount: report.anomalies.filter((item) => item.severity === "critical").length,
   };
 }
 
@@ -544,6 +572,26 @@ export const createServer = (config: any): Server => {
 
   server.app.get("/api/service-info", async () => {
     return buildServiceInfo(config.initialConfig ?? {});
+  });
+
+  server.app.get("/api/remote-status", async (req: any) => {
+    const normalizedResult = normalizeAndValidateConfig(config.initialConfig ?? {});
+    const normalized = normalizedResult.config;
+    const remote = await probeRemoteServiceStatus(normalized.Runtime?.remote_service);
+    const governanceReport = getGovernanceMetricsReport(readGovernanceMetricsQuery(req.query ?? {}));
+
+    return {
+      service: SERVICE_NAME,
+      ready: true,
+      runtimeMode: normalized.Runtime?.mode ?? "local",
+      remote,
+      compiledModels: summarizeCompiledModels(normalized),
+      governance: summarizeGovernanceAlerts(governanceReport),
+      issueReport: buildValidationIssueReport({
+        errors: normalizedResult.errors,
+        warnings: normalizedResult.warnings,
+      }),
+    };
   });
 
   server.app.get("/api/governance/traces", async (req: any) => {
