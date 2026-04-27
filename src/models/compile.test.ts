@@ -246,4 +246,131 @@ describe('model compile', () => {
       systemMessageStyle: 'anthropic',
     });
   });
+
+  it('compiles registration models into priority model pools without changing primary model ids', () => {
+    const registry = buildModelRegistry({
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://primary.example.com/v1',
+          key: 'sk-primary',
+          interface: 'anthropic',
+          model: 'claude-sonnet-4-5',
+        },
+      ],
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+        ],
+      },
+    } as any);
+
+    expect(registry.modelMap.sonnet.providerName).toBe('model__sonnet');
+    expect(registry.modelMap.sonnet.modelName).toBe('claude-sonnet-4-5');
+    expect(registry.modelPools.sonnet).toEqual(
+      expect.objectContaining({
+        modelId: 'sonnet',
+        strategy: 'priority',
+        activeEndpointId: 'edge-a',
+      })
+    );
+    expect(registry.modelPools.sonnet.endpoints.map((endpoint) => endpoint.id)).toEqual([
+      'edge-a',
+      'edge-b',
+    ]);
+    expect(registry.modelPools.sonnet.endpoints[0]).toEqual(
+      expect.objectContaining({
+        api: 'https://edge-a.example.com/v1/messages',
+        keyConfigured: true,
+        priority: 10,
+        enabled: true,
+        source: 'registration',
+      })
+    );
+  });
+
+  it('keeps upstream service linkage and disabled endpoints in compiled model pools', () => {
+    const registry = buildModelRegistry({
+      Providers: [
+        {
+          name: 'openrouter',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          models: ['anthropic/claude-sonnet-4'],
+        },
+      ],
+      Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
+      Registration: {
+        enabled: true,
+        upstream_services: [
+          {
+            id: 'edge-a',
+            base_url: 'https://edge-a.example.com',
+            auth_token: 'router-token',
+          },
+        ],
+        models: [
+          {
+            id: 'haiku',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-haiku',
+            interface: 'openai',
+            model: 'anthropic/claude-haiku',
+            metadata: {
+              upstream_service_id: 'edge-a',
+              pool_enabled: false,
+            },
+          },
+          {
+            id: 'haiku',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-haiku-b',
+            interface: 'openai',
+            model: 'anthropic/claude-haiku',
+            metadata: {
+              upstream_service_id: 'missing-edge',
+            },
+          },
+        ],
+      },
+    } as any);
+
+    expect(registry.modelPools.haiku.activeEndpointId).toBe('haiku@missing-edge');
+    expect(registry.modelPools.haiku.endpoints[0]).toEqual(
+      expect.objectContaining({
+        id: 'haiku@edge-a',
+        upstreamServiceId: 'edge-a',
+        upstreamBaseUrl: 'https://edge-a.example.com',
+        upstreamAuthConfigured: true,
+        enabled: false,
+      })
+    );
+    expect(registry.modelPools.haiku.warnings).toContain(
+      'Registration.models[1].metadata.upstream_service_id references missing upstream service "missing-edge".'
+    );
+  });
 });

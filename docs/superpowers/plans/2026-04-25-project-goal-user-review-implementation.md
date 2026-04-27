@@ -324,10 +324,11 @@ P3-3：持续 closed 事项复审
 - CLI / setup UX 重设计 Chunk 1 复审补强：已修正复用已有 valid server profile 时仍会走本地 ready / Claude Code 入口的边界偏差；现在 `Runtime.mode: "server"` 的当前配置在 `ctr setup` 复用路径中同样不会自动启动服务或进入 Claude Code，只输出服务端维护者后续命令。
 - CLI / setup UX 重设计（Chunk 2）：已让 setup 完成回调拿到最终配置与服务动作结果，并按角色输出更准确的保存后 next steps；本地路径说明本地代理是 start/reuse/reload/restart 后 ready，并提示 `ctr code` 与 SmartRouter 模板，远程客户端路径只承诺当前已落地的 ready/status 检查和直连远端所需 `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_KEY`，不再误提示本地路由模板或自动进入 Claude Code。
 - CLI / setup UX 重设计 Chunk 2 复审补强：已将 setup 复用路径的服务部署安全边界从 `Runtime.mode: "server"` 扩展到 `server/cloud`，避免已有 cloud profile 被误当成本地 Claude Code 使用路径自动启动服务或输出本地 next steps。
+- P2-4 `同模型多源池化与注册调度`（Chunk 1）：已新增编译期 model pool contract，`Registration.models` 中相同 `id` 的多个 endpoint 会进入同一 logical model pool；池内先采用 `priority` 策略，并显式暴露 endpoint id、priority、enabled、activeEndpointId、upstream service 关联、capability 和 warning。`/api/models/compiled`、`/api/models/compiled/preview` 与 `/ui` compiled models 区已能展示 model pools；本轮不改变主 `Models` / `Providers` 路由解析，避免未完成 health/fallback 前影响真实请求路径。
 
 下一项按优先级继续推进：
 
-- CLI / setup UX 重设计：复审本地、远程客户端、服务端三条 setup 路径的闭环标准；若无新增阻塞，进入 P2-4 同模型多源池化与注册调度的最小可编译模型池设计。
+- P2-4 同模型多源池化与注册调度：在已建立 priority 编译契约后，继续推进运行时选择器的最小 fallback 设计，要求调度原因进入 trace，并保持默认本地 `Models` 路径不受影响。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

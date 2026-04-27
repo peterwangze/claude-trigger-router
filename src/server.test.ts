@@ -440,6 +440,8 @@ describe('createServer /api/config', () => {
       compiledModels: {
         providerCount: 1,
         modelCount: 1,
+        modelPoolCount: 0,
+        modelPoolEndpointCount: 0,
         capabilities: {
           reasoning: 1,
           tools: 0,
@@ -937,6 +939,71 @@ describe('createServer /api/config', () => {
       info: 0,
     });
     expect(result.warnings).toEqual([]);
+  });
+
+  it('exposes registration model pools from compiled Models endpoint', async () => {
+    const server = createServer({
+      initialConfig: {
+        Providers: [],
+        Models: [
+          {
+            id: 'sonnet',
+            api: 'https://primary.example.com/v1',
+            key: 'sk-primary',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+          },
+        ],
+        Router: {
+          default: 'sonnet',
+        },
+        Registration: {
+          enabled: true,
+          upstream_services: [
+            {
+              id: 'edge-router',
+              base_url: 'https://edge.example.com',
+              auth_token: 'edge-token',
+            },
+          ],
+          models: [
+            {
+              id: 'sonnet',
+              api: 'https://edge.example.com/v1',
+              key: 'sk-edge',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-primary',
+                pool_priority: 10,
+                upstream_service_id: 'edge-router',
+              },
+            },
+          ],
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/models/compiled');
+
+    const result = await handler({}, {});
+
+    expect(result.modelMap.sonnet.providerName).toBe('model__sonnet');
+    expect(result.modelPools.sonnet).toEqual(
+      expect.objectContaining({
+        modelId: 'sonnet',
+        strategy: 'priority',
+        activeEndpointId: 'edge-primary',
+      })
+    );
+    expect(result.modelPools.sonnet.endpoints[0]).toEqual(
+      expect.objectContaining({
+        id: 'edge-primary',
+        upstreamServiceId: 'edge-router',
+        upstreamBaseUrl: 'https://edge.example.com',
+        upstreamAuthConfigured: true,
+        priority: 10,
+      })
+    );
   });
 
   it('previews compiled Models registry for a draft config without saving', async () => {
@@ -2286,6 +2353,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('compiledModelsStatus');
     expect(html).toContain('compiledProvidersTable');
     expect(html).toContain('compiledModelMapTable');
+    expect(html).toContain('compiledModelPoolsTable');
     expect(html).toContain('Compatibility profile');
     expect(html).toContain('Dispatch format');
     expect(html).toContain('loadCompiledModels');

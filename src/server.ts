@@ -43,6 +43,7 @@ type CompiledProviderView = {
 type CompiledRegistryView = {
   providers: CompiledProviderView[];
   modelMap: Record<string, any>;
+  modelPools: Record<string, any>;
 };
 
 type ModelReferenceEntry = {
@@ -62,6 +63,7 @@ function toCompiledRegistryView(config: any): CompiledRegistryView {
       has_api_key: Boolean(provider.api_key),
     })),
     modelMap: registry.modelMap,
+    modelPools: registry.modelPools,
   };
 }
 
@@ -283,10 +285,14 @@ function summarizeCompiledModels(normalized: any) {
   const compiled = toCompiledRegistryView(normalized);
   const capabilityWarnings = collectCapabilityWarnings(normalized);
   const modelEntries = Object.values(compiled.modelMap ?? {});
+  const modelPoolEntries = Object.values(compiled.modelPools ?? {});
+  const modelPoolEndpoints = modelPoolEntries.flatMap((pool: any) => pool.endpoints ?? []);
 
   return {
     providerCount: compiled.providers.length,
     modelCount: modelEntries.length,
+    modelPoolCount: modelPoolEntries.length,
+    modelPoolEndpointCount: modelPoolEndpoints.length,
     capabilities: {
       reasoning: modelEntries.filter((item: any) => item.capabilities?.thinking?.supported !== false).length,
       tools: modelEntries.filter((item: any) => item.capabilities?.tools !== false).length,
@@ -778,6 +784,7 @@ export const createServer = (config: any): Server => {
       success: true,
       providers: previewCompiled.providers,
       modelMap: previewCompiled.modelMap,
+      modelPools: previewCompiled.modelPools,
       normalizedConfig: buildDraftConfigView(result.config),
       diff: diffCompiledRegistry(currentCompiled, previewCompiled),
       referenceImpact: analyzeModelReferenceImpact(result.config, previewCompiled),

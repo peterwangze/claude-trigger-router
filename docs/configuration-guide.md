@@ -302,10 +302,14 @@ Health 摘要只解释已有 trace / metrics / anomaly 数据，不会改变路�
 
 ## 9. `Registration` 当前支持什么
 
-`Registration` 当前只支持最小注册语义：
+`Registration` 当前支持最小注册语义和编译期 model pool：
 
-- `models`：可注册模型列表，字段复用 `Models[]` 的最小模型配置语义。
+- `models`：可注册模型列表，字段复用 `Models[]` 的最小模型配置语义；多个相同 `id` 会编译成同一个 logical model pool。
 - `upstream_services`：上游服务引用列表，只保存服务 ID、base URL 和可选 token。
+- `metadata.pool_endpoint_id`：可选，给某个 pool endpoint 一个稳定 ID。
+- `metadata.pool_priority`：可选，数值越小优先级越高；当前 pool 策略固定为 `priority`。
+- `metadata.pool_enabled`：可选，设为 `false` 时该 endpoint 会保留在 pool 中但不会成为 active endpoint。
+- `metadata.upstream_service_id`：可选，将 endpoint 关联到 `upstream_services[].id`，用于维护者观测和后续调度。
 
 示例：
 
@@ -316,7 +320,27 @@ Registration:
     - id: "edge-router"
       base_url: "https://edge.example.com"
       auth_token: "${CTR_EDGE_TOKEN}"
+  models:
+    - id: sonnet
+      api: "https://edge-a.example.com/v1"
+      key: "${EDGE_A_MODEL_KEY}"
+      interface: "anthropic"
+      model: "claude-sonnet-4-5"
+      metadata:
+        pool_endpoint_id: "sonnet-edge-a"
+        pool_priority: 10
+        upstream_service_id: "edge-router"
+    - id: sonnet
+      api: "https://edge-b.example.com/v1"
+      key: "${EDGE_B_MODEL_KEY}"
+      interface: "anthropic"
+      model: "claude-sonnet-4-5"
+      metadata:
+        pool_endpoint_id: "sonnet-edge-b"
+        pool_priority: 20
 ```
+
+编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 只建立可观测的编译契约，不会自动接管真实请求 fallback；运行时 health-aware routing、熔断和 trace 调度原因仍在后续 P2-4 中推进。
 
 当前明确不支持 `nodes`、`node_id`、`cluster` 这类集群/节点编排字段。
 

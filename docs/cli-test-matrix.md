@@ -79,6 +79,7 @@
 - `/ui` 首屏展示服务 ready、端口、模型数、`Router.default`、`Runtime.mode`、listener、远程状态和 Registration 摘要
 - 维护者工作台展示 role / listener / remote client connection guide，和 `/api/service-info` 的 listener / clientConnection contract 对齐
 - 维护者工作台展示 Governance trace、metrics、Health 摘要、异常阈值、快照和归档入口
+- Compiled Models 区展示 `Registration.models` 编译出的 model pools、active endpoint、priority endpoint 列表和 upstream warning，覆盖同模型多源池化的编译期契约
 - `GET /api/governance/metrics` 返回 `health` 摘要和 routing `outcome` scorecard，覆盖 `idle / healthy / watch / critical`、模型切换率、切换后 alignment、Top model switches，以及 route reason / final model / semantic intent 分组 outcome
 - `GET /api/governance/health` 返回维护者健康摘要、关键指标、模型切换 signals、routing outcome、异常列表和建议 action
 - Health action 可联动 trace 过滤：cascade action 对应 `cascadeTriggered=true`，shadow action 对应 `shadowChecked=true`

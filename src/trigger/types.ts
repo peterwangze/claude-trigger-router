@@ -265,6 +265,10 @@ export interface IModelEndpointMetadata {
   supports_tools?: boolean;
   supports_reasoning?: boolean;
   supports_images?: boolean;
+  pool_endpoint_id?: string;
+  upstream_service_id?: string;
+  pool_priority?: number;
+  pool_enabled?: boolean;
 }
 
 export interface ICompiledModelCapabilities {

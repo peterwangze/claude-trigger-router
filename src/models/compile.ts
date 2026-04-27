@@ -28,6 +28,34 @@ export interface ICompiledModelRef {
 export interface ICompiledModelRegistry {
   providers: IProvider[];
   modelMap: Record<string, ICompiledModelRef>;
+  modelPools: Record<string, ICompiledModelPool>;
+}
+
+export type TModelPoolStrategy = 'priority';
+
+export interface ICompiledModelPoolEndpoint {
+  id: string;
+  modelId: string;
+  modelName: string;
+  interface?: 'openai' | 'anthropic';
+  protocol: 'openai' | 'anthropic';
+  api?: string;
+  keyConfigured: boolean;
+  upstreamServiceId?: string;
+  upstreamBaseUrl?: string;
+  upstreamAuthConfigured: boolean;
+  priority: number;
+  enabled: boolean;
+  capabilities: ICompiledModelCapabilities;
+  source: 'registration';
+}
+
+export interface ICompiledModelPool {
+  modelId: string;
+  strategy: TModelPoolStrategy;
+  endpoints: ICompiledModelPoolEndpoint[];
+  activeEndpointId?: string;
+  warnings: string[];
 }
 
 export interface ICompiledCapabilityWarningEntry {
@@ -143,6 +171,113 @@ function buildCompiledCapabilities(
   };
 }
 
+function readMetadataString(metadata: IModelEndpointConfig['metadata'], key: string): string {
+  const value = metadata?.[key as keyof NonNullable<IModelEndpointConfig['metadata']>];
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readMetadataNumber(metadata: IModelEndpointConfig['metadata'], key: string): number | undefined {
+  const value = metadata?.[key as keyof NonNullable<IModelEndpointConfig['metadata']>];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function readMetadataBoolean(metadata: IModelEndpointConfig['metadata'], key: string): boolean | undefined {
+  const value = metadata?.[key as keyof NonNullable<IModelEndpointConfig['metadata']>];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function buildRegistrationUpstreamIndex(config: IAppConfig) {
+  const services = Array.isArray(config.Registration?.upstream_services)
+    ? config.Registration?.upstream_services
+    : [];
+  return new Map(
+    services
+      .filter((service) => typeof service?.id === 'string' && service.id.trim())
+      .map((service) => [service.id.trim(), service])
+  );
+}
+
+function createUniqueEndpointId(
+  preferredId: string,
+  usedEndpointIds: Set<string>
+): string {
+  let endpointId = preferredId;
+  let suffix = 2;
+  while (usedEndpointIds.has(endpointId)) {
+    endpointId = `${preferredId}-${suffix}`;
+    suffix += 1;
+  }
+  usedEndpointIds.add(endpointId);
+  return endpointId;
+}
+
+function buildRegistrationModelPools(config: IAppConfig): Record<string, ICompiledModelPool> {
+  const registration = config.Registration;
+  if (!registration?.enabled || !Array.isArray(registration.models) || registration.models.length === 0) {
+    return {};
+  }
+
+  const upstreamServices = buildRegistrationUpstreamIndex(config);
+  const usedEndpointIds = new Set<string>();
+  const pools: Record<string, ICompiledModelPool> = {};
+
+  registration.models.forEach((rawItem, index) => {
+    const item = normalizeModelEndpointConfig(rawItem);
+    if (!item.id) {
+      return;
+    }
+
+    const upstreamServiceId = readMetadataString(item.metadata, 'upstream_service_id');
+    const upstreamService = upstreamServiceId ? upstreamServices.get(upstreamServiceId) : undefined;
+    const warnings: string[] = [];
+    if (upstreamServiceId && !upstreamService) {
+      warnings.push(`Registration.models[${index}].metadata.upstream_service_id references missing upstream service "${upstreamServiceId}".`);
+    }
+
+    const modelInterface = getModelInterface(item) || 'openai';
+    const endpointId = createUniqueEndpointId(
+      readMetadataString(item.metadata, 'pool_endpoint_id') ||
+        (upstreamServiceId ? `${item.id}@${upstreamServiceId}` : `${item.id}@registration-${index + 1}`),
+      usedEndpointIds
+    );
+    const poolPriority = readMetadataNumber(item.metadata, 'pool_priority') ?? index + 1;
+    const enabled = readMetadataBoolean(item.metadata, 'pool_enabled') ?? true;
+    const endpoint: ICompiledModelPoolEndpoint = {
+      id: endpointId,
+      modelId: item.id,
+      modelName: item.model,
+      interface: modelInterface,
+      protocol: modelInterface,
+      api: getModelApi(item) || undefined,
+      keyConfigured: Boolean(getModelKey(item)),
+      upstreamServiceId: upstreamServiceId || undefined,
+      upstreamBaseUrl: upstreamService?.base_url,
+      upstreamAuthConfigured: Boolean(upstreamService?.auth_token),
+      priority: poolPriority,
+      enabled,
+      capabilities: buildCompiledCapabilities(item, modelInterface),
+      source: 'registration',
+    };
+
+    const pool = pools[item.id] ?? {
+      modelId: item.id,
+      strategy: 'priority' as const,
+      endpoints: [],
+      warnings: [],
+    };
+    pool.endpoints.push(endpoint);
+    pool.warnings.push(...warnings);
+    pools[item.id] = pool;
+  });
+
+  Object.values(pools).forEach((pool) => {
+    pool.endpoints.sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
+    pool.activeEndpointId = pool.endpoints.find((endpoint) => endpoint.enabled)?.id;
+  });
+
+  return pools;
+}
+
 export function compileModelsToProviders(models: IModelEndpointConfig[]): IProvider[] {
   return models.map((rawItem) => {
     const item = normalizeModelEndpointConfig(rawItem);
@@ -158,6 +293,8 @@ export function compileModelsToProviders(models: IModelEndpointConfig[]): IProvi
 }
 
 export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
+  const modelPools = buildRegistrationModelPools(config);
+
   if (Array.isArray(config.Models) && config.Models.length > 0) {
     const providers = compileModelsToProviders(config.Models);
     const modelMap = config.Models.reduce<Record<string, ICompiledModelRef>>((result, rawItem) => {
@@ -182,6 +319,7 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
     return {
       providers,
       modelMap,
+      modelPools,
     };
   }
 
@@ -217,6 +355,7 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
   return {
     providers,
     modelMap,
+    modelPools,
   };
 }
 

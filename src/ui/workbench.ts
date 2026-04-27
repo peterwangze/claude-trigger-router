@@ -328,6 +328,13 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<tbody><tr><td colspan="8" class="muted">Loading model map...</td></tr></tbody>` +
     `</table>` +
     `</div>` +
+    `<div class="panel" style="margin-bottom:0">` +
+    `<div class="row"><strong>Model pools</strong><span class="muted">Registration.models 编译出的同模型多源池，当前为 priority 调度契约</span></div>` +
+    `<table id="compiledModelPoolsTable" class="management-table">` +
+    `<thead><tr><th>Pool</th><th>Strategy</th><th>Active endpoint</th><th>Endpoints</th><th>Warnings</th></tr></thead>` +
+    `<tbody><tr><td colspan="5" class="muted">Loading model pools...</td></tr></tbody>` +
+    `</table>` +
+    `</div>` +
     `</div>` +
     `</div>` +
     `</div>` +
@@ -570,6 +577,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const referenceImpactTableBody=document.querySelector('#referenceImpactTable tbody');` +
     `const compiledProvidersTableBody=document.querySelector('#compiledProvidersTable tbody');` +
     `const compiledModelMapTableBody=document.querySelector('#compiledModelMapTable tbody');` +
+    `const compiledModelPoolsTableBody=document.querySelector('#compiledModelPoolsTable tbody');` +
     `const metricsGrid=document.getElementById('metricsGrid');` +
     `const bucketGrid=document.getElementById('bucketGrid');` +
     `const bucketHint=document.getElementById('bucketHint');` +
@@ -1129,10 +1137,12 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `function renderCompiledModels(data){` +
     `  const providers=Array.isArray(data.providers) ? data.providers : [];` +
     `  const modelMapEntries=Object.entries(data.modelMap || {});` +
+    `  const modelPoolEntries=Object.entries(data.modelPools || {});` +
+    `  const modelPoolEndpointCount=modelPoolEntries.reduce((sum,[_modelId,pool])=>sum+((pool.endpoints || []).length),0);` +
     `  knownModelIds=modelMapEntries.map(([modelId])=>modelId).sort();` +
     `  updateTopLevelModelSuggestionLists();` +
     `  renderCapabilityWarnings(data.capabilityWarnings);` +
-    `  compiledModelsStatus.textContent='已加载 '+providers.length+' 个 compiled provider / '+modelMapEntries.length+' 个 modelId 映射';` +
+    `  compiledModelsStatus.textContent='已加载 '+providers.length+' 个 compiled provider / '+modelMapEntries.length+' 个 modelId 映射 / '+modelPoolEntries.length+' 个 model pool / '+modelPoolEndpointCount+' 个 pool endpoint';` +
     `  compiledProvidersTableBody.innerHTML=providers.length ? providers.map(provider=>'<tr>' +` +
     `    '<td><code>'+esc(provider.name)+'</code><div class="muted">'+esc(provider.api_base_url || '-')+'</div></td>' +` +
     `    '<td>'+esc(provider.transformer?.use?.[0] || '-')+'</td>' +` +
@@ -1150,6 +1160,16 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    '<td><code>'+esc(JSON.stringify(item.capabilities || {}))+'</code></td>' +` +
     `    '<td>'+esc(item.source || '-')+'</td>' +` +
     `  '</tr>').join('') : '<tr><td colspan="8" class="muted">No compiled model map</td></tr>';` +
+    `  compiledModelPoolsTableBody.innerHTML=modelPoolEntries.length ? modelPoolEntries.map(([modelId,pool])=>{` +
+    `    const endpoints=pool.endpoints || [];` +
+    `    return '<tr>' +` +
+    `      '<td><code>'+esc(modelId)+'</code></td>' +` +
+    `      '<td>'+esc(pool.strategy || '-')+'</td>' +` +
+    `      '<td><code>'+esc(pool.activeEndpointId || '-')+'</code></td>' +` +
+    `      '<td>'+endpoints.map(endpoint=>'<div><code>'+esc(endpoint.id)+'</code><span class="muted"> priority '+esc(endpoint.priority)+' / '+esc(endpoint.enabled ? 'enabled' : 'disabled')+'</span><div class="muted">'+esc(endpoint.upstreamServiceId || endpoint.api || '-')+'</div></div>').join('')+'</td>' +` +
+    `      '<td>'+((pool.warnings || []).length ? pool.warnings.map(w=>'<div class="warning-text">'+esc(w)+'</div>').join('') : '<span class="muted">-</span>')+'</td>' +` +
+    `    '</tr>';` +
+    `  }).join('') : '<tr><td colspan="5" class="muted">No compiled model pools</td></tr>';` +
     `  if(data.diff){ renderCompiledDiff(data.diff); }` +
     `  if(data.referenceImpact){ renderReferenceImpact(data.referenceImpact); }` +
     `  renderConfigControlForms(currentDraftConfig);` +
