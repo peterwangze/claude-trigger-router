@@ -74,7 +74,7 @@ describe('setup templates', () => {
       expect(config.Models).toHaveLength(1);
       expect(config.Models?.[0].id).toBe('my-provider');
       expect(config.Models?.[0].key).toBe('sk-test');
-      expect(config.Models?.[0].api_key).toBe('sk-test');
+      expect(config.Models?.[0]).not.toHaveProperty('api_key');
       expect(config.Models?.[0].model).toBe('model-1');
     });
 
@@ -108,9 +108,7 @@ describe('setup templates', () => {
       expect(config.Models?.[0].api).toBe(
         'https://openrouter.ai/api/v1/chat/completions'
       );
-      expect(config.Models?.[0].api_base_url).toBe(
-        'https://openrouter.ai/api/v1/chat/completions'
-      );
+      expect(config.Models?.[0]).not.toHaveProperty('api_base_url');
     });
 
     it('should use custom api_base_url when provided', () => {
@@ -128,9 +126,7 @@ describe('setup templates', () => {
       expect(config.Models?.[0].api).toBe(
         'https://custom.api.com/v1/chat/completions'
       );
-      expect(config.Models?.[0].api_base_url).toBe(
-        'https://custom.api.com/v1/chat/completions'
-      );
+      expect(config.Models?.[0]).not.toHaveProperty('api_base_url');
     });
 
     it('should omit api_base_url when explicit value is an empty string', () => {
@@ -192,7 +188,7 @@ describe('setup templates', () => {
       };
       const config = buildMinimalConfig(input);
       expect(config.Models?.[0].interface).toBe('openai');
-      expect(config.Models?.[0].protocol).toBe('openai');
+      expect(config.Models?.[0]).not.toHaveProperty('protocol');
     });
 
     it('should apply the anthropic preset protocol and API URL', () => {
@@ -208,9 +204,9 @@ describe('setup templates', () => {
       });
 
       expect(config.Models?.[0].api).toBe('https://api.anthropic.com/v1/messages');
-      expect(config.Models?.[0].api_base_url).toBe('https://api.anthropic.com/v1/messages');
       expect(config.Models?.[0].interface).toBe('anthropic');
-      expect(config.Models?.[0].protocol).toBe('anthropic');
+      expect(config.Models?.[0]).not.toHaveProperty('api_base_url');
+      expect(config.Models?.[0]).not.toHaveProperty('protocol');
     });
 
     it('should handle custom preset without forcing default URL', () => {
@@ -229,9 +225,7 @@ describe('setup templates', () => {
       expect(config.Models?.[0].api).toBe(
         'https://my-custom-url.com/v1/chat/completions'
       );
-      expect(config.Models?.[0].api_base_url).toBe(
-        'https://my-custom-url.com/v1/chat/completions'
-      );
+      expect(config.Models?.[0]).not.toHaveProperty('api_base_url');
     });
 
     it('should respect an explicit interface override for manual custom endpoints', () => {
@@ -249,7 +243,7 @@ describe('setup templates', () => {
       };
       const config = buildMinimalConfig(input);
       expect(config.Models?.[0].interface).toBe('anthropic');
-      expect(config.Models?.[0].protocol).toBe('anthropic');
+      expect(config.Models?.[0]).not.toHaveProperty('protocol');
     });
 
     it('should not inject empty api_base_url for custom preset without explicit URL', () => {
@@ -298,7 +292,6 @@ describe('setup templates', () => {
       models.push('deepseek-reasoner');
       if (config.Models?.[0]) {
         config.Models[0].interface = 'anthropic';
-        config.Models[0].protocol = 'anthropic';
       }
 
       expect(config.Models?.[0].model).toEqual('deepseek-chat');

@@ -321,3 +321,10 @@
 - `/api/models/compiled/preview` 的 `normalizedConfig.Models` 也使用同一外部字段投影，不再把 `api_base_url / api_key / protocol` 兼容字段重新带回草稿编辑入口
 - 配置文件写回、setup 保存、UI 草稿读取和编译预览现在围绕同一组模型入口字段继续收口
 - 当前 remaining gap 主要是继续把字段说明、帮助文案和高级 JSON 编辑提示与这组入口字段保持同步
+
+### 阶段 2P：setup 模型草稿字段归一首轮落地
+
+- `buildMinimalConfig` 生成的 `Models` 草稿现已只写用户入口字段：`id / api / key / interface / model`
+- `ctr setup` 的 fresh init 和 repair 补全路径不再主动把 `api_key / api_base_url / protocol` 旧别名写回模型草稿
+- 旧字段仍作为读取兼容层保留，legacy `Providers` 迁移与旧配置 repair 仍可被正常归一
+- 当前 remaining gap 主要是继续把 setup 提示、README 和 `/ui` 高级 JSON 提示统一到同一字段说明

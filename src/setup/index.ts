@@ -610,11 +610,8 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
         (Array.isArray(provider.models) ? provider.models : []).map((model: string) => ({
           id: `${provider.name}_${String(model).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}`,
           key: provider.api_key ?? '',
-          api_key: provider.api_key ?? '',
           api: provider.api_base_url,
-          api_base_url: provider.api_base_url,
           interface: provider.api_base_url?.includes('/v1/messages') ? 'anthropic' : 'openai',
-          protocol: provider.api_base_url?.includes('/v1/messages') ? 'anthropic' : 'openai',
           model,
         }))
       )
@@ -634,11 +631,8 @@ function toDraftFromConfig(config: any): ISetupConfigDraft {
       ? config.Models.map((model: any) => ({
           id: model.id ?? '',
           key: model.key ?? model.api_key ?? '',
-          api_key: model.api_key ?? '',
           api: model.api ?? model.api_base_url,
-          api_base_url: model.api_base_url,
           interface: model.interface ?? model.protocol,
-          protocol: model.protocol,
           model: model.model ?? '',
           thinking: typeof model.thinking === 'string'
             ? model.thinking
@@ -913,7 +907,7 @@ async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]
   if (input.fields.includes('apiKey')) {
     const apiKey = await input.io.input('API Key');
     if (draft.Models?.length) {
-      draft.Models = draft.Models.map((model) => ({ ...model, key: model.key || apiKey, api_key: model.api_key || apiKey }));
+      draft.Models = draft.Models.map((model) => ({ ...model, key: model.key || apiKey }));
     } else {
       draft.Providers = draft.Providers?.map((provider) => ({ ...provider, api_key: provider.api_key || apiKey }));
     }
@@ -925,7 +919,6 @@ async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]
       draft.Models = draft.Models.map((model) => ({
         ...model,
         api: model.api || apiBaseUrl,
-        api_base_url: model.api_base_url || apiBaseUrl,
       }));
     } else {
       draft.Providers = draft.Providers?.map((provider) => ({

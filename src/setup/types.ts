@@ -36,10 +36,10 @@ export interface ISetupProviderDraft {
 export interface ISetupModelDraft {
   id: string;
   key?: string;
-  api_key: string;
   api?: string;
-  api_base_url?: string;
   interface?: 'openai' | 'anthropic';
+  api_key?: string;
+  api_base_url?: string;
   protocol?: 'openai' | 'anthropic';
   model: string;
   thinking?: 'off' | 'auto' | 'on' | 'low' | 'medium' | 'high' | {

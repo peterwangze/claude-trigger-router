@@ -45,10 +45,8 @@ export function buildMinimalConfig(input: IMinimalConfigInput): ISetupConfigDraf
     const modelDraft: ISetupModelDraft = {
       id: p.model_id?.trim() || p.name,
       key: p.api_key,
-      api_key: p.api_key,
       model: p.models[0] ?? '',
       interface: p.interface ?? preset?.interface ?? 'openai',
-      protocol: p.interface ?? preset?.protocol ?? 'openai',
     };
 
     const explicitApiBaseUrl = p.api_base_url?.trim();
@@ -56,7 +54,6 @@ export function buildMinimalConfig(input: IMinimalConfigInput): ISetupConfigDraf
     const apiBaseUrl = explicitApiBaseUrl || presetApiBaseUrl;
     if (apiBaseUrl) {
       modelDraft.api = apiBaseUrl;
-      modelDraft.api_base_url = apiBaseUrl;
     }
 
     return modelDraft;
