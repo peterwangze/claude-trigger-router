@@ -264,6 +264,7 @@ describe('createServer /api/config', () => {
         },
       },
       governance: {
+        healthStatus: 'idle',
         totalTraces: 0,
         alertCount: 0,
         warnCount: 0,
@@ -1223,6 +1224,70 @@ describe('createServer /api/config', () => {
     expect(result.anomalies.map((item: any) => item.type)).toContain('cascade_rate_high');
     expect(result.anomalies.map((item: any) => item.type)).toContain('shadow_rate_high');
     expect(result.anomalies.map((item: any) => item.type)).toContain('latency_high');
+    expect(result.health).toEqual(expect.objectContaining({
+      status: 'critical',
+      sampleSize: 3,
+      alertCount: 5,
+      warnCount: 4,
+      criticalCount: 1,
+    }));
+  });
+
+  it('exposes a governance health endpoint for maintainer status checks', async () => {
+    governanceTraceStore.add({
+      requestId: 'trace-1',
+      routeReason: ['smart_router'],
+      finalModel: 'sonnet',
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      cascadeEvidence: [],
+      shadowChecked: false,
+      startedAt: 1_000,
+      latencyMs: 100,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-2',
+      routeReason: ['smart_router'],
+      finalModel: 'sonnet',
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: [],
+      shadowChecked: true,
+      startedAt: 2_000,
+      latencyMs: 120,
+    });
+
+    const server = createServer({});
+    const healthHandler = server.app.routes.get('GET /api/governance/health');
+    const result = await healthHandler({
+      query: {
+        minSampleSize: '2',
+        cascadeWarnRate: '0.4',
+        shadowWarnRate: '0.4',
+      },
+    }, {});
+
+    expect(result.health).toEqual(expect.objectContaining({
+      status: 'watch',
+      sampleSize: 2,
+      alertCount: 4,
+      warnCount: 4,
+      criticalCount: 0,
+    }));
+    expect(result.health.signals.topFinalModel).toEqual({
+      key: 'sonnet',
+      count: 2,
+      rate: 1,
+    });
+    expect(result.metrics.totalTraces).toBe(2);
+    expect(result.anomalies.map((item: any) => item.type)).toEqual([
+      'cascade_rate_high',
+      'shadow_rate_high',
+      'cascade_spike',
+      'shadow_spike',
+    ]);
   });
 
   it('exports governance metrics as csv download response', async () => {
@@ -1721,6 +1786,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('/api/governance/traces');
     expect(html).toContain('/api/governance/archives');
     expect(html).toContain('/api/governance/metrics');
+    expect(html).toContain('/api/governance/health');
     expect(html).toContain('/api/governance/metrics/export');
     expect(html).toContain('/api/governance/metrics/exports');
     expect(html).toContain('createSnapshotBtn');
@@ -1731,6 +1797,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('loadArchivesBtn');
     expect(html).toContain('archivePageSize');
     expect(html).toContain('metricsGrid');
+    expect(html).toContain('Health');
     expect(html).toContain('anomalyList');
     expect(html).toContain('minSampleSize');
     expect(html).toContain('cascadeWarnRate');

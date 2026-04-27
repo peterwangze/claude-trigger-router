@@ -288,10 +288,11 @@ P3-3：持续 closed 事项复审
 - P2-2 复审补强：已修正 `/api/config` 保存路径遗漏 `Runtime` / `Registration` 的问题，确保用户显式配置的运行形态与远程注册摘要不会在保存时被静默丢弃；未配置时仍不写入默认远程块，避免污染本地默认配置。
 - P2-2 `部署形态与远程接入`（Chunk 2）：已新增远程服务配置草稿 `buildRemoteServiceConfig()`，支持 base URL、auth token placeholder 与 `Runtime.mode = local` 的远程连接心智；校验层允许启用 remote service 的 client 草稿不带本地 `Providers` / `Router.default`。同时新增 `/api/remote-status`，以一个 contract 返回 remote health、compiled model count/capability summary 与 governance alert summary。
 - P2-2 Chunk 2 复审补强：已收紧 remote status contract，返回的 remote `baseUrl` 统一去除尾部斜杠，并补齐 `/api/remote-status` 在 remote service 已启用时的服务端集成断言，覆盖 `/api/service-info` 探测路径和 bearer token 透传。
+- P2-3 `治理观测运营化`（Chunk 1）：已在治理 metrics 报告中新增 `health` 摘要，将 trace 样本数、异常数量、critical/warn 计数、关键命中率、平均延迟、Top route / model 和可执行 action 收口为 `idle / healthy / watch / critical` 状态；同时新增 `/api/governance/health` 维护者健康查询，并在 `/ui` 维护者 metrics 区优先展示 Health 状态。
 
 下一项按优先级继续推进：
 
-- P2-2 `部署形态与远程接入` Chunk 3：registration semantics。
+- P2-3 `治理观测运营化` Chunk 2：将健康摘要进一步接入日常维护路径，包括 UI 告警说明、README/配置文档口径和 release/CLI 看护矩阵同步。
 
 ## 七、关联文件
 

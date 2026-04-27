@@ -39,6 +39,27 @@ export interface IGovernanceAnomaly {
   threshold?: number;
 }
 
+export type TGovernanceHealthStatus = 'idle' | 'healthy' | 'watch' | 'critical';
+
+export interface IGovernanceHealthSummary {
+  status: TGovernanceHealthStatus;
+  message: string;
+  sampleSize: number;
+  alertCount: number;
+  warnCount: number;
+  criticalCount: number;
+  signals: {
+    stickyHitRate: number;
+    cascadeTriggeredRate: number;
+    shadowCheckedRate: number;
+    alignmentUsedRate: number;
+    averageLatencyMs: number;
+    topRouteReason?: IGovernanceDistributionEntry;
+    topFinalModel?: IGovernanceDistributionEntry;
+  };
+  actions: string[];
+}
+
 export interface IGovernanceAnomalyThresholds {
   minSampleSize: number;
   cascadeWarnRate: number;
@@ -79,6 +100,7 @@ export interface IGovernanceMetricsReport {
   topFinalModels: IGovernanceDistributionEntry[];
   topSemanticIntents: IGovernanceDistributionEntry[];
   anomalies: IGovernanceAnomaly[];
+  health?: IGovernanceHealthSummary;
 }
 
 export type TGovernanceMetricsExportFormat = 'json' | 'csv';
@@ -243,6 +265,87 @@ function buildAnomalies(
   return anomalies;
 }
 
+function buildHealthActions(anomalies: IGovernanceAnomaly[]): string[] {
+  const actions = new Set<string>();
+
+  for (const anomaly of anomalies) {
+    if (anomaly.type.includes('cascade')) {
+      actions.add('Review cascade triggers and recent failure evidence.');
+    } else if (anomaly.type.includes('shadow')) {
+      actions.add('Review shadow supervision findings and verifier sampling.');
+    } else if (anomaly.type.includes('latency')) {
+      actions.add('Inspect slow models or upstream latency before widening traffic.');
+    }
+  }
+
+  if (!actions.size) {
+    actions.add('Continue monitoring route and model distributions.');
+  }
+
+  return Array.from(actions);
+}
+
+export function buildGovernanceHealthSummary(input: {
+  metrics: IGovernanceMetrics;
+  anomalies: IGovernanceAnomaly[];
+  topRouteReasons?: IGovernanceDistributionEntry[];
+  topFinalModels?: IGovernanceDistributionEntry[];
+}): IGovernanceHealthSummary {
+  const metrics = input.metrics;
+  const anomalies = input.anomalies ?? [];
+  const criticalCount = anomalies.filter((item) => item.severity === 'critical').length;
+  const warnCount = anomalies.filter((item) => item.severity === 'warn').length;
+
+  if (metrics.totalTraces === 0) {
+    return {
+      status: 'idle',
+      message: 'No governance traces yet.',
+      sampleSize: 0,
+      alertCount: 0,
+      warnCount: 0,
+      criticalCount: 0,
+      signals: {
+        stickyHitRate: 0,
+        cascadeTriggeredRate: 0,
+        shadowCheckedRate: 0,
+        alignmentUsedRate: 0,
+        averageLatencyMs: 0,
+        topRouteReason: input.topRouteReasons?.[0],
+        topFinalModel: input.topFinalModels?.[0],
+      },
+      actions: ['Send requests through the router to collect governance traces.'],
+    };
+  }
+
+  const status: TGovernanceHealthStatus = criticalCount > 0
+    ? 'critical'
+    : warnCount > 0
+      ? 'watch'
+      : 'healthy';
+  const message = status === 'healthy'
+    ? `Healthy over ${metrics.totalTraces} traces.`
+    : `${criticalCount > 0 ? criticalCount : warnCount} governance alert${(criticalCount > 0 ? criticalCount : warnCount) === 1 ? '' : 's'} need attention.`;
+
+  return {
+    status,
+    message,
+    sampleSize: metrics.totalTraces,
+    alertCount: anomalies.length,
+    warnCount,
+    criticalCount,
+    signals: {
+      stickyHitRate: metrics.stickyHitRate,
+      cascadeTriggeredRate: metrics.cascadeTriggeredRate,
+      shadowCheckedRate: metrics.shadowCheckedRate,
+      alignmentUsedRate: metrics.alignmentUsedRate,
+      averageLatencyMs: metrics.averageLatencyMs,
+      topRouteReason: input.topRouteReasons?.[0],
+      topFinalModel: input.topFinalModels?.[0],
+    },
+    actions: buildHealthActions(anomalies),
+  };
+}
+
 export function summarizeGovernanceMetrics(traces: IGovernanceTrace[]): IGovernanceMetrics {
   const stickyHitCount = traces.filter((trace) => trace.stickyHit).length;
   const alignmentUsedCount = traces.filter((trace) => trace.alignmentUsed).length;
@@ -369,6 +472,10 @@ export function getGovernanceMetricsReport(
   const metrics = summarizeGovernanceMetrics(limitedTraces);
   const buckets = buildBuckets(limitedTraces, windowed.windowStart, windowed.windowEnd, bucketCount);
   const thresholds = normalizeAnomalyThresholds(options.anomalyThresholds);
+  const topRouteReasons = buildTopEntries(metrics.routeReasonDistribution, limitedTraces.length);
+  const topFinalModels = buildTopEntries(metrics.finalModelDistribution, limitedTraces.length);
+  const topSemanticIntents = buildTopEntries(metrics.semanticIntentDistribution, limitedTraces.length);
+  const anomalies = buildAnomalies(metrics, buckets, thresholds);
 
   return {
     windowMs: options.windowMs,
@@ -377,10 +484,16 @@ export function getGovernanceMetricsReport(
     windowEnd: windowed.windowEnd,
     metrics,
     buckets,
-    topRouteReasons: buildTopEntries(metrics.routeReasonDistribution, limitedTraces.length),
-    topFinalModels: buildTopEntries(metrics.finalModelDistribution, limitedTraces.length),
-    topSemanticIntents: buildTopEntries(metrics.semanticIntentDistribution, limitedTraces.length),
-    anomalies: buildAnomalies(metrics, buckets, thresholds),
+    topRouteReasons,
+    topFinalModels,
+    topSemanticIntents,
+    anomalies,
+    health: buildGovernanceHealthSummary({
+      metrics,
+      anomalies,
+      topRouteReasons,
+      topFinalModels,
+    }),
   };
 }
 
@@ -408,6 +521,11 @@ export function exportGovernanceMetricsReport(
     `summary,averageLatencyMs,${report.metrics.averageLatencyMs}`,
     `summary,averageEstimatedCost,${report.metrics.averageEstimatedCost}`,
   ];
+
+  if (report.health) {
+    lines.push(`summary,healthStatus,${report.health.status}`);
+    lines.push(`summary,healthMessage,${report.health.message}`);
+  }
 
   for (const anomaly of report.anomalies) {
     lines.push(`anomaly,${anomaly.type},${anomaly.severity}:${anomaly.value}`);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exportGovernanceMetricsReport, getGovernanceMetricsReport, summarizeGovernanceMetrics } from './metrics';
+import { buildGovernanceHealthSummary, exportGovernanceMetricsReport, getGovernanceMetricsReport, summarizeGovernanceMetrics } from './metrics';
 import { governanceTraceStore } from './trace';
 
 describe('summarizeGovernanceMetrics', () => {
@@ -250,6 +250,62 @@ describe('summarizeGovernanceMetrics', () => {
       'shadow_spike',
     ]);
     expect(report.anomalies[0].severity).toBe('warn');
+    expect(report.health).toEqual(expect.objectContaining({
+      status: 'watch',
+      sampleSize: 4,
+      alertCount: 5,
+      warnCount: 5,
+      criticalCount: 0,
+    }));
+    expect(report.health?.signals.topRouteReason).toEqual({
+      key: 'cascade_gate',
+      count: 2,
+      rate: 0.5,
+    });
+    expect(report.health?.actions).toContain('Review cascade triggers and recent failure evidence.');
+  });
+
+  it('builds idle and healthy governance health summaries', () => {
+    expect(buildGovernanceHealthSummary({
+      metrics: summarizeGovernanceMetrics([]),
+      anomalies: [],
+    })).toEqual(expect.objectContaining({
+      status: 'idle',
+      message: 'No governance traces yet.',
+      sampleSize: 0,
+      actions: ['Send requests through the router to collect governance traces.'],
+    }));
+
+    const metrics = summarizeGovernanceMetrics([
+      {
+        requestId: 'trace-1',
+        routeReason: ['smart_router'],
+        finalModel: 'sonnet',
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: 1,
+        latencyMs: 80,
+      },
+    ]);
+
+    expect(buildGovernanceHealthSummary({
+      metrics,
+      anomalies: [],
+      topRouteReasons: [{ key: 'smart_router', count: 1, rate: 1 }],
+      topFinalModels: [{ key: 'sonnet', count: 1, rate: 1 }],
+    })).toEqual(expect.objectContaining({
+      status: 'healthy',
+      message: 'Healthy over 1 traces.',
+      sampleSize: 1,
+      alertCount: 0,
+      signals: expect.objectContaining({
+        averageLatencyMs: 80,
+        topRouteReason: { key: 'smart_router', count: 1, rate: 1 },
+        topFinalModel: { key: 'sonnet', count: 1, rate: 1 },
+      }),
+    }));
   });
 
   it('exports governance metrics reports as csv', () => {

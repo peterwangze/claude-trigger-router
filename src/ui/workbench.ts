@@ -304,8 +304,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<input id="limit" placeholder="limit" value="20">` +
     `<button id="refreshBtn">刷新</button>` +
     `</div>` +
-    `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/models/compiled/preview</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
+    `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/models/compiled/preview</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/health</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
     `<div id="metricsGrid" class="stats">` +
+    `<div class="stat"><span class="muted">Health</span><strong>-</strong></div>` +
     `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
     `<div class="stat"><span class="muted">Sticky hit rate</span><strong>-</strong></div>` +
     `<div class="stat"><span class="muted">Cascade rate</span><strong>-</strong></div>` +
@@ -1145,8 +1146,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
     `surfaceTabs.forEach((tab)=>tab.addEventListener('click',()=>setActiveSurface(tab.dataset.surfaceTarget || 'user')));` +
     `setActiveSurface('user');` +
-    `function renderMetrics(metrics){` +
+    `function renderMetrics(metrics,health){` +
     `  metricsGrid.innerHTML=[` +
+    "    ['Health', health?.status || 'idle'], " +
     "    ['Recent traces', metrics.totalTraces ?? 0]," +
     "    ['Sticky hit rate', pct(metrics.stickyHitRate)]," +
     "    ['Cascade rate', pct(metrics.cascadeTriggeredRate)]," +
@@ -1281,7 +1283,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  ]);` +
     `  const data=await traceRes.json();` +
     `  const metricsData=await metricsRes.json();` +
-    `  renderMetrics(metricsData.metrics || {});` +
+    `  renderMetrics(metricsData.metrics || {},metricsData.health);` +
     `  renderBuckets(metricsData || {});` +
     `  renderAnomalies(metricsData.anomalies || []);` +
     `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +

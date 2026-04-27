@@ -13,6 +13,7 @@ import {
   getGovernanceMetricsReport,
   exportGovernanceMetricsReport,
   governanceMetricsExportStore,
+  buildGovernanceHealthSummary,
 } from "./governance";
 import { buildModelRegistry, collectCapabilityWarnings } from "./models/compile";
 import { toExternalModelConfig } from "./models/schema";
@@ -166,6 +167,7 @@ function summarizeCompiledModels(normalized: any) {
 
 function summarizeGovernanceAlerts(report: ReturnType<typeof getGovernanceMetricsReport>) {
   return {
+    healthStatus: report.health?.status ?? "idle",
     totalTraces: report.metrics.totalTraces,
     alertCount: report.anomalies.length,
     warnCount: report.anomalies.filter((item) => item.severity === "warn").length,
@@ -656,6 +658,26 @@ export const createServer = (config: any): Server => {
   server.app.get("/api/governance/metrics", async (req: any) => {
     return {
       ...getGovernanceMetricsReport(readGovernanceMetricsQuery(req.query)),
+    };
+  });
+
+  server.app.get("/api/governance/health", async (req: any) => {
+    const report = getGovernanceMetricsReport(readGovernanceMetricsQuery(req.query));
+    return {
+      health: report.health ?? buildGovernanceHealthSummary({
+        metrics: report.metrics,
+        anomalies: report.anomalies,
+        topRouteReasons: report.topRouteReasons,
+        topFinalModels: report.topFinalModels,
+      }),
+      metrics: report.metrics,
+      anomalies: report.anomalies,
+      topRouteReasons: report.topRouteReasons,
+      topFinalModels: report.topFinalModels,
+      topSemanticIntents: report.topSemanticIntents,
+      windowMs: report.windowMs,
+      windowStart: report.windowStart,
+      windowEnd: report.windowEnd,
     };
   });
 
