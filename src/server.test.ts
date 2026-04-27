@@ -1237,6 +1237,7 @@ describe('createServer /api/config', () => {
   it('exposes a governance health endpoint for maintainer status checks', async () => {
     governanceTraceStore.add({
       requestId: 'trace-1',
+      initialModel: 'sonnet',
       routeReason: ['smart_router'],
       finalModel: 'sonnet',
       stickyHit: false,
@@ -1249,6 +1250,7 @@ describe('createServer /api/config', () => {
     });
     governanceTraceStore.add({
       requestId: 'trace-2',
+      initialModel: 'haiku',
       routeReason: ['smart_router'],
       finalModel: 'sonnet',
       stickyHit: false,
@@ -1283,7 +1285,19 @@ describe('createServer /api/config', () => {
       count: 2,
       rate: 1,
     });
+    expect(result.health.signals).toEqual(expect.objectContaining({
+      modelSwitchRate: 0.5,
+      alignmentOnSwitchRate: 0,
+    }));
     expect(result.metrics.totalTraces).toBe(2);
+    expect(result.outcome).toEqual(expect.objectContaining({
+      routedRate: 1,
+      modelSwitchCount: 1,
+      modelSwitchRate: 0.5,
+    }));
+    expect(result.outcome.topModelSwitches).toEqual([
+      { key: 'haiku -> sonnet', from: 'haiku', to: 'sonnet', count: 1, rate: 1 },
+    ]);
     expect(result.anomalies.map((item: any) => item.type)).toEqual([
       'cascade_rate_high',
       'shadow_rate_high',

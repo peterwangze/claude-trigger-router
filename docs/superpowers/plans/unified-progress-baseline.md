@@ -287,9 +287,9 @@
 ##### P1 主线离闭环还差什么
 
 - `智能路由收益与切换体感治理`
-  - 已有规则路由、语义匹配、LLM 选模、sticky correction、context alignment、cascade、shadow 和 health，但还缺 outcome scorecard 来证明“更好、更快、更稳”。
-  - 需要把 route source、initial/final model、切换、sticky、alignment、cascade、shadow、延迟、错误与失败证据沉淀成可查询指标。
-  - 需要让 UI / API 能回答“多模型组合到底在哪些任务上提升了质量或速度”，避免 SmartRouter 只停留在可配置能力。
+  - 已有规则路由、语义匹配、LLM 选模、sticky correction、context alignment、cascade、shadow、health 和第一层 routing outcome scorecard。
+  - 已把 initial/final model、切换、稳定模型、alignment-on-switch、cascade-after-switch、route reason 延迟和 Top model switches 沉淀为 `/api/governance/metrics` / `/api/governance/health` 可查询指标。
+  - 仍需继续补 route source / semantic intent / final model 的分组收益、synthetic tasks regression、错误与失败证据，让 UI / API 能回答“多模型组合到底在哪些任务上提升了质量或速度”。
 - `服务端 API key 与鉴权控制面`
   - 当前单一 `APIKEY` 足以保护简单自托管入口，但不适合多客户端或 cloud/server 推荐部署。
   - 需要支持 generated keys、scope、过期、撤销、配额和审计，并区分 admin / client / read-only 操作。
