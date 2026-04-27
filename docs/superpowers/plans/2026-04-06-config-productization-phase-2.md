@@ -328,3 +328,10 @@
 - `ctr setup` 的 fresh init 和 repair 补全路径不再主动把 `api_key / api_base_url / protocol` 旧别名写回模型草稿
 - legacy `Providers` 迁移产出的 setup 草稿也已收敛到同一入口字段，旧字段仍作为读取兼容层保留，旧配置 repair 仍可被正常归一
 - 当前 remaining gap 主要是继续把 setup 提示、README 和 `/ui` 高级 JSON 提示统一到同一字段说明
+
+### 阶段 2Q：UI 字段说明与 JSON 草稿提示首轮落地
+
+- `/ui` Models 表单现已增加字段说明，明确 `id / api / key / interface / model / thinking / metadata` 是新配置入口字段
+- `Router.default`、路由规则与 `id` 的引用关系已在表单说明中显式提示
+- `/ui` JSON 草稿 placeholder 现已使用入口字段示例，并提示 `api_key / api_base_url / protocol` 仅作为旧配置兼容读取
+- 当前 remaining gap 主要是继续把 `ctr setup` 问答提示与 README / configuration guide 的字段说明保持同步

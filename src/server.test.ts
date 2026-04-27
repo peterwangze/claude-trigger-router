@@ -1609,6 +1609,15 @@ describe('createServer /api/config', () => {
     expect(html).toContain('draftModelsCount');
     expect(html).toContain('addModelDraftBtn');
     expect(html).toContain('syncDraftJsonBtn');
+    expect(html).toContain('Models field guide');
+    expect(html).toContain('id / api / key / interface / model / thinking / metadata');
+    expect(html).toContain('api_key / api_base_url / protocol 仅作为旧配置兼容读取');
+    expect(html).toContain('JSON 草稿同样建议只写入口字段');
+    expect(html).toContain('旧字段别名无需手动补充');
+    expect(html).toContain('Router.default 和路由规则引用这个 model id');
+    expect(html).toContain('新配置使用 api');
+    expect(html).toContain('新配置使用 key');
+    expect(html).toContain('新配置使用 interface');
     expect(html).toContain('Provider template');
     expect(html).toContain('modelProviderTemplates');
     expect(html).toContain('data-apply-template');
