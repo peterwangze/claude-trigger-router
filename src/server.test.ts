@@ -1800,6 +1800,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('archivePageSize');
     expect(html).toContain('metricsGrid');
     expect(html).toContain('Health');
+    expect(html).toContain('healthSummary');
+    expect(html).toContain('Health pending');
+    expect(html).toContain("renderAnomalies(metricsData.anomalies || [],metricsData.health)");
     expect(html).toContain('查看治理健康摘要');
     expect(html).toContain('anomalyList');
     expect(html).toContain('minSampleSize');

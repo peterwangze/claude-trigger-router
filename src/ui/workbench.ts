@@ -316,6 +316,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `<div class="subpanel">` +
     `<div class="row"><strong>Anomaly alerts</strong><span class="muted">检测近期治理异常与突增</span></div>` +
+    `<div id="healthSummary" class="alert info"><strong>Health pending</strong><div class="muted">等待治理健康摘要加载</div></div>` +
     `<div id="anomalyList" class="alert-list">` +
     `<div class="alert info"><strong>No alerts yet</strong><div class="muted">等待治理指标加载</div></div>` +
     `</div>` +
@@ -478,6 +479,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const routeRanking=document.getElementById('routeRanking');` +
     `const modelRanking=document.getElementById('modelRanking');` +
     `const intentRanking=document.getElementById('intentRanking');` +
+    `const healthSummary=document.getElementById('healthSummary');` +
     `const anomalyList=document.getElementById('anomalyList');` +
     `const saveThresholdsStatus=document.getElementById('saveThresholdsStatus');` +
     `const snapshotStatus=document.getElementById('snapshotStatus');` +
@@ -1203,7 +1205,12 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(!entries || !entries.length){ target.innerHTML='<li><span class="muted">'+esc(emptyLabel)+'</span><strong>0</strong></li>'; return; }` +
     `  target.innerHTML=entries.map(item=>'<li><span><code>'+esc(item.key)+'</code></span><strong>'+esc(item.count)+' · '+esc(pct(item.rate))+'</strong></li>').join('');` +
     `}` +
-    `function renderAnomalies(anomalies){` +
+    `function renderAnomalies(anomalies,health){` +
+    `  const status=health?.status || 'idle';` +
+    `  const message=health?.message || 'No governance traces yet.';` +
+    `  const actions=Array.isArray(health?.actions) ? health.actions : [];` +
+    `  healthSummary.className='alert '+esc(status === 'critical' ? 'critical' : (status === 'watch' ? 'warn' : 'info'));` +
+    `  healthSummary.innerHTML='<strong>Health: '+esc(status)+'</strong><div>'+esc(message)+'</div>'+ (actions.length ? '<ul class="mini-list">'+actions.map(action=>'<li><span>'+esc(action)+'</span></li>').join('')+'</ul>' : '');` +
     `  if(!anomalies || !anomalies.length){ anomalyList.innerHTML='<div class="alert info"><strong>No active alerts</strong><div class="muted">当前窗口未发现明显治理异常</div></div>'; return; }` +
     `  anomalyList.innerHTML=anomalies.map(item=>'<div class="alert '+esc(item.severity || 'info')+'"><strong>'+esc(item.type)+'</strong><div>'+esc(item.message)+'</div></div>').join('');` +
     `}` +
@@ -1286,7 +1293,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const metricsData=await metricsRes.json();` +
     `  renderMetrics(metricsData.metrics || {},metricsData.health);` +
     `  renderBuckets(metricsData || {});` +
-    `  renderAnomalies(metricsData.anomalies || []);` +
+    `  renderAnomalies(metricsData.anomalies || [],metricsData.health);` +
     `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +
     `  renderRanking(modelRanking,metricsData.topFinalModels || [],'No models');` +
     `  renderRanking(intentRanking,metricsData.topSemanticIntents || [],'No intents');` +

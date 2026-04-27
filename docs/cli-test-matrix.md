@@ -61,6 +61,14 @@
 - `doctor` 会预览 capability 降级导致的运行时兼容提示，而不是只展示编译期 code
 - `doctor` 探测失败时会输出中文失败解释、处理建议和原始远端错误
 
+### UI / 服务状态
+
+- `/ui` 首屏展示服务 ready、端口、模型数、`Router.default`、`Runtime.mode`、远程状态和 Registration 摘要
+- 维护者工作台展示 Governance trace、metrics、Health 摘要、异常阈值、快照和归档入口
+- `GET /api/governance/metrics` 返回 `health` 摘要，覆盖 `idle / healthy / watch / critical`
+- `GET /api/governance/health` 返回维护者健康摘要、关键指标、异常列表和建议 action
+- UI HTML 渲染测试覆盖 `/api/governance/health` 数据源、Health 状态占位和健康摘要说明入口
+
 ### setup 主要选择路径
 
 - 首次 fresh setup
@@ -133,6 +141,7 @@ npm run release:verify
 - `ctr setup` 的输入体验是否自然，是否存在误导性文案
 - `ctr code` 连接真实 Claude Code 时的交互是否正常
 - `ui` 页面在真实浏览器中的打开与交互是否符合预期
+- 维护者工作台 Health 摘要是否能根据真实 trace 显示可理解的状态和建议 action
 - 新增配置模板和 README 的指引是否和实现一致
 
 ## 6. 后续增补原则

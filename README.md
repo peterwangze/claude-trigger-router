@@ -18,9 +18,9 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - **协议兼容**：支持 `openai` / `anthropic` 两类接口协议，OpenRouter、DeepSeek 等 OpenAI-compatible 服务按 `openai` 配。
 - **基础路由**：用 `Router.default`、`Router.think`、`Router.longContext` 等槽位指定不同任务的默认模型。
 - **SmartRouter**：先用显式规则命中高确定性任务，也可以在规则未命中时让路由模型从候选模型中自动选择。
-- **Governance 观测**：记录 trace、metrics、异常摘要，帮助你理解路由选择和运行状态。
+- **Governance 观测**：记录 trace、metrics、异常摘要和健康状态，帮助你理解路由选择和运行风险。
 - **doctor 诊断**：检查配置、服务可启动性、模型兼容策略和可选模型探测。
-- **UI 工作台**：`ctr ui` 打开本地页面，查看服务上下文、远程状态、配置草稿、compiled models、capability warnings、治理 trace 和 metrics。
+- **UI 工作台**：`ctr ui` 打开本地页面，查看服务上下文、远程状态、配置草稿、compiled models、capability warnings、治理 trace、metrics 和 Health 摘要。
 - **远程状态基础**：可配置 `Runtime.remote_service`，通过 `/api/remote-status` 查看远程服务健康、compiled model 摘要和治理告警摘要。默认用户不需要配置远程模式。
 
 ## 部署模式与边界
@@ -291,7 +291,7 @@ http://127.0.0.1:5678/ui
 当前 UI 分成两层：
 
 - **使用者工作台**：查看和编辑配置草稿、模型、路由、compiled preview 和保存结果。
-- **维护者工作台**：查看 Governance trace、metrics、异常阈值、快照和归档。
+- **维护者工作台**：查看 Governance trace、Health 摘要、metrics、异常阈值、快照和归档。
 
 首屏状态区会显示：
 
@@ -299,6 +299,15 @@ http://127.0.0.1:5678/ui
 - `Runtime.mode` 与当前服务角色
 - 远程服务状态摘要
 - Registration 模型和上游服务摘要
+
+维护者工作台里的 Health 摘要来自 `GET /api/governance/health`，用于快速判断近期治理状态：
+
+- `idle`：还没有 trace 样本，先让请求经过路由服务
+- `healthy`：当前窗口没有治理告警
+- `watch`：存在 warning，需要关注级联、影子监督或延迟趋势
+- `critical`：存在 critical 告警，应优先查看异常列表和最近 trace
+
+同一份摘要也会出现在 `GET /api/governance/metrics` 的 `health` 字段里。异常数量按总告警数展示，并同时给出 critical / warning 明细，避免只看到单类告警而低估风险。
 
 如果服务没有启动，`ctr ui` 会提示先运行：
 

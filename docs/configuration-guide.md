@@ -112,6 +112,7 @@ Router: {}
 - `GET /api/service-info`
 - `GET /api/remote-status`
 - `GET /api/registration`
+- `GET /api/governance/health`
 
 ## 3. `interface` 怎么选
 
@@ -276,6 +277,15 @@ Governance:
 - Registration 模型和上游服务摘要
 
 这些信息来自现有 `/api/service-info` 和 `/api/remote-status`，不会引入新的平行运行时。
+
+维护者工作台还会展示治理 Health 摘要。它来自 `/api/governance/health`，同样也包含在 `/api/governance/metrics` 的 `health` 字段里：
+
+- `idle`：当前窗口没有 trace 样本
+- `healthy`：有样本且没有治理告警
+- `watch`：存在 warning，建议查看 anomaly 列表、trace 和近期趋势
+- `critical`：存在 critical 告警，应优先检查级联、影子监督、延迟或上游稳定性
+
+Health 摘要只解释已有 trace / metrics / anomaly 数据，不会改变路由行为，也不会主动修复配置。
 
 ## 9. `Registration` 当前支持什么
 
