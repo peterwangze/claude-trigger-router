@@ -292,10 +292,11 @@ P3-3：持续 closed 事项复审
 - P2-3 Chunk 1 复审补强：已修正 `health.message` 只按 critical 或 warning 单类数量描述告警的问题，改为总告警数加 critical / warning 明细，避免维护者低估当前治理风险；同时将 `/api/governance/health` 补入 `/ui` 管理 API 列表和统一基线治理观测口径。
 - P2-3 `治理观测运营化`（Chunk 2）：已将 Health 摘要接入日常维护路径，`/ui` 维护者工作台展示健康状态、说明和 action；README 与 configuration guide 说明 `idle / healthy / watch / critical` 语义和 `/api/governance/health`；`docs/cli-test-matrix.md` 将 Health 摘要纳入 UI / 服务状态看护口径。
 - P2-3 Chunk 2 复审补强：已修正 `/ui` 只从 `/api/governance/metrics` 读取 `health`、但文档和测试矩阵宣称 Health 来源为 `/api/governance/health` 的契约偏差；现在维护者工作台会实际请求 `/api/governance/health`，并以 metrics 内嵌 `health` 作为兜底。
+- P2-3 `治理观测运营化`（Chunk 3）：已让 Health action 联动 trace 过滤，cascade action 会筛选 `cascadeTriggered=true`，shadow action 会筛选 `shadowChecked=true`，其他 action 回到近期 trace；README、configuration guide 和 CLI test matrix 已同步该维护者排查路径，UI HTML 渲染测试守住 action 按钮和过滤联动。
 
 下一项按优先级继续推进：
 
-- P2-3 `治理观测运营化` Chunk 3：继续收口维护者日常操作路径，包括 health/action 与 trace detail 的联动、真实浏览器 smoke 和发布门禁切片。
+- P2-3 `治理观测运营化` Chunk 4：继续补真实浏览器 smoke 和发布门禁切片，确保维护者工作台在打包/浏览器路径下可用。
 
 ## 七、关联文件
 

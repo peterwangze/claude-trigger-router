@@ -287,6 +287,8 @@ Governance:
 
 Health 摘要只解释已有 trace / metrics / anomaly 数据，不会改变路由行为，也不会主动修复配置。
 
+在 `/ui` 里点击 Health action 会联动 trace 表：cascade action 自动筛选 `cascadeTriggered=true`，shadow action 自动筛选 `shadowChecked=true`，其他 action 回到当前窗口的近期 trace，便于从健康摘要直接进入排查。
+
 ## 9. `Registration` 当前支持什么
 
 `Registration` 当前只支持最小注册语义：

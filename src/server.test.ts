@@ -1805,6 +1805,11 @@ describe('createServer /api/config', () => {
     expect(html).toContain("fetch('/api/governance/health'+query)");
     expect(html).toContain("const health=healthData.health || metricsData.health");
     expect(html).toContain("renderAnomalies(metricsData.anomalies || [],health)");
+    expect(html).toContain('data-health-action');
+    expect(html).toContain('applyHealthAction');
+    expect(html).toContain("cascadeSelect.value='true'");
+    expect(html).toContain("shadowSelect.value='true'");
+    expect(html).toContain("healthSummary.addEventListener('click'");
     expect(html).toContain('查看治理健康摘要');
     expect(html).toContain('anomalyList');
     expect(html).toContain('minSampleSize');

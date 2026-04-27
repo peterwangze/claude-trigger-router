@@ -1145,6 +1145,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `referenceImpactTableBody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-apply-reference-path]'); if(!btn){ return; } applyReferenceSuggestion(btn.dataset.applyReferencePath, btn.dataset.applyReferenceModel); });` +
     `draftValidationList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-validation-path]'); if(!btn){ return; } jumpToValidationPath(btn.dataset.validationPath); });` +
     `capabilityWarningsList.addEventListener('click',(e)=>{ const applyBtn=e.target.closest('button[data-apply-warning-path]'); if(applyBtn){ applyCapabilityWarningSuggestion(applyBtn.dataset.applyWarningPath, applyBtn.dataset.applyWarningCode); return; } const btn=e.target.closest('button[data-validation-path]'); if(!btn){ return; } jumpToValidationPath(btn.dataset.validationPath); });` +
+    `healthSummary.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-health-action]'); if(btn){ applyHealthAction(btn.dataset.healthAction); } });` +
     `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
     `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
     `surfaceTabs.forEach((tab)=>tab.addEventListener('click',()=>setActiveSurface(tab.dataset.surfaceTarget || 'user')));` +
@@ -1210,9 +1211,20 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const message=health?.message || 'No governance traces yet.';` +
     `  const actions=Array.isArray(health?.actions) ? health.actions : [];` +
     `  healthSummary.className='alert '+esc(status === 'critical' ? 'critical' : (status === 'watch' ? 'warn' : 'info'));` +
-    `  healthSummary.innerHTML='<strong>Health: '+esc(status)+'</strong><div>'+esc(message)+'</div>'+ (actions.length ? '<ul class="mini-list">'+actions.map(action=>'<li><span>'+esc(action)+'</span></li>').join('')+'</ul>' : '');` +
+    `  healthSummary.innerHTML='<strong>Health: '+esc(status)+'</strong><div>'+esc(message)+'</div>'+ (actions.length ? '<ul class="mini-list">'+actions.map(action=>'<li><button type="button" data-health-action="'+esc(action)+'">'+esc(action)+'</button></li>').join('')+'</ul>' : '');` +
     `  if(!anomalies || !anomalies.length){ anomalyList.innerHTML='<div class="alert info"><strong>No active alerts</strong><div class="muted">当前窗口未发现明显治理异常</div></div>'; return; }` +
     `  anomalyList.innerHTML=anomalies.map(item=>'<div class="alert '+esc(item.severity || 'info')+'"><strong>'+esc(item.type)+'</strong><div>'+esc(item.message)+'</div></div>').join('');` +
+    `}` +
+    `function applyHealthAction(action){` +
+    `  const text=String(action || '').toLowerCase();` +
+    `  const routeReasonInput=document.getElementById('routeReason');` +
+    `  const cascadeSelect=document.getElementById('cascadeTriggered');` +
+    `  const shadowSelect=document.getElementById('shadowChecked');` +
+    `  if(text.includes('cascade')){ cascadeSelect.value='true'; shadowSelect.value=''; routeReasonInput.value=''; detailHint.textContent='Health action: filtered cascade traces'; }` +
+    `  else if(text.includes('shadow')){ shadowSelect.value='true'; cascadeSelect.value=''; routeReasonInput.value=''; detailHint.textContent='Health action: filtered shadow traces'; }` +
+    `  else { cascadeSelect.value=''; shadowSelect.value=''; routeReasonInput.value=''; detailHint.textContent='Health action: showing recent traces'; }` +
+    `  loadTraces();` +
+    `  document.getElementById('traceTable').scrollIntoView({ behavior:'smooth', block:'start' });` +
     `}` +
     `function renderBuckets(report){` +
     `  const buckets=report.buckets || [];` +

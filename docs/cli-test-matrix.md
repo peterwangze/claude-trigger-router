@@ -67,6 +67,7 @@
 - 维护者工作台展示 Governance trace、metrics、Health 摘要、异常阈值、快照和归档入口
 - `GET /api/governance/metrics` 返回 `health` 摘要，覆盖 `idle / healthy / watch / critical`
 - `GET /api/governance/health` 返回维护者健康摘要、关键指标、异常列表和建议 action
+- Health action 可联动 trace 过滤：cascade action 对应 `cascadeTriggered=true`，shadow action 对应 `shadowChecked=true`
 - UI HTML 渲染测试覆盖 `/api/governance/health` 数据源、Health 状态占位和健康摘要说明入口
 
 ### setup 主要选择路径

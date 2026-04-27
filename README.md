@@ -309,6 +309,8 @@ http://127.0.0.1:5678/ui
 
 同一份摘要也会出现在 `GET /api/governance/metrics` 的 `health` 字段里。异常数量按总告警数展示，并同时给出 critical / warning 明细，避免只看到单类告警而低估风险。
 
+Health 摘要下方的 action 可以直接把 trace 表切到对应排查视图：cascade action 会筛选 `cascadeTriggered=true`，shadow action 会筛选 `shadowChecked=true`，其他 action 会回到近期 trace。
+
 如果服务没有启动，`ctr ui` 会提示先运行：
 
 ```bash
