@@ -242,8 +242,8 @@ describe('apiKeyAuth', () => {
 
   it('does not consume model-call quota for status endpoints', async () => {
     const created = createManagedApiKey({
-      label: 'limited client',
-      scopes: ['client'],
+      label: 'limited remote client',
+      scopes: ['client', 'read-only'],
       quota: {
         request_limit: 1,
       },
@@ -373,6 +373,10 @@ describe('apiKeyAuth', () => {
       method: 'GET',
       url: '/api/config',
     });
+    const clientStatus = await runAuth(middleware, clientHeaders, undefined, {
+      method: 'GET',
+      url: '/api/service-info',
+    });
     const clientModelCall = await runAuth(middleware, clientHeaders, {
       messages: [{ role: 'user', content: 'hello' }],
     }, {
@@ -387,8 +391,10 @@ describe('apiKeyAuth', () => {
     expect(clientRestart.error).toBeInstanceOf(Error);
     expect(clientRestart.reply.code).toHaveBeenCalledWith(403);
     expect(adminConfig.error).toBeUndefined();
+    expect(clientStatus.error).toBeInstanceOf(Error);
+    expect(clientStatus.reply.code).toHaveBeenCalledWith(403);
     expect(clientModelCall.error).toBeUndefined();
-    expect(authAuditStore.list(7)).toEqual(expect.arrayContaining([
+    expect(authAuditStore.list(8)).toEqual(expect.arrayContaining([
       expect.objectContaining({
         outcome: 'denied',
         required: 'admin',

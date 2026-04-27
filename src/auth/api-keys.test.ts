@@ -15,7 +15,7 @@ describe('managed API keys', () => {
     });
   });
 
-  it('allows managed client keys for client calls but not admin actions', () => {
+  it('allows managed client keys for model calls only', () => {
     const created = createManagedApiKey({ label: 'client', scopes: ['client'] });
     const config = {
       Auth: {
@@ -29,6 +29,10 @@ describe('managed API keys', () => {
       keyId: created.record.id,
     });
     expect(verifyApiKey(config, created.secret, 'admin')).toMatchObject({
+      ok: false,
+      reason: 'insufficient_scope',
+    });
+    expect(verifyApiKey(config, created.secret, 'read-only')).toMatchObject({
       ok: false,
       reason: 'insufficient_scope',
     });

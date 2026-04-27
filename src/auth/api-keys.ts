@@ -202,7 +202,7 @@ export function scopeAllows(scopes: TManagedApiKeyScope[], required: TApiKeyRequ
     return true;
   }
   if (required === 'read-only') {
-    return scopes.includes('client') || scopes.includes('read-only');
+    return scopes.includes('read-only');
   }
   if (required === 'client') {
     return scopes.includes('client');
