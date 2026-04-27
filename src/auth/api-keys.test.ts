@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { authAuditStore, createManagedApiKey, verifyApiKey } from './api-keys';
+import { authAuditStore, authQuotaUsageStore, createManagedApiKey, validateManagedApiKeyQuota, verifyApiKey } from './api-keys';
 
 describe('managed API keys', () => {
   beforeEach(() => {
     authAuditStore.clear();
+    authQuotaUsageStore.clear();
   });
 
   it('allows bootstrap APIKEY as admin scope', () => {
@@ -49,6 +50,56 @@ describe('managed API keys', () => {
       ok: false,
       reason: 'revoked',
     });
+  });
+
+  it('enforces managed key request quota in the runtime store', () => {
+    const created = createManagedApiKey({
+      scopes: ['client'],
+      quota: {
+        request_limit: 1,
+      },
+    });
+    const verification = verifyApiKey({
+      Auth: {
+        managed_keys: [created.record],
+      },
+    }, created.secret, 'client');
+
+    expect(verification).toMatchObject({
+      ok: true,
+      quota: {
+        request_limit: 1,
+      },
+    });
+    expect(authQuotaUsageStore.consume(verification.keyId, verification.quota, 10)).toEqual({
+      ok: true,
+      usage: expect.objectContaining({
+        requestLimit: 1,
+        requestsUsed: 1,
+      }),
+    });
+    expect(authQuotaUsageStore.consume(verification.keyId, verification.quota, 10)).toEqual({
+      ok: false,
+      reason: 'request_quota_exceeded',
+      usage: expect.objectContaining({
+        requestLimit: 1,
+        requestsUsed: 1,
+      }),
+    });
+  });
+
+  it('validates managed key quota input', () => {
+    expect(validateManagedApiKeyQuota({
+      request_limit: 10,
+      token_limit: 1000,
+    })).toEqual([]);
+    expect(validateManagedApiKeyQuota({
+      request_limit: 0,
+      token_limit: '100',
+    })).toEqual([
+      'quota.request_limit must be a positive integer',
+      'quota.token_limit must be a positive integer',
+    ]);
   });
 
   it('summarizes auth audit events without storing secrets', () => {

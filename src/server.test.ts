@@ -48,7 +48,7 @@ import { createServer } from './server';
 import { buildServerInitialConfig } from './index';
 import { governanceMetricsExportStore, governanceTraceStore } from './governance';
 import { normalizeAndValidateConfig } from './utils/config';
-import { authAuditStore, createManagedApiKey } from './auth/api-keys';
+import { authAuditStore, authQuotaUsageStore, createManagedApiKey } from './auth/api-keys';
 
 describe('createServer /api/config', () => {
 
@@ -131,6 +131,11 @@ describe('createServer /api/config', () => {
           bootstrap: 0,
           byReason: {},
           latestAt: undefined,
+        },
+        quota: {
+          trackedKeys: 0,
+          requestsUsed: 0,
+          tokensUsed: 0,
         },
       },
       security: {
@@ -454,6 +459,7 @@ describe('createServer /api/config', () => {
     governanceTraceStore.clear();
     governanceMetricsExportStore.clear();
     authAuditStore.clear();
+    authQuotaUsageStore.clear();
     mockBackupConfigFile.mockResolvedValue(null);
     mockWriteConfigFile.mockResolvedValue(undefined);
     mockReadConfigFile.mockResolvedValue({});
@@ -651,6 +657,40 @@ describe('createServer /api/config', () => {
       success: false,
       message: 'Forbidden',
       reason: 'insufficient_scope',
+    });
+    expect(mockWriteConfigFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid managed API key quota input', async () => {
+    mockReadConfigFile.mockResolvedValue({
+      APIKEY: 'bootstrap-key',
+    });
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/auth/keys');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      headers: { authorization: 'Bearer bootstrap-key' },
+      body: {
+        label: 'limited client',
+        scopes: ['client'],
+        quota: {
+          request_limit: -1,
+          token_limit: '100',
+        },
+      },
+    }, reply);
+
+    expect(reply.code).toHaveBeenCalledWith(400);
+    expect(result).toEqual({
+      success: false,
+      message: 'Invalid managed API key input',
+      errors: [
+        'quota.request_limit must be a positive integer',
+        'quota.token_limit must be a positive integer',
+      ],
     });
     expect(mockWriteConfigFile).not.toHaveBeenCalled();
   });

@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { authAuditStore, createManagedApiKey } from '../auth/api-keys';
+import { authAuditStore, authQuotaUsageStore, createManagedApiKey } from '../auth/api-keys';
 import { apiKeyAuth } from './auth';
 
-function runAuth(middleware: ReturnType<typeof apiKeyAuth>, headers: Record<string, string>) {
+function runAuth(
+  middleware: ReturnType<typeof apiKeyAuth>,
+  headers: Record<string, string>,
+  body?: unknown,
+  options: { method?: string; url?: string } = {}
+) {
   const reply = {
     code: vi.fn().mockReturnThis(),
     send: vi.fn().mockReturnThis(),
@@ -11,9 +16,10 @@ function runAuth(middleware: ReturnType<typeof apiKeyAuth>, headers: Record<stri
   return new Promise<{ error?: Error; reply: typeof reply }>((resolve) => {
     middleware({
       id: 'req-1',
-      method: 'POST',
-      url: '/v1/messages',
+      method: options.method ?? 'POST',
+      url: options.url ?? '/v1/messages',
       headers,
+      body,
     } as any, reply as any, (error?: Error) => {
       resolve({ error, reply });
     });
@@ -23,6 +29,7 @@ function runAuth(middleware: ReturnType<typeof apiKeyAuth>, headers: Record<stri
 describe('apiKeyAuth', () => {
   beforeEach(() => {
     authAuditStore.clear();
+    authQuotaUsageStore.clear();
   });
 
   it('uses the latest resolved managed key config for accept and revoke decisions', async () => {
@@ -74,5 +81,93 @@ describe('apiKeyAuth', () => {
       reason: 'revoked',
       keyId: created.record.id,
     }));
+  });
+
+  it('rejects managed client calls after request quota is exhausted', async () => {
+    const created = createManagedApiKey({
+      label: 'limited client',
+      scopes: ['client'],
+      quota: {
+        request_limit: 1,
+      },
+    });
+    const middleware = apiKeyAuth({
+      Auth: {
+        managed_keys: [created.record],
+      },
+    });
+    const headers = {
+      authorization: `Bearer ${created.secret}`,
+    };
+
+    const accepted = await runAuth(middleware, headers, { messages: [{ role: 'user', content: 'one' }] });
+    const rejected = await runAuth(middleware, headers, { messages: [{ role: 'user', content: 'two' }] });
+
+    expect(accepted.error).toBeUndefined();
+    expect(rejected.error).toBeInstanceOf(Error);
+    expect(rejected.reply.code).toHaveBeenCalledWith(429);
+    expect(rejected.reply.send).toHaveBeenCalledWith({
+      error: 'Too Many Requests',
+      reason: 'request_quota_exceeded',
+    });
+    expect(authAuditStore.summary()).toEqual(expect.objectContaining({
+      total: 2,
+      allowed: 1,
+      denied: 1,
+      byReason: {
+        allowed: 1,
+        request_quota_exceeded: 1,
+      },
+    }));
+    expect(authAuditStore.list(1)[0]).toEqual(expect.objectContaining({
+      outcome: 'denied',
+      reason: 'request_quota_exceeded',
+      statusCode: 429,
+      quota: expect.objectContaining({
+        requestLimit: 1,
+        requestsUsed: 1,
+      }),
+    }));
+  });
+
+  it('allows read-only keys for status endpoints but not model calls', async () => {
+    const created = createManagedApiKey({
+      label: 'status viewer',
+      scopes: ['read-only'],
+    });
+    const middleware = apiKeyAuth({
+      Auth: {
+        managed_keys: [created.record],
+      },
+    });
+    const headers = {
+      authorization: `Bearer ${created.secret}`,
+    };
+
+    const statusResult = await runAuth(middleware, headers, undefined, {
+      method: 'GET',
+      url: '/api/service-info',
+    });
+    const modelCallResult = await runAuth(middleware, headers);
+
+    expect(statusResult.error).toBeUndefined();
+    expect(modelCallResult.error).toBeInstanceOf(Error);
+    expect(modelCallResult.reply.code).toHaveBeenCalledWith(403);
+    expect(modelCallResult.reply.send).toHaveBeenCalledWith({
+      error: 'Forbidden',
+      reason: 'insufficient_scope',
+    });
+    expect(authAuditStore.list(2)).toEqual([
+      expect.objectContaining({
+        outcome: 'denied',
+        required: 'client',
+        reason: 'insufficient_scope',
+      }),
+      expect.objectContaining({
+        outcome: 'allowed',
+        required: 'read-only',
+        path: '/api/service-info',
+      }),
+    ]);
   });
 });

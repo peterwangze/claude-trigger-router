@@ -21,11 +21,13 @@ import { buildValidationIssueReport } from "./utils/validation-contract";
 import { renderWorkbenchHtml } from "./ui/workbench";
 import {
   authAuditStore,
+  authQuotaUsageStore,
   createManagedApiKey,
   extractApiKeyFromHeaders,
   listManagedApiKeys,
   managedApiKeySummary,
   sanitizeManagedApiKey,
+  validateManagedApiKeyQuota,
   validateManagedApiKeyScopes,
   verifyApiKey,
 } from "./auth/api-keys";
@@ -164,6 +166,7 @@ function buildServiceInfo(rawConfig: any) {
       bootstrapConfigured: Boolean(normalized.APIKEY),
       managedKeys: authSummary,
       audit: authAuditStore.summary(),
+      quota: authQuotaUsageStore.summary(),
     },
     security: {
       status: securityIssues.some((issue) => issue.severity === "critical")
@@ -780,12 +783,14 @@ export const createServer = (config: any): Server => {
     }
 
     const scopeErrors = validateManagedApiKeyScopes(req.body?.scopes);
-    if (scopeErrors.length > 0) {
+    const quotaErrors = validateManagedApiKeyQuota(req.body?.quota);
+    const inputErrors = [...scopeErrors, ...quotaErrors];
+    if (inputErrors.length > 0) {
       reply.code(400);
       return {
         success: false,
-        message: "Invalid managed API key scopes",
-        errors: scopeErrors,
+        message: "Invalid managed API key input",
+        errors: inputErrors,
       };
     }
 
