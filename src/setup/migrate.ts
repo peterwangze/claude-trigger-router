@@ -307,13 +307,8 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
         api: provider.api_base_url
           ? normalizeApiEndpoint(provider.api_base_url, inferProtocolFromApiBaseUrl(provider.api_base_url, model))
           : undefined,
-        api_base_url: provider.api_base_url
-          ? normalizeApiEndpoint(provider.api_base_url, inferProtocolFromApiBaseUrl(provider.api_base_url, model))
-          : undefined,
         key: provider.api_key,
-        api_key: provider.api_key,
         interface: inferProtocolFromApiBaseUrl(provider.api_base_url, model),
-        protocol: inferProtocolFromApiBaseUrl(provider.api_base_url, model),
         model,
         providerName: provider.name,
       }))
@@ -331,11 +326,8 @@ export function migrateLegacyConfig(input: ILegacyConfigInput): IMigrateLegacyCo
     return {
       id: finalId,
       api: entry.api,
-      api_base_url: entry.api_base_url,
       key: entry.key,
-      api_key: entry.api_key,
       interface: entry.interface,
-      protocol: entry.protocol,
       model: entry.model,
     };
   });

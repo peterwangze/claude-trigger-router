@@ -65,11 +65,8 @@ describe('migrateLegacyConfig', () => {
           {
             id: 'openrouter_anthropic_claude_sonnet_4',
             api: 'https://openrouter.ai/api/v1/chat/completions',
-            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
             key: 'sk-test',
-            api_key: 'sk-test',
             interface: 'openai',
-            protocol: 'openai',
             model: 'anthropic/claude-sonnet-4',
           },
         ],
@@ -114,7 +111,7 @@ describe('migrateLegacyConfig', () => {
     });
 
     expect(result.draft.Models?.[0]?.key).toBe('');
-    expect(result.draft.Models?.[0]?.api_key).toBe('');
+    expect(result.draft.Models?.[0]).not.toHaveProperty('api_key');
     expect(result.needsCompletion).toBe(true);
     expect(result.missingFields).toEqual(['apiKey']);
   });
@@ -132,7 +129,7 @@ describe('migrateLegacyConfig', () => {
     });
 
     expect(result.draft.Models?.[0]?.api).toBeUndefined();
-    expect(result.draft.Models?.[0]?.api_base_url).toBeUndefined();
+    expect(result.draft.Models?.[0]).not.toHaveProperty('api_base_url');
     expect(result.needsCompletion).toBe(true);
     expect(result.missingFields).toEqual(['apiBaseUrl']);
   });
@@ -155,9 +152,7 @@ describe('migrateLegacyConfig', () => {
     expect(result.draft.Models?.[0]).toEqual(
       expect.objectContaining({
         api: 'https://api.anthropic.com/v1/messages',
-        api_base_url: 'https://api.anthropic.com/v1/messages',
         interface: 'anthropic',
-        protocol: 'anthropic',
       })
     );
   });

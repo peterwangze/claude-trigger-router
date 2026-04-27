@@ -326,5 +326,5 @@
 
 - `buildMinimalConfig` 生成的 `Models` 草稿现已只写用户入口字段：`id / api / key / interface / model`
 - `ctr setup` 的 fresh init 和 repair 补全路径不再主动把 `api_key / api_base_url / protocol` 旧别名写回模型草稿
-- 旧字段仍作为读取兼容层保留，legacy `Providers` 迁移与旧配置 repair 仍可被正常归一
+- legacy `Providers` 迁移产出的 setup 草稿也已收敛到同一入口字段，旧字段仍作为读取兼容层保留，旧配置 repair 仍可被正常归一
 - 当前 remaining gap 主要是继续把 setup 提示、README 和 `/ui` 高级 JSON 提示统一到同一字段说明
