@@ -19,6 +19,15 @@ import { buildModelRegistry, collectCapabilityWarnings } from "./models/compile"
 import { toExternalModelConfig } from "./models/schema";
 import { buildValidationIssueReport } from "./utils/validation-contract";
 import { renderWorkbenchHtml } from "./ui/workbench";
+import {
+  createManagedApiKey,
+  extractApiKeyFromHeaders,
+  listManagedApiKeys,
+  managedApiKeySummary,
+  sanitizeManagedApiKey,
+  validateManagedApiKeyScopes,
+  verifyApiKey,
+} from "./auth/api-keys";
 
 type CompiledProviderView = {
   name: string;
@@ -335,6 +344,15 @@ function buildPersistedConfig(rawConfig: any, normalizedConfig: any) {
     persisted.Registration = registrationProjection;
   }
 
+  const authProjection = projectConfiguredBranch(rawConfig?.Auth, normalizedConfig.Auth);
+  if (
+    authProjection &&
+    typeof authProjection === "object" &&
+    Object.keys(authProjection).length > 0
+  ) {
+    persisted.Auth = authProjection;
+  }
+
   if (rawConfig?.TriggerRouter) {
     smartRouterProjection = mergeSmartRouterProjection(smartRouterProjection, {
       ...(rawConfig.TriggerRouter.enabled !== undefined ? { enabled: runtimeSmartRouter.enabled } : {}),
@@ -380,6 +398,33 @@ function buildPersistedConfig(rawConfig: any, normalizedConfig: any) {
   }
 
   return persisted;
+}
+
+function denyAuth(reply: any, statusCode: number, reason: string) {
+  reply.code(statusCode);
+  return {
+    success: false,
+    message: statusCode === 403 ? "Forbidden" : "Unauthorized",
+    reason,
+  };
+}
+
+function requireAdminAuth(req: any, reply: any, authConfig: any) {
+  const verification = verifyApiKey(
+    authConfig ?? {},
+    extractApiKeyFromHeaders(req?.headers ?? {}),
+    "admin"
+  );
+
+  if (verification.ok) {
+    return null;
+  }
+
+  return denyAuth(
+    reply,
+    verification.reason === "insufficient_scope" ? 403 : 401,
+    verification.reason ?? "invalid"
+  );
 }
 
 function buildDraftConfigView(config: any) {
@@ -613,6 +658,137 @@ export const createServer = (config: any): Server => {
 
   server.app.get("/api/registration", async () => {
     return buildRegistrationInfo(config.initialConfig ?? {});
+  });
+
+  server.app.get("/api/auth/keys", async (req: any, reply: any) => {
+    const currentConfig = await readConfigFile();
+    const denied = requireAdminAuth(req, reply, currentConfig);
+    if (denied) {
+      return denied;
+    }
+
+    const normalized = normalizeAndValidateConfig(currentConfig ?? {}).config;
+    return {
+      keys: listManagedApiKeys(normalized),
+      summary: managedApiKeySummary(normalized),
+    };
+  });
+
+  server.app.post("/api/auth/keys", async (req: any, reply: any) => {
+    const currentConfig = await readConfigFile();
+    const denied = requireAdminAuth(req, reply, currentConfig);
+    if (denied) {
+      return denied;
+    }
+
+    const scopeErrors = validateManagedApiKeyScopes(req.body?.scopes);
+    if (scopeErrors.length > 0) {
+      reply.code(400);
+      return {
+        success: false,
+        message: "Invalid managed API key scopes",
+        errors: scopeErrors,
+      };
+    }
+
+    if (req.body?.expiresAt !== undefined && Number.isNaN(Date.parse(String(req.body.expiresAt)))) {
+      reply.code(400);
+      return {
+        success: false,
+        message: "expiresAt must be an ISO date string when provided",
+      };
+    }
+
+    const created = createManagedApiKey({
+      label: req.body?.label,
+      scopes: req.body?.scopes,
+      expiresAt: req.body?.expiresAt,
+      quota: req.body?.quota,
+    });
+    const nextConfig = {
+      ...(currentConfig ?? {}),
+      Auth: {
+        ...(currentConfig?.Auth ?? {}),
+        managed_keys: [
+          ...(currentConfig?.Auth?.managed_keys ?? []),
+          created.record,
+        ],
+      },
+    };
+    const result = normalizeAndValidateConfig(nextConfig);
+    if (result.errors.length > 0) {
+      reply.code(400);
+      return {
+        success: false,
+        message: "Invalid auth key configuration",
+        errors: result.errors,
+      };
+    }
+
+    const backupPath = await backupConfigFile();
+    if (backupPath) {
+      log(`Backed up existing configuration file to ${backupPath}`);
+    }
+    await writeConfigFile(buildPersistedConfig(nextConfig, result.config));
+
+    return {
+      success: true,
+      key: sanitizeManagedApiKey(created.record),
+      secret: created.secret,
+      message: "Managed API key created. Store the secret now; it will not be shown again.",
+    };
+  });
+
+  server.app.post("/api/auth/keys/:id/revoke", async (req: any, reply: any) => {
+    const currentConfig = await readConfigFile();
+    const denied = requireAdminAuth(req, reply, currentConfig);
+    if (denied) {
+      return denied;
+    }
+
+    const keyId = String(req.params?.id ?? "").trim();
+    const managedKeys = currentConfig?.Auth?.managed_keys ?? [];
+    const keyIndex = managedKeys.findIndex((key: any) => key.id === keyId);
+    if (keyIndex < 0) {
+      reply.code(404);
+      return {
+        success: false,
+        message: "Managed API key not found",
+      };
+    }
+
+    const revokedAt = new Date().toISOString();
+    const nextKeys = managedKeys.map((key: any, index: number) => index === keyIndex
+      ? { ...key, revoked_at: key.revoked_at ?? revokedAt }
+      : key
+    );
+    const nextConfig = {
+      ...(currentConfig ?? {}),
+      Auth: {
+        ...(currentConfig?.Auth ?? {}),
+        managed_keys: nextKeys,
+      },
+    };
+    const result = normalizeAndValidateConfig(nextConfig);
+    if (result.errors.length > 0) {
+      reply.code(400);
+      return {
+        success: false,
+        message: "Invalid auth key configuration",
+        errors: result.errors,
+      };
+    }
+
+    const backupPath = await backupConfigFile();
+    if (backupPath) {
+      log(`Backed up existing configuration file to ${backupPath}`);
+    }
+    await writeConfigFile(buildPersistedConfig(nextConfig, result.config));
+
+    return {
+      success: true,
+      key: sanitizeManagedApiKey(nextKeys[keyIndex]),
+    };
   });
 
   server.app.get("/api/remote-status", async (req: any) => {

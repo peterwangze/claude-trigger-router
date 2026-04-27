@@ -48,6 +48,7 @@ import { createServer } from './server';
 import { buildServerInitialConfig } from './index';
 import { governanceMetricsExportStore, governanceTraceStore } from './governance';
 import { normalizeAndValidateConfig } from './utils/config';
+import { createManagedApiKey } from './auth/api-keys';
 
 describe('createServer /api/config', () => {
 
@@ -342,6 +343,182 @@ describe('createServer /api/config', () => {
     mockBackupConfigFile.mockResolvedValue(null);
     mockWriteConfigFile.mockResolvedValue(undefined);
     mockReadConfigFile.mockResolvedValue({});
+  });
+
+  it('creates managed API keys behind the bootstrap admin key without persisting the raw secret', async () => {
+    mockReadConfigFile.mockResolvedValue({
+      APIKEY: 'bootstrap-key',
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://api.example.com/v1/messages',
+          key: 'sk-test',
+          interface: 'anthropic',
+          model: 'claude-sonnet-4-5',
+        },
+      ],
+    });
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/auth/keys');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      headers: { authorization: 'Bearer bootstrap-key' },
+      body: {
+        label: 'remote client',
+        scopes: ['client'],
+        expiresAt: '2026-05-01T00:00:00.000Z',
+      },
+    }, reply);
+
+    expect(result.success).toBe(true);
+    expect(result.secret).toMatch(/^ctr_/);
+    expect(result.key).toEqual(expect.objectContaining({
+      label: 'remote client',
+      scopes: ['client'],
+      active: true,
+    }));
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(expect.objectContaining({
+      Auth: {
+        managed_keys: [
+          expect.objectContaining({
+            label: 'remote client',
+            key_hash: expect.any(String),
+            key_prefix: expect.any(String),
+            key_suffix: expect.any(String),
+            scopes: ['client'],
+          }),
+        ],
+      },
+    }));
+    expect(JSON.stringify(mockWriteConfigFile.mock.calls[0][0])).not.toContain(result.secret);
+    expect(reply.code).not.toHaveBeenCalled();
+  });
+
+  it('lists managed API keys without exposing hashes or secrets', async () => {
+    const created = createManagedApiKey({ label: 'admin', scopes: ['admin'] });
+    mockReadConfigFile.mockResolvedValue({
+      APIKEY: 'bootstrap-key',
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://api.example.com/v1/messages',
+          key: 'sk-test',
+          interface: 'anthropic',
+          model: 'claude-sonnet-4-5',
+        },
+      ],
+      Auth: {
+        managed_keys: [created.record],
+      },
+    });
+    const server = createServer({});
+    const handler = server.app.routes.get('GET /api/auth/keys');
+
+    const result = await handler({
+      headers: { 'x-api-key': 'bootstrap-key' },
+    }, {});
+
+    expect(result).toEqual({
+      keys: [
+        expect.objectContaining({
+          id: created.record.id,
+          label: 'admin',
+          keyPrefix: created.record.key_prefix,
+          keySuffix: created.record.key_suffix,
+          scopes: ['admin'],
+          active: true,
+        }),
+      ],
+      summary: {
+        total: 1,
+        active: 1,
+        revoked: 0,
+        expired: 0,
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain(created.record.key_hash);
+    expect(JSON.stringify(result)).not.toContain(created.secret);
+  });
+
+  it('rejects non-admin managed keys for auth key management', async () => {
+    const created = createManagedApiKey({ label: 'client', scopes: ['client'] });
+    mockReadConfigFile.mockResolvedValue({
+      Auth: {
+        managed_keys: [created.record],
+      },
+    });
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/auth/keys');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      headers: { authorization: `Bearer ${created.secret}` },
+      body: { label: 'another', scopes: ['client'] },
+    }, reply);
+
+    expect(reply.code).toHaveBeenCalledWith(403);
+    expect(result).toEqual({
+      success: false,
+      message: 'Forbidden',
+      reason: 'insufficient_scope',
+    });
+    expect(mockWriteConfigFile).not.toHaveBeenCalled();
+  });
+
+  it('revokes managed API keys and keeps the key secret hidden', async () => {
+    const created = createManagedApiKey({ label: 'client', scopes: ['client'] });
+    mockReadConfigFile.mockResolvedValue({
+      APIKEY: 'bootstrap-key',
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://api.example.com/v1/messages',
+          key: 'sk-test',
+          interface: 'anthropic',
+          model: 'claude-sonnet-4-5',
+        },
+      ],
+      Auth: {
+        managed_keys: [created.record],
+      },
+    });
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/auth/keys/:id/revoke');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      headers: { authorization: 'Bearer bootstrap-key' },
+      params: { id: created.record.id },
+    }, reply);
+
+    expect(result.success).toBe(true);
+    expect(result.key).toEqual(expect.objectContaining({
+      id: created.record.id,
+      active: false,
+      revokedAt: expect.any(String),
+    }));
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(expect.objectContaining({
+      Auth: {
+        managed_keys: [
+          expect.objectContaining({
+            id: created.record.id,
+            revoked_at: expect.any(String),
+          }),
+        ],
+      },
+    }));
+    expect(JSON.stringify(result)).not.toContain(created.secret);
+    expect(reply.code).not.toHaveBeenCalled();
   });
 
   it('exposes governance trace list and detail endpoints', async () => {

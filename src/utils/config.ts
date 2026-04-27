@@ -21,6 +21,7 @@ import {
 } from '../constants';
 import { IAppConfig, ITriggerConfig } from '../trigger/types';
 import type { IGovernanceConfig } from '../governance/types';
+import { validateManagedApiKeyScopes } from '../auth/api-keys';
 import { collectCapabilityWarnings, isKnownModelReference } from '../models/compile';
 import { getModelApi, getModelInterface, getModelKey, normalizeModelEndpointConfig, toExternalModelConfig } from '../models/schema';
 import { logError, logWarn } from './log';
@@ -340,6 +341,52 @@ function validateRegistrationUpstreamServices(services: any[], errors: string[])
   });
 }
 
+function validateManagedApiKeys(keys: any[], errors: string[]): void {
+  const ids = new Set<string>();
+  keys.forEach((key, index) => {
+    if (!key || typeof key !== 'object' || Array.isArray(key)) {
+      errors.push(`Auth.managed_keys[${index}] must be an object`);
+      return;
+    }
+
+    const id = typeof key.id === 'string' ? key.id.trim() : '';
+    if (!id) {
+      errors.push(`Auth.managed_keys[${index}].id is required`);
+    } else if (ids.has(id)) {
+      errors.push(`Auth.managed_keys[${index}].id must be unique`);
+    } else {
+      ids.add(id);
+    }
+
+    if (!key.label || typeof key.label !== 'string') {
+      errors.push(`Auth.managed_keys[${index}].label is required`);
+    }
+    if (!key.key_hash || typeof key.key_hash !== 'string') {
+      errors.push(`Auth.managed_keys[${index}].key_hash is required`);
+    }
+    if (!key.key_prefix || typeof key.key_prefix !== 'string') {
+      errors.push(`Auth.managed_keys[${index}].key_prefix is required`);
+    }
+    if (!key.key_suffix || typeof key.key_suffix !== 'string') {
+      errors.push(`Auth.managed_keys[${index}].key_suffix is required`);
+    }
+    if (!key.created_at || typeof key.created_at !== 'string') {
+      errors.push(`Auth.managed_keys[${index}].created_at is required`);
+    }
+
+    validateManagedApiKeyScopes(key.scopes).forEach((message) => {
+      errors.push(`Auth.managed_keys[${index}].${message}`);
+    });
+
+    if (key.expires_at !== undefined && typeof key.expires_at !== 'string') {
+      errors.push(`Auth.managed_keys[${index}].expires_at must be a string when provided`);
+    }
+    if (key.revoked_at !== undefined && typeof key.revoked_at !== 'string') {
+      errors.push(`Auth.managed_keys[${index}].revoked_at must be a string when provided`);
+    }
+  });
+}
+
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
@@ -431,6 +478,12 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
     errors.push('Registration.upstream_services must be an array when provided');
   } else if (Array.isArray(config.Registration?.upstream_services)) {
     validateRegistrationUpstreamServices(config.Registration.upstream_services, errors);
+  }
+
+  if (config.Auth?.managed_keys !== undefined && !Array.isArray(config.Auth.managed_keys)) {
+    errors.push('Auth.managed_keys must be an array when provided');
+  } else if (Array.isArray(config.Auth?.managed_keys)) {
+    validateManagedApiKeys(config.Auth.managed_keys, errors);
   }
 
   // Provider/model 交叉引用校验（仅在 Providers 列表有效时执行）

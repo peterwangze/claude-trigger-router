@@ -179,6 +179,9 @@ export interface IAppConfig {
   /** 远程注册配置 */
   Registration?: IRegistrationConfig;
 
+  /** 服务端鉴权配置 */
+  Auth?: IAuthConfig;
+
   /** 自定义路由器路径 */
   CUSTOM_ROUTER_PATH?: string;
 
@@ -205,6 +208,28 @@ export interface IRegistrationConfig {
     base_url: string;
     auth_token?: string;
   }>;
+}
+
+export type TManagedApiKeyScope = 'admin' | 'client' | 'read-only';
+
+export interface IManagedApiKeyConfig {
+  id: string;
+  label: string;
+  key_hash: string;
+  key_prefix: string;
+  key_suffix: string;
+  scopes: TManagedApiKeyScope[];
+  created_at: string;
+  expires_at?: string;
+  revoked_at?: string;
+  quota?: {
+    request_limit?: number;
+    token_limit?: number;
+  };
+}
+
+export interface IAuthConfig {
+  managed_keys?: IManagedApiKeyConfig[];
 }
 
 /**

@@ -297,10 +297,11 @@ P3-3：持续 closed 事项复审
 - P1-5 `智能路由收益与切换体感闭环`（Chunk 1）：已在 governance metrics 中新增 routing outcome scorecard，按现有 trace 汇总 routed rate、model switch rate、stable model rate、alignment-on-switch、cascade-after-switch、route reason 平均延迟和 Top model switches；`/api/governance/metrics` 返回 `outcome`，`/api/governance/health` 的 signals 带出切换与切换后 alignment 指标，`/ui` 维护者 metrics 区展示 Model switch rate 与 Alignment on switch。
 - P1-5 `智能路由收益与切换体感闭环`（Chunk 2）：已把 outcome 从全局汇总扩展为 route reason、final model、semantic intent 三类收益分组，每组包含样本数、切换率、切换后 alignment、切换后 cascade 和平均延迟；CSV 导出与 `/ui` 维护者工作台同步展示分组 outcome，维护者可以开始按任务意图和最终模型判断组合路由是否更稳、更快。
 - P1-5 `智能路由收益与切换体感闭环`（Chunk 3）：已新增 synthetic tasks regression，固定覆盖规则命中、semantic、SmartRouter、sticky correction 与真实非流式响应治理中的 cascade gate / retry；测试同时断言 route reason、最终模型、切换率、稳定模型、cascade-after-switch、route reason 平均延迟，以及 route reason / final model / semantic intent 三类 outcome 分组，确保智能路由收益不是只靠随机切换或单点 trace 观察。
+- P1-6 `服务端 API key 与鉴权控制面`（Chunk 1）：已新增 `Auth.managed_keys` 最小数据结构，managed key 以哈希形式写入配置；`APIKEY` 保留为 bootstrap/admin key；新增 `GET /api/auth/keys`、`POST /api/auth/keys`、`POST /api/auth/keys/:id/revoke`，支持 label、admin/client/read-only scope、过期时间、撤销和脱敏列表；运行时 `apiKeyAuth` 已能接受 active managed client/admin key，同时拒绝 revoked、expired 或 scope 不足的 key；README 已同步远程客户端应优先使用 managed client key 的口径。
 
 下一项按优先级继续推进：
 
-- P1-6 `服务端 API key 与鉴权控制面`（Chunk 1）：设计并落地 managed API key 的最小数据结构、生成/列表/撤销 API 与 admin/client/read-only scope 判定，保留现有 `APIKEY` 作为 bootstrap/admin key，先把服务端资源泄漏风险压住。
+- P1-6 `服务端 API key 与鉴权控制面`（Chunk 2）：把 key 使用写入 trace / audit 摘要，并在 `/api/service-info`、`ctr doctor` 或 `/ui` 中补 server/cloud 模式安全检查，提示公网监听必须有 bootstrap/admin key 或 managed key，继续收口服务提供者与远程使用者的安全操作路径。
 
 ## 七、2026-04-27 智能路由与服务化复审
 
