@@ -6,9 +6,7 @@ import packageJson from '../package.json';
 describe('deployment assets', () => {
   it('ships server deployment templates through the config package payload', () => {
     expect(packageJson.files).toContain('config');
-    expect(packageJson.files).toContain('docs/configuration-roles.md');
-    expect(packageJson.files).toContain('docs/server-maintainer-guide.md');
-    expect(packageJson.files).toContain('docs/remote-client-guide.md');
+    expect(packageJson.files).toContain('docs/*.md');
 
     const compose = readFileSync(join(process.cwd(), 'config', 'deploy', 'docker-compose.server.yaml'), 'utf-8');
     expect(compose).toContain('claude-trigger-router');
@@ -35,9 +33,18 @@ describe('deployment assets', () => {
     expect(remoteClientGuide).toContain('Runtime:');
 
     const roleGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-roles.md'), 'utf-8');
-    expect(roleGuide).toContain('Local user');
-    expect(roleGuide).toContain('Server maintainer');
-    expect(roleGuide).toContain('Remote service user');
+    expect(roleGuide).toContain('本地使用者');
+    expect(roleGuide).toContain('服务维护者');
+    expect(roleGuide).toContain('远程服务使用者');
+
+    const configurationGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-guide.md'), 'utf-8');
+    expect(configurationGuide).toContain('配置指南');
+
+    const migrationGuide = readFileSync(join(process.cwd(), 'docs', 'models-migration-guide.md'), 'utf-8');
+    expect(migrationGuide).toContain('Models');
+
+    const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
+    expect(releasingGuide).toContain('Release');
   });
 
   it('keeps release-stage server profile output out of the returned profile object', () => {

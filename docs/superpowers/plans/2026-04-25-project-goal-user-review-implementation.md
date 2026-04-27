@@ -319,6 +319,7 @@ P3-3：持续 closed 事项复审
 - P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 3）：已拆出 `docs/server-maintainer-guide.md` 与 `docs/remote-client-guide.md` 两条角色手册；`/api/service-info` 新增 listener 与 clientConnection contract；`ctr status`、`ctr doctor` 与 `/ui` 均显示当前 role、监听地址、鉴权状态、维护入口和远程客户端 `ANTHROPIC_BASE_URL` / managed `client + read-only` key 指引。
 - P1-7 Chunk 3 复审补强：已修正 `ctr status` 主要按本地配置推导角色信息的偏差；现在服务可访问时会优先读取 live `/api/service-info` 中的 runtime mode、listener、auth 和 clientConnection，并在 PID 元数据缺失但健康探测 ready 时正确报告服务运行中，避免维护者看到与实际服务不一致的角色/监听/鉴权指引。
 - 配置产品化最终收口（Chunk 1）：已新增 `docs/configuration-roles.md` 作为本地使用者、服务维护者、远程使用者的统一角色入口；README 的部署安全说明已拆成可扫描边界；configuration guide、server/remote 手册、setup 交互输出和 `/ui` 角色说明均收敛到同一组 local / server maintainer / remote client 口径，减少 server/cloud、managed key、remote service 术语在入口之间分叉。
+- 配置产品化最终收口 Chunk 1 复审补强：已修正 npm payload 只包含少数角色手册、但 README 还链接 configuration guide / models migration / releasing 等顶层 docs 的可达性偏差；`package.json.files` 改为随包发布 `docs/*.md`，并补充打包资产回归，确保 README 中面向用户和维护者的顶层文档链接在 npm 包内可用。
 
 下一项按优先级继续推进：
 

@@ -1,41 +1,41 @@
-# Configuration role guide
+# 配置角色总览
 
-Use this guide to decide which configuration path belongs to you.
+这份文档帮你先判断自己应该走哪条配置路径。
 
-## Local user
+## 本地使用者
 
-Choose this path when Claude Code runs on the same machine as `ctr`.
+当 Claude Code 和 `ctr` 运行在同一台机器上时，选择这条路径。
 
-- Start with `ctr setup`.
-- Configure `Models + Router.default`.
-- Run `ctr start` or `ctr start --daemon`.
-- Check `ctr status`, then run `ctr code`.
+- 从 `ctr setup` 开始。
+- 配置 `Models + Router.default`。
+- 运行 `ctr start` 或 `ctr start --daemon`。
+- 用 `ctr status` 确认服务状态，然后运行 `ctr code`。
 
-This is the default and safest first path.
+这是默认路径，也是首次使用时最稳的路径。
 
-## Server maintainer
+## 服务维护者
 
-Choose this path when you run `ctr` as a shared remote router service.
+当你要把 `ctr` 作为共享的远程路由服务运行时，选择这条路径。
 
-- Generate the server profile with `ctr deploy init --target server`.
-- Keep the bootstrap `APIKEY` or an admin managed key for maintenance.
-- Give remote users managed `client + read-only` keys, not admin/bootstrap keys.
-- Put public deployments behind HTTPS reverse proxy or private network access.
-- Use `ctr status`, `ctr doctor` and `ctr ui` to check role, listener, auth, quota and health.
+- 用 `ctr deploy init --target server` 生成 server 配置。
+- 保留 bootstrap `APIKEY` 或 admin managed key 用于维护。
+- 给远程使用者发放 managed `client + read-only` key，不要发 admin/bootstrap key。
+- 公网部署建议放在 HTTPS 反向代理或内网访问之后。
+- 用 `ctr status`、`ctr doctor` 和 `ctr ui` 检查角色、监听地址、鉴权、配额和健康状态。
 
-Detailed maintainer steps live in `docs/server-maintainer-guide.md`.
+详细维护步骤见 `docs/server-maintainer-guide.md`。
 
-## Remote service user
+## 远程服务使用者
 
-Choose this path when someone else gives you an existing router service.
+当别人已经提供了一个可用的 Trigger Router 服务时，选择这条路径。
 
-- Ask for the server base URL.
-- Ask for a managed key with both `client` and `read-only` scopes.
-- Use `Runtime.remote_service` for connection config and ready/status checks.
-- For direct Claude Code access, set `ANTHROPIC_BASE_URL` to the server URL and `ANTHROPIC_API_KEY` to the managed key.
+- 向服务维护者获取服务 base URL。
+- 获取同时带 `client` 和 `read-only` scope 的 managed key。
+- 使用 `Runtime.remote_service` 保存连接配置，并做 ready/status 检查。
+- 如果直接让 Claude Code 连接远程服务，把 `ANTHROPIC_BASE_URL` 设置为服务地址，把 `ANTHROPIC_API_KEY` 设置为 managed key。
 
-Detailed client steps live in `docs/remote-client-guide.md`.
+详细客户端步骤见 `docs/remote-client-guide.md`。
 
-## Boundary
+## 当前边界
 
-`Runtime.remote_service` is currently a connection, readiness and registration contract. It does not yet mean local `ctr code` automatically forwards every request through a remote router. For first-time daily use, prefer the local `Models + Router.default` path unless you already have a maintained remote service.
+`Runtime.remote_service` 当前是连接配置、ready/status 检查和注册摘要 contract。它还不表示本地 `ctr code` 会自动把所有请求转发到远程 router。首次日常使用仍建议优先走本地 `Models + Router.default` 路径，除非你已经有一个由维护者提供的远程服务。
