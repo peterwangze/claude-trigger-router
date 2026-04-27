@@ -67,7 +67,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `.bucket-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-top:.75rem}` +
     `.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:1rem}` +
     `.mini-list{list-style:none;padding:0;margin:.75rem 0 0}` +
-    `.mini-list li{display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px dashed #e5e7eb}` +
+    `.mini-list li{display:flex;justify-content:space-between;gap:.75rem 1rem;flex-wrap:wrap;align-items:flex-start;padding:.45rem 0;border-bottom:1px dashed #e5e7eb}` +
     `.mini-list li:last-child{border-bottom:none}` +
     `.action-row{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-top:.75rem}` +
     `.management-table{width:100%;margin-top:.75rem}` +
@@ -356,15 +356,15 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<ul id="intentRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
     `<div class="panel" style="margin-bottom:0">` +
-    `<div class="row"><strong>Outcome by route</strong><span class="muted">切换率与延迟</span></div>` +
+    `<div class="row"><strong>Outcome by route</strong><span class="muted">切换、alignment、cascade 与延迟</span></div>` +
     `<ul id="routeOutcomeRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
     `<div class="panel" style="margin-bottom:0">` +
-    `<div class="row"><strong>Outcome by model</strong><span class="muted">最终模型表现</span></div>` +
+    `<div class="row"><strong>Outcome by model</strong><span class="muted">最终模型切换与延迟表现</span></div>` +
     `<ul id="modelOutcomeRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
     `<div class="panel" style="margin-bottom:0">` +
-    `<div class="row"><strong>Outcome by intent</strong><span class="muted">任务意图表现</span></div>` +
+    `<div class="row"><strong>Outcome by intent</strong><span class="muted">任务意图切换与延迟表现</span></div>` +
     `<ul id="intentOutcomeRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
     `<div class="panel" style="margin-bottom:0">` +
@@ -1227,7 +1227,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `}` +
     `function renderOutcomeGroups(target,entries,emptyLabel){` +
     `  if(!entries || !entries.length){ target.innerHTML='<li><span class="muted">'+esc(emptyLabel)+'</span><strong>0</strong></li>'; return; }` +
-    `  target.innerHTML=entries.map(item=>'<li><span><code>'+esc(item.key)+'</code><span class="muted"> · '+esc(item.totalTraces)+' traces</span></span><strong>'+esc(pct(item.modelSwitchRate))+' · '+esc(fmt(item.averageLatencyMs))+' ms</strong></li>').join('');` +
+    `  target.innerHTML=entries.map(item=>'<li><span><code>'+esc(item.key)+'</code><span class="muted"> · '+esc(item.totalTraces)+' traces</span></span><strong>switch '+esc(pct(item.modelSwitchRate))+' · align '+esc(pct(item.alignmentOnSwitchRate))+' · cascade '+esc(pct(item.cascadeAfterSwitchRate))+' · '+esc(fmt(item.averageLatencyMs))+' ms</strong></li>').join('');` +
     `}` +
     `function renderAnomalies(anomalies,health){` +
     `  const status=health?.status || 'idle';` +

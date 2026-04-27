@@ -1298,6 +1298,16 @@ describe('createServer /api/config', () => {
     expect(result.outcome.topModelSwitches).toEqual([
       { key: 'haiku -> sonnet', from: 'haiku', to: 'sonnet', count: 1, rate: 1 },
     ]);
+    expect(result.outcome.byRouteReason).toEqual([
+      expect.objectContaining({
+        key: 'smart_router',
+        totalTraces: 2,
+        modelSwitchRate: 0.5,
+        alignmentOnSwitchRate: 0,
+        cascadeAfterSwitchRate: 1,
+        averageLatencyMs: 110,
+      }),
+    ]);
     expect(result.anomalies.map((item: any) => item.type)).toEqual([
       'cascade_rate_high',
       'shadow_rate_high',
@@ -1819,6 +1829,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Outcome by route');
     expect(html).toContain('routeOutcomeRanking');
     expect(html).toContain('renderOutcomeGroups');
+    expect(html).toContain('switch ');
+    expect(html).toContain('align ');
+    expect(html).toContain('cascade ');
     expect(html).toContain('healthSummary');
     expect(html).toContain('Health pending');
     expect(html).toContain("fetch('/api/governance/health'+query)");
