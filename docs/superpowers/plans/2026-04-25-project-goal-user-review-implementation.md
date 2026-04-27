@@ -323,6 +323,7 @@ P3-3：持续 closed 事项复审
 - CLI / setup UX 重设计（Chunk 1）：`ctr setup` fresh 入口已从“本地使用 / 连接远程服务”扩展为“本地使用 / 连接远程服务 / 部署为远程服务端”三类路径；选择服务端部署会生成带随机 bootstrap admin `APIKEY`、`HOST: "0.0.0.0"`、`Runtime.mode: "server"` 和可编辑 `Models + Router.default` 的 server profile，并保持安全边界：setup 不自动启动远程服务，而是提示维护者先编辑模型、运行 `ctr doctor`，再手动 `ctr start --daemon`。
 - CLI / setup UX 重设计 Chunk 1 复审补强：已修正复用已有 valid server profile 时仍会走本地 ready / Claude Code 入口的边界偏差；现在 `Runtime.mode: "server"` 的当前配置在 `ctr setup` 复用路径中同样不会自动启动服务或进入 Claude Code，只输出服务端维护者后续命令。
 - CLI / setup UX 重设计（Chunk 2）：已让 setup 完成回调拿到最终配置与服务动作结果，并按角色输出更准确的保存后 next steps；本地路径说明本地代理是 start/reuse/reload/restart 后 ready，并提示 `ctr code` 与 SmartRouter 模板，远程客户端路径只承诺当前已落地的 ready/status 检查和直连远端所需 `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_KEY`，不再误提示本地路由模板或自动进入 Claude Code。
+- CLI / setup UX 重设计 Chunk 2 复审补强：已将 setup 复用路径的服务部署安全边界从 `Runtime.mode: "server"` 扩展到 `server/cloud`，避免已有 cloud profile 被误当成本地 Claude Code 使用路径自动启动服务或输出本地 next steps。
 
 下一项按优先级继续推进：
 

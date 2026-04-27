@@ -77,15 +77,20 @@ function getMigratedModelCount(draft: ISetupConfigDraft): number {
   return 0;
 }
 
-function isServerDeploymentDraft(draft: ISetupConfigDraft | undefined): boolean {
-  return draft?.Runtime?.mode === 'server';
+function isRouterServiceDeploymentDraft(draft: ISetupConfigDraft | undefined): boolean {
+  return draft?.Runtime?.mode === 'server' || draft?.Runtime?.mode === 'cloud';
 }
 
-function printServerDeploymentNextSteps(
+function getRouterServiceDeploymentLabel(draft: ISetupConfigDraft | undefined): 'server' | 'cloud' {
+  return draft?.Runtime?.mode === 'cloud' ? 'cloud' : 'server';
+}
+
+function printRouterServiceDeploymentNextSteps(
   io: IRunSetupDeps['io'],
-  message = '已生成 server 部署配置；setup 不会自动启动远程服务。'
+  draft: ISetupConfigDraft | undefined,
+  message = '已生成 {mode} 部署配置；setup 不会自动启动远程服务。'
 ): void {
-  io.info(message);
+  io.info(message.replace('{mode}', getRouterServiceDeploymentLabel(draft)));
   io.info('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
 }
 
@@ -155,11 +160,12 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
   if (branch.kind === 'reuse_current') {
     if (
       detection.currentConfig.kind === 'valid' &&
-      isServerDeploymentDraft(detection.currentConfig.config)
+      isRouterServiceDeploymentDraft(detection.currentConfig.config)
     ) {
-      printServerDeploymentNextSteps(
+      printRouterServiceDeploymentNextSteps(
         deps.io,
-        '当前配置是 server 部署配置；setup 不会自动启动远程服务。'
+        detection.currentConfig.config,
+        '当前配置是 {mode} 部署配置；setup 不会自动启动远程服务。'
       );
       return;
     }
@@ -234,8 +240,8 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
   }
 
   if (branch.kind === 'fresh_init' || branch.kind === 'repair_current' || branch.kind === 'unparseable_current' || branch.kind === 'migrate_legacy') {
-    if (isServerDeploymentDraft(finalDraft)) {
-      printServerDeploymentNextSteps(deps.io);
+    if (isRouterServiceDeploymentDraft(finalDraft)) {
+      printRouterServiceDeploymentNextSteps(deps.io, finalDraft);
       return;
     }
 
