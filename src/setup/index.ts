@@ -450,10 +450,7 @@ function applyCapabilityMetadata(model: any, metadata?: Record<string, unknown>)
     return model;
   }
 
-  model.metadata = {
-    ...(model.metadata ?? {}),
-    ...metadata,
-  };
+  model.metadata = { ...metadata };
 
   if (!Object.keys(model.metadata || {}).length) {
     delete model.metadata;
@@ -486,24 +483,34 @@ async function promptCapabilityMetadata(io: ISetupIO, currentMetadata?: Record<s
   const toolChoice = await io.choose('Tool support', ['默认', '支持', '禁用']) as TCapabilityChoice;
   const imageChoice = await io.choose('Image support', ['默认', '支持', '禁用']) as TCapabilityChoice;
 
-  const nextMetadata: Record<string, unknown> = {};
+  const nextMetadata: Record<string, unknown> = {
+    ...(currentMetadata ?? {}),
+  };
   if (vendorHint.trim()) {
     nextMetadata.vendor_hint = vendorHint.trim();
+  } else {
+    delete nextMetadata.vendor_hint;
   }
 
   const reasoning = toCapabilityBoolean(reasoningChoice);
   if (reasoning !== undefined) {
     nextMetadata.supports_reasoning = reasoning;
+  } else {
+    delete nextMetadata.supports_reasoning;
   }
 
   const tools = toCapabilityBoolean(toolChoice);
   if (tools !== undefined) {
     nextMetadata.supports_tools = tools;
+  } else {
+    delete nextMetadata.supports_tools;
   }
 
   const images = toCapabilityBoolean(imageChoice);
   if (images !== undefined) {
     nextMetadata.supports_images = images;
+  } else {
+    delete nextMetadata.supports_images;
   }
 
   return nextMetadata;
@@ -516,6 +523,13 @@ async function promptCapabilityWarningFixesForDraft(draft: ISetupConfigDraft, io
   }
 
   for (const entry of report.entries) {
+    const stillActive = collectCapabilityWarnings(draft as any).entries.some(
+      (item) => item.path === entry.path && item.modelId === entry.modelId && item.code === entry.code
+    );
+    if (!stillActive) {
+      continue;
+    }
+
     const model = draft.Models.find((item) => item.id === entry.modelId);
     if (!model) {
       continue;

@@ -1316,6 +1316,74 @@ describe('runSetupCli', () => {
     expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
+  it('clears existing capability flags when quick-fix edit chooses defaults', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('快速修正配置提示')
+        .mockResolvedValueOnce('编辑 capability')
+        .mockResolvedValueOnce('默认')
+        .mockResolvedValueOnce('默认')
+        .mockResolvedValueOnce('默认'),
+      input: vi.fn().mockResolvedValueOnce(''),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/tmp/config.yaml',
+        format: 'yaml',
+        config: {
+          Models: [
+            {
+              id: 'restricted',
+              api: 'https://api.example.com/v1/chat/completions',
+              key: 'sk-test',
+              interface: 'openai',
+              model: 'vendor/text-only',
+              metadata: {
+                supports_tools: false,
+                supports_images: false,
+              },
+            },
+          ],
+          Router: {
+            default: 'restricted',
+          },
+        },
+      }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'self_healthy', port: 5678 }),
+      backupCurrentConfig: vi.fn().mockResolvedValue('/tmp/config.backup.yaml'),
+      writeConfig,
+      executeStart: vi.fn().mockResolvedValue(undefined),
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth: vi.fn().mockResolvedValue(true),
+      enterClaudeCode,
+      io,
+    });
+
+    expect(io.choose).not.toHaveBeenCalledWith(
+      '如何处理模型 restricted 的 image fallback？',
+      ['恢复默认图片支持（推荐）', '接受文本降级', '编辑 capability']
+    );
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Models: [
+          expect.objectContaining({
+            id: 'restricted',
+            metadata: undefined,
+          }),
+        ],
+      })
+    );
+    expect(enterClaudeCode).not.toHaveBeenCalled();
+  });
+
   it('surfaces a friendlier message when setup restart health check still fails', async () => {
     const writeConfig = vi.fn().mockResolvedValue(undefined);
     const io = {
