@@ -677,6 +677,12 @@ describe('runSetupCli', () => {
         ],
       })
     );
+    expect(io.choose).toHaveBeenNthCalledWith(3, '接口类型（写入 Models[].interface）', ['openai', 'anthropic']);
+    expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
+    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 model id）', 'provider');
+    expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（写入 Models[].api）');
+    expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
+    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', '');
   });
 
   it('normalizes bare anthropic base urls during fresh setup', async () => {
@@ -730,6 +736,12 @@ describe('runSetupCli', () => {
         ],
       })
     );
+    expect(io.choose).toHaveBeenNthCalledWith(3, '接口类型（写入 Models[].interface）', ['openai', 'anthropic']);
+    expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
+    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 model id）', 'provider');
+    expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（写入 Models[].api）');
+    expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
+    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', '');
   });
 
   it('offers direct reuse before reconfiguration when current config is valid', async () => {

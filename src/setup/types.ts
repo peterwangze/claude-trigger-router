@@ -88,25 +88,25 @@ export interface IRemoteServiceConfigInput {
 }
 
 /**
- * 最小 Provider 输入
+ * setup 收集到的接入输入，最终会投影为 Models[] 草稿。
  */
 export interface IMinimalProviderInput {
-  /** Provider 名称 */
+  /** 接入名称：用于预设识别和旧 Providers 兼容，不作为 model id 暴露 */
   name: string;
 
-  /** API Key */
+  /** 上游 API Key，写入 Models[].key */
   api_key: string;
 
-  /** 接口类型（手动填写接口时可显式指定） */
+  /** 接口类型，写入 Models[].interface */
   interface?: 'openai' | 'anthropic';
 
-  /** 模型列表 */
+  /** 上游模型名列表，首个值写入 Models[].model */
   models: string[];
 
   /** 预设类型（可选） */
   preset?: ProviderPresetKey;
 
-  /** 自定义 API URL（可选，覆盖 preset） */
+  /** 上游 API URL，写入 Models[].api */
   api_base_url?: string;
 }
 
@@ -114,10 +114,10 @@ export interface IMinimalProviderInput {
  * 最小配置输入
  */
 export interface IMinimalConfigInput {
-  /** Provider 列表 */
+  /** 接入列表，会被转换为 Models[] */
   providers: IMinimalProviderInput[];
 
-  /** 默认模型（可选，格式：provider,model） */
+  /** 默认 model id；兼容读取 legacy provider,model 引用 */
   defaultModel?: string;
 }
 
