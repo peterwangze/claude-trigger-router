@@ -243,6 +243,7 @@ describe('runSetupCli', () => {
     const io = {
       choose: vi
         .fn()
+        .mockResolvedValueOnce('本地使用（推荐）')
         .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('先不添加')
@@ -288,9 +289,10 @@ describe('runSetupCli', () => {
       })
     );
     expect(io.input).toHaveBeenNthCalledWith(1, '这个默认模型在本地要叫什么名字？', 'sonnet');
-    expect(io.choose).toHaveBeenNthCalledWith(1, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
-    expect(io.choose).toHaveBeenNthCalledWith(2, '选择 provider 预设', expect.any(Array));
-    expect(io.choose).toHaveBeenNthCalledWith(3, '现在要不要继续添加一个“复杂任务专用模型”？', ['先不添加', '添加一个复杂任务专用模型']);
+    expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用，还是连接远程服务？', ['本地使用（推荐）', '连接远程服务']);
+    expect(io.choose).toHaveBeenNthCalledWith(2, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
+    expect(io.choose).toHaveBeenNthCalledWith(3, '选择 provider 预设', expect.any(Array));
+    expect(io.choose).toHaveBeenNthCalledWith(4, '现在要不要继续添加一个“复杂任务专用模型”？', ['先不添加', '添加一个复杂任务专用模型']);
     expect(io.input).toHaveBeenNthCalledWith(2, 'Provider 名称', 'openrouter');
     expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名', 'anthropic/claude-sonnet-4');
     expect(io.info).toHaveBeenCalledWith('我们先创建一份最小可用配置。');
@@ -309,6 +311,63 @@ describe('runSetupCli', () => {
     expect(io.info).toHaveBeenCalledWith(
       '如果你明确需要 setup 结束后自动进入 Claude Code，可设置环境变量 CTR_SETUP_AUTO_ENTER_CODE=1'
     );
+  });
+
+  it('creates a remote-service client draft before asking provider questions', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('连接远程服务'),
+      input: vi
+        .fn()
+        .mockResolvedValueOnce('https://router.example.com/')
+        .mockResolvedValueOnce('remote-token'),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig,
+      executeStart,
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用，还是连接远程服务？', ['本地使用（推荐）', '连接远程服务']);
+    expect(io.input).toHaveBeenNthCalledWith(1, '远程服务 URL');
+    expect(io.input).toHaveBeenNthCalledWith(2, '远程服务 Auth Token（可选）', '${CTR_REMOTE_AUTH_TOKEN}');
+    expect(io.input).not.toHaveBeenCalledWith('这个默认模型在本地要叫什么名字？', 'sonnet');
+    expect(io.choose).not.toHaveBeenCalledWith('这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Runtime: {
+          mode: 'local',
+          remote_service: {
+            enabled: true,
+            base_url: 'https://router.example.com',
+            auth_token: 'remote-token',
+          },
+        },
+        Providers: [],
+        Router: {
+          default: '',
+        },
+      })
+    );
+    expect(executeStart).toHaveBeenCalledTimes(1);
+    expect(verifyHealth).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
   it('does not silently fall back to json when higher-priority yaml exists but cannot be parsed', async () => {
@@ -372,6 +431,7 @@ describe('runSetupCli', () => {
     const io = {
       choose: vi
         .fn()
+        .mockResolvedValueOnce('本地使用（推荐）')
         .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('先不添加')
@@ -430,6 +490,7 @@ describe('runSetupCli', () => {
     const io = {
       choose: vi
         .fn()
+        .mockResolvedValueOnce('本地使用（推荐）')
         .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('添加一个复杂任务专用模型')
@@ -504,6 +565,7 @@ describe('runSetupCli', () => {
     const io = {
       choose: vi
         .fn()
+        .mockResolvedValueOnce('本地使用（推荐）')
         .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('anthropic')
         .mockResolvedValueOnce('先不添加')
@@ -549,8 +611,9 @@ describe('runSetupCli', () => {
         },
       })
     );
-    expect(io.choose).toHaveBeenNthCalledWith(1, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
-    expect(io.choose).toHaveBeenNthCalledWith(2, '选择 provider 预设', expect.any(Array));
+    expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用，还是连接远程服务？', ['本地使用（推荐）', '连接远程服务']);
+    expect(io.choose).toHaveBeenNthCalledWith(2, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
+    expect(io.choose).toHaveBeenNthCalledWith(3, '选择 provider 预设', expect.any(Array));
     expect(io.input).toHaveBeenNthCalledWith(1, '这个默认模型在本地要叫什么名字？', 'sonnet');
     expect(io.input).toHaveBeenNthCalledWith(2, 'Provider 名称', 'anthropic');
     expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名', 'claude-sonnet-4-5');
@@ -568,6 +631,7 @@ describe('runSetupCli', () => {
     const io = {
       choose: vi
         .fn()
+        .mockResolvedValueOnce('本地使用（推荐）')
         .mockResolvedValueOnce('手动填写接口')
         .mockResolvedValueOnce('openai')
         .mockResolvedValueOnce('先不添加')
@@ -620,6 +684,7 @@ describe('runSetupCli', () => {
     const io = {
       choose: vi
         .fn()
+        .mockResolvedValueOnce('本地使用（推荐）')
         .mockResolvedValueOnce('手动填写接口')
         .mockResolvedValueOnce('anthropic')
         .mockResolvedValueOnce('先不添加')
@@ -723,6 +788,7 @@ describe('runSetupCli', () => {
       choose: vi
         .fn()
         .mockResolvedValueOnce('放弃当前配置，重新开始')
+        .mockResolvedValueOnce('本地使用（推荐）')
         .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('openrouter')
         .mockResolvedValueOnce('先不添加')

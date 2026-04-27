@@ -18,7 +18,7 @@ import { decideServiceAction, applyServiceAction } from './service';
 import { getRepairFields } from './repair';
 import { migrateLegacyConfig } from './migrate';
 import { detectSetupEnvironment, RawCurrentConfigResult, RawLegacyConfigResult } from './detect';
-import { buildMinimalConfig } from './templates';
+import { buildMinimalConfig, buildRemoteServiceConfig } from './templates';
 import { persistSetupConfig } from './persist';
 import { runSetup } from './setup';
 import { ISetupConfigDraft, ProviderPresetKey } from './types';
@@ -33,6 +33,7 @@ interface ISetupIO {
 type TCapabilityChoice = '默认' | '支持' | '禁用';
 type TCapabilityEditChoice = '保持当前值' | '编辑 capability';
 type TRoutingBootstrapChoice = '先保持最小配置' | '开启复杂任务规则模板' | '开启复杂任务规则 + 智能兜底';
+type TSetupEntryChoice = '本地使用（推荐）' | '连接远程服务';
 
 interface ISetupCollectedModelInput {
   name: string;
@@ -734,6 +735,18 @@ async function promptModelConnection(
 }
 
 async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
+  const setupEntryChoice = await io.choose('当前要本地使用，还是连接远程服务？', [
+    '本地使用（推荐）',
+    '连接远程服务',
+  ]) as TSetupEntryChoice;
+
+  if (setupEntryChoice === '连接远程服务') {
+    const baseUrl = await io.input('远程服务 URL');
+    const authToken = await io.input('远程服务 Auth Token（可选）', '${CTR_REMOTE_AUTH_TOKEN}');
+    io.info('已生成远程服务连接配置，本机不会要求你先填写 provider/model。');
+    return buildRemoteServiceConfig({ baseUrl, authToken });
+  }
+
   const primaryModel = await promptModelConnection(io, {
     intro: '我们先创建一份最小可用配置。',
     modelIdPrompt: '这个默认模型在本地要叫什么名字？',

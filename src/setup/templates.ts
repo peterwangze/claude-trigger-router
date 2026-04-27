@@ -89,12 +89,14 @@ export function buildMinimalConfig(input: IMinimalConfigInput): ISetupConfigDraf
 }
 
 export function buildRemoteServiceConfig(input: IRemoteServiceConfigInput): ISetupConfigDraft {
+  const baseUrl = input.baseUrl.trim().replace(/\/+$/, '');
+
   return {
     Runtime: {
       mode: 'local',
       remote_service: {
         enabled: true,
-        base_url: input.baseUrl.trim(),
+        base_url: baseUrl,
         auth_token: input.authToken?.trim() || '${CTR_REMOTE_AUTH_TOKEN}',
       },
     },

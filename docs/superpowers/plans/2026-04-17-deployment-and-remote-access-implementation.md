@@ -247,25 +247,33 @@ Expected: PASS.
 - Modify: `src/setup/index.ts`
 - Test: `src/setup/index.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add assertions that setup can ask:
 - `当前要本地使用，还是连接远程服务？`
 - remote path asks for service URL before model/provider questions
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- src/setup/index.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Preserve current migration-first path; only branch into remote flow when user explicitly chooses it.
 
-- [ ] **Step 4: Run targeted tests**
+- [x] **Step 4: Run targeted tests**
 
 Run: `npm test -- src/setup/index.test.ts`
 Expected: PASS.
+
+2026-04-27 closure note:
+
+- Fresh setup now asks `当前要本地使用，还是连接远程服务？` before provider/model questions.
+- The local path remains the default and keeps the existing model/provider setup flow after the new entry choice.
+- The remote path asks only for remote service URL and optional auth token, then persists a `Runtime.remote_service` client draft without requiring local provider/model fields.
+- Existing migration-first and current-config reuse flows remain before this branch; the local/remote choice is only used when building a fresh config.
+- Targeted verification used: `npm test -- --run src/setup/templates.test.ts src/setup/index.test.ts`.
 
 ### Task 7: Update doctor and `/ui` to show service context
 
