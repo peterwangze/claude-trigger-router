@@ -12,7 +12,7 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from "fs";
 import { run, initializeClaudeConfig } from "./index";
 import { isServiceRunning, killProcess, readServiceInfo } from "./utils/processCheck";
 import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from "./constants";
-import { isTcpPortOccupied, waitForService } from "./service-health";
+import { SERVICE_INFO_PATH, SERVICE_NAME, isTcpPortOccupied, waitForService } from "./service-health";
 import { runSetupCli } from "./setup";
 import { buildServerDeploymentConfig, buildUsableMinimalTemplateConfig } from "./setup/templates";
 import { runDoctorCli } from "./doctor";
@@ -176,37 +176,68 @@ function readConfigForCliStatus(): any {
   return {};
 }
 
-function printRuntimeStatus(config: any, port: number) {
+async function fetchLiveServiceInfo(port: number, apiKey?: string): Promise<any | null> {
+  try {
+    const headers = apiKey?.trim()
+      ? { Authorization: `Bearer ${apiKey.trim()}` }
+      : undefined;
+    const response = await fetch(`http://127.0.0.1:${port}${SERVICE_INFO_PATH}`, {
+      headers,
+      signal: AbortSignal.timeout(500),
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const payload = await response.json();
+    if (!payload || typeof payload !== "object" || (payload as any).service !== SERVICE_NAME) {
+      return null;
+    }
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function printRuntimeStatus(config: any, port: number, liveInfo?: any | null) {
   const normalized = normalizeAndValidateConfig(config ?? {}).config;
-  const runtimeMode = normalized.Runtime?.mode ?? "local";
-  const serviceRole = runtimeMode === "local" ? "local_agent" : "router_service";
-  const host = String(normalized.HOST ?? DEFAULT_CONFIG.HOST ?? "127.0.0.1").trim() || "127.0.0.1";
-  const publicHost = ["0.0.0.0", "::", "[::]"].includes(host);
+  const runtimeMode = liveInfo?.runtimeMode ?? normalized.Runtime?.mode ?? "local";
+  const serviceRole = liveInfo?.serviceRole ?? (runtimeMode === "local" ? "local_agent" : "router_service");
+  const listener = liveInfo?.listener && typeof liveInfo.listener === "object" ? liveInfo.listener : null;
+  const host = String(listener?.host ?? normalized.HOST ?? DEFAULT_CONFIG.HOST ?? "127.0.0.1").trim() || "127.0.0.1";
+  const publicHost = typeof listener?.public === "boolean"
+    ? listener.public
+    : ["0.0.0.0", "::", "[::]"].includes(host);
+  const listenerPort = Number(listener?.port ?? port) || port;
   const managedKeys = managedApiKeySummary(normalized);
-  const hasBootstrapAuth = Boolean(normalized.APIKEY);
-  const authRequired = hasBootstrapAuth || managedKeys.total > 0;
-  const listenerUrl = publicHost ? `http://<server-host>:${port}` : `http://${host}:${port}`;
+  const liveAuth = liveInfo?.auth && typeof liveInfo.auth === "object" ? liveInfo.auth : null;
+  const hasBootstrapAuth = Boolean(liveAuth?.bootstrapConfigured ?? normalized.APIKEY);
+  const managedActive = Number(liveAuth?.managedKeys?.active ?? managedKeys.active) || 0;
+  const authRequired = Boolean(liveAuth?.required ?? (hasBootstrapAuth || managedKeys.total > 0));
+  const listenerUrl = String(listener?.advertisedUrl ?? (publicHost ? `http://<server-host>:${listenerPort}` : `http://${host}:${listenerPort}`));
   const remoteService = normalized.Runtime?.remote_service;
+  const clientConnection = liveInfo?.clientConnection && typeof liveInfo.clientConnection === "object"
+    ? liveInfo.clientConnection
+    : null;
 
   console.log(`   模式：${runtimeMode}（${serviceRole}）`);
-  console.log(`   监听：${host}:${port}${publicHost ? "（对外监听）" : "（本机监听）"}`);
-  console.log(`   鉴权：${authRequired ? "enabled" : "disabled"}（bootstrap=${hasBootstrapAuth}, managed_active=${managedKeys.active}）`);
+  console.log(`   监听：${host}:${listenerPort}${publicHost ? "（对外监听）" : "（本机监听）"}`);
+  console.log(`   鉴权：${authRequired ? "enabled" : "disabled"}（bootstrap=${hasBootstrapAuth}, managed_active=${managedActive}）`);
 
   if (runtimeMode !== "local") {
-    console.log(`   远程客户端接入：ANTHROPIC_BASE_URL=${listenerUrl}`);
+    console.log(`   远程客户端接入：ANTHROPIC_BASE_URL=${clientConnection?.baseUrl || listenerUrl}`);
     console.log("   推荐客户端 key：managed client + read-only；不要把 admin/bootstrap key 发给远程使用者。");
-    console.log(`   维护入口：http://127.0.0.1:${port}/ui（需要 admin key）`);
+    console.log(`   维护入口：http://127.0.0.1:${listenerPort}/ui（需要 admin key）`);
     return;
   }
 
-  if (remoteService?.enabled) {
-    const baseUrl = remoteService.base_url?.trim().replace(/\/+$/, "") || "<missing>";
+  if (clientConnection?.role === "remote_client" || remoteService?.enabled) {
+    const baseUrl = String(clientConnection?.baseUrl || remoteService?.base_url || "").trim().replace(/\/+$/, "") || "<missing>";
     console.log(`   远程服务：${baseUrl}`);
     console.log("   推荐远程 token：managed client + read-only，用于 ready/status 探测和模型调用。");
     return;
   }
 
-  console.log(`   本地接入：http://127.0.0.1:${port}`);
+  console.log(`   本地接入：${clientConnection?.baseUrl || `http://127.0.0.1:${listenerPort}`}`);
 }
 
 function getLatestPackageVersionViaNpm(packageName: string, timeoutMs = 5000): string | null {
@@ -548,6 +579,14 @@ async function showStatus() {
     const targetPort = configuredPort;
     const healthy = await waitForService(targetPort, 500, healthOptions);
     const occupied = await isTcpPortOccupied(targetPort, 500);
+    if (healthy) {
+      const liveInfo = await fetchLiveServiceInfo(targetPort, config?.APIKEY);
+      console.log("✅ 服务运行中");
+      console.log(`   端口：${targetPort}`);
+      console.log(`   接入地址：http://127.0.0.1:${targetPort}`);
+      printRuntimeStatus(config, targetPort, liveInfo);
+      return;
+    }
     if (!healthy && occupied) {
       console.log(`⚠️  端口 ${targetPort} 已被其他服务占用，当前不是 claude-trigger-router。`);
       return;
@@ -562,7 +601,8 @@ async function showStatus() {
   console.log(`   端口：${info.port}`);
   console.log(`   启动时间：${startTime}`);
   console.log(`   接入地址：http://127.0.0.1:${info.port}`);
-  printRuntimeStatus(config, info.port);
+  const liveInfo = await fetchLiveServiceInfo(info.port, config?.APIKEY);
+  printRuntimeStatus(config, info.port, liveInfo);
 }
 
 /**

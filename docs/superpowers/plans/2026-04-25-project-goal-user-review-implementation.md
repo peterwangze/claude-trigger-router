@@ -317,6 +317,7 @@ P3-3：持续 closed 事项复审
 - P1-7 Chunk 1 复审补强：已修正 CLI 帮助中 `--force` 只标注给 `init` 的文案偏差，并补充 deploy init 在已有配置且未显式 `--force` 时不会写文件的回归测试，守住“部署模板不误覆盖现有配置”的安全承诺。
 - P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 2）：已在 npm 包随附 `config/deploy/docker-compose.server.yaml`、`config/deploy/systemd/claude-trigger-router.service` 与部署模板 README；`release:stage` 现在会准备独立 `.release-server-home` 并用 staged wrapper 执行 `deploy init --target server --force`，让维护者在发布前能验收 server profile，而不会覆盖普通 staged 用户配置。
 - P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 3）：已拆出 `docs/server-maintainer-guide.md` 与 `docs/remote-client-guide.md` 两条角色手册；`/api/service-info` 新增 listener 与 clientConnection contract；`ctr status`、`ctr doctor` 与 `/ui` 均显示当前 role、监听地址、鉴权状态、维护入口和远程客户端 `ANTHROPIC_BASE_URL` / managed `client + read-only` key 指引。
+- P1-7 Chunk 3 复审补强：已修正 `ctr status` 主要按本地配置推导角色信息的偏差；现在服务可访问时会优先读取 live `/api/service-info` 中的 runtime mode、listener、auth 和 clientConnection，并在 PID 元数据缺失但健康探测 ready 时正确报告服务运行中，避免维护者看到与实际服务不一致的角色/监听/鉴权指引。
 
 下一项按优先级继续推进：
 

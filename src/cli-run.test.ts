@@ -485,6 +485,138 @@ describe('runClaudeCode', () => {
     logSpy.mockRestore();
   });
 
+  it('uses live service-info for status when runtime config differs from the local file', async () => {
+    process.argv = ['node', 'cli.ts', 'status'];
+    mockIsServiceRunning.mockReturnValue(true);
+    mockReadServiceInfo.mockReturnValue({ pid: 321, port: 5678, startTime: '2026-04-28T00:00:00.000Z' });
+    mockExistsSync.mockImplementation((filePath: string) => String(filePath).endsWith('config.yaml'));
+    mockReadFileSync.mockImplementation((filePath: string) => {
+      if (String(filePath).endsWith('package.json')) {
+        return JSON.stringify({
+          name: '@peterwangze/claude-trigger-router',
+          version: '1.1.0',
+        });
+      }
+      if (String(filePath).endsWith('config.yaml')) {
+        return [
+          'HOST: "127.0.0.1"',
+          'PORT: 5678',
+          'APIKEY: "bootstrap-key"',
+          'Runtime:',
+          '  mode: "local"',
+        ].join('\n');
+      }
+      throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
+    });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        service: 'claude-trigger-router',
+        ready: true,
+        runtimeMode: 'cloud',
+        serviceRole: 'router_service',
+        listener: {
+          host: '0.0.0.0',
+          port: 5678,
+          public: true,
+          localUrl: 'http://127.0.0.1:5678',
+          advertisedUrl: 'https://router.example.com',
+        },
+        clientConnection: {
+          role: 'remote_user',
+          baseUrl: 'https://router.example.com',
+          recommendedScopes: ['client', 'read-only'],
+        },
+        auth: {
+          required: true,
+          bootstrapConfigured: false,
+          managedKeys: { active: 2 },
+        },
+      }),
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:5678/api/service-info',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer bootstrap-key' },
+      })
+    );
+    expect(output).toContain('模式：cloud（router_service）');
+    expect(output).toContain('监听：0.0.0.0:5678（对外监听）');
+    expect(output).toContain('鉴权：enabled（bootstrap=false, managed_active=2）');
+    expect(output).toContain('远程客户端接入：ANTHROPIC_BASE_URL=https://router.example.com');
+
+    logSpy.mockRestore();
+  });
+
+  it('reports status as running when health is ready but pid metadata is missing', async () => {
+    process.argv = ['node', 'cli.ts', 'status'];
+    mockReadServiceInfo.mockReturnValue(null);
+    mockWaitForService.mockResolvedValue(true);
+    mockIsTcpPortOccupied.mockResolvedValue(true);
+    mockExistsSync.mockImplementation((filePath: string) => String(filePath).endsWith('config.yaml'));
+    mockReadFileSync.mockImplementation((filePath: string) => {
+      if (String(filePath).endsWith('package.json')) {
+        return JSON.stringify({
+          name: '@peterwangze/claude-trigger-router',
+          version: '1.1.0',
+        });
+      }
+      if (String(filePath).endsWith('config.yaml')) {
+        return [
+          'HOST: "127.0.0.1"',
+          'PORT: 5678',
+          'Runtime:',
+          '  mode: "local"',
+        ].join('\n');
+      }
+      throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
+    });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        service: 'claude-trigger-router',
+        ready: true,
+        runtimeMode: 'local',
+        serviceRole: 'local_agent',
+        listener: {
+          host: '127.0.0.1',
+          port: 5678,
+          public: false,
+          localUrl: 'http://127.0.0.1:5678',
+          advertisedUrl: 'http://127.0.0.1:5678',
+        },
+        clientConnection: {
+          role: 'local_user',
+          baseUrl: 'http://127.0.0.1:5678',
+          recommendedScopes: [],
+        },
+        auth: {
+          required: false,
+          bootstrapConfigured: false,
+          managedKeys: { active: 0 },
+        },
+      }),
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('服务运行中');
+    expect(output).toContain('端口：5678');
+    expect(output).toContain('模式：local（local_agent）');
+    expect(output).not.toContain('服务未运行');
+
+    logSpy.mockRestore();
+  });
+
   it('fails clearly when --port is not a valid integer', async () => {
     process.argv = ['node', 'cli.ts', 'start', '--port', 'abc'];
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
