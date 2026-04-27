@@ -136,6 +136,7 @@ describe('createServer /api/config', () => {
           trackedKeys: 0,
           requestsUsed: 0,
           tokensUsed: 0,
+          keys: [],
         },
       },
       security: {
@@ -184,6 +185,58 @@ describe('createServer /api/config', () => {
       issues: [],
     }));
     expect(JSON.stringify(result)).not.toContain('bootstrap-key');
+    expect(JSON.stringify(result)).not.toContain(created.secret);
+    expect(JSON.stringify(result)).not.toContain(created.record.key_hash);
+  });
+
+  it('reports managed key quota details without exposing secrets', async () => {
+    const created = createManagedApiKey({
+      label: 'limited remote client',
+      scopes: ['client'],
+      quota: {
+        request_limit: 2,
+        token_limit: 100,
+      },
+    });
+    authQuotaUsageStore.consume(created.record.id, created.record.quota, 12);
+    const server = createServer({
+      initialConfig: {
+        APIKEY: 'bootstrap-key',
+        Auth: {
+          managed_keys: [created.record],
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/service-info');
+
+    const result = await handler({}, {});
+
+    expect(result.auth.quota).toEqual(expect.objectContaining({
+      trackedKeys: 1,
+      requestsUsed: 1,
+      tokensUsed: 12,
+      keys: [
+        expect.objectContaining({
+          id: created.record.id,
+          label: 'limited remote client',
+          scopes: ['client'],
+          active: true,
+          keyPrefix: created.record.key_prefix,
+          keySuffix: created.record.key_suffix,
+          status: 'ok',
+          quota: {
+            request_limit: 2,
+            token_limit: 100,
+          },
+          usage: expect.objectContaining({
+            requestLimit: 2,
+            requestsUsed: 1,
+            tokenLimit: 100,
+            tokensUsed: 12,
+          }),
+        }),
+      ],
+    }));
     expect(JSON.stringify(result)).not.toContain(created.secret);
     expect(JSON.stringify(result)).not.toContain(created.record.key_hash);
   });
@@ -1988,6 +2041,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('previewConfigDraftHeroBtn');
     expect(html).toContain('refreshStatusHeroBtn');
     expect(html).toContain('loadServiceStatus');
+    expect(html).toContain('authQuotaTable');
     expect(html).toContain('userSurfaceTab');
     expect(html).toContain('maintainerSurfaceTab');
     expect(html).toContain('id="userSurface"');

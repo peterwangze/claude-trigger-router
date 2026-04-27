@@ -327,6 +327,72 @@ type TQuotaUsageEntry = { requests: number; tokens: number; windowStartedAt: num
 export class AuthQuotaUsageStore {
   private usage = new Map<string, TQuotaUsageEntry>();
 
+  private resolveLimits(quota: IManagedApiKeyConfig['quota'] | undefined) {
+    const requestLimit = Number.isInteger(quota?.request_limit) && Number(quota?.request_limit) > 0
+      ? Number(quota?.request_limit)
+      : undefined;
+    const tokenLimit = Number.isInteger(quota?.token_limit) && Number(quota?.token_limit) > 0
+      ? Number(quota?.token_limit)
+      : undefined;
+    const windowSeconds = Number.isInteger(quota?.window_seconds) && Number(quota?.window_seconds) > 0
+      ? Number(quota?.window_seconds)
+      : undefined;
+    return { requestLimit, tokenLimit, windowSeconds };
+  }
+
+  private normalizeEntry(keyId: string, windowSeconds: number | undefined, now: Date): TQuotaUsageEntry | undefined {
+    const existing = this.usage.get(keyId);
+    if (!existing) {
+      return undefined;
+    }
+
+    const nowMs = now.getTime();
+    if (windowSeconds !== undefined && (
+      existing.windowSeconds !== windowSeconds || nowMs - existing.windowStartedAt >= windowSeconds * 1000
+    )) {
+      const reset = {
+        requests: 0,
+        tokens: 0,
+        windowStartedAt: nowMs,
+        windowSeconds,
+      };
+      this.usage.set(keyId, reset);
+      return reset;
+    }
+
+    const current = { ...existing, windowSeconds };
+    if (existing.windowSeconds !== windowSeconds) {
+      this.usage.set(keyId, current);
+    }
+    return current;
+  }
+
+  private toSnapshot(
+    entry: TQuotaUsageEntry | undefined,
+    quota: IManagedApiKeyConfig['quota'] | undefined,
+    estimatedTokens?: number
+  ): IAuthQuotaUsageSnapshot | undefined {
+    const { requestLimit, tokenLimit, windowSeconds } = this.resolveLimits(quota);
+    if (requestLimit === undefined && tokenLimit === undefined) {
+      return undefined;
+    }
+
+    return {
+      requestLimit,
+      requestsUsed: entry?.requests ?? 0,
+      tokenLimit,
+      tokensUsed: entry?.tokens ?? 0,
+      windowSeconds,
+      windowStartedAt: entry?.windowStartedAt !== undefined
+        ? new Date(entry.windowStartedAt).toISOString()
+        : undefined,
+      windowResetAt: entry?.windowStartedAt !== undefined && windowSeconds !== undefined
+        ? new Date(entry.windowStartedAt + windowSeconds * 1000).toISOString()
+        : undefined,
+      estimatedTokens,
+    };
+  }
+
   consume(
     keyId: string | undefined,
     quota: IManagedApiKeyConfig['quota'] | undefined,
@@ -337,41 +403,16 @@ export class AuthQuotaUsageStore {
       return { ok: true };
     }
 
-    const requestLimit = Number.isInteger(quota.request_limit) && Number(quota.request_limit) > 0
-      ? Number(quota.request_limit)
-      : undefined;
-    const tokenLimit = Number.isInteger(quota.token_limit) && Number(quota.token_limit) > 0
-      ? Number(quota.token_limit)
-      : undefined;
-    const windowSeconds = Number.isInteger(quota.window_seconds) && Number(quota.window_seconds) > 0
-      ? Number(quota.window_seconds)
-      : undefined;
+    const { requestLimit, tokenLimit, windowSeconds } = this.resolveLimits(quota);
 
     if (requestLimit === undefined && tokenLimit === undefined) {
       return { ok: true };
     }
 
     const nowMs = now.getTime();
-    const existing = this.usage.get(keyId) ?? { requests: 0, tokens: 0, windowStartedAt: nowMs, windowSeconds };
-    const windowExpired = windowSeconds !== undefined && (
-      existing.windowSeconds !== windowSeconds || nowMs - existing.windowStartedAt >= windowSeconds * 1000
-    );
-    const current = windowExpired
-      ? { requests: 0, tokens: 0, windowStartedAt: nowMs, windowSeconds }
-      : { ...existing, windowSeconds };
+    const current = this.normalizeEntry(keyId, windowSeconds, now) ?? { requests: 0, tokens: 0, windowStartedAt: nowMs, windowSeconds };
     const tokensToAdd = Math.max(0, Math.ceil(estimatedTokens));
-    const currentSnapshot = {
-      requestLimit,
-      requestsUsed: current.requests,
-      tokenLimit,
-      tokensUsed: current.tokens,
-      windowSeconds,
-      windowStartedAt: new Date(current.windowStartedAt).toISOString(),
-      windowResetAt: windowSeconds !== undefined
-        ? new Date(current.windowStartedAt + windowSeconds * 1000).toISOString()
-        : undefined,
-      estimatedTokens: tokensToAdd,
-    };
+    const currentSnapshot = this.toSnapshot(current, quota, tokensToAdd) as IAuthQuotaUsageSnapshot;
 
     if (requestLimit !== undefined && current.requests >= requestLimit) {
       return {
@@ -397,19 +438,23 @@ export class AuthQuotaUsageStore {
     this.usage.set(keyId, next);
     return {
       ok: true,
-      usage: {
-        requestLimit,
-        requestsUsed: next.requests,
-        tokenLimit,
-        tokensUsed: next.tokens,
-        windowSeconds,
-        windowStartedAt: new Date(next.windowStartedAt).toISOString(),
-        windowResetAt: windowSeconds !== undefined
-          ? new Date(next.windowStartedAt + windowSeconds * 1000).toISOString()
-          : undefined,
-        estimatedTokens: tokensToAdd,
-      },
+      usage: this.toSnapshot(next, quota, tokensToAdd),
     };
+  }
+
+  snapshotForKey(
+    keyId: string | undefined,
+    quota: IManagedApiKeyConfig['quota'] | undefined,
+    now = new Date()
+  ): IAuthQuotaUsageSnapshot | undefined {
+    if (!keyId) {
+      return undefined;
+    }
+    const { requestLimit, tokenLimit, windowSeconds } = this.resolveLimits(quota);
+    if (requestLimit === undefined && tokenLimit === undefined) {
+      return undefined;
+    }
+    return this.toSnapshot(this.normalizeEntry(keyId, windowSeconds, now), quota);
   }
 
   summary(now = new Date()) {
@@ -432,14 +477,20 @@ export class AuthQuotaUsageStore {
         ? item.windowStartedAt + item.windowSeconds * 1000
         : undefined)
       .filter((value): value is number => value !== undefined);
-    return {
+    const result: {
+      trackedKeys: number;
+      requestsUsed: number;
+      tokensUsed: number;
+      windowResetAt?: string;
+    } = {
       trackedKeys: entries.length,
       requestsUsed: entries.reduce((total, [, item]) => total + item.requests, 0),
       tokensUsed: entries.reduce((total, [, item]) => total + item.tokens, 0),
-      windowResetAt: windowResetAts.length > 0
-        ? new Date(Math.min(...windowResetAts)).toISOString()
-        : undefined,
     };
+    if (windowResetAts.length > 0) {
+      result.windowResetAt = new Date(Math.min(...windowResetAts)).toISOString();
+    }
+    return result;
   }
 
   clear(): void {

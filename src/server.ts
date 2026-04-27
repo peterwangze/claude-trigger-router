@@ -105,6 +105,7 @@ function buildServiceInfo(rawConfig: any) {
   const remoteService = runtime.remote_service ?? {};
   const registration = normalized.Registration ?? {};
   const runtimeMode = runtime.mode ?? "local";
+  const managedKeys = listManagedApiKeys(normalized);
   const authSummary = managedApiKeySummary(normalized);
   const host = rawConfig?.HOST ?? normalized.HOST;
   const publicHost = ["0.0.0.0", "::", "[::]"].includes(String(host ?? "").trim());
@@ -142,6 +143,36 @@ function buildServiceInfo(rawConfig: any) {
       action: "Create an active managed admin/client key or configure APIKEY before relying on this service.",
     });
   }
+  const quotaSummary = authQuotaUsageStore.summary();
+  const quotaKeys = managedKeys.map((key) => {
+    const usage = authQuotaUsageStore.snapshotForKey(key.id, key.quota);
+    const requestLimit = usage?.requestLimit;
+    const tokenLimit = usage?.tokenLimit;
+    const requestRatio = requestLimit ? usage.requestsUsed / requestLimit : 0;
+    const tokenRatio = tokenLimit ? usage.tokensUsed / tokenLimit : 0;
+    const exhausted = (requestLimit !== undefined && usage.requestsUsed >= requestLimit)
+      || (tokenLimit !== undefined && usage.tokensUsed >= tokenLimit);
+    const nearLimit = !exhausted && (requestRatio >= 0.8 || tokenRatio >= 0.8);
+    return {
+      id: key.id,
+      label: key.label,
+      scopes: key.scopes,
+      active: key.active,
+      keyPrefix: key.keyPrefix,
+      keySuffix: key.keySuffix,
+      quota: key.quota,
+      usage,
+      status: !usage
+        ? "unlimited"
+        : !key.active
+          ? "inactive"
+          : exhausted
+            ? "exhausted"
+            : nearLimit
+              ? "watch"
+              : "ok",
+    };
+  });
 
   return {
     service: SERVICE_NAME,
@@ -166,7 +197,10 @@ function buildServiceInfo(rawConfig: any) {
       bootstrapConfigured: Boolean(normalized.APIKEY),
       managedKeys: authSummary,
       audit: authAuditStore.summary(),
-      quota: authQuotaUsageStore.summary(),
+      quota: {
+        ...quotaSummary,
+        keys: quotaKeys,
+      },
     },
     security: {
       status: securityIssues.some((issue) => issue.severity === "critical")

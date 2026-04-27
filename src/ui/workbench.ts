@@ -122,6 +122,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `code,pre{font-family:ui-monospace,SFMono-Regular,monospace}` +
     `pre{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:12px;overflow:auto}` +
     `.pill{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:.8rem}` +
+    `.pill.info{background:#eff6ff;color:#1d4ed8}.pill.warn{background:#fff7ed;color:#9a3412}.pill.critical{background:#fef2f2;color:#991b1b}` +
     `.surface-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}` +
     `.surface-tab{background:#fff;color:#1f2328;border-color:#d1d5db}` +
     `.surface-tab.active{background:#111827;color:#fff;border-color:#111827}` +
@@ -312,6 +313,13 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="panel">` +
     `<div class="surface-heading"><strong>维护者工作台</strong><span class="muted">运行观测、Governance Trace、metrics、归档与维护操作。</span></div>` +
     `<div id="securitySummary" class="alert info"><strong>Security pending</strong><div class="muted">等待服务安全状态加载</div></div>` +
+    `<div class="subpanel">` +
+    `<div class="row"><strong>Auth quota</strong><span class="muted">按 managed key 查看模型调用配额、当前用量与窗口重置时间</span></div>` +
+    `<table id="authQuotaTable" class="management-table">` +
+    `<thead><tr><th>Key</th><th>Scope</th><th>Status</th><th>Requests</th><th>Tokens</th><th>Window</th></tr></thead>` +
+    `<tbody><tr><td colspan="6" class="muted">Waiting for service status...</td></tr></tbody>` +
+    `</table>` +
+    `</div>` +
     `<div class="row"><strong>维护者观测</strong><span class="muted">按 requestId / sessionKey / routeReason 过滤 Governance Trace，并查看近期治理指标。</span></div>` +
     `<div class="row">` +
     `<input id="requestId" placeholder="requestId">` +
@@ -525,6 +533,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const intentOutcomeRanking=document.getElementById('intentOutcomeRanking');` +
     `const healthSummary=document.getElementById('healthSummary');` +
     `const securitySummary=document.getElementById('securitySummary');` +
+    `const authQuotaTableBody=document.querySelector('#authQuotaTable tbody');` +
     `const anomalyList=document.getElementById('anomalyList');` +
     `const saveThresholdsStatus=document.getElementById('saveThresholdsStatus');` +
     `const snapshotStatus=document.getElementById('snapshotStatus');` +
@@ -549,6 +558,19 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `function pct(v){return (Number(v || 0) * 100).toFixed(1)+'%';}` +
     `function fmt(v){return Number(v || 0).toFixed(2);}` +
     `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
+    `function limitText(used,limit){ return Number.isFinite(limit) ? (String(used ?? 0)+' / '+String(limit)) : String(used ?? 0); }` +
+    `function renderAuthQuotaTable(quota){` +
+    `  const keys=Array.isArray(quota?.keys) ? quota.keys : [];` +
+    `  if(!keys.length){ authQuotaTableBody.innerHTML='<tr><td colspan="6" class="muted">No managed keys configured</td></tr>'; return; }` +
+    `  authQuotaTableBody.innerHTML=keys.map(item=>{` +
+    `    const usage=item.usage || {};` +
+    `    const quotaCfg=item.quota || {};` +
+    `    const keyName=esc(item.label || item.id || '-')+'<div class="muted"><code>'+esc((item.keyPrefix || '')+'...'+(item.keySuffix || ''))+'</code></div>';` +
+    `    const statusClass=item.status === 'exhausted' ? 'critical' : (item.status === 'watch' ? 'warn' : 'info');` +
+    `    const windowText=quotaCfg.window_seconds ? (esc(quotaCfg.window_seconds)+'s'+(usage.windowResetAt ? '<div class="muted">reset '+esc(String(usage.windowResetAt).replace('T',' ').replace('.000Z','Z'))+'</div>' : '<div class="muted">not started</div>')) : '-';` +
+    `    return '<tr><td>'+keyName+'</td><td>'+esc((item.scopes || []).join(', ') || '-')+'</td><td><span class="pill '+statusClass+'">'+esc(item.status || '-')+'</span></td><td>'+esc(limitText(usage.requestsUsed,usage.requestLimit))+'</td><td>'+esc(limitText(usage.tokensUsed,usage.tokenLimit))+'</td><td>'+windowText+'</td></tr>';` +
+    `  }).join('');` +
+    `}` +
     `function setActiveSurface(surfaceName){` +
     `  surfacePanels.forEach((panel)=>{ panel.hidden=panel.dataset.surface !== surfaceName; });` +
     `  surfaceTabs.forEach((tab)=>{ const active=tab.dataset.surfaceTarget === surfaceName; tab.classList.toggle('active',active); tab.setAttribute('aria-selected', active ? 'true' : 'false'); });` +
@@ -1136,6 +1158,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    const quota=auth.quota || {};` +
     `    const quotaText=Number.isFinite(quota.requestsUsed) ? (' · quota '+quota.requestsUsed+' req'+(quota.windowResetAt ? ' · reset '+String(quota.windowResetAt).replace('T',' ').replace('.000Z','Z') : '')) : '';` +
     `    authStatusSummary.textContent=auth.required ? ((auth.bootstrapConfigured ? 'bootstrap' : 'managed')+' · '+(managed.active ?? 0)+' active'+quotaText) : 'not configured';` +
+    `    renderAuthQuotaTable(quota);` +
     `    const security=data.security || {};` +
     `    const issues=Array.isArray(security.issues) ? security.issues : [];` +
     `    securityStatusSummary.textContent=security.status || '-';` +
