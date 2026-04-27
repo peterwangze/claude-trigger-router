@@ -26,6 +26,7 @@
 - `ui`（跳过打开浏览器）
 - `ui` 在服务未就绪时的明确提示
 - `init --force`
+- `deploy init --target server --force`
 - `init --force -> start --daemon -> status -> stop` 的最小模板可启动性
 - 非法 `--port` 参数的安全失败
 - 未知命令
@@ -60,6 +61,11 @@
 - `doctor` 会用用户可理解的兼容策略说明替代内部兼容 profile 字符串
 - `doctor` 会预览 capability 降级导致的运行时兼容提示，而不是只展示编译期 code
 - `doctor` 探测失败时会输出中文失败解释、处理建议和原始远端错误
+
+### 部署入口
+
+- `deploy init --target server --force` 会生成带随机 bootstrap `APIKEY`、`HOST: 0.0.0.0`、`Runtime.mode: server`、`Models` 和 `Router.default` 的自托管 server 起步配置
+- deploy 入口不会自动启动服务；后续仍要求维护者运行 `ctr doctor` 和 `ctr start --daemon`
 
 ### UI / 服务状态
 
@@ -147,6 +153,7 @@ npm run release:verify
 - `ui` 页面在真实浏览器中的打开与交互是否符合预期
 - 维护者工作台 Health 摘要是否能根据真实 trace 显示可理解的状态和建议 action
 - 新增配置模板和 README 的指引是否和实现一致
+- server 部署入口生成的 bootstrap key 是否只用于维护者管理，远程客户端是否改用 managed `client + read-only` key
 
 ## 6. 后续增补原则
 

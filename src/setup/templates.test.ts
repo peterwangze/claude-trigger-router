@@ -3,7 +3,7 @@ import { join } from 'path';
 import yaml from 'js-yaml';
 import { describe, it, expect } from 'vitest';
 import { normalizeAndValidateConfig } from '../utils/config';
-import { getProviderPreset, buildMinimalConfig, buildRemoteServiceConfig, buildUsableMinimalTemplateConfig } from './templates';
+import { getProviderPreset, buildMinimalConfig, buildRemoteServiceConfig, buildServerDeploymentConfig, buildUsableMinimalTemplateConfig } from './templates';
 
 describe('setup templates', () => {
   // ============ getProviderPreset ============
@@ -344,6 +344,25 @@ describe('setup templates', () => {
           auth_token: '${CTR_REMOTE_AUTH_TOKEN}',
         },
       });
+    });
+
+    it('builds a server deployment template with explicit auth and runtime role', () => {
+      const draft = buildServerDeploymentConfig({
+        apiKey: 'bootstrap-key',
+      });
+      const normalized = normalizeAndValidateConfig(draft as any);
+
+      expect(normalized.errors).toEqual([]);
+      expect(draft.HOST).toBe('0.0.0.0');
+      expect(draft.APIKEY).toBe('bootstrap-key');
+      expect(draft.Runtime).toEqual({
+        mode: 'server',
+      });
+      expect(draft.Models?.[0]).toEqual(expect.objectContaining({
+        id: 'sonnet',
+        key: 'sk-xxx',
+      }));
+      expect(draft.Router.default).toBe('sonnet');
     });
 
     it('keeps config/trigger.example.yaml aligned with the generated usable minimal template', () => {

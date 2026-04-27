@@ -33,12 +33,20 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 
 已落地的远程能力聚焦在“远程服务连接配置、状态查询和注册摘要”。它不会默认替代本地代理主路径，也不会自动启用尚未实现的集群、节点调度或托管控制面。
 
-如果要把当前机器作为远程 `server` 暴露给其他客户端，最小配置仍然是普通的 `Models + Router.default`，再加上服务端监听和鉴权：
+如果要把当前机器作为远程 `server` 暴露给其他客户端，先生成安全默认的服务端配置：
+
+```bash
+ctr deploy init --target server
+```
+
+该命令会写入 `HOST: "0.0.0.0"`、随机 bootstrap `APIKEY`、`Runtime.mode: "server"`、日志开关、健康检查所需端口和一份可编辑的 `Models + Router.default` 起步模板。它不会覆盖已有配置；如需重建模板，显式追加 `--force`。
+
+生成后确认或调整的最小结构如下：
 
 ```yaml
 HOST: "0.0.0.0"
 PORT: 5678
-APIKEY: "change-me"
+APIKEY: "ctr_bootstrap_..."
 
 Runtime:
   mode: "server"
@@ -57,6 +65,7 @@ Router:
 启动方式：
 
 ```bash
+ctr doctor
 ctr start --daemon
 ```
 
@@ -387,6 +396,7 @@ GET /api/auth/audit
 |---|---|
 | `ctr setup` | 首次配置、复用、迁移、修复配置 |
 | `ctr init --force` | 生成最小配置模板 |
+| `ctr deploy init --target server` | 生成安全默认的自托管 server 配置 |
 | `ctr start` | 前台启动本地服务 |
 | `ctr start --daemon` | 后台启动本地服务 |
 | `ctr status` | 查看服务状态 |

@@ -87,6 +87,10 @@ export interface IRemoteServiceConfigInput {
   authToken?: string;
 }
 
+export interface IServerDeploymentConfigInput {
+  apiKey: string;
+}
+
 /**
  * setup 收集到的接入输入，最终会投影为 Models[] 草稿。
  */

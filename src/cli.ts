@@ -5,6 +5,7 @@
  */
 
 import { spawn, spawnSync } from "child_process";
+import { randomBytes } from "crypto";
 import { join } from "path";
 import open from "openurl";
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "fs";
@@ -13,7 +14,7 @@ import { isServiceRunning, killProcess, readServiceInfo } from "./utils/processC
 import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from "./constants";
 import { isTcpPortOccupied, waitForService } from "./service-health";
 import { runSetupCli } from "./setup";
-import { buildUsableMinimalTemplateConfig } from "./setup/templates";
+import { buildServerDeploymentConfig, buildUsableMinimalTemplateConfig } from "./setup/templates";
 import { runDoctorCli } from "./doctor";
 
 const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
@@ -117,6 +118,7 @@ Claude Trigger Router - 智能触发路由器
   setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置
   doctor      诊断并修复当前配置，按需探测模型可用性
   init        初始化最小配置模板
+  deploy      生成 server/cloud 部署入口配置（当前支持 deploy init --target server）
   start       启动路由服务（默认前台运行）
   stop        停止后台服务
   restart     重启后台服务
@@ -136,6 +138,7 @@ Claude Trigger Router - 智能触发路由器
   ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置
   ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性
   ctr init                 # 初始化最小配置模板
+  ctr deploy init --target server  # 生成安全默认的 server 部署配置
   ctr version              # 查看当前安装版本
   ctr upgrade              # 查看升级到最新版本的命令
   ctr start                # 前台启动（推荐首次使用，便于查看日志）
@@ -265,6 +268,10 @@ function isClaudeCommandAvailable(timeoutMs = 3000): boolean {
   }
 }
 
+function createBootstrapApiKey(): string {
+  return `ctr_bootstrap_${randomBytes(24).toString("hex")}`;
+}
+
 /**
  * 初始化配置文件
  */
@@ -303,6 +310,72 @@ function initConfig() {
     console.log(`  5. 运行：ctr start`);
   } catch (error: any) {
     console.error("❌ 创建配置文件失败:", error.message);
+    process.exit(1);
+  }
+}
+
+function printDeployHelp() {
+  console.log("用法：ctr deploy init --target server [--force]");
+  console.log("");
+  console.log("当前支持：");
+  console.log("  server  生成带 HOST/APIKEY/Runtime.mode/Models/Router 的自托管服务端配置");
+  console.log("");
+  console.log("下一步：");
+  console.log("  1. 编辑 Models[].key 和 Models[].model");
+  console.log("  2. 运行 ctr doctor 检查配置和鉴权状态");
+  console.log("  3. 运行 ctr start --daemon 启动服务");
+}
+
+function initDeployConfig() {
+  const action = getArgs()[1];
+  const target = getArgValue("--target") ?? "server";
+  const force = hasArg("--force");
+
+  if (action !== "init") {
+    printDeployHelp();
+    return;
+  }
+
+  if (target !== "server") {
+    console.error(`❌ 当前不支持的部署目标：${target}`);
+    printDeployHelp();
+    process.exit(1);
+  }
+
+  const existingConfig = [CONFIG_FILE, CONFIG_FILE_YML, CONFIG_FILE_JSON].find(existsSync);
+  if (existingConfig && !force) {
+    console.log(`⚠️  配置文件已存在：${existingConfig}`);
+    console.log("    如需覆盖部署模板，请使用 --force 参数。");
+    return;
+  }
+
+  if (!existsSync(CONFIG_DIR)) {
+    mkdirSync(CONFIG_DIR, { recursive: true });
+  }
+
+  try {
+    const yaml = require("js-yaml");
+    const templateConfig = buildServerDeploymentConfig({
+      apiKey: createBootstrapApiKey(),
+    });
+    const content = yaml.dump(templateConfig, {
+      indent: 2,
+      lineWidth: -1,
+      noRefs: true,
+    });
+    writeFileSync(CONFIG_FILE, content, "utf-8");
+    const actionLabel = force ? "已覆盖" : "已创建";
+    console.log(`✅ Server 部署配置${actionLabel}：${CONFIG_FILE}`);
+    console.log("");
+    console.log("已生成 bootstrap admin APIKEY；请只用于维护者管理，不要发给远程客户端。");
+    console.log("");
+    console.log("下一步：");
+    console.log("  1. 编辑 Models[].key 和 Models[].model，填入服务端要代理的上游模型");
+    console.log("  2. 运行：ctr doctor");
+    console.log("  3. 运行：ctr start --daemon");
+    console.log("  4. 用 admin key 调用 POST /api/auth/keys 生成 client + read-only 远程客户端 key");
+  } catch (error: any) {
+    console.error("❌ 创建部署配置失败:", error.message);
     process.exit(1);
   }
 }
@@ -567,6 +640,10 @@ export async function main() {
 
     case "init":
       initConfig();
+      break;
+
+    case "deploy":
+      initDeployConfig();
       break;
 
     case "start":

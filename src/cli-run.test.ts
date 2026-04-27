@@ -119,10 +119,12 @@ describe('runClaudeCode', () => {
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
     expect(output).toContain('setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置');
     expect(output).toContain('doctor      诊断并修复当前配置，按需探测模型可用性');
+    expect(output).toContain('deploy      生成 server/cloud 部署入口配置');
     expect(output).toContain('version     查看当前安装版本与包信息');
     expect(output).toContain('upgrade     查看升级到最新 npm 版本的指引');
     expect(output).toContain('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置');
     expect(output).toContain('  ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性');
+    expect(output).toContain('  ctr deploy init --target server  # 生成安全默认的 server 部署配置');
     expect(output).toContain('  ctr version              # 查看当前安装版本');
     expect(output).toContain('  ctr upgrade              # 查看升级到最新版本的命令');
     expect(output).toContain('ctr restart 当前默认按后台模式重启');
@@ -241,6 +243,27 @@ describe('runClaudeCode', () => {
     );
     expect(mockWriteFileSync.mock.calls[0]?.[1]).toContain('anthropic/claude-sonnet-4');
     expect(mockWriteFileSync.mock.calls[0]?.[1]).toContain('default: sonnet');
+
+    logSpy.mockRestore();
+  });
+
+  it('generates a safe server deployment config from deploy init', async () => {
+    process.argv = ['node', 'cli.ts', 'deploy', 'init', '--target', 'server', '--force'];
+    mockExistsSync.mockReturnValue(false);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    const written = String(mockWriteFileSync.mock.calls[0]?.[1]);
+    expect(output).toContain('Server 部署配置已覆盖');
+    expect(output).toContain('bootstrap admin APIKEY');
+    expect(output).toContain('POST /api/auth/keys');
+    expect(written).toContain('HOST: 0.0.0.0');
+    expect(written).toContain('mode: server');
+    expect(written).toContain('default: sonnet');
+    expect(written).toMatch(/APIKEY: ctr_bootstrap_[a-f0-9]{48}/);
 
     logSpy.mockRestore();
   });

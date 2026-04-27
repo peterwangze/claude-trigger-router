@@ -313,10 +313,11 @@ P3-3：持续 closed 事项复审
 - P1-6 Chunk 3c-c 复审补强：已修正底层 `scopeAllows()` 仍允许 `client` 访问 `read-only` 接口的语义漂移；现在纯 `client` key 不能读取 service-info/status，远程 token 如需同时模型调用与 ready/status 探测，需要显式授予 `client + read-only` scope。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-d）：已在 `/ui` 维护者工作台新增 Auth scope guide，明确 admin、client、read-only 与 `client + read-only` 的适用场景；`ctr doctor` 同步输出 scope 指引与远程 token 发放建议，降低服务使用者误用 admin key 或用纯 client key 做状态探测的概率。
 - P1-6 Chunk 3c-d 复审补强：已将 UI/doctor 的 scope 说明补成可操作指引，直接列出 admin key 可调用的 `GET /api/auth/keys`、`POST /api/auth/keys`、`POST /api/auth/keys/:id/revoke`，并提示 generated secret 只返回一次，避免维护者知道 scope 但不知道如何正确发放/吊销 key。
+- P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 1）：已新增 `ctr deploy init --target server`，生成带随机 bootstrap `APIKEY`、`HOST: 0.0.0.0`、`Runtime.mode: server`、日志、可编辑 `Models` 与 `Router.default` 的自托管 server 起步配置；命令默认不覆盖已有配置、不自动启动服务，并提示维护者先跑 `ctr doctor`、再 `ctr start --daemon`，之后通过 managed `client + read-only` key 给远程客户端使用。
 
 下一项按优先级继续推进：
 
-- P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 1）：在 P1-6 安全边界收口后，补齐服务端/云端/本地三类部署形态的命令、配置模板、维护者与使用者操作入口。
+- P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 2）：继续补 systemd / Docker Compose / release-stage server profile 等可复制部署载体，并把维护者与远程使用者手册进一步拆分。
 
 ## 七、2026-04-27 智能路由与服务化复审
 
