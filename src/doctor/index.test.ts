@@ -135,6 +135,10 @@ describe('runDoctorCli', () => {
     expect(probeServiceHealth).toHaveBeenCalledWith(5678, 500, { apiKey: 'bootstrap-key' });
     expect(waitForService).toHaveBeenCalledWith(5678, 5000, { apiKey: 'bootstrap-key' });
     expect(startDaemon).toHaveBeenCalledTimes(1);
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('监听地址：0.0.0.0:5678'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程客户端接入：ANTHROPIC_BASE_URL=http://<server-host>:5678'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('managed client + read-only key'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('维护入口：http://127.0.0.1:5678/ui'));
   });
 
   it('prompts to probe models and reports probe failures with exact category', async () => {

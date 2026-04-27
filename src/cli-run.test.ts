@@ -12,6 +12,7 @@ const mockSpawn = vi.fn(() => ({
 const mockSpawnSync = vi.fn();
 const mockInitializeClaudeConfig = vi.fn();
 const mockIsServiceRunning = vi.fn();
+const mockReadServiceInfo = vi.fn();
 const mockWaitForService = vi.fn();
 const mockIsTcpPortOccupied = vi.fn();
 const mockRunSetupCli = vi.fn();
@@ -49,7 +50,7 @@ vi.mock('./index', () => ({
 vi.mock('./utils/processCheck', () => ({
   isServiceRunning: mockIsServiceRunning,
   killProcess: vi.fn(),
-  readServiceInfo: vi.fn(),
+  readServiceInfo: mockReadServiceInfo,
 }));
 
 vi.mock('./service-health', async (importOriginal) => {
@@ -86,6 +87,7 @@ describe('runClaudeCode', () => {
       return { status: 1, stdout: '' };
     });
     mockIsServiceRunning.mockReturnValue(true);
+    mockReadServiceInfo.mockReturnValue(null);
     mockIsTcpPortOccupied.mockResolvedValue(false);
     mockRunSetupCli.mockResolvedValue(undefined);
     mockRunDoctorCli.mockResolvedValue(undefined);
@@ -431,6 +433,54 @@ describe('runClaudeCode', () => {
     expect(output).toContain('Service is already running on port 5678');
     expect(output).toContain("Use 'ctr status' to inspect it or 'ctr stop' before starting again.");
     expect(mockRun).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
+  });
+
+  it('prints server role, listener, auth and remote client guidance in status', async () => {
+    process.argv = ['node', 'cli.ts', 'status'];
+    mockIsServiceRunning.mockReturnValue(true);
+    mockReadServiceInfo.mockReturnValue({ pid: 123, port: 5678, startTime: '2026-04-28T00:00:00.000Z' });
+    mockExistsSync.mockImplementation((filePath: string) => String(filePath).endsWith('config.yaml'));
+    mockReadFileSync.mockImplementation((filePath: string) => {
+      if (String(filePath).endsWith('package.json')) {
+        return JSON.stringify({
+          name: '@peterwangze/claude-trigger-router',
+          version: '1.1.0',
+        });
+      }
+      if (String(filePath).endsWith('config.yaml')) {
+        return [
+          'HOST: "0.0.0.0"',
+          'PORT: 5678',
+          'APIKEY: "bootstrap-key"',
+          'Runtime:',
+          '  mode: "server"',
+          'Models:',
+          '  - id: "sonnet"',
+          '    api: "https://api.example.com/v1/messages"',
+          '    key: "sk-test"',
+          '    interface: "anthropic"',
+          '    model: "claude-sonnet-4-5"',
+          'Router:',
+          '  default: "sonnet"',
+        ].join('\n');
+      }
+      throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('服务运行中');
+    expect(output).toContain('模式：server（router_service）');
+    expect(output).toContain('监听：0.0.0.0:5678（对外监听）');
+    expect(output).toContain('鉴权：enabled（bootstrap=true, managed_active=0）');
+    expect(output).toContain('远程客户端接入：ANTHROPIC_BASE_URL=http://<server-host>:5678');
+    expect(output).toContain('managed client + read-only');
+    expect(output).toContain('维护入口：http://127.0.0.1:5678/ui');
 
     logSpy.mockRestore();
   });

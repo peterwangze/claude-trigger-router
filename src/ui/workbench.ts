@@ -29,6 +29,16 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const remoteSummary = remoteService.enabled
     ? `${remoteBaseUrl || '-'} (checking)`
     : 'disabled';
+  const configuredHost = String(initialConfig.HOST ?? '127.0.0.1').trim() || '127.0.0.1';
+  const publicHost = ['0.0.0.0', '::', '[::]'].includes(configuredHost);
+  const advertisedUrl = publicHost
+    ? `http://<server-host>:${displayPort}`
+    : `http://${configuredHost}:${displayPort}`;
+  const clientConnectionSummary = runtimeMode === 'local' && remoteService.enabled
+    ? `${remoteBaseUrl || '-'} · client + read-only token`
+    : runtimeMode === 'local'
+      ? `local only · http://127.0.0.1:${displayPort}`
+      : `${advertisedUrl} · client + read-only token`;
   const registration = initialConfig.Registration ?? {};
   const registrationModels = Array.isArray(registration.models) ? registration.models.length : 0;
   const registrationUpstreamServices = Array.isArray(registration.upstream_services) ? registration.upstream_services.length : 0;
@@ -48,7 +58,6 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     return !Number.isFinite(expiresAt) || expiresAt > nowMs;
   }).length;
   const authSummary = initialConfig.APIKEY || initialManagedKeys.length > 0 ? `configured · ${initialActiveManagedKeys} active` : 'not configured';
-  const publicHost = ['0.0.0.0', '::', '[::]'].includes(String(initialConfig.HOST ?? '').trim());
   const securitySummary = (!initialConfig.APIKEY && initialManagedKeys.length === 0 && (runtimeMode !== 'local' || publicHost))
     ? 'critical'
     : (!initialConfig.APIKEY && initialManagedKeys.length > 0 && initialActiveManagedKeys === 0)
@@ -59,6 +68,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const escapedRouterDefault = escapeHtml(routerDefault);
   const escapedRuntimeMode = escapeHtml(runtimeMode);
   const escapedServiceRole = escapeHtml(serviceRole);
+  const escapedListenerSummary = escapeHtml(`${configuredHost}:${displayPort}${publicHost ? ' (public)' : ' (local)'}`);
+  const escapedClientConnectionSummary = escapeHtml(clientConnectionSummary);
   const escapedRemoteSummary = escapeHtml(remoteSummary);
   const escapedRegistrationSummary = escapeHtml(registrationSummary);
   const escapedAuthSummary = escapeHtml(authSummary);
@@ -149,6 +160,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="status-tile"><span class="muted">Port</span><strong id="servicePortStatus">${escapedDisplayPort}</strong></div>` +
     `<div class="status-tile"><span class="muted">Mode</span><strong id="serviceModeStatus">${escapedRuntimeMode}</strong></div>` +
     `<div class="status-tile"><span class="muted">Role</span><strong id="serviceRoleStatus">${escapedServiceRole}</strong></div>` +
+    `<div class="status-tile"><span class="muted">Listener</span><strong id="listenerStatusSummary">${escapedListenerSummary}</strong></div>` +
     `<div class="status-tile"><span class="muted">Models</span><strong id="modelCountStatus">${escapedModelsCount}</strong></div>` +
     `<div class="status-tile"><span class="muted">Router.default</span><strong id="routerDefaultStatus">${escapedRouterDefault}</strong></div>` +
     `<div class="status-tile"><span class="muted">Remote service</span><strong id="remoteStatusSummary">${escapedRemoteSummary}</strong></div>` +
@@ -316,6 +328,15 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="panel">` +
     `<div class="surface-heading"><strong>维护者工作台</strong><span class="muted">运行观测、Governance Trace、metrics、归档与维护操作。</span></div>` +
     `<div id="securitySummary" class="alert info"><strong>Security pending</strong><div class="muted">等待服务安全状态加载</div></div>` +
+    `<div class="subpanel" id="roleConnectionGuide">` +
+    `<div class="row"><strong>Role & connection guide</strong><span class="muted">按当前 local / server / cloud 角色确认监听地址、维护入口和远程客户端接入方式。</span></div>` +
+    `<div class="scope-guide">` +
+    `<div><strong>current role</strong><span id="roleConnectionSummary" class="muted">${escapedRuntimeMode} / ${escapedServiceRole}</span></div>` +
+    `<div><strong>listener</strong><span id="listenerConnectionSummary" class="muted">${escapedListenerSummary}</span></div>` +
+    `<div><strong>remote clients</strong><span id="clientConnectionSummary" class="muted">${escapedClientConnectionSummary}</span></div>` +
+    `</div>` +
+    `<div class="muted" style="margin-top:.75rem">server/cloud 模式下，远程使用者应配置 <code>ANTHROPIC_BASE_URL</code> 指向服务地址，并使用 managed <code>client + read-only</code> key；维护者继续使用 admin key 打开 <code>/ui</code> 和 auth 管理接口。</div>` +
+    `</div>` +
     `<div class="subpanel" id="authScopeGuide">` +
     `<div class="row"><strong>Auth scope guide</strong><span class="muted">按用途发放最小权限 key，远程客户端不要复用 admin key。</span></div>` +
     `<div class="scope-guide">` +
@@ -498,6 +519,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const servicePortStatus=document.getElementById('servicePortStatus');` +
     `const serviceModeStatus=document.getElementById('serviceModeStatus');` +
     `const serviceRoleStatus=document.getElementById('serviceRoleStatus');` +
+    `const listenerStatusSummary=document.getElementById('listenerStatusSummary');` +
+    `const roleConnectionSummary=document.getElementById('roleConnectionSummary');` +
+    `const listenerConnectionSummary=document.getElementById('listenerConnectionSummary');` +
+    `const clientConnectionSummary=document.getElementById('clientConnectionSummary');` +
     `const remoteStatusSummary=document.getElementById('remoteStatusSummary');` +
     `const registrationStatusSummary=document.getElementById('registrationStatusSummary');` +
     `const authStatusSummary=document.getElementById('authStatusSummary');` +
@@ -583,6 +608,18 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    const windowText=quotaCfg.window_seconds ? (esc(quotaCfg.window_seconds)+'s'+(usage.windowResetAt ? '<div class="muted">reset '+esc(String(usage.windowResetAt).replace('T',' ').replace('.000Z','Z'))+'</div>' : '<div class="muted">not started</div>')) : '-';` +
     `    return '<tr><td>'+keyName+'</td><td>'+esc((item.scopes || []).join(', ') || '-')+'</td><td><span class="pill '+statusClass+'">'+esc(item.status || '-')+'</span></td><td>'+esc(limitText(usage.requestsUsed,usage.requestLimit))+'</td><td>'+esc(limitText(usage.tokensUsed,usage.tokenLimit))+'</td><td>'+windowText+'</td></tr>';` +
     `  }).join('');` +
+    `}` +
+    `function renderRoleConnectionGuide(data){` +
+    `  const listener=data.listener || {};` +
+    `  const connection=data.clientConnection || {};` +
+    `  const mode=data.runtimeMode || '-';` +
+    `  const role=data.serviceRole || '-';` +
+    `  const listenerText=listener.host ? (listener.host+':'+(listener.port || '-')+(listener.public ? ' (public)' : ' (local)')) : '-';` +
+    `  const connectionText=connection.baseUrl ? (connection.baseUrl+' · '+(Array.isArray(connection.recommendedScopes) ? connection.recommendedScopes.join(' + ') : '')) : (connection.guidance || '-');` +
+    `  listenerStatusSummary.textContent=listenerText;` +
+    `  roleConnectionSummary.textContent=mode+' / '+role;` +
+    `  listenerConnectionSummary.textContent=listenerText;` +
+    `  clientConnectionSummary.textContent=connectionText || '-';` +
     `}` +
     `function setActiveSurface(surfaceName){` +
     `  surfacePanels.forEach((panel)=>{ panel.hidden=panel.dataset.surface !== surfaceName; });` +
@@ -1166,6 +1203,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    servicePortStatus.textContent=data.port || '-';` +
     `    serviceModeStatus.textContent=data.runtimeMode || '-';` +
     `    serviceRoleStatus.textContent=data.serviceRole || '-';` +
+    `    renderRoleConnectionGuide(data);` +
     `    const auth=data.auth || {};` +
     `    const managed=auth.managedKeys || {};` +
     `    const quota=auth.quota || {};` +

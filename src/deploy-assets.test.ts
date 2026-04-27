@@ -6,6 +6,8 @@ import packageJson from '../package.json';
 describe('deployment assets', () => {
   it('ships server deployment templates through the config package payload', () => {
     expect(packageJson.files).toContain('config');
+    expect(packageJson.files).toContain('docs/server-maintainer-guide.md');
+    expect(packageJson.files).toContain('docs/remote-client-guide.md');
 
     const compose = readFileSync(join(process.cwd(), 'config', 'deploy', 'docker-compose.server.yaml'), 'utf-8');
     expect(compose).toContain('claude-trigger-router');
@@ -22,6 +24,14 @@ describe('deployment assets', () => {
     const readme = readFileSync(join(process.cwd(), 'config', 'deploy', 'README.md'), 'utf-8');
     expect(readme).toContain('managed `client + read-only` keys');
     expect(readme).toContain('HTTPS reverse proxy');
+
+    const maintainerGuide = readFileSync(join(process.cwd(), 'docs', 'server-maintainer-guide.md'), 'utf-8');
+    expect(maintainerGuide).toContain('ctr deploy init --target server');
+    expect(maintainerGuide).toContain('ANTHROPIC_BASE_URL=http://<server-host>:<port>');
+
+    const remoteClientGuide = readFileSync(join(process.cwd(), 'docs', 'remote-client-guide.md'), 'utf-8');
+    expect(remoteClientGuide).toContain('client + read-only');
+    expect(remoteClientGuide).toContain('Runtime:');
   });
 
   it('keeps release-stage server profile output out of the returned profile object', () => {

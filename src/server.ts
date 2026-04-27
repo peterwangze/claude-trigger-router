@@ -108,11 +108,17 @@ function buildServiceInfo(rawConfig: any) {
   const managedKeys = listManagedApiKeys(normalized);
   const authSummary = managedApiKeySummary(normalized);
   const host = rawConfig?.HOST ?? normalized.HOST;
+  const port = rawConfig?.PORT ?? normalized.PORT;
+  const listenerHost = String(host ?? "").trim() || "127.0.0.1";
   const publicHost = ["0.0.0.0", "::", "[::]"].includes(String(host ?? "").trim());
   const hasBootstrapAuth = Boolean(normalized.APIKEY);
   const hasManagedAuthRecords = authSummary.total > 0;
   const hasActiveManagedAuth = authSummary.active > 0;
   const authRequired = hasBootstrapAuth || hasManagedAuthRecords;
+  const listenerBaseUrl = publicHost
+    ? `http://<server-host>:${port}`
+    : `http://${listenerHost}:${port}`;
+  const localBaseUrl = `http://127.0.0.1:${port}`;
   const securityIssues: Array<{
     code: string;
     severity: "critical" | "warning";
@@ -176,15 +182,45 @@ function buildServiceInfo(rawConfig: any) {
     service: SERVICE_NAME,
     ready: true,
     host,
-    port: rawConfig?.PORT ?? normalized.PORT,
+    port,
     runtimeMode,
     serviceRole: runtimeMode === "local" ? "local_agent" : "router_service",
+    listener: {
+      host: listenerHost,
+      port,
+      public: publicHost,
+      localUrl: localBaseUrl,
+      advertisedUrl: listenerBaseUrl,
+    },
     remoteEnabled: Boolean(remoteService.enabled),
     remoteService: {
       enabled: Boolean(remoteService.enabled),
       baseUrl: remoteService.base_url || "",
       authTokenConfigured: Boolean(remoteService.auth_token),
     },
+    clientConnection: runtimeMode === "local" && remoteService.enabled
+      ? {
+          role: "remote_client",
+          baseUrl: remoteService.base_url || "",
+          authTokenConfigured: Boolean(remoteService.auth_token),
+          recommendedScopes: ["client", "read-only"],
+          guidance: "Use Runtime.remote_service.base_url and a managed client + read-only key from the server maintainer.",
+        }
+      : runtimeMode === "local"
+        ? {
+            role: "local_user",
+            baseUrl: localBaseUrl,
+            authTokenConfigured: authRequired,
+            recommendedScopes: [],
+            guidance: "Local Claude Code can use the local router URL; authentication is optional unless configured.",
+          }
+        : {
+            role: "remote_user",
+            baseUrl: listenerBaseUrl,
+            authTokenConfigured: authRequired,
+            recommendedScopes: ["client", "read-only"],
+            guidance: "Remote clients should set ANTHROPIC_BASE_URL to this service and use a managed client + read-only key.",
+          },
     registration: {
       enabled: Boolean(registration.enabled),
       models: Array.isArray(registration.models) ? registration.models.length : 0,

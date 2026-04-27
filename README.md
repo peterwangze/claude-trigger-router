@@ -46,6 +46,11 @@ npm 包也随附可复制部署模板：
 - `config/deploy/docker-compose.server.yaml`
 - `config/deploy/systemd/claude-trigger-router.service`
 
+角色化手册：
+
+- 服务提供者/维护者：[docs/server-maintainer-guide.md](docs/server-maintainer-guide.md)
+- 远程服务使用者：[docs/remote-client-guide.md](docs/remote-client-guide.md)
+
 这些模板仍以 `ctr deploy init --target server` 生成的配置为起点。首次暴露给其他机器前，请先确认 `APIKEY` 或 active managed key 存在，并优先放在 HTTPS 反向代理或内网之后。
 
 生成后确认或调整的最小结构如下：
@@ -313,6 +318,7 @@ http://127.0.0.1:5678/ui
 
 - 本地服务 ready 状态、端口、模型数和 `Router.default`
 - `Runtime.mode` 与当前服务角色
+- 当前监听地址和远程客户端接入建议
 - 远程服务状态摘要
 - Registration 模型和上游服务摘要
 - Auth 与 Security 摘要，用于发现 server/cloud 或公网监听无鉴权风险
@@ -355,6 +361,7 @@ ctr doctor
 - 配置是否能通过本地校验
 - 服务是否可启动
 - 当前服务上下文：`local` / `server` / `cloud`
+- 当前监听地址；server/cloud 会提示远程客户端应设置的 `ANTHROPIC_BASE_URL`
 - 当前鉴权状态；如果 server/cloud 或公网监听没有配置 `APIKEY` / managed key，会提示安全风险
 - 如果启用了 `Runtime.remote_service`，会单独检查远程服务可达和 ready 状态
 - 模型兼容策略和请求编译方式

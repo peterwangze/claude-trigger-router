@@ -61,16 +61,19 @@
 - `doctor` 会用用户可理解的兼容策略说明替代内部兼容 profile 字符串
 - `doctor` 会预览 capability 降级导致的运行时兼容提示，而不是只展示编译期 code
 - `doctor` 探测失败时会输出中文失败解释、处理建议和原始远端错误
+- `doctor` 在 server/cloud 模式下输出监听地址、远程客户端 `ANTHROPIC_BASE_URL`、维护入口和 managed `client + read-only` key 指引
 
 ### 部署入口
 
 - `deploy init --target server --force` 会生成带随机 bootstrap `APIKEY`、`HOST: 0.0.0.0`、`Runtime.mode: server`、`Models` 和 `Router.default` 的自托管 server 起步配置
 - `deploy init --target server` 在已有配置时不会覆盖文件，会提示显式追加 `--force`
 - deploy 入口不会自动启动服务；后续仍要求维护者运行 `ctr doctor` 和 `ctr start --daemon`
+- `ctr status` 在 server/cloud 模式下输出 role、listener、auth 摘要、维护入口和远程客户端连接说明
 
 ### UI / 服务状态
 
-- `/ui` 首屏展示服务 ready、端口、模型数、`Router.default`、`Runtime.mode`、远程状态和 Registration 摘要
+- `/ui` 首屏展示服务 ready、端口、模型数、`Router.default`、`Runtime.mode`、listener、远程状态和 Registration 摘要
+- 维护者工作台展示 role / listener / remote client connection guide，和 `/api/service-info` 的 listener / clientConnection contract 对齐
 - 维护者工作台展示 Governance trace、metrics、Health 摘要、异常阈值、快照和归档入口
 - `GET /api/governance/metrics` 返回 `health` 摘要和 routing `outcome` scorecard，覆盖 `idle / healthy / watch / critical`、模型切换率、切换后 alignment、Top model switches，以及 route reason / final model / semantic intent 分组 outcome
 - `GET /api/governance/health` 返回维护者健康摘要、关键指标、模型切换 signals、routing outcome、异常列表和建议 action

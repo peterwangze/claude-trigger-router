@@ -102,11 +102,25 @@ describe('createServer /api/config', () => {
       port: 4567,
       runtimeMode: 'server',
       serviceRole: 'router_service',
+      listener: {
+        host: '0.0.0.0',
+        port: 4567,
+        public: true,
+        localUrl: 'http://127.0.0.1:4567',
+        advertisedUrl: 'http://<server-host>:4567',
+      },
       remoteEnabled: false,
       remoteService: {
         enabled: false,
         baseUrl: '',
         authTokenConfigured: false,
+      },
+      clientConnection: {
+        role: 'remote_user',
+        baseUrl: 'http://<server-host>:4567',
+        authTokenConfigured: false,
+        recommendedScopes: ['client', 'read-only'],
+        guidance: 'Remote clients should set ANTHROPIC_BASE_URL to this service and use a managed client + read-only key.',
       },
       registration: {
         enabled: true,
@@ -2041,6 +2055,11 @@ describe('createServer /api/config', () => {
     expect(html).toContain('previewConfigDraftHeroBtn');
     expect(html).toContain('refreshStatusHeroBtn');
     expect(html).toContain('loadServiceStatus');
+    expect(html).toContain('listenerStatusSummary');
+    expect(html).toContain('roleConnectionGuide');
+    expect(html).toContain('Role & connection guide');
+    expect(html).toContain('ANTHROPIC_BASE_URL');
+    expect(html).toContain('client + read-only');
     expect(html).toContain('authQuotaTable');
     expect(html).toContain('authScopeGuide');
     expect(html).toContain('Auth scope guide');
@@ -2421,6 +2440,8 @@ describe('createServer /api/config', () => {
 
     expect(html).toContain('serviceModeStatus');
     expect(html).toContain('serviceRoleStatus');
+    expect(html).toContain('listenerConnectionSummary');
+    expect(html).toContain('clientConnectionSummary');
     expect(html).toContain('remoteStatusSummary');
     expect(html).toContain('registrationStatusSummary');
     expect(html).toContain('https://router.example.com');

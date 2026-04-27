@@ -8,6 +8,8 @@
   "files": [
     "dist",
     "config",
+    "docs/server-maintainer-guide.md",
+    "docs/remote-client-guide.md",
     "README.md"
   ],
   "repository": {

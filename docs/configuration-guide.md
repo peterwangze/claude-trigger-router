@@ -90,7 +90,7 @@ Router:
 ctr start --daemon
 ```
 
-如果配置了非本机 `HOST` 但没有配置 `APIKEY`，运行时会强制回退到 `127.0.0.1`。远程客户端访问该服务时，`Runtime.remote_service.auth_token` 应填写服务端 `APIKEY`；公网部署建议放在 HTTPS 反向代理后面。启用 `APIKEY` 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
+如果配置了非本机 `HOST` 但没有配置 `APIKEY` 或 active managed key，运行时会强制回退到 `127.0.0.1`。远程客户端访问该服务时，`Runtime.remote_service.auth_token` 应填写服务端生成的 managed `client + read-only` key；bootstrap `APIKEY` 只建议维护者使用。公网部署建议放在 HTTPS 反向代理后面。启用 `APIKEY` 或 managed key 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
 
 远程客户端配置是可选路径，不是默认路径。最小写法：
 
@@ -100,7 +100,7 @@ Runtime:
   remote_service:
     enabled: true
     base_url: "https://router.example.com"
-    auth_token: "${CTR_REMOTE_AUTH_TOKEN}" # 对应远程服务端 APIKEY
+    auth_token: "${CTR_REMOTE_AUTH_TOKEN}" # 远程服务端生成的 managed client + read-only key
 
 Router: {}
 ```
@@ -265,6 +265,8 @@ Governance:
 
 - `Runtime.mode`
 - 当前角色：本地代理或远程路由服务
+- 当前监听地址，以及 server/cloud 模式下远程客户端应使用的 `ANTHROPIC_BASE_URL`
+- 当前鉴权状态、bootstrap key 和 active managed key 摘要
 - 如果启用了 `Runtime.remote_service`，会探测远程服务是否 reachable / ready
 
 如果远程客户端配置没有本地 `Models`，doctor 会跳过本地模型探测，不会再询问是否探测 `0` 个模型。
@@ -273,6 +275,7 @@ Governance:
 
 - 本地服务 ready 状态和端口
 - `Runtime.mode` 与服务角色
+- 监听地址、维护入口和远程客户端连接建议
 - 远程服务状态摘要
 - Registration 模型和上游服务摘要
 

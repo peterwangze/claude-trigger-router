@@ -16,6 +16,8 @@ import { isTcpPortOccupied, waitForService } from "./service-health";
 import { runSetupCli } from "./setup";
 import { buildServerDeploymentConfig, buildUsableMinimalTemplateConfig } from "./setup/templates";
 import { runDoctorCli } from "./doctor";
+import { managedApiKeySummary } from "./auth/api-keys";
+import { normalizeAndValidateConfig } from "./utils/config";
 
 const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
 const PACKAGE_PAGE_URL = "https://www.npmjs.com/package/@peterwangze/claude-trigger-router";
@@ -160,6 +162,51 @@ Claude Trigger Router - 智能触发路由器
 
 更多信息：https://github.com/peterwangze/claude-trigger-router
 `);
+}
+
+function readConfigForCliStatus(): any {
+  const yaml = require("js-yaml");
+  for (const configFile of [CONFIG_FILE, CONFIG_FILE_YML, CONFIG_FILE_JSON]) {
+    if (!existsSync(configFile)) {
+      continue;
+    }
+    const content = readFileSync(configFile, "utf-8");
+    return configFile.endsWith(".json") ? JSON.parse(content) : yaml.load(content);
+  }
+  return {};
+}
+
+function printRuntimeStatus(config: any, port: number) {
+  const normalized = normalizeAndValidateConfig(config ?? {}).config;
+  const runtimeMode = normalized.Runtime?.mode ?? "local";
+  const serviceRole = runtimeMode === "local" ? "local_agent" : "router_service";
+  const host = String(normalized.HOST ?? DEFAULT_CONFIG.HOST ?? "127.0.0.1").trim() || "127.0.0.1";
+  const publicHost = ["0.0.0.0", "::", "[::]"].includes(host);
+  const managedKeys = managedApiKeySummary(normalized);
+  const hasBootstrapAuth = Boolean(normalized.APIKEY);
+  const authRequired = hasBootstrapAuth || managedKeys.total > 0;
+  const listenerUrl = publicHost ? `http://<server-host>:${port}` : `http://${host}:${port}`;
+  const remoteService = normalized.Runtime?.remote_service;
+
+  console.log(`   模式：${runtimeMode}（${serviceRole}）`);
+  console.log(`   监听：${host}:${port}${publicHost ? "（对外监听）" : "（本机监听）"}`);
+  console.log(`   鉴权：${authRequired ? "enabled" : "disabled"}（bootstrap=${hasBootstrapAuth}, managed_active=${managedKeys.active}）`);
+
+  if (runtimeMode !== "local") {
+    console.log(`   远程客户端接入：ANTHROPIC_BASE_URL=${listenerUrl}`);
+    console.log("   推荐客户端 key：managed client + read-only；不要把 admin/bootstrap key 发给远程使用者。");
+    console.log(`   维护入口：http://127.0.0.1:${port}/ui（需要 admin key）`);
+    return;
+  }
+
+  if (remoteService?.enabled) {
+    const baseUrl = remoteService.base_url?.trim().replace(/\/+$/, "") || "<missing>";
+    console.log(`   远程服务：${baseUrl}`);
+    console.log("   推荐远程 token：managed client + read-only，用于 ready/status 探测和模型调用。");
+    return;
+  }
+
+  console.log(`   本地接入：http://127.0.0.1:${port}`);
 }
 
 function getLatestPackageVersionViaNpm(packageName: string, timeoutMs = 5000): string | null {
@@ -493,16 +540,20 @@ async function startDaemon(port?: number) {
  * 显示服务状态
  */
 async function showStatus() {
+  const config = readConfigForCliStatus();
+  const configuredPort = getPort();
+  const healthOptions = config?.APIKEY ? { apiKey: config.APIKEY } : {};
   const info = readServiceInfo();
   if (!info || !isServiceRunning()) {
-    const targetPort = getPort();
-    const healthy = await waitForService(targetPort, 500);
+    const targetPort = configuredPort;
+    const healthy = await waitForService(targetPort, 500, healthOptions);
     const occupied = await isTcpPortOccupied(targetPort, 500);
     if (!healthy && occupied) {
       console.log(`⚠️  端口 ${targetPort} 已被其他服务占用，当前不是 claude-trigger-router。`);
       return;
     }
     console.log("⏹  服务未运行");
+    printRuntimeStatus(config, targetPort);
     return;
   }
   const startTime = info.startTime ? new Date(info.startTime).toLocaleString() : "未知";
@@ -511,6 +562,7 @@ async function showStatus() {
   console.log(`   端口：${info.port}`);
   console.log(`   启动时间：${startTime}`);
   console.log(`   接入地址：http://127.0.0.1:${info.port}`);
+  printRuntimeStatus(config, info.port);
 }
 
 /**

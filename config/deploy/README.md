@@ -2,6 +2,11 @@
 
 These templates are included in the npm package under `config/deploy`.
 
+Role-specific guides live in:
+
+- `docs/server-maintainer-guide.md`
+- `docs/remote-client-guide.md`
+
 Recommended flow:
 
 ```bash
@@ -28,3 +33,4 @@ Security notes:
 - Keep the generated bootstrap `APIKEY` for maintainers only.
 - Generate managed `client + read-only` keys for remote clients.
 - Put public deployments behind HTTPS reverse proxy or private network access.
+- Use `ctr status`, `ctr doctor`, and `/ui` to confirm role, listener, auth state, and remote client connection guidance after deployment.
