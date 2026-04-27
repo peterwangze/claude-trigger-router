@@ -1856,6 +1856,7 @@ describe('packaged CLI E2E', () => {
       const before = await snapshotTree(env.homeDir);
       const result = await runCtr(cliPath, ['setup'], env, {
         input: [
+          '本地使用（推荐）',
           'sonnet',
           '使用常见接入模板',
           'openrouter',
@@ -1876,6 +1877,7 @@ describe('packaged CLI E2E', () => {
       const configText = await readCurrentCtrConfigText(env.homeDir);
 
       expect(result.code).toBe(0);
+      expect(result.stdout).toContain('当前要本地使用，还是连接远程服务？');
       expect(configText).toContain('id: sonnet');
       expect(configText).toContain('key: sk-first-use');
       expect(configText).toContain('default: sonnet');
@@ -1925,6 +1927,7 @@ describe('packaged CLI E2E', () => {
       const result = await runCtr(cliPath, ['setup'], env, {
         input: [
           '2',
+          '本地使用（推荐）',
           'sonnet',
           '使用常见接入模板',
           'openrouter',
@@ -1971,6 +1974,7 @@ describe('packaged CLI E2E', () => {
       const before = await snapshotTree(env.homeDir);
       const result = await runCtr(cliPath, ['setup'], env, {
         input: [
+          '本地使用（推荐）',
           'sonnet',
           '使用常见接入模板',
           'openrouter',
@@ -2304,6 +2308,7 @@ describe('packaged CLI E2E', () => {
       const result = await runCtr(cliPath, ['setup'], env, {
         input: [
           '2',
+          '本地使用（推荐）',
           'sonnet45',
           '使用常见接入模板',
           'anthropic',
@@ -2370,6 +2375,7 @@ describe('packaged CLI E2E', () => {
         input: [
           '3',
           '2',
+          '本地使用（推荐）',
           'fresh_sonnet',
           '使用常见接入模板',
           'openrouter',
@@ -2591,6 +2597,7 @@ describe('packaged CLI E2E', () => {
       const result = await runCtr(cliPath, ['setup'], env, {
         input: [
           'rebuild',
+          '本地使用（推荐）',
           'sonnet',
           '使用常见接入模板',
           'openrouter',
