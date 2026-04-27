@@ -183,6 +183,52 @@ describe('createServer /api/config', () => {
     expect(JSON.stringify(result)).not.toContain(created.record.key_hash);
   });
 
+  it('reports inactive managed key records as auth-required but degraded', async () => {
+    const created = createManagedApiKey({ label: 'revoked client', scopes: ['client'] });
+    const server = createServer({
+      initialConfig: {
+        HOST: '0.0.0.0',
+        PORT: 4567,
+        Runtime: {
+          mode: 'server',
+        },
+        Auth: {
+          managed_keys: [
+            {
+              ...created.record,
+              revoked_at: '2026-04-01T00:00:00.000Z',
+            },
+          ],
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/service-info');
+
+    const result = await handler({}, {});
+
+    expect(result.auth).toEqual(expect.objectContaining({
+      required: true,
+      bootstrapConfigured: false,
+      managedKeys: expect.objectContaining({
+        total: 1,
+        active: 0,
+        revoked: 1,
+      }),
+    }));
+    expect(result.security).toEqual(expect.objectContaining({
+      status: 'warning',
+      publicHost: true,
+      issues: [
+        expect.objectContaining({
+          code: 'managed_auth_without_active_key',
+          severity: 'warning',
+        }),
+      ],
+    }));
+    expect(JSON.stringify(result)).not.toContain(created.secret);
+    expect(JSON.stringify(result)).not.toContain(created.record.key_hash);
+  });
+
   it('reports local service info when Runtime is not configured', async () => {
     const server = createServer({
       initialConfig: {

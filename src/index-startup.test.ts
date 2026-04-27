@@ -179,6 +179,58 @@ describe('run startup wiring', () => {
     expect(generated).not.toContain('logs/');
   });
 
+  it('keeps public host when an active managed key secures startup auth', async () => {
+    mockInitConfig.mockResolvedValue({
+      HOST: '0.0.0.0',
+      PORT: 5678,
+      LOG: true,
+      LOG_LEVEL: 'debug',
+      Providers: [],
+      Auth: {
+        managed_keys: [
+          {
+            id: 'key_active',
+            label: 'managed client',
+            key_hash: 'hash',
+            key_prefix: 'ctr_test',
+            key_suffix: 'secret',
+            scopes: ['client'],
+            created_at: '2026-04-01T00:00:00.000Z',
+          },
+        ],
+      },
+    });
+    mockReadConfigFile.mockResolvedValue({
+      APIKEY: undefined,
+      Auth: {
+        managed_keys: [
+          {
+            id: 'key_active',
+            label: 'managed client',
+            key_hash: 'hash',
+            key_prefix: 'ctr_test',
+            key_suffix: 'secret',
+            scopes: ['client'],
+            created_at: '2026-04-01T00:00:00.000Z',
+          },
+        ],
+      },
+    });
+    const { run } = await import('./index');
+    const { logWarn } = await import('./utils/log');
+
+    await run({ port: 6789 });
+
+    expect(mockCreateServer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialConfig: expect.objectContaining({
+          HOST: '0.0.0.0',
+        }),
+      })
+    );
+    expect(vi.mocked(logWarn)).not.toHaveBeenCalledWith(expect.stringContaining('forced to 127.0.0.1'));
+  });
+
   it('wires auth middleware with a current config resolver', async () => {
     const { run } = await import('./index');
     const { apiKeyAuth } = await import('./middleware/auth');

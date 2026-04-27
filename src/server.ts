@@ -106,7 +106,10 @@ function buildServiceInfo(rawConfig: any) {
   const authSummary = managedApiKeySummary(normalized);
   const host = rawConfig?.HOST ?? normalized.HOST;
   const publicHost = ["0.0.0.0", "::", "[::]"].includes(String(host ?? "").trim());
-  const authRequired = Boolean(normalized.APIKEY || authSummary.active > 0);
+  const hasBootstrapAuth = Boolean(normalized.APIKEY);
+  const hasManagedAuthRecords = authSummary.total > 0;
+  const hasActiveManagedAuth = authSummary.active > 0;
+  const authRequired = hasBootstrapAuth || hasManagedAuthRecords;
   const securityIssues: Array<{
     code: string;
     severity: "critical" | "warning";
@@ -121,12 +124,20 @@ function buildServiceInfo(rawConfig: any) {
       action: "Set APIKEY or create an active managed admin/client key before exposing this service.",
     });
   }
-  if (authRequired && normalized.APIKEY && authSummary.total === 0 && runtimeMode !== "local") {
+  if (authRequired && hasBootstrapAuth && authSummary.total === 0 && runtimeMode !== "local") {
     securityIssues.push({
       code: "bootstrap_only_auth",
       severity: "warning",
       message: "Only the bootstrap APIKEY is configured for a server/cloud role.",
       action: "Create managed client keys for remote users and keep APIKEY for administration.",
+    });
+  }
+  if (!hasBootstrapAuth && hasManagedAuthRecords && !hasActiveManagedAuth) {
+    securityIssues.push({
+      code: "managed_auth_without_active_key",
+      severity: "warning",
+      message: "Managed API key records exist, but none are active.",
+      action: "Create an active managed admin/client key or configure APIKEY before relying on this service.",
     });
   }
 

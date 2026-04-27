@@ -614,14 +614,18 @@ async function reportRuntimeServiceContext(config: IAppConfig, deps: IDoctorDeps
   const serviceRole = runtimeMode === 'local' ? 'local_agent' : 'router_service';
   const remoteService = config.Runtime?.remote_service;
   const managedKeys = managedApiKeySummary(config);
-  const authRequired = Boolean(config.APIKEY || managedKeys.active > 0);
+  const hasBootstrapAuth = Boolean(config.APIKEY);
+  const hasManagedAuthRecords = managedKeys.total > 0;
+  const authRequired = hasBootstrapAuth || hasManagedAuthRecords;
   const publicHost = ['0.0.0.0', '::', '[::]'].includes(String(config.HOST ?? '').trim());
 
   deps.io.info(`服务上下文：${runtimeMode}（${serviceRole}）`);
-  deps.io.info(`鉴权状态：${authRequired ? 'enabled' : 'disabled'}（bootstrap=${Boolean(config.APIKEY)}, managed_active=${managedKeys.active}）`);
+  deps.io.info(`鉴权状态：${authRequired ? 'enabled' : 'disabled'}（bootstrap=${hasBootstrapAuth}, managed_active=${managedKeys.active}）`);
   if (!authRequired && (runtimeMode !== 'local' || publicHost)) {
     deps.io.error('安全风险：当前 server/cloud 或公网监听未配置 API key；暴露服务前请设置 APIKEY 或创建 managed client/admin key。');
-  } else if (authRequired && config.APIKEY && managedKeys.total === 0 && runtimeMode !== 'local') {
+  } else if (!hasBootstrapAuth && hasManagedAuthRecords && managedKeys.active === 0) {
+    deps.io.error('安全风险：当前仅保留 managed key 记录但没有 active key；服务会拒绝请求，请设置 APIKEY 或创建 active managed key。');
+  } else if (authRequired && hasBootstrapAuth && managedKeys.total === 0 && runtimeMode !== 'local') {
     deps.io.info('安全提示：当前仅配置 bootstrap APIKEY；建议为远程使用者生成 managed client key，并保留 APIKEY 只做管理用途。');
   }
 

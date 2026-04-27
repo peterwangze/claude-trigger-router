@@ -12,6 +12,7 @@ import { initConfig, initDir, readConfigFile } from "./utils";
 import { createServer } from "./server";
 import { router } from "./router";
 import { apiKeyAuth } from "./middleware/auth";
+import { managedApiKeySummary } from "./auth/api-keys";
 import {
   cleanupPidFile,
   isServiceRunning,
@@ -105,10 +106,12 @@ async function run(options: RunOptions = {}) {
   configureLogging(config);
 
   let HOST = config.HOST || "127.0.0.1";
+  const managedKeySummary = managedApiKeySummary(config);
+  const hasPublicAuth = Boolean(config.APIKEY || managedKeySummary.active > 0);
 
-  if (config.HOST && !config.APIKEY) {
+  if (config.HOST && !hasPublicAuth) {
     HOST = "127.0.0.1";
-    logWarn("⚠️ API key is not set. HOST is forced to 127.0.0.1.");
+    logWarn("⚠️ API key or active managed key is not set. HOST is forced to 127.0.0.1.");
   }
 
   const port = options.port ?? config.PORT ?? DEFAULT_CONFIG.PORT;

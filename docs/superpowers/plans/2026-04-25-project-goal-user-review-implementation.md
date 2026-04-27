@@ -300,6 +300,7 @@ P3-3：持续 closed 事项复审
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 1）：已新增 `Auth.managed_keys` 最小数据结构，managed key 以哈希形式写入配置；`APIKEY` 保留为 bootstrap/admin key；新增 `GET /api/auth/keys`、`POST /api/auth/keys`、`POST /api/auth/keys/:id/revoke`，支持 label、admin/client/read-only scope、过期时间、撤销和脱敏列表；运行时 `apiKeyAuth` 已能接受 active managed client/admin key，同时拒绝 revoked、expired 或 scope 不足的 key；README 已同步远程客户端应优先使用 managed client key 的口径。
 - P1-6 Chunk 1 复审补强：已修正运行时鉴权只读取启动时内存配置的问题，`apiKeyAuth` 现在支持异步配置解析器，启动入口会在鉴权时刷新当前配置中的 `APIKEY/Auth`；因此新生成的 managed key 可即时用于运行时请求，已吊销 key 也会即时失效，不再依赖服务重启。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 2）：已新增轻量 auth audit store，记录鉴权 allowed / denied / skipped、source、keyId、scope、reason、path 与 requestId；新增 admin-only `GET /api/auth/audit` 查看脱敏事件和摘要；`/api/service-info` 返回 `auth` / `security` 摘要，能识别 server/cloud 或公网监听无鉴权、bootstrap-only server 等风险；`ctr doctor` 和 `/ui` 均展示鉴权/安全状态，README 同步 managed client key 与 audit 入口说明。
+- P1-6 Chunk 2 复审补强：已统一启动入口、`/api/service-info`、`ctr doctor` 和 `/ui` 对 managed key 的安全口径；active managed key 可作为公网监听的启动保护，只有 revoked/expired managed key 时不再误报为“无鉴权”，而是提示没有 active key、服务会拒绝请求。
 
 下一项按优先级继续推进：
 

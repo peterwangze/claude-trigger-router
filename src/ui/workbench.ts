@@ -35,11 +35,24 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const registrationSummary = registration.enabled
     ? `${registrationModels} models / ${registrationUpstreamServices} upstream`
     : 'disabled';
-  const initialManagedKeys = Array.isArray(initialConfig.Auth?.managed_keys) ? initialConfig.Auth.managed_keys.length : 0;
-  const authSummary = initialConfig.APIKEY || initialManagedKeys > 0 ? `configured · ${initialManagedKeys} managed` : 'not configured';
+  const initialManagedKeys = Array.isArray(initialConfig.Auth?.managed_keys) ? initialConfig.Auth.managed_keys : [];
+  const nowMs = Date.now();
+  const initialActiveManagedKeys = initialManagedKeys.filter((record: any) => {
+    if (record?.revoked_at) {
+      return false;
+    }
+    if (!record?.expires_at) {
+      return true;
+    }
+    const expiresAt = Date.parse(record.expires_at);
+    return !Number.isFinite(expiresAt) || expiresAt > nowMs;
+  }).length;
+  const authSummary = initialConfig.APIKEY || initialManagedKeys.length > 0 ? `configured · ${initialActiveManagedKeys} active` : 'not configured';
   const publicHost = ['0.0.0.0', '::', '[::]'].includes(String(initialConfig.HOST ?? '').trim());
-  const securitySummary = (!initialConfig.APIKEY && initialManagedKeys === 0 && (runtimeMode !== 'local' || publicHost))
+  const securitySummary = (!initialConfig.APIKEY && initialManagedKeys.length === 0 && (runtimeMode !== 'local' || publicHost))
     ? 'critical'
+    : (!initialConfig.APIKEY && initialManagedKeys.length > 0 && initialActiveManagedKeys === 0)
+      ? 'warning'
     : 'ok';
   const escapedDisplayPort = escapeHtml(displayPort);
   const escapedModelsCount = escapeHtml(modelsCount);

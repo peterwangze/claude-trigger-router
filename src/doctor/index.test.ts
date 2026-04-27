@@ -378,4 +378,64 @@ describe('runDoctorCli', () => {
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('鉴权状态：disabled'));
     expect(io.error).toHaveBeenCalledWith(expect.stringContaining('安全风险'));
   });
+
+  it('warns when managed auth exists but no key is active', async () => {
+    const io = createIo({
+      confirm: vi.fn().mockResolvedValue(false),
+    });
+
+    vi.doMock('fs', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('fs')>();
+      return {
+        ...actual,
+        existsSync: vi.fn((filePath: string) => String(filePath).endsWith('config.yaml')),
+        readFileSync: vi.fn((filePath: string) => {
+          if (String(filePath).endsWith('config.yaml')) {
+            return [
+              'HOST: "0.0.0.0"',
+              'Runtime:',
+              '  mode: "server"',
+              'Auth:',
+              '  managed_keys:',
+              '    - id: "key_revoked"',
+              '      label: "revoked client"',
+              '      key_hash: "hash"',
+              '      key_prefix: "ctr_test"',
+              '      key_suffix: "secret"',
+              '      scopes: ["client"]',
+              '      created_at: "2026-04-01T00:00:00.000Z"',
+              '      revoked_at: "2026-04-02T00:00:00.000Z"',
+              'Models:',
+              '  - id: "sonnet"',
+              '    api: "https://api.example.com/v1/messages"',
+              '    key: "sk-test"',
+              '    interface: "anthropic"',
+              '    model: "claude-sonnet-4-5"',
+              'Router:',
+              '  default: "sonnet"',
+            ].join('\n');
+          }
+          return '';
+        }),
+      };
+    });
+
+    const { runDoctorCli } = await import('./index');
+    await runDoctorCli({
+      io: io as any,
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig: vi.fn().mockResolvedValue(undefined),
+      isServiceRunning: vi.fn().mockReturnValue(true),
+      readServiceInfo: vi.fn().mockReturnValue({ pid: 123, port: 5678, startTime: '' }),
+      killProcess: vi.fn(),
+      probeServiceHealth: vi.fn().mockResolvedValue(true),
+      isTcpPortOccupied: vi.fn().mockResolvedValue(true),
+      waitForService: vi.fn().mockResolvedValue(true),
+      startDaemon: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('鉴权状态：enabled'));
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('没有 active key'));
+  });
 });
