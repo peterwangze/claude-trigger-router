@@ -288,13 +288,15 @@ describe('runSetupCli', () => {
         },
       })
     );
-    expect(io.input).toHaveBeenNthCalledWith(1, '这个默认模型在本地要叫什么名字？', 'sonnet');
+    expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
     expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用，还是连接远程服务？', ['本地使用（推荐）', '连接远程服务']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(io.choose).toHaveBeenNthCalledWith(3, '选择 provider 预设', expect.any(Array));
     expect(io.choose).toHaveBeenNthCalledWith(4, '现在要不要继续添加一个“复杂任务专用模型”？', ['先不添加', '添加一个复杂任务专用模型']);
-    expect(io.input).toHaveBeenNthCalledWith(2, 'Provider 名称', 'openrouter');
-    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名', 'anthropic/claude-sonnet-4');
+    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 model id）', 'openrouter');
+    expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（留空使用预设，写入 Models[].api）', '');
+    expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
+    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', 'anthropic/claude-sonnet-4');
     expect(io.info).toHaveBeenCalledWith('我们先创建一份最小可用配置。');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
@@ -347,7 +349,7 @@ describe('runSetupCli', () => {
     expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用，还是连接远程服务？', ['本地使用（推荐）', '连接远程服务']);
     expect(io.input).toHaveBeenNthCalledWith(1, '远程服务 URL');
     expect(io.input).toHaveBeenNthCalledWith(2, '远程服务 Auth Token（可选）', '${CTR_REMOTE_AUTH_TOKEN}');
-    expect(io.input).not.toHaveBeenCalledWith('这个默认模型在本地要叫什么名字？', 'sonnet');
+    expect(io.input).not.toHaveBeenCalledWith('默认模型的 model id（Router.default 会引用它）', 'sonnet');
     expect(io.choose).not.toHaveBeenCalledWith('这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(writeConfig).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -614,9 +616,11 @@ describe('runSetupCli', () => {
     expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用，还是连接远程服务？', ['本地使用（推荐）', '连接远程服务']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(io.choose).toHaveBeenNthCalledWith(3, '选择 provider 预设', expect.any(Array));
-    expect(io.input).toHaveBeenNthCalledWith(1, '这个默认模型在本地要叫什么名字？', 'sonnet');
-    expect(io.input).toHaveBeenNthCalledWith(2, 'Provider 名称', 'anthropic');
-    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名', 'claude-sonnet-4-5');
+    expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
+    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 model id）', 'anthropic');
+    expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（留空使用预设，写入 Models[].api）', '');
+    expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
+    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', 'claude-sonnet-4-5');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).not.toHaveBeenCalled();

@@ -803,18 +803,20 @@ async function promptModelConnection(
   if (connectMode === '使用常见接入模板') {
     const presetOptions = listProviderPresetKeys('setup');
     preset = await io.choose('选择 provider 预设', presetOptions) as ProviderPresetKey;
-    providerName = await io.input('Provider 名称', preset);
-    apiBaseUrl = preset === 'custom' ? await io.input('API Base URL') : await io.input('API Base URL（留空使用预设）', '');
+    providerName = await io.input('接入名称（用于预设识别，不是 model id）', preset);
+    apiBaseUrl = preset === 'custom'
+      ? await io.input('API URL（写入 Models[].api）')
+      : await io.input('API URL（留空使用预设，写入 Models[].api）', '');
   } else {
-    providerName = await io.input('Provider 名称', 'provider');
-    apiBaseUrl = await io.input('API Base URL');
+    providerName = await io.input('接入名称（用于预设识别，不是 model id）', 'provider');
+    apiBaseUrl = await io.input('API URL（写入 Models[].api）');
   }
 
-  const apiKey = await io.input('API Key');
+  const apiKey = await io.input('API Key（写入 Models[].key）');
   const presetDefinition = getProviderPreset(preset);
-  const model = await io.input('上游模型名', presetDefinition?.default_model ?? '');
+  const model = await io.input('上游模型名（写入 Models[].model）', presetDefinition?.default_model ?? '');
   const interfaceChoice = connectMode === '手动填写接口'
-    ? await io.choose('接口类型', ['openai', 'anthropic']) as 'openai' | 'anthropic'
+    ? await io.choose('接口类型（写入 Models[].interface）', ['openai', 'anthropic']) as 'openai' | 'anthropic'
     : presetDefinition?.interface;
 
   return {
@@ -843,7 +845,7 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
 
   const primaryModel = await promptModelConnection(io, {
     intro: '我们先创建一份最小可用配置。',
-    modelIdPrompt: '这个默认模型在本地要叫什么名字？',
+    modelIdPrompt: '默认模型的 model id（Router.default 会引用它）',
     suggestedModelId: 'sonnet',
   });
 
@@ -861,7 +863,7 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
     const suggestedSecondModelId = toUniqueSuggestedModelId('reasoner', draft.Models?.map((item) => item.id) ?? []);
     const specializedModel = await promptModelConnection(io, {
       intro: '这个模型通常用于架构设计、代码审查或复杂推理等更重的任务。',
-      modelIdPrompt: '这个复杂任务模型在本地要叫什么名字？',
+      modelIdPrompt: '复杂任务模型的 model id',
       suggestedModelId: suggestedSecondModelId,
     });
     draft = appendModelToDraft(draft, specializedModel);
@@ -894,7 +896,7 @@ async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]
   if (input.fields.includes('defaultModel')) {
     const defaultProvider = draft.Models?.[0]?.id ?? draft.Providers?.[0]?.name ?? 'provider';
     const defaultModel = draft.Models?.[0]?.model ?? draft.Providers?.[0]?.models?.[0] ?? '';
-    const model = await input.io.input('默认模型', defaultModel);
+    const model = await input.io.input('默认上游模型名（写入 Models[0].model，Router.default 会引用 Models[0].id）', defaultModel);
     if (draft.Models?.[0]) {
       draft.Models[0].model = model;
       draft.Router.default = defaultProvider;
@@ -905,7 +907,7 @@ async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]
   }
 
   if (input.fields.includes('apiKey')) {
-    const apiKey = await input.io.input('API Key');
+    const apiKey = await input.io.input('API Key（写入 Models[].key）');
     if (draft.Models?.length) {
       draft.Models = draft.Models.map((model) => ({ ...model, key: model.key || apiKey }));
     } else {
@@ -914,7 +916,7 @@ async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]
   }
 
   if (input.fields.includes('apiBaseUrl')) {
-    const apiBaseUrl = await input.io.input('API Base URL');
+    const apiBaseUrl = await input.io.input('API URL（写入 Models[].api）');
     if (draft.Models?.length) {
       draft.Models = draft.Models.map((model) => ({
         ...model,

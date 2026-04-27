@@ -335,3 +335,10 @@
 - `Router.default`、路由规则与 `id` 的引用关系已在表单说明中显式提示
 - `/ui` JSON 草稿 placeholder 现已使用入口字段示例，并提示 `api_key / api_base_url / protocol` 仅作为旧配置兼容读取
 - 当前 remaining gap 主要是继续把 `ctr setup` 问答提示与 README / configuration guide 的字段说明保持同步
+
+### 阶段 2R：setup 问答字段说明首轮落地
+
+- `ctr setup` fresh init 的 model id 提示现已显式说明 `Router.default` 会引用该 id
+- API URL、API Key、接口类型和上游模型名提示已对齐到 `Models[].api / key / interface / model`
+- setup repair 补全 API URL、API Key 和默认上游模型名时也沿用同一字段说明
+- 当前 remaining gap 主要是继续把 README 和 configuration guide 的配置字段示例与该心智保持同步
