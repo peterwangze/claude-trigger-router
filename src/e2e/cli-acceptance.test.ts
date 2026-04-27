@@ -608,6 +608,24 @@ describe('isolated packaged CLI acceptance', () => {
     const port = await getFreePort();
     const stageDir = join(repoRoot, '.release-stage');
     const releaseHomeDir = join(repoRoot, '.release-home');
+    const wrapperPath = process.platform === 'win32'
+      ? join(stageDir, 'ctr-release-home.cmd')
+      : join(stageDir, 'ctr-release-home.sh');
+    const toWrapperCommand = (...args: string[]) => {
+      if (process.platform === 'win32') {
+        const escapedPath = wrapperPath.replace(/'/g, "''");
+        const escapedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(' ');
+        return escapedArgs.length > 0
+          ? `& '${escapedPath}' ${escapedArgs}`
+          : `& '${escapedPath}'`;
+      }
+
+      const escapedPath = wrapperPath.replace(/'/g, "'\\''");
+      const escapedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(' ');
+      return escapedArgs.length > 0
+        ? `'${escapedPath}' ${escapedArgs}`
+        : `'${escapedPath}'`;
+    };
 
     try {
       const stageResult = await runCommandInShell(`npm run release:stage -- -Port ${port}`, env, {
@@ -618,24 +636,6 @@ describe('isolated packaged CLI acceptance', () => {
       expectNoTerminalCorruption(`${stageResult.stdout}\n${stageResult.stderr}`);
       expect(stageResult.stdout).toContain('Staged package is ready for manual verification.');
 
-      const wrapperPath = process.platform === 'win32'
-        ? join(stageDir, 'ctr-release-home.cmd')
-        : join(stageDir, 'ctr-release-home.sh');
-      const toWrapperCommand = (...args: string[]) => {
-        if (process.platform === 'win32') {
-          const escapedPath = wrapperPath.replace(/'/g, "''");
-          const escapedArgs = args.map((arg) => `'${arg.replace(/'/g, "''")}'`).join(' ');
-          return escapedArgs.length > 0
-            ? `& '${escapedPath}' ${escapedArgs}`
-            : `& '${escapedPath}'`;
-        }
-
-        const escapedPath = wrapperPath.replace(/'/g, "'\\''");
-        const escapedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(' ');
-        return escapedArgs.length > 0
-          ? `'${escapedPath}' ${escapedArgs}`
-          : `'${escapedPath}'`;
-      };
       expect(existsSync(wrapperPath)).toBe(true);
       expect(existsSync(join(releaseHomeDir, '.claude-trigger-router', 'config.yaml'))).toBe(true);
       expect(existsSync(join(releaseHomeDir, '.claude-code-router', 'config.json'))).toBe(true);
@@ -726,6 +726,16 @@ describe('isolated packaged CLI acceptance', () => {
       const wrapperContent = await readText(wrapperPath);
       expect(wrapperContent).toContain('.release-home');
     } finally {
+      try {
+        if (existsSync(wrapperPath)) {
+          await runCommandInShell(toWrapperCommand('stop'), env, {
+            cwd: repoRoot,
+            timeoutMs: 30000,
+          });
+        }
+      } catch {
+        // Ignore cleanup stop failures.
+      }
       await runCommandInShell('npm run release:clean', env, {
         cwd: repoRoot,
         timeoutMs: 300000,
