@@ -302,6 +302,7 @@ P3-3：持续 closed 事项复审
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 2）：已新增轻量 auth audit store，记录鉴权 allowed / denied / skipped、source、keyId、scope、reason、path 与 requestId；新增 admin-only `GET /api/auth/audit` 查看脱敏事件和摘要；`/api/service-info` 返回 `auth` / `security` 摘要，能识别 server/cloud 或公网监听无鉴权、bootstrap-only server 等风险；`ctr doctor` 和 `/ui` 均展示鉴权/安全状态，README 同步 managed client key 与 audit 入口说明。
 - P1-6 Chunk 2 复审补强：已统一启动入口、`/api/service-info`、`ctr doctor` 和 `/ui` 对 managed key 的安全口径；active managed key 可作为公网监听的启动保护，只有 revoked/expired managed key 时不再误报为“无鉴权”，而是提示没有 active key、服务会拒绝请求。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3a）：已把 managed key `quota.request_limit` / `quota.token_limit` 接入运行时执行，进程内累计请求数和估算输入 token，超过配额返回 429 并写入 auth audit；`/api/service-info` 同步返回脱敏 quota usage 摘要。运行时鉴权也开始区分 `read-only` 状态接口权限，read-only key 可访问健康/状态 GET 接口，但不能调用模型或管理配置；README 已同步配额和 read-only 使用口径。
+- P1-6 Chunk 3a 复审补强：已将 quota 计量范围收紧为模型调用请求（`POST /v1/messages` / `/v1/chat/completions`），状态查询和管理请求不再消耗模型调用配额，避免维护者查看状态或管理 key 时误触发 429。
 
 下一项按优先级继续推进：
 

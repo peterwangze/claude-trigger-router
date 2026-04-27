@@ -130,6 +130,46 @@ describe('apiKeyAuth', () => {
     }));
   });
 
+  it('does not consume model-call quota for status endpoints', async () => {
+    const created = createManagedApiKey({
+      label: 'limited client',
+      scopes: ['client'],
+      quota: {
+        request_limit: 1,
+      },
+    });
+    const middleware = apiKeyAuth({
+      Auth: {
+        managed_keys: [created.record],
+      },
+    });
+    const headers = {
+      authorization: `Bearer ${created.secret}`,
+    };
+
+    const statusA = await runAuth(middleware, headers, undefined, {
+      method: 'GET',
+      url: '/api/service-info',
+    });
+    const statusB = await runAuth(middleware, headers, undefined, {
+      method: 'GET',
+      url: '/api/remote-status',
+    });
+    const firstModelCall = await runAuth(middleware, headers, { messages: [{ role: 'user', content: 'one' }] });
+    const secondModelCall = await runAuth(middleware, headers, { messages: [{ role: 'user', content: 'two' }] });
+
+    expect(statusA.error).toBeUndefined();
+    expect(statusB.error).toBeUndefined();
+    expect(firstModelCall.error).toBeUndefined();
+    expect(secondModelCall.error).toBeInstanceOf(Error);
+    expect(secondModelCall.reply.code).toHaveBeenCalledWith(429);
+    expect(authQuotaUsageStore.summary()).toEqual({
+      trackedKeys: 1,
+      requestsUsed: 1,
+      tokensUsed: expect.any(Number),
+    });
+  });
+
   it('allows read-only keys for status endpoints but not model calls', async () => {
     const created = createManagedApiKey({
       label: 'status viewer',

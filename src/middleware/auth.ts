@@ -32,6 +32,15 @@ function authRequirementForRequest(req: FastifyRequest): TManagedApiKeyScope {
   return method === 'GET' && readOnlyPaths.has(path) ? 'read-only' : 'client';
 }
 
+function isQuotaMeteredRequest(req: FastifyRequest): boolean {
+  const method = String(req.method ?? '').toUpperCase();
+  const path = String(req.url ?? '').split('?')[0];
+  return method === 'POST' && (
+    path === '/v1/messages' ||
+    path === '/v1/chat/completions'
+  );
+}
+
 /**
  * API Key 认证中间件
  */
@@ -77,11 +86,13 @@ export function apiKeyAuth(configInput: AuthConfigInput) {
           return;
         }
 
-        const quotaResult = authQuotaUsageStore.consume(
-          result.keyId,
-          result.quota,
-          estimateRequestTokens((req as any).body)
-        );
+        const quotaResult = isQuotaMeteredRequest(req)
+          ? authQuotaUsageStore.consume(
+            result.keyId,
+            result.quota,
+            estimateRequestTokens((req as any).body)
+          )
+          : { ok: true as const };
         if (!quotaResult.ok) {
           authAuditStore.add({
             ...auditBase,
