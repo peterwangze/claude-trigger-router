@@ -8,7 +8,7 @@ import { existsSync } from "fs";
 import { writeFile } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";
-import { initConfig, initDir } from "./utils";
+import { initConfig, initDir, readConfigFile } from "./utils";
 import { createServer } from "./server";
 import { router } from "./router";
 import { apiKeyAuth } from "./middleware/auth";
@@ -173,6 +173,20 @@ async function run(options: RunOptions = {}) {
     logger: loggerConfig,
   });
 
+  const authMiddleware = apiKeyAuth(async () => {
+    try {
+      const currentConfig = await readConfigFile();
+      return {
+        ...config,
+        APIKEY: currentConfig.APIKEY,
+        Auth: currentConfig.Auth,
+      };
+    } catch (error) {
+      logWarn(`[Auth] Failed to refresh auth config, using startup auth config: ${error instanceof Error ? error.message : String(error)}`);
+      return config;
+    }
+  });
+
   // 认证中间件
   server.addHook("preHandler", async (req: any, reply: any) => {
     return new Promise<void>((resolve, reject) => {
@@ -180,7 +194,7 @@ async function run(options: RunOptions = {}) {
         if (err) reject(err);
         else resolve();
       };
-      apiKeyAuth(config)(req, reply, done);
+      authMiddleware(req, reply, done);
     });
   });
 

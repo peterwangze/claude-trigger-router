@@ -4,6 +4,7 @@ const mockCreateServer = vi.fn();
 const mockCreateStream = vi.fn();
 const mockInitDir = vi.fn();
 const mockInitConfig = vi.fn();
+const mockReadConfigFile = vi.fn();
 const mockConfigureLogging = vi.fn();
 const mockSavePid = vi.fn();
 const mockTriggerInit = vi.fn();
@@ -20,6 +21,7 @@ vi.mock('rotating-file-stream', () => ({
 vi.mock('./utils', () => ({
   initDir: mockInitDir,
   initConfig: mockInitConfig,
+  readConfigFile: mockReadConfigFile,
 }));
 
 vi.mock('./utils/processCheck', () => ({
@@ -120,7 +122,12 @@ describe('run startup wiring', () => {
       PORT: 5678,
       LOG: true,
       LOG_LEVEL: 'debug',
+      APIKEY: 'startup-key',
       Providers: [],
+    });
+    mockReadConfigFile.mockResolvedValue({
+      APIKEY: 'startup-key',
+      Auth: undefined,
     });
     mockCreateStream.mockReturnValue({ on: vi.fn() });
     mockCreateServer.mockReturnValue({
@@ -170,5 +177,27 @@ describe('run startup wiring', () => {
 
     expect(generated).toMatch(/^ctr-20260412\d{6}\.log$/);
     expect(generated).not.toContain('logs/');
+  });
+
+  it('wires auth middleware with a current config resolver', async () => {
+    const { run } = await import('./index');
+    const { apiKeyAuth } = await import('./middleware/auth');
+
+    await run({ port: 6789 });
+
+    const resolver = vi.mocked(apiKeyAuth).mock.calls[0][0] as () => Promise<any>;
+    mockReadConfigFile.mockResolvedValueOnce({
+      APIKEY: 'rotated-key',
+      Auth: {
+        managed_keys: [],
+      },
+    });
+
+    await expect(resolver()).resolves.toEqual(expect.objectContaining({
+      APIKEY: 'rotated-key',
+      Auth: {
+        managed_keys: [],
+      },
+    }));
   });
 });
