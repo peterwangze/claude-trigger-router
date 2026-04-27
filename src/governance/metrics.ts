@@ -53,6 +53,8 @@ export interface IGovernanceHealthSummary {
     cascadeTriggeredRate: number;
     shadowCheckedRate: number;
     alignmentUsedRate: number;
+    modelSwitchRate: number;
+    alignmentOnSwitchRate: number;
     averageLatencyMs: number;
     topRouteReason?: IGovernanceDistributionEntry;
     topFinalModel?: IGovernanceDistributionEntry;
@@ -89,12 +91,37 @@ export interface IGovernanceMetrics {
   semanticIntentDistribution: Record<string, number>;
 }
 
+export interface IGovernanceModelSwitchEntry {
+  key: string;
+  from?: string;
+  to?: string;
+  count: number;
+  rate: number;
+}
+
+export interface IGovernanceRoutingOutcomeSummary {
+  totalTraces: number;
+  routedTraces: number;
+  routedRate: number;
+  modelSwitchCount: number;
+  modelSwitchRate: number;
+  stableModelCount: number;
+  stableModelRate: number;
+  alignmentOnSwitchCount: number;
+  alignmentOnSwitchRate: number;
+  cascadeAfterSwitchCount: number;
+  cascadeAfterSwitchRate: number;
+  averageLatencyByRouteReason: Record<string, number>;
+  topModelSwitches: IGovernanceModelSwitchEntry[];
+}
+
 export interface IGovernanceMetricsReport {
   windowMs?: number;
   bucketCount: number;
   windowStart?: number;
   windowEnd?: number;
   metrics: IGovernanceMetrics;
+  outcome: IGovernanceRoutingOutcomeSummary;
   buckets: IGovernanceMetricsBucket[];
   topRouteReasons: IGovernanceDistributionEntry[];
   topFinalModels: IGovernanceDistributionEntry[];
@@ -176,6 +203,87 @@ function buildTopEntries(
       count,
       rate: rate(count, total),
     }));
+}
+
+function buildTopSwitchEntries(
+  distribution: Record<string, { from?: string; to?: string; count: number }>,
+  total: number,
+  limit = 5
+): IGovernanceModelSwitchEntry[] {
+  return Object.values(distribution)
+    .sort((left, right) => {
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
+      return `${left.from ?? ''}->${left.to ?? ''}`.localeCompare(`${right.from ?? ''}->${right.to ?? ''}`);
+    })
+    .slice(0, limit)
+    .map((entry) => ({
+      key: `${entry.from ?? '-'} -> ${entry.to ?? '-'}`,
+      from: entry.from,
+      to: entry.to,
+      count: entry.count,
+      rate: rate(entry.count, total),
+    }));
+}
+
+function isRoutedTrace(trace: IGovernanceTrace): boolean {
+  return trace.routeReason.some((reason) => reason !== 'request_received');
+}
+
+function isModelSwitch(trace: IGovernanceTrace): boolean {
+  return Boolean(trace.initialModel && trace.finalModel && trace.initialModel !== trace.finalModel);
+}
+
+export function summarizeRoutingOutcomes(traces: IGovernanceTrace[]): IGovernanceRoutingOutcomeSummary {
+  const routedTraces = traces.filter(isRoutedTrace);
+  const switchedTraces = traces.filter(isModelSwitch);
+  const stableModelCount = traces.filter((trace) =>
+    Boolean(trace.initialModel && trace.finalModel && trace.initialModel === trace.finalModel)
+  ).length;
+  const alignmentOnSwitchCount = switchedTraces.filter((trace) => trace.alignmentUsed).length;
+  const cascadeAfterSwitchCount = switchedTraces.filter((trace) => trace.cascadeTriggered).length;
+  const switchDistribution: Record<string, { from?: string; to?: string; count: number }> = {};
+  const routeLatencyValues: Record<string, number[]> = {};
+
+  for (const trace of traces) {
+    if (isModelSwitch(trace)) {
+      const key = `${trace.initialModel} -> ${trace.finalModel}`;
+      switchDistribution[key] = {
+        from: trace.initialModel,
+        to: trace.finalModel,
+        count: (switchDistribution[key]?.count ?? 0) + 1,
+      };
+    }
+
+    if (typeof trace.latencyMs === 'number' && Number.isFinite(trace.latencyMs)) {
+      for (const reason of trace.routeReason.filter((item) => item !== 'request_received')) {
+        routeLatencyValues[reason] = [...(routeLatencyValues[reason] ?? []), trace.latencyMs];
+      }
+    }
+  }
+
+  const averageLatencyByRouteReason = Object.fromEntries(
+    Object.entries(routeLatencyValues)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([reason, values]) => [reason, average(values)])
+  );
+
+  return {
+    totalTraces: traces.length,
+    routedTraces: routedTraces.length,
+    routedRate: rate(routedTraces.length, traces.length),
+    modelSwitchCount: switchedTraces.length,
+    modelSwitchRate: rate(switchedTraces.length, traces.length),
+    stableModelCount,
+    stableModelRate: rate(stableModelCount, traces.length),
+    alignmentOnSwitchCount,
+    alignmentOnSwitchRate: rate(alignmentOnSwitchCount, switchedTraces.length),
+    cascadeAfterSwitchCount,
+    cascadeAfterSwitchRate: rate(cascadeAfterSwitchCount, switchedTraces.length),
+    averageLatencyByRouteReason,
+    topModelSwitches: buildTopSwitchEntries(switchDistribution, switchedTraces.length),
+  };
 }
 
 function averageRate(values: number[]): number {
@@ -290,6 +398,7 @@ export function buildGovernanceHealthSummary(input: {
   anomalies: IGovernanceAnomaly[];
   topRouteReasons?: IGovernanceDistributionEntry[];
   topFinalModels?: IGovernanceDistributionEntry[];
+  outcome?: IGovernanceRoutingOutcomeSummary;
 }): IGovernanceHealthSummary {
   const metrics = input.metrics;
   const anomalies = input.anomalies ?? [];
@@ -310,6 +419,8 @@ export function buildGovernanceHealthSummary(input: {
         cascadeTriggeredRate: 0,
         shadowCheckedRate: 0,
         alignmentUsedRate: 0,
+        modelSwitchRate: 0,
+        alignmentOnSwitchRate: 0,
         averageLatencyMs: 0,
         topRouteReason: input.topRouteReasons?.[0],
         topFinalModel: input.topFinalModels?.[0],
@@ -340,6 +451,8 @@ export function buildGovernanceHealthSummary(input: {
       cascadeTriggeredRate: metrics.cascadeTriggeredRate,
       shadowCheckedRate: metrics.shadowCheckedRate,
       alignmentUsedRate: metrics.alignmentUsedRate,
+      modelSwitchRate: input.outcome?.modelSwitchRate ?? 0,
+      alignmentOnSwitchRate: input.outcome?.alignmentOnSwitchRate ?? 0,
       averageLatencyMs: metrics.averageLatencyMs,
       topRouteReason: input.topRouteReasons?.[0],
       topFinalModel: input.topFinalModels?.[0],
@@ -472,6 +585,7 @@ export function getGovernanceMetricsReport(
     : windowed.traces;
   const bucketCount = options.bucketCount && options.bucketCount > 0 ? options.bucketCount : 6;
   const metrics = summarizeGovernanceMetrics(limitedTraces);
+  const outcome = summarizeRoutingOutcomes(limitedTraces);
   const buckets = buildBuckets(limitedTraces, windowed.windowStart, windowed.windowEnd, bucketCount);
   const thresholds = normalizeAnomalyThresholds(options.anomalyThresholds);
   const topRouteReasons = buildTopEntries(metrics.routeReasonDistribution, limitedTraces.length);
@@ -485,6 +599,7 @@ export function getGovernanceMetricsReport(
     windowStart: windowed.windowStart,
     windowEnd: windowed.windowEnd,
     metrics,
+    outcome,
     buckets,
     topRouteReasons,
     topFinalModels,
@@ -495,6 +610,7 @@ export function getGovernanceMetricsReport(
       anomalies,
       topRouteReasons,
       topFinalModels,
+      outcome,
     }),
   };
 }
@@ -522,6 +638,10 @@ export function exportGovernanceMetricsReport(
     `summary,alignmentUsedRate,${report.metrics.alignmentUsedRate}`,
     `summary,averageLatencyMs,${report.metrics.averageLatencyMs}`,
     `summary,averageEstimatedCost,${report.metrics.averageEstimatedCost}`,
+    `outcome,routedRate,${report.outcome.routedRate}`,
+    `outcome,modelSwitchRate,${report.outcome.modelSwitchRate}`,
+    `outcome,alignmentOnSwitchRate,${report.outcome.alignmentOnSwitchRate}`,
+    `outcome,cascadeAfterSwitchRate,${report.outcome.cascadeAfterSwitchRate}`,
   ];
 
   if (report.health) {
@@ -543,6 +663,10 @@ export function exportGovernanceMetricsReport(
 
   for (const item of report.topSemanticIntents) {
     lines.push(`topSemanticIntent,${item.key},${item.count}:${item.rate}`);
+  }
+
+  for (const item of report.outcome.topModelSwitches) {
+    lines.push(`topModelSwitch,${item.key},${item.count}:${item.rate}`);
   }
 
   for (const bucket of report.buckets) {

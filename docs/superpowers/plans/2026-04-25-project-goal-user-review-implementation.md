@@ -294,10 +294,11 @@ P3-3：持续 closed 事项复审
 - P2-3 Chunk 2 复审补强：已修正 `/ui` 只从 `/api/governance/metrics` 读取 `health`、但文档和测试矩阵宣称 Health 来源为 `/api/governance/health` 的契约偏差；现在维护者工作台会实际请求 `/api/governance/health`，并以 metrics 内嵌 `health` 作为兜底。
 - P2-3 `治理观测运营化`（Chunk 3）：已让 Health action 联动 trace 过滤，cascade action 会筛选 `cascadeTriggered=true`，shadow action 会筛选 `shadowChecked=true`，其他 action 回到近期 trace；README、configuration guide 和 CLI test matrix 已同步该维护者排查路径，UI HTML 渲染测试守住 action 按钮和过滤联动。
 - P2-3 `治理观测运营化`（Chunk 4a）：已把维护者工作台纳入 release-stage wrapper 验收链路，打包安装后的 staged 服务会直接 smoke `/ui` HTML 与 `GET /api/governance/health`，覆盖健康摘要占位、Health action 交互脚本入口和 idle 健康 API 结构，避免该路径只停留在源码级 HTML 测试。
+- P1-5 `智能路由收益与切换体感闭环`（Chunk 1）：已在 governance metrics 中新增 routing outcome scorecard，按现有 trace 汇总 routed rate、model switch rate、stable model rate、alignment-on-switch、cascade-after-switch、route reason 平均延迟和 Top model switches；`/api/governance/metrics` 返回 `outcome`，`/api/governance/health` 的 signals 带出切换与切换后 alignment 指标，`/ui` 维护者 metrics 区展示 Model switch rate 与 Alignment on switch。
 
 下一项按优先级继续推进：
 
-- P1-5 `智能路由收益与切换体感闭环`：先让 SmartRouter 从“能选模型”升级为“能证明组合模型带来质量 / 速度收益，并能解释模型切换是否影响连续体验”。
+- P1-5 `智能路由收益与切换体感闭环`（Chunk 2）：继续把 outcome 从汇总指标推进到可解释收益，补 synthetic tasks regression 与 route source / semantic intent / final model 的收益分组，让维护者能判断哪些任务组合真正更快、更稳。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

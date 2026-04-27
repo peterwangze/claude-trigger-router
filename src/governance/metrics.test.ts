@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGovernanceHealthSummary, exportGovernanceMetricsReport, getGovernanceMetricsReport, summarizeGovernanceMetrics } from './metrics';
+import { buildGovernanceHealthSummary, exportGovernanceMetricsReport, getGovernanceMetricsReport, summarizeGovernanceMetrics, summarizeRoutingOutcomes } from './metrics';
 import { governanceTraceStore } from './trace';
 
 describe('summarizeGovernanceMetrics', () => {
@@ -77,6 +77,70 @@ describe('summarizeGovernanceMetrics', () => {
     });
   });
 
+  it('summarizes routing outcomes and model switching continuity signals', () => {
+    const outcome = summarizeRoutingOutcomes([
+      {
+        requestId: 'trace-1',
+        initialModel: 'sonnet',
+        finalModel: 'reasoner',
+        routeReason: ['request_received', 'smart_router'],
+        stickyHit: false,
+        alignmentUsed: true,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        latencyMs: 120,
+        startedAt: 1,
+      },
+      {
+        requestId: 'trace-2',
+        initialModel: 'sonnet',
+        finalModel: 'sonnet',
+        routeReason: ['request_received', 'sticky_correction'],
+        stickyHit: true,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        latencyMs: 80,
+        startedAt: 2,
+      },
+      {
+        requestId: 'trace-3',
+        initialModel: 'sonnet',
+        finalModel: 'opus',
+        routeReason: ['request_received', 'cascade_gate'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: true,
+        shadowChecked: false,
+        latencyMs: 220,
+        startedAt: 3,
+      },
+    ]);
+
+    expect(outcome).toEqual(expect.objectContaining({
+      totalTraces: 3,
+      routedTraces: 3,
+      routedRate: 1,
+      modelSwitchCount: 2,
+      modelSwitchRate: 0.6667,
+      stableModelCount: 1,
+      stableModelRate: 0.3333,
+      alignmentOnSwitchCount: 1,
+      alignmentOnSwitchRate: 0.5,
+      cascadeAfterSwitchCount: 1,
+      cascadeAfterSwitchRate: 0.5,
+      averageLatencyByRouteReason: {
+        cascade_gate: 220,
+        smart_router: 120,
+        sticky_correction: 80,
+      },
+    }));
+    expect(outcome.topModelSwitches).toEqual([
+      { key: 'sonnet -> opus', from: 'sonnet', to: 'opus', count: 1, rate: 0.5 },
+      { key: 'sonnet -> reasoner', from: 'sonnet', to: 'reasoner', count: 1, rate: 0.5 },
+    ]);
+  });
+
   it('builds time-window buckets for recent traces', () => {
     governanceTraceStore.clear();
 
@@ -134,6 +198,12 @@ describe('summarizeGovernanceMetrics', () => {
       { key: 'smart_router', count: 2, rate: 0.6667 },
       { key: 'sticky', count: 1, rate: 0.3333 },
     ]);
+    expect(report.outcome).toEqual(expect.objectContaining({
+      totalTraces: 3,
+      routedTraces: 3,
+      modelSwitchCount: 0,
+      modelSwitchRate: 0,
+    }));
   });
 
   it('builds ranked distributions for models and intents', () => {
@@ -328,6 +398,23 @@ describe('summarizeGovernanceMetrics', () => {
         finalModelDistribution: { 'model-a': 2 },
         semanticIntentDistribution: { review: 1 },
       },
+      outcome: {
+        totalTraces: 2,
+        routedTraces: 2,
+        routedRate: 1,
+        modelSwitchCount: 1,
+        modelSwitchRate: 0.5,
+        stableModelCount: 1,
+        stableModelRate: 0.5,
+        alignmentOnSwitchCount: 1,
+        alignmentOnSwitchRate: 1,
+        cascadeAfterSwitchCount: 0,
+        cascadeAfterSwitchRate: 0,
+        averageLatencyByRouteReason: { sticky: 120 },
+        topModelSwitches: [
+          { key: 'model-a -> model-b', from: 'model-a', to: 'model-b', count: 1, rate: 1 },
+        ],
+      },
       buckets: [
         {
           bucketStart: 1,
@@ -359,8 +446,10 @@ describe('summarizeGovernanceMetrics', () => {
 
     expect(csv).toContain('section,key,value');
     expect(csv).toContain('summary,totalTraces,2');
+    expect(csv).toContain('outcome,modelSwitchRate,0.5');
     expect(csv).toContain('anomaly,cascade_rate_high,warn:0.5');
     expect(csv).toContain('topFinalModel,model-a,2:1');
+    expect(csv).toContain('topModelSwitch,model-a -> model-b,1:1');
     expect(csv).toContain('bucket,bucket-1,2:0.5:0.5:0.5:0.5');
   });
 

@@ -1150,7 +1150,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
     `surfaceTabs.forEach((tab)=>tab.addEventListener('click',()=>setActiveSurface(tab.dataset.surfaceTarget || 'user')));` +
     `setActiveSurface('user');` +
-    `function renderMetrics(metrics,health){` +
+    `function renderMetrics(metrics,health,outcome){` +
     `  metricsGrid.innerHTML=[` +
     "    ['Health', health?.status || 'idle'], " +
     "    ['Recent traces', metrics.totalTraces ?? 0]," +
@@ -1158,6 +1158,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     "    ['Cascade rate', pct(metrics.cascadeTriggeredRate)]," +
     "    ['Shadow rate', pct(metrics.shadowCheckedRate)]," +
     "    ['Alignment rate', pct(metrics.alignmentUsedRate)]," +
+    "    ['Model switch rate', pct(outcome?.modelSwitchRate)]," +
+    "    ['Alignment on switch', pct(outcome?.alignmentOnSwitchRate)]," +
     "    ['Avg latency', fmt(metrics.averageLatencyMs)+' ms']" +
     `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
     `}` +
@@ -1306,7 +1308,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const metricsData=await metricsRes.json();` +
     `  const healthData=await healthRes.json();` +
     `  const health=healthData.health || metricsData.health;` +
-    `  renderMetrics(metricsData.metrics || {},health);` +
+    `  renderMetrics(metricsData.metrics || {},health,metricsData.outcome || {});` +
     `  renderBuckets(metricsData || {});` +
     `  renderAnomalies(metricsData.anomalies || [],health);` +
     `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +

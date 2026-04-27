@@ -1800,10 +1800,13 @@ describe('createServer /api/config', () => {
     expect(html).toContain('archivePageSize');
     expect(html).toContain('metricsGrid');
     expect(html).toContain('Health');
+    expect(html).toContain('Model switch rate');
+    expect(html).toContain('Alignment on switch');
     expect(html).toContain('healthSummary');
     expect(html).toContain('Health pending');
     expect(html).toContain("fetch('/api/governance/health'+query)");
     expect(html).toContain("const health=healthData.health || metricsData.health");
+    expect(html).toContain('metricsData.outcome || {}');
     expect(html).toContain("renderAnomalies(metricsData.anomalies || [],health)");
     expect(html).toContain('data-health-action');
     expect(html).toContain('applyHealthAction');
