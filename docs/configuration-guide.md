@@ -63,6 +63,35 @@ Router:
 - `server`：把当前进程作为远程路由服务运行，提供 service info、remote status、registration 和 UI 等服务端入口。
 - `cloud`：为云端/托管形态保留的配置语义；当前包不包含托管控制面或集群编排。
 
+服务端最小形态仍然需要一份可用的本地模型配置：
+
+```yaml
+HOST: "0.0.0.0"
+PORT: 5678
+APIKEY: "change-me"
+
+Runtime:
+  mode: "server"
+
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+
+Router:
+  default: "sonnet"
+```
+
+然后启动服务：
+
+```bash
+ctr start --daemon
+```
+
+如果配置了非本机 `HOST` 但没有配置 `APIKEY`，运行时会强制回退到 `127.0.0.1`。远程客户端访问该服务时，`Runtime.remote_service.auth_token` 应填写服务端 `APIKEY`；公网部署建议放在 HTTPS 反向代理后面。启用 `APIKEY` 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
+
 远程客户端配置是可选路径，不是默认路径。最小写法：
 
 ```yaml
@@ -71,7 +100,7 @@ Runtime:
   remote_service:
     enabled: true
     base_url: "https://router.example.com"
-    auth_token: "${CTR_REMOTE_AUTH_TOKEN}"
+    auth_token: "${CTR_REMOTE_AUTH_TOKEN}" # 对应远程服务端 APIKEY
 
 Router: {}
 ```

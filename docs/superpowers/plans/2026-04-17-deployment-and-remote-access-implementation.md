@@ -348,6 +348,7 @@ Expected: PASS.
 - `README.md` documents the setup local-vs-remote entry path, UI service-context tiles, doctor remote-service checks, and the remote status / service-info / registration endpoints.
 - `docs/configuration-guide.md` now includes `Runtime.remote_service`, service/client responsibility boundaries, doctor and UI service context behavior, and the narrow `Registration.models` / `Registration.upstream_services` contract.
 - The docs explicitly avoid claiming unsupported cluster/node orchestration and keep the local `Models + Router.default` path as the recommended default.
+- Review closure added the minimal remote `server` configuration and startup path, including the `APIKEY` requirement for non-local `HOST` binding and the client `auth_token` relationship.
 
 ### Task 9: Run focused regression suite
 

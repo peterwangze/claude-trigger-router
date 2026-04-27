@@ -33,6 +33,35 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 
 已落地的远程能力聚焦在“远程服务连接配置、状态查询和注册摘要”。它不会默认替代本地代理主路径，也不会自动启用尚未实现的集群、节点调度或托管控制面。
 
+如果要把当前机器作为远程 `server` 暴露给其他客户端，最小配置仍然是普通的 `Models + Router.default`，再加上服务端监听和鉴权：
+
+```yaml
+HOST: "0.0.0.0"
+PORT: 5678
+APIKEY: "change-me"
+
+Runtime:
+  mode: "server"
+
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+
+Router:
+  default: "sonnet"
+```
+
+启动方式：
+
+```bash
+ctr start --daemon
+```
+
+注意：如果配置了 `HOST: "0.0.0.0"` 但没有设置 `APIKEY`，运行时会为了安全强制只监听 `127.0.0.1`。远程客户端里的 `Runtime.remote_service.auth_token` 应该填写服务端的 `APIKEY`，并建议把公网入口放在 HTTPS 反向代理之后。启用 `APIKEY` 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
+
 ## 安装
 
 ```bash
@@ -317,7 +346,7 @@ Runtime:
   remote_service:
     enabled: true
     base_url: "https://router.example.com"
-    auth_token: "${CTR_REMOTE_AUTH_TOKEN}"
+    auth_token: "${CTR_REMOTE_AUTH_TOKEN}" # 对应远程服务端 APIKEY
 
 Router: {}
 ```
