@@ -95,6 +95,10 @@ export function decideSetupBranch(input: IDecideSetupBranchInput): SetupBranchDe
         ensureNoLegacyAction(legacyConfigAction);
         return { kind: 'reuse_current' };
       }
+      if (currentConfigAction === 'repair') {
+        ensureNoLegacyAction(legacyConfigAction);
+        return { kind: 'repair_current' };
+      }
       if (currentConfigAction === 'overwrite' || currentConfigAction === 'fresh') {
         return ensureLegacyFlow(detection, legacyConfigAction);
       }

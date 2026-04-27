@@ -316,8 +316,8 @@ describe('decideSetupBranch', () => {
     ).toThrow('legacy migration choice is required');
   });
 
-  it('throws when action is incompatible with a valid current config', () => {
-    expect(() =>
+  it('allows a valid current config to enter the repair branch for warning quick fixes', () => {
+    expect(
       decideSetupBranch({
         detection: createDetectionResult({
           kind: 'valid',
@@ -328,11 +328,11 @@ describe('decideSetupBranch', () => {
             Router: { default: 'openrouter,anthropic/claude-sonnet-4' },
           },
           errors: [],
-          warnings: [],
+          warnings: ['Models[0].thinking is configured, but model "restricted" disables reasoning. Runtime requests will ignore thinking.'],
         }),
         currentConfigAction: 'repair',
       })
-    ).toThrow('invalid current config action');
+    ).toEqual({ kind: 'repair_current' });
   });
 
   it('throws when legacy config read failed but user has not chosen to skip yet', () => {

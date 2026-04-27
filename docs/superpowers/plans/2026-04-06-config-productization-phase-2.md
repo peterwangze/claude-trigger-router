@@ -307,3 +307,10 @@
 - capability 提示已不再局限于单模型 first-use 路径
 - setup repair 现可围绕 capability warning 继续补全 capability 元数据，而不是只停留在只读提示
 - 当前 remaining gap 主要是更复杂 warning 仍缺少 setup 侧快捷修正模板
+
+### 阶段 2N：setup warning 快捷修正模板首轮落地
+
+- `ctr setup` 现已为 `thinking_ignored`、`tools_text_fallback`、`images_text_fallback` 提供 CLI 侧快捷修正模板
+- 对 warning-only 的现有有效配置，setup 入口现在会提供“快速修正配置提示”，不再只能直接复用或重建
+- repair 流程会优先给出与 `/ui` warning 面板一致的定向动作：移除 ignored thinking、恢复默认 tool/image capability，或显式接受 fallback
+- 当前 remaining gap 主要是继续观察更多 warning 类型，后续按同一 contract 增补模板，而不是新增分裂的 CLI 专用修复心智

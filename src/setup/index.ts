@@ -11,6 +11,7 @@ import { CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from '
 import { getProviderPreset, listProviderPresetKeys } from '../provider-presets';
 import { run } from '../index';
 import { isTcpPortOccupied, waitForService } from '../service-health';
+import { collectCapabilityWarnings } from '../models/compile';
 import { backupConfigFile, normalizeAndValidateConfig, writeConfigFile } from '../utils';
 import { buildValidationIssueReport, formatValidationIssueReport } from '../utils/validation-contract';
 import { isServiceRunning, killProcess, readServiceInfo, waitForProcessExit } from '../utils/processCheck';
@@ -404,9 +405,12 @@ function formatConfigIssues(input: { errors?: string[]; warnings?: string[] }) {
   return formatValidationIssueReport(buildValidationIssueReport(input)).join('; ');
 }
 
-function mapValidCurrentConfigChoice(choice: string): 'reuse' | 'overwrite' | 'fresh' | 'cancel' {
+function mapValidCurrentConfigChoice(choice: string): 'reuse' | 'repair' | 'overwrite' | 'fresh' | 'cancel' {
   if (choice === 'reuse' || choice === '直接使用当前配置（推荐）') {
     return 'reuse';
+  }
+  if (choice === 'repair' || choice === '快速修正配置提示') {
+    return 'repair';
   }
   if (choice === 'overwrite' || choice === '检查并调整当前配置') {
     return 'overwrite';
@@ -458,6 +462,24 @@ function applyCapabilityMetadata(model: any, metadata?: Record<string, unknown>)
   return model;
 }
 
+function ensureCapabilityMetadata(model: any) {
+  if (!model.metadata || typeof model.metadata !== 'object') {
+    model.metadata = {};
+  }
+  return model.metadata as Record<string, unknown>;
+}
+
+function removeCapabilityMetadataField(model: any, field: 'supports_tools' | 'supports_images') {
+  if (!model.metadata || typeof model.metadata !== 'object') {
+    return;
+  }
+
+  delete model.metadata[field];
+  if (!Object.keys(model.metadata).length) {
+    delete model.metadata;
+  }
+}
+
 async function promptCapabilityMetadata(io: ISetupIO, currentMetadata?: Record<string, unknown>) {
   const vendorHint = await io.input('Vendor hint（可选）', String(currentMetadata?.vendor_hint ?? ''));
   const reasoningChoice = await io.choose('Reasoning support', ['默认', '支持', '禁用']) as TCapabilityChoice;
@@ -485,6 +507,70 @@ async function promptCapabilityMetadata(io: ISetupIO, currentMetadata?: Record<s
   }
 
   return nextMetadata;
+}
+
+async function promptCapabilityWarningFixesForDraft(draft: ISetupConfigDraft, io: ISetupIO): Promise<boolean> {
+  const report = collectCapabilityWarnings(draft as any);
+  if (!report.entries.length || !draft.Models?.length) {
+    return false;
+  }
+
+  for (const entry of report.entries) {
+    const model = draft.Models.find((item) => item.id === entry.modelId);
+    if (!model) {
+      continue;
+    }
+
+    io.info(`配置提示：${entry.message}`);
+
+    if (entry.code === 'thinking_ignored') {
+      const choice = await io.choose(`如何处理模型 ${entry.modelId} 的 thinking warning？`, [
+        '移除 thinking（推荐）',
+        '标记支持 reasoning',
+        '保持当前配置',
+      ]);
+
+      if (choice === '移除 thinking（推荐）') {
+        delete model.thinking;
+      } else if (choice === '标记支持 reasoning') {
+        ensureCapabilityMetadata(model).supports_reasoning = true;
+      }
+      continue;
+    }
+
+    if (entry.code === 'tools_text_fallback') {
+      const choice = await io.choose(`如何处理模型 ${entry.modelId} 的 tool fallback？`, [
+        '恢复默认工具支持（推荐）',
+        '接受文本降级',
+        '编辑 capability',
+      ]);
+
+      if (choice === '恢复默认工具支持（推荐）') {
+        removeCapabilityMetadataField(model, 'supports_tools');
+      } else if (choice === '编辑 capability') {
+        const metadata = await promptCapabilityMetadata(io, model.metadata);
+        applyCapabilityMetadata(model, metadata);
+      }
+      continue;
+    }
+
+    if (entry.code === 'images_text_fallback') {
+      const choice = await io.choose(`如何处理模型 ${entry.modelId} 的 image fallback？`, [
+        '恢复默认图片支持（推荐）',
+        '接受文本降级',
+        '编辑 capability',
+      ]);
+
+      if (choice === '恢复默认图片支持（推荐）') {
+        removeCapabilityMetadataField(model, 'supports_images');
+      } else if (choice === '编辑 capability') {
+        const metadata = await promptCapabilityMetadata(io, model.metadata);
+        applyCapabilityMetadata(model, metadata);
+      }
+    }
+  }
+
+  return true;
 }
 
 async function promptCapabilityMetadataForDraft(draft: ISetupConfigDraft, io: ISetupIO) {
@@ -836,7 +922,10 @@ async function completeDraft(input: { draft: ISetupConfigDraft; fields: string[]
   }
 
   if (input.fields.includes('capabilityHints') && draft.Models?.[0]) {
-    await promptCapabilityMetadataForDraft(draft, input.io);
+    const fixedWarnings = await promptCapabilityWarningFixesForDraft(draft, input.io);
+    if (!fixedWarnings) {
+      await promptCapabilityMetadataForDraft(draft, input.io);
+    }
   }
 
   return draft;
@@ -886,12 +975,11 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
           if (currentConfig.warnings.length > 0) {
             deps.io.info(`当前配置提示：${formatConfigIssues({ warnings: currentConfig.warnings })}`);
           }
+          const options = currentConfig.warnings.length > 0
+            ? ['直接使用当前配置（推荐）', '快速修正配置提示', '检查并调整当前配置', '放弃当前配置，重新开始']
+            : ['直接使用当前配置（推荐）', '检查并调整当前配置', '放弃当前配置，重新开始'];
           return mapValidCurrentConfigChoice(
-            await deps.io.choose('你想直接使用它，还是重新调整？', [
-              '直接使用当前配置（推荐）',
-              '检查并调整当前配置',
-              '放弃当前配置，重新开始',
-            ])
+            await deps.io.choose('你想直接使用它，还是重新调整？', options)
           );
         }
         if (currentConfig.kind === 'invalid') {

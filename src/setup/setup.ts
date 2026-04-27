@@ -104,8 +104,8 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
   let configChanged = false;
 
   if (branch.kind === 'repair_current') {
-    if (detection.currentConfig.kind !== 'invalid') {
-      throw new Error('repair_current requires invalid current config');
+    if (detection.currentConfig.kind !== 'invalid' && detection.currentConfig.kind !== 'valid') {
+      throw new Error('repair_current requires current config');
     }
 
     const repairPlan = deps.mapConfigErrorsToRepairFields([

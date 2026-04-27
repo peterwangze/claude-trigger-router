@@ -1172,15 +1172,10 @@ describe('runSetupCli', () => {
       choose: vi
         .fn()
         .mockResolvedValueOnce('repair')
-        .mockResolvedValueOnce('编辑 capability')
-        .mockResolvedValueOnce('禁用')
-        .mockResolvedValueOnce('支持')
-        .mockResolvedValueOnce('默认')
-        .mockResolvedValueOnce('保持当前值'),
+        .mockResolvedValueOnce('移除 thinking（推荐）'),
       input: vi
         .fn()
-        .mockResolvedValueOnce('vendor/restricted')
-        .mockResolvedValueOnce('openrouter'),
+        .mockResolvedValueOnce('vendor/restricted'),
       info: vi.fn(),
     };
 
@@ -1234,15 +1229,86 @@ describe('runSetupCli', () => {
           expect.objectContaining({
             id: 'restricted',
             model: 'vendor/restricted',
+            thinking: undefined,
             metadata: {
-              vendor_hint: 'openrouter',
               supports_reasoning: false,
-              supports_tools: true,
             },
           }),
           expect.objectContaining({
             id: 'balanced',
             model: 'gpt-5-mini',
+          }),
+        ],
+      })
+    );
+    expect(enterClaudeCode).not.toHaveBeenCalled();
+  });
+
+  it('supports quick fixes for warning-only current configs during setup', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('快速修正配置提示')
+        .mockResolvedValueOnce('移除 thinking（推荐）')
+        .mockResolvedValueOnce('恢复默认工具支持（推荐）')
+        .mockResolvedValueOnce('恢复默认图片支持（推荐）'),
+      input: vi.fn(),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({
+        kind: 'found',
+        path: '/tmp/config.yaml',
+        format: 'yaml',
+        config: {
+          Models: [
+            {
+              id: 'restricted',
+              api: 'https://api.example.com/v1/chat/completions',
+              key: 'sk-test',
+              interface: 'openai',
+              model: 'vendor/text-only',
+              thinking: 'high',
+              metadata: {
+                supports_reasoning: false,
+                supports_tools: false,
+                supports_images: false,
+              },
+            },
+          ],
+          Router: {
+            default: 'restricted',
+          },
+        },
+      }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'self_healthy', port: 5678 }),
+      backupCurrentConfig: vi.fn().mockResolvedValue('/tmp/config.backup.yaml'),
+      writeConfig,
+      executeStart: vi.fn().mockResolvedValue(undefined),
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth: vi.fn().mockResolvedValue(true),
+      enterClaudeCode,
+      io,
+    });
+
+    expect(io.choose).toHaveBeenCalledWith(
+      '你想直接使用它，还是重新调整？',
+      ['直接使用当前配置（推荐）', '快速修正配置提示', '检查并调整当前配置', '放弃当前配置，重新开始']
+    );
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Models: [
+          expect.objectContaining({
+            id: 'restricted',
+            thinking: undefined,
+            metadata: {
+              supports_reasoning: false,
+            },
           }),
         ],
       })
