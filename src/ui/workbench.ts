@@ -1133,7 +1133,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    serviceRoleStatus.textContent=data.serviceRole || '-';` +
     `    const auth=data.auth || {};` +
     `    const managed=auth.managedKeys || {};` +
-    `    authStatusSummary.textContent=auth.required ? ((auth.bootstrapConfigured ? 'bootstrap' : 'managed')+' · '+(managed.active ?? 0)+' active') : 'not configured';` +
+    `    const quota=auth.quota || {};` +
+    `    const quotaText=Number.isFinite(quota.requestsUsed) ? (' · quota '+quota.requestsUsed+' req'+(quota.windowResetAt ? ' · reset '+String(quota.windowResetAt).replace('T',' ').replace('.000Z','Z') : '')) : '';` +
+    `    authStatusSummary.textContent=auth.required ? ((auth.bootstrapConfigured ? 'bootstrap' : 'managed')+' · '+(managed.active ?? 0)+' active'+quotaText) : 'not configured';` +
     `    const security=data.security || {};` +
     `    const issues=Array.isArray(security.issues) ? security.issues : [];` +
     `    securityStatusSummary.textContent=security.status || '-';` +

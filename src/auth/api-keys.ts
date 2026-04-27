@@ -39,6 +39,9 @@ export interface IAuthQuotaUsageSnapshot {
   requestsUsed: number;
   tokenLimit?: number;
   tokensUsed: number;
+  windowSeconds?: number;
+  windowStartedAt?: string;
+  windowResetAt?: string;
   estimatedTokens?: number;
 }
 
@@ -121,7 +124,7 @@ export function validateManagedApiKeyQuota(input: unknown): string[] {
   }
 
   const quota = input as Record<string, unknown>;
-  return ['request_limit', 'token_limit']
+  return ['request_limit', 'token_limit', 'window_seconds']
     .filter((field) => quota[field] !== undefined)
     .filter((field) => !Number.isInteger(quota[field]) || Number(quota[field]) <= 0)
     .map((field) => `quota.${field} must be a positive integer`);
@@ -319,14 +322,16 @@ export class AuthAuditStore {
 export const authAuditStore = new AuthAuditStore();
 
 type TQuotaDenyReason = 'request_quota_exceeded' | 'token_quota_exceeded';
+type TQuotaUsageEntry = { requests: number; tokens: number; windowStartedAt: number; windowSeconds?: number };
 
 export class AuthQuotaUsageStore {
-  private usage = new Map<string, { requests: number; tokens: number }>();
+  private usage = new Map<string, TQuotaUsageEntry>();
 
   consume(
     keyId: string | undefined,
     quota: IManagedApiKeyConfig['quota'] | undefined,
-    estimatedTokens = 0
+    estimatedTokens = 0,
+    now = new Date()
   ): { ok: true; usage?: IAuthQuotaUsageSnapshot } | { ok: false; reason: TQuotaDenyReason; usage: IAuthQuotaUsageSnapshot } {
     if (!keyId || !quota) {
       return { ok: true };
@@ -338,18 +343,33 @@ export class AuthQuotaUsageStore {
     const tokenLimit = Number.isInteger(quota.token_limit) && Number(quota.token_limit) > 0
       ? Number(quota.token_limit)
       : undefined;
+    const windowSeconds = Number.isInteger(quota.window_seconds) && Number(quota.window_seconds) > 0
+      ? Number(quota.window_seconds)
+      : undefined;
 
     if (requestLimit === undefined && tokenLimit === undefined) {
       return { ok: true };
     }
 
-    const current = this.usage.get(keyId) ?? { requests: 0, tokens: 0 };
+    const nowMs = now.getTime();
+    const existing = this.usage.get(keyId) ?? { requests: 0, tokens: 0, windowStartedAt: nowMs, windowSeconds };
+    const windowExpired = windowSeconds !== undefined && (
+      existing.windowSeconds !== windowSeconds || nowMs - existing.windowStartedAt >= windowSeconds * 1000
+    );
+    const current = windowExpired
+      ? { requests: 0, tokens: 0, windowStartedAt: nowMs, windowSeconds }
+      : { ...existing, windowSeconds };
     const tokensToAdd = Math.max(0, Math.ceil(estimatedTokens));
     const currentSnapshot = {
       requestLimit,
       requestsUsed: current.requests,
       tokenLimit,
       tokensUsed: current.tokens,
+      windowSeconds,
+      windowStartedAt: new Date(current.windowStartedAt).toISOString(),
+      windowResetAt: windowSeconds !== undefined
+        ? new Date(current.windowStartedAt + windowSeconds * 1000).toISOString()
+        : undefined,
       estimatedTokens: tokensToAdd,
     };
 
@@ -371,6 +391,8 @@ export class AuthQuotaUsageStore {
     const next = {
       requests: current.requests + 1,
       tokens: current.tokens + tokensToAdd,
+      windowStartedAt: current.windowStartedAt,
+      windowSeconds,
     };
     this.usage.set(keyId, next);
     return {
@@ -380,17 +402,43 @@ export class AuthQuotaUsageStore {
         requestsUsed: next.requests,
         tokenLimit,
         tokensUsed: next.tokens,
+        windowSeconds,
+        windowStartedAt: new Date(next.windowStartedAt).toISOString(),
+        windowResetAt: windowSeconds !== undefined
+          ? new Date(next.windowStartedAt + windowSeconds * 1000).toISOString()
+          : undefined,
         estimatedTokens: tokensToAdd,
       },
     };
   }
 
-  summary() {
-    const entries = Array.from(this.usage.entries());
+  summary(now = new Date()) {
+    const nowMs = now.getTime();
+    const entries = Array.from(this.usage.entries()).map(([key, item]) => {
+      if (item.windowSeconds !== undefined && nowMs - item.windowStartedAt >= item.windowSeconds * 1000) {
+        const reset = {
+          requests: 0,
+          tokens: 0,
+          windowStartedAt: nowMs,
+          windowSeconds: item.windowSeconds,
+        };
+        this.usage.set(key, reset);
+        return [key, reset] as const;
+      }
+      return [key, item] as const;
+    });
+    const windowResetAts = entries
+      .map(([, item]) => item.windowSeconds !== undefined
+        ? item.windowStartedAt + item.windowSeconds * 1000
+        : undefined)
+      .filter((value): value is number => value !== undefined);
     return {
       trackedKeys: entries.length,
       requestsUsed: entries.reduce((total, [, item]) => total + item.requests, 0),
       tokensUsed: entries.reduce((total, [, item]) => total + item.tokens, 0),
+      windowResetAt: windowResetAts.length > 0
+        ? new Date(Math.min(...windowResetAts)).toISOString()
+        : undefined,
     };
   }
 

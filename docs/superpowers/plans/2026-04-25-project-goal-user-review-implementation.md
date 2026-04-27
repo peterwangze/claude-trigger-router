@@ -303,10 +303,11 @@ P3-3：持续 closed 事项复审
 - P1-6 Chunk 2 复审补强：已统一启动入口、`/api/service-info`、`ctr doctor` 和 `/ui` 对 managed key 的安全口径；active managed key 可作为公网监听的启动保护，只有 revoked/expired managed key 时不再误报为“无鉴权”，而是提示没有 active key、服务会拒绝请求。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3a）：已把 managed key `quota.request_limit` / `quota.token_limit` 接入运行时执行，进程内累计请求数和估算输入 token，超过配额返回 429 并写入 auth audit；`/api/service-info` 同步返回脱敏 quota usage 摘要。运行时鉴权也开始区分 `read-only` 状态接口权限，read-only key 可访问健康/状态 GET 接口，但不能调用模型或管理配置；README 已同步配额和 read-only 使用口径。
 - P1-6 Chunk 3a 复审补强：已将 quota 计量范围收紧为模型调用请求（`POST /v1/messages` / `/v1/chat/completions`），状态查询和管理请求不再消耗模型调用配额，避免维护者查看状态或管理 key 时误触发 429。
+- P1-6 `服务端 API key 与鉴权控制面`（Chunk 3b）：已新增 managed key `quota.window_seconds` 窗口语义，运行时会在窗口过期后重置进程内请求/token 用量，并在 quota snapshot 中返回 `windowStartedAt` / `windowResetAt`；`/ui` Auth 状态摘要已露出当前模型调用 quota request 用量，README 同步窗口配额口径。
 
 下一项按优先级继续推进：
 
-- P1-6 `服务端 API key 与鉴权控制面`（Chunk 3b）：继续补 quota 持久化/窗口语义、UI 管理入口中的配额可见性，以及 admin / client / read-only 在更多维护者 API 上的精细边界。
+- P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c）：继续补 quota 持久化、UI 管理入口中的完整配额表/告警，以及 admin / client / read-only 在更多维护者 API 上的精细边界。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

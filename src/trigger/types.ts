@@ -225,6 +225,7 @@ export interface IManagedApiKeyConfig {
   quota?: {
     request_limit?: number;
     token_limit?: number;
+    window_seconds?: number;
   };
 }
 

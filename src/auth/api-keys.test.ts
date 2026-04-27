@@ -88,17 +88,79 @@ describe('managed API keys', () => {
     });
   });
 
+  it('resets managed key quota after the configured window', () => {
+    const created = createManagedApiKey({
+      scopes: ['client'],
+      quota: {
+        request_limit: 1,
+        window_seconds: 60,
+      },
+    });
+    const verification = verifyApiKey({
+      Auth: {
+        managed_keys: [created.record],
+      },
+    }, created.secret, 'client');
+    const startedAt = new Date('2026-04-28T00:00:00.000Z');
+
+    expect(authQuotaUsageStore.consume(verification.keyId, verification.quota, 10, startedAt)).toEqual({
+      ok: true,
+      usage: expect.objectContaining({
+        requestLimit: 1,
+        requestsUsed: 1,
+        windowSeconds: 60,
+        windowStartedAt: '2026-04-28T00:00:00.000Z',
+        windowResetAt: '2026-04-28T00:01:00.000Z',
+      }),
+    });
+    expect(authQuotaUsageStore.consume(
+      verification.keyId,
+      verification.quota,
+      10,
+      new Date('2026-04-28T00:00:30.000Z')
+    )).toEqual({
+      ok: false,
+      reason: 'request_quota_exceeded',
+      usage: expect.objectContaining({
+        requestsUsed: 1,
+        windowResetAt: '2026-04-28T00:01:00.000Z',
+      }),
+    });
+    expect(authQuotaUsageStore.summary(new Date('2026-04-28T00:01:01.000Z'))).toEqual({
+      trackedKeys: 1,
+      requestsUsed: 0,
+      tokensUsed: 0,
+      windowResetAt: '2026-04-28T00:02:01.000Z',
+    });
+    expect(authQuotaUsageStore.consume(
+      verification.keyId,
+      verification.quota,
+      10,
+      new Date('2026-04-28T00:01:01.000Z')
+    )).toEqual({
+      ok: true,
+      usage: expect.objectContaining({
+        requestsUsed: 1,
+        windowStartedAt: '2026-04-28T00:01:01.000Z',
+        windowResetAt: '2026-04-28T00:02:01.000Z',
+      }),
+    });
+  });
+
   it('validates managed key quota input', () => {
     expect(validateManagedApiKeyQuota({
       request_limit: 10,
       token_limit: 1000,
+      window_seconds: 3600,
     })).toEqual([]);
     expect(validateManagedApiKeyQuota({
       request_limit: 0,
       token_limit: '100',
+      window_seconds: -1,
     })).toEqual([
       'quota.request_limit must be a positive integer',
       'quota.token_limit must be a positive integer',
+      'quota.window_seconds must be a positive integer',
     ]);
   });
 
