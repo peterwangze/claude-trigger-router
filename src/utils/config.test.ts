@@ -138,6 +138,45 @@ describe('normalizeAndValidateConfig governance', () => {
     ]);
   });
 
+  it('allows duplicate Registration model ids for logical model pools', () => {
+    const result = normalizeAndValidateConfig({
+      ...baseConfig,
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'sonnet-edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'sonnet-edge-b',
+              pool_priority: 20,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.Registration?.models?.map((item) => item.id)).toEqual([
+      'sonnet',
+      'sonnet',
+    ]);
+  });
+
   it('validates registration model entries with the same minimal model contract', () => {
     const result = normalizeAndValidateConfig({
       ...baseConfig,

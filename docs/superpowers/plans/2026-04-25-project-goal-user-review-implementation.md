@@ -325,6 +325,7 @@ P3-3：持续 closed 事项复审
 - CLI / setup UX 重设计（Chunk 2）：已让 setup 完成回调拿到最终配置与服务动作结果，并按角色输出更准确的保存后 next steps；本地路径说明本地代理是 start/reuse/reload/restart 后 ready，并提示 `ctr code` 与 SmartRouter 模板，远程客户端路径只承诺当前已落地的 ready/status 检查和直连远端所需 `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_KEY`，不再误提示本地路由模板或自动进入 Claude Code。
 - CLI / setup UX 重设计 Chunk 2 复审补强：已将 setup 复用路径的服务部署安全边界从 `Runtime.mode: "server"` 扩展到 `server/cloud`，避免已有 cloud profile 被误当成本地 Claude Code 使用路径自动启动服务或输出本地 next steps。
 - P2-4 `同模型多源池化与注册调度`（Chunk 1）：已新增编译期 model pool contract，`Registration.models` 中相同 `id` 的多个 endpoint 会进入同一 logical model pool；池内先采用 `priority` 策略，并显式暴露 endpoint id、priority、enabled、activeEndpointId、upstream service 关联、capability 和 warning。`/api/models/compiled`、`/api/models/compiled/preview` 与 `/ui` compiled models 区已能展示 model pools；本轮不改变主 `Models` / `Providers` 路由解析，避免未完成 health/fallback 前影响真实请求路径。
+- P2-4 Chunk 1 复审补强：已修正配置校验层仍要求 `Registration.models[].id` 唯一的闭环裂缝；现在顶层 `Models[]` 仍保持唯一 ID 约束，但 `Registration.models` 允许多个相同 logical model id 进入同一 model pool，并补充回归测试守住真实配置保存 / preview 路径。
 
 下一项按优先级继续推进：
 

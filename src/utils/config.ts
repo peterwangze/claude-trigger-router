@@ -262,7 +262,10 @@ function validateSemanticRoutingConfig(
 function validateModelEndpointList(
   models: any[],
   prefix: string,
-  errors: string[]
+  errors: string[],
+  options: {
+    allowDuplicateIds?: boolean;
+  } = {}
 ): void {
   const ids = new Set<string>();
   models.forEach((item, index) => {
@@ -273,7 +276,7 @@ function validateModelEndpointList(
 
     if (!item.id?.trim()) {
       errors.push(`${prefix}[${index}].id is required`);
-    } else if (ids.has(item.id.trim())) {
+    } else if (!options.allowDuplicateIds && ids.has(item.id.trim())) {
       errors.push(`${prefix}[${index}].id must be unique`);
     } else {
       ids.add(item.id.trim());
@@ -500,7 +503,9 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
   if (config.Registration?.models !== undefined && !Array.isArray(config.Registration.models)) {
     errors.push('Registration.models must be an array when provided');
   } else if (Array.isArray(config.Registration?.models)) {
-    validateModelEndpointList(config.Registration.models, 'Registration.models', errors);
+    validateModelEndpointList(config.Registration.models, 'Registration.models', errors, {
+      allowDuplicateIds: true,
+    });
   }
 
   if (config.Registration?.upstream_services !== undefined && !Array.isArray(config.Registration.upstream_services)) {
