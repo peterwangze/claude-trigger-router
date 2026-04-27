@@ -94,6 +94,9 @@ export function apiKeyAuth(configInput: AuthConfigInput) {
           )
           : { ok: true as const };
         if (!quotaResult.ok) {
+          const retryAfterSeconds = quotaResult.usage.windowResetAt
+            ? Math.max(0, Math.ceil((Date.parse(quotaResult.usage.windowResetAt) - Date.now()) / 1000))
+            : undefined;
           authAuditStore.add({
             ...auditBase,
             outcome: "denied",
@@ -104,9 +107,13 @@ export function apiKeyAuth(configInput: AuthConfigInput) {
             statusCode: 429,
             quota: quotaResult.usage,
           });
+          if (retryAfterSeconds !== undefined) {
+            reply.header("Retry-After", String(retryAfterSeconds));
+          }
           reply.code(429).send({
             error: "Too Many Requests",
             reason: quotaResult.reason,
+            quota: quotaResult.usage,
           });
           done(new Error("Too Many Requests"));
           return;

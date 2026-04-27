@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authAuditStore, authQuotaUsageStore, createManagedApiKey } from '../auth/api-keys';
 import { apiKeyAuth } from './auth';
 
@@ -10,6 +10,7 @@ function runAuth(
 ) {
   const reply = {
     code: vi.fn().mockReturnThis(),
+    header: vi.fn().mockReturnThis(),
     send: vi.fn().mockReturnThis(),
   };
 
@@ -30,6 +31,10 @@ describe('apiKeyAuth', () => {
   beforeEach(() => {
     authAuditStore.clear();
     authQuotaUsageStore.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('uses the latest resolved managed key config for accept and revoke decisions', async () => {
@@ -106,10 +111,15 @@ describe('apiKeyAuth', () => {
     expect(accepted.error).toBeUndefined();
     expect(rejected.error).toBeInstanceOf(Error);
     expect(rejected.reply.code).toHaveBeenCalledWith(429);
-    expect(rejected.reply.send).toHaveBeenCalledWith({
+    expect(rejected.reply.send).toHaveBeenCalledWith(expect.objectContaining({
       error: 'Too Many Requests',
       reason: 'request_quota_exceeded',
-    });
+      quota: expect.objectContaining({
+        requestLimit: 1,
+        requestsUsed: 1,
+      }),
+    }));
+    expect(rejected.reply.header).not.toHaveBeenCalledWith('Retry-After', expect.any(String));
     expect(authAuditStore.summary()).toEqual(expect.objectContaining({
       total: 2,
       allowed: 1,
@@ -126,6 +136,45 @@ describe('apiKeyAuth', () => {
       quota: expect.objectContaining({
         requestLimit: 1,
         requestsUsed: 1,
+      }),
+    }));
+  });
+
+  it('returns window reset details when windowed quota is exhausted', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-28T00:00:00.000Z'));
+    const created = createManagedApiKey({
+      label: 'windowed client',
+      scopes: ['client'],
+      quota: {
+        request_limit: 1,
+        window_seconds: 60,
+      },
+    });
+    const middleware = apiKeyAuth({
+      Auth: {
+        managed_keys: [created.record],
+      },
+    });
+    const headers = {
+      authorization: `Bearer ${created.secret}`,
+    };
+
+    const accepted = await runAuth(middleware, headers, { messages: [{ role: 'user', content: 'one' }] });
+    const rejected = await runAuth(middleware, headers, { messages: [{ role: 'user', content: 'two' }] });
+
+    expect(accepted.error).toBeUndefined();
+    expect(rejected.error).toBeInstanceOf(Error);
+    expect(rejected.reply.code).toHaveBeenCalledWith(429);
+    expect(rejected.reply.header).toHaveBeenCalledWith('Retry-After', '60');
+    expect(rejected.reply.send).toHaveBeenCalledWith(expect.objectContaining({
+      error: 'Too Many Requests',
+      reason: 'request_quota_exceeded',
+      quota: expect.objectContaining({
+        requestLimit: 1,
+        requestsUsed: 1,
+        windowSeconds: 60,
+        windowResetAt: '2026-04-28T00:01:00.000Z',
       }),
     }));
   });
