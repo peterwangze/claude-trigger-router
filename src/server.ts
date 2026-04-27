@@ -158,8 +158,6 @@ function buildServiceInfo(rawConfig: any) {
       label: key.label,
       scopes: key.scopes,
       active: key.active,
-      keyPrefix: key.keyPrefix,
-      keySuffix: key.keySuffix,
       quota: key.quota,
       usage,
       status: !usage

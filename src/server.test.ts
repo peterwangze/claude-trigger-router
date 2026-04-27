@@ -221,8 +221,6 @@ describe('createServer /api/config', () => {
           label: 'limited remote client',
           scopes: ['client'],
           active: true,
-          keyPrefix: created.record.key_prefix,
-          keySuffix: created.record.key_suffix,
           status: 'ok',
           quota: {
             request_limit: 2,
@@ -239,6 +237,8 @@ describe('createServer /api/config', () => {
     }));
     expect(JSON.stringify(result)).not.toContain(created.secret);
     expect(JSON.stringify(result)).not.toContain(created.record.key_hash);
+    expect(JSON.stringify(result)).not.toContain(created.record.key_prefix);
+    expect(JSON.stringify(result)).not.toContain(created.record.key_suffix);
   });
 
   it('reports inactive managed key records as auth-required but degraded', async () => {

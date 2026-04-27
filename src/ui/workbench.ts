@@ -565,7 +565,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  authQuotaTableBody.innerHTML=keys.map(item=>{` +
     `    const usage=item.usage || {};` +
     `    const quotaCfg=item.quota || {};` +
-    `    const keyName=esc(item.label || item.id || '-')+'<div class="muted"><code>'+esc((item.keyPrefix || '')+'...'+(item.keySuffix || ''))+'</code></div>';` +
+    `    const keyName=esc(item.label || item.id || '-')+'<div class="muted"><code>'+esc(item.id || '-')+'</code></div>';` +
     `    const statusClass=item.status === 'exhausted' ? 'critical' : (item.status === 'watch' ? 'warn' : 'info');` +
     `    const windowText=quotaCfg.window_seconds ? (esc(quotaCfg.window_seconds)+'s'+(usage.windowResetAt ? '<div class="muted">reset '+esc(String(usage.windowResetAt).replace('T',' ').replace('.000Z','Z'))+'</div>' : '<div class="muted">not started</div>')) : '-';` +
     `    return '<tr><td>'+keyName+'</td><td>'+esc((item.scopes || []).join(', ') || '-')+'</td><td><span class="pill '+statusClass+'">'+esc(item.status || '-')+'</span></td><td>'+esc(limitText(usage.requestsUsed,usage.requestLimit))+'</td><td>'+esc(limitText(usage.tokensUsed,usage.tokenLimit))+'</td><td>'+windowText+'</td></tr>';` +
