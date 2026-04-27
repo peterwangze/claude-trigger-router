@@ -295,6 +295,7 @@ export function buildGovernanceHealthSummary(input: {
   const anomalies = input.anomalies ?? [];
   const criticalCount = anomalies.filter((item) => item.severity === 'critical').length;
   const warnCount = anomalies.filter((item) => item.severity === 'warn').length;
+  const alertCount = anomalies.length;
 
   if (metrics.totalTraces === 0) {
     return {
@@ -322,15 +323,16 @@ export function buildGovernanceHealthSummary(input: {
     : warnCount > 0
       ? 'watch'
       : 'healthy';
+  const alertVerb = alertCount === 1 ? 'needs' : 'need';
   const message = status === 'healthy'
     ? `Healthy over ${metrics.totalTraces} traces.`
-    : `${criticalCount > 0 ? criticalCount : warnCount} governance alert${(criticalCount > 0 ? criticalCount : warnCount) === 1 ? '' : 's'} need attention.`;
+    : `${alertCount} governance alert${alertCount === 1 ? '' : 's'} ${alertVerb} attention (${criticalCount} critical / ${warnCount} warning${warnCount === 1 ? '' : 's'}).`;
 
   return {
     status,
     message,
     sampleSize: metrics.totalTraces,
-    alertCount: anomalies.length,
+    alertCount,
     warnCount,
     criticalCount,
     signals: {

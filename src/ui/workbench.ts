@@ -411,6 +411,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<li><code>GET /api/governance/archives</code> — 查看治理归档列表</li>` +
     `<li><code>GET /api/governance/archives/:file</code> — 查看归档内 traces</li>` +
     `<li><code>POST /api/governance/archives/:file/delete</code> — 删除指定归档</li>` +
+    `<li><code>GET /api/governance/health</code> — 查看治理健康摘要</li>` +
     `<li><code>POST /api/governance/metrics/snapshots</code> — 生成一次治理指标快照</li>` +
     `<li><code>POST /api/governance/metrics/schedules</code> — 注册定时快照任务</li>` +
     `</ul>` +

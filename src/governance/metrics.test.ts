@@ -252,6 +252,7 @@ describe('summarizeGovernanceMetrics', () => {
     expect(report.anomalies[0].severity).toBe('warn');
     expect(report.health).toEqual(expect.objectContaining({
       status: 'watch',
+      message: '5 governance alerts need attention (0 critical / 5 warnings).',
       sampleSize: 4,
       alertCount: 5,
       warnCount: 5,

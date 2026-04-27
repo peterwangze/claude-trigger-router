@@ -1226,6 +1226,7 @@ describe('createServer /api/config', () => {
     expect(result.anomalies.map((item: any) => item.type)).toContain('latency_high');
     expect(result.health).toEqual(expect.objectContaining({
       status: 'critical',
+      message: '5 governance alerts need attention (1 critical / 4 warnings).',
       sampleSize: 3,
       alertCount: 5,
       warnCount: 4,
@@ -1271,6 +1272,7 @@ describe('createServer /api/config', () => {
 
     expect(result.health).toEqual(expect.objectContaining({
       status: 'watch',
+      message: '4 governance alerts need attention (0 critical / 4 warnings).',
       sampleSize: 2,
       alertCount: 4,
       warnCount: 4,
@@ -1798,6 +1800,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('archivePageSize');
     expect(html).toContain('metricsGrid');
     expect(html).toContain('Health');
+    expect(html).toContain('查看治理健康摘要');
     expect(html).toContain('anomalyList');
     expect(html).toContain('minSampleSize');
     expect(html).toContain('cascadeWarnRate');
