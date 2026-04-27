@@ -93,6 +93,7 @@
 
 - `release:stage` 能生成 `.release-stage`
 - wrapper 能指向隔离 `.release-home`
+- staged wrapper 启动后的服务能返回 `/ui` HTML 与 `GET /api/governance/health`
 - wrapper 下可执行：
   - `--help`
   - `version`
@@ -117,6 +118,7 @@
 - Windows 终端输出中不出现异常控制字符、乱码占位符、不可见污染
 - daemon / restart / stale pid 这类“人工最容易踩坑”的状态场景可被提前拦住
 - `release:stage` 产物本身可作为手工验收入口使用
+- staged 包路径会直接 smoke `/ui` 和 `/api/governance/health`，避免维护者工作台只在源码测试中可用
 
 ## 4. 当前发布门禁
 
@@ -134,6 +136,7 @@ npm run release:verify
 
 - `release:verify` 已包含 `test:e2e:cli`
 - `release:verify` 已包含 `test:e2e:acceptance`
+- `test:e2e:acceptance` 已包含 release-stage wrapper 的 `/ui` HTML 与治理健康 API smoke
 
 ## 5. 仍建议保留的人工验收重点
 

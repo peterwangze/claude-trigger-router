@@ -293,10 +293,11 @@ P3-3：持续 closed 事项复审
 - P2-3 `治理观测运营化`（Chunk 2）：已将 Health 摘要接入日常维护路径，`/ui` 维护者工作台展示健康状态、说明和 action；README 与 configuration guide 说明 `idle / healthy / watch / critical` 语义和 `/api/governance/health`；`docs/cli-test-matrix.md` 将 Health 摘要纳入 UI / 服务状态看护口径。
 - P2-3 Chunk 2 复审补强：已修正 `/ui` 只从 `/api/governance/metrics` 读取 `health`、但文档和测试矩阵宣称 Health 来源为 `/api/governance/health` 的契约偏差；现在维护者工作台会实际请求 `/api/governance/health`，并以 metrics 内嵌 `health` 作为兜底。
 - P2-3 `治理观测运营化`（Chunk 3）：已让 Health action 联动 trace 过滤，cascade action 会筛选 `cascadeTriggered=true`，shadow action 会筛选 `shadowChecked=true`，其他 action 回到近期 trace；README、configuration guide 和 CLI test matrix 已同步该维护者排查路径，UI HTML 渲染测试守住 action 按钮和过滤联动。
+- P2-3 `治理观测运营化`（Chunk 4a）：已把维护者工作台纳入 release-stage wrapper 验收链路，打包安装后的 staged 服务会直接 smoke `/ui` HTML 与 `GET /api/governance/health`，覆盖健康摘要占位、Health action 交互脚本入口和 idle 健康 API 结构，避免该路径只停留在源码级 HTML 测试。
 
 下一项按优先级继续推进：
 
-- P2-3 `治理观测运营化` Chunk 4：继续补真实浏览器 smoke 和发布门禁切片，确保维护者工作台在打包/浏览器路径下可用。
+- P3-1 `coverage 口径扩展`：在不显著拖慢发布门禁的前提下，将 coverage 从早期 trigger 目录扩展到 setup / config / models / protocols / governance 的核心模块；真实浏览器 DOM 交互 smoke 作为后续 UI 看护增强项继续保留。
 
 ## 七、关联文件
 

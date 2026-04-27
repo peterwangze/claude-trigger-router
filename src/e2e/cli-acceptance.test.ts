@@ -63,6 +63,30 @@ async function getFreePort(): Promise<number> {
   }
 }
 
+async function fetchTextWithRetry(url: string, attempts = 20): Promise<{ status: number; text: string; contentType: string }> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(url);
+      const text = await response.text();
+      if (response.status === 200) {
+        return {
+          status: response.status,
+          text,
+          contentType: response.headers.get('content-type') ?? '',
+        };
+      }
+      lastError = new Error(`Unexpected status ${response.status} from ${url}: ${text.slice(0, 120)}`);
+    } catch (error) {
+      lastError = error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(`Failed to fetch ${url}`);
+}
+
 describe('isolated packaged CLI acceptance', () => {
   beforeAll(async () => {
     sharedEnv = await createTestEnvironment('ctr-packaged-acceptance-');
@@ -675,6 +699,22 @@ describe('isolated packaged CLI acceptance', () => {
       expect(statusResult.code).toBe(0);
       expect(statusResult.stdout).toContain('服务运行中');
       expect(statusResult.stdout).toContain(String(port));
+
+      const uiPage = await fetchTextWithRetry(`http://127.0.0.1:${port}/ui`);
+      expect(uiPage.contentType).toContain('text/html');
+      expect(uiPage.text).toContain('配置与状态工作台');
+      expect(uiPage.text).toContain('维护者工作台');
+      expect(uiPage.text).toContain('/api/governance/health');
+      expect(uiPage.text).toContain('id="healthSummary"');
+      expect(uiPage.text).toContain('data-health-action');
+      expect(uiPage.text).toContain('applyHealthAction');
+
+      const healthResponse = await fetchTextWithRetry(`http://127.0.0.1:${port}/api/governance/health`);
+      expect(healthResponse.contentType).toContain('application/json');
+      const healthPayload = JSON.parse(healthResponse.text);
+      expect(healthPayload.health.status).toBe('idle');
+      expect(Array.isArray(healthPayload.health.actions)).toBe(true);
+      expect(Array.isArray(healthPayload.anomalies)).toBe(true);
 
       const stopResult = await runCommandInShell(toWrapperCommand('stop'), env, {
         cwd: repoRoot,
