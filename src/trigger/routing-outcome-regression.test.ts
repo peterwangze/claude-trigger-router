@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { decideCascadeEscalation, detectFailureEvidence } from '../governance/cascade-gate';
 import { summarizeRoutingOutcomes } from '../governance/metrics';
+import { applyResponseGovernance } from '../governance/response-governance';
 import { sessionStateStore } from '../governance/session-store';
-import { createGovernanceTrace } from '../governance/trace';
+import { createGovernanceTrace, governanceTraceStore } from '../governance/trace';
 import { IGovernanceTrace } from '../governance/types';
 import { TriggerRouter } from './index';
 import { smartRouterSelector } from './smart-router';
@@ -142,52 +142,19 @@ function finishRouteTrace(req: IRequestContext, result: IAnalysisResult, latency
   return trace;
 }
 
-function createCascadeTrace(config: IAppConfig): IGovernanceTrace {
-  const evidences = detectFailureEvidence(
-    {
-      content: [
-        {
-          text: 'Build failed with a TypeScript error. Test failed with AssertionError. TODO left in implementation.',
-        },
-      ],
-    },
-    config.Governance?.cascade
-  );
-  const decision = decideCascadeEscalation(SONNET, evidences, config.Governance?.cascade, 0);
-
-  expect(evidences.map((item) => item.type)).toEqual([
-    'compile_failure',
-    'test_failure',
-    'placeholder_pattern',
-  ]);
-  expect(decision).toMatchObject({
-    shouldEscalate: true,
-    nextModel: OPUS,
-  });
-
-  return createGovernanceTrace({
-    requestId: 'synthetic-cascade',
-    initialModel: SONNET,
-    finalModel: decision.nextModel,
-    routeReason: ['smart_router', 'cascade_gate'],
-    cascadeTriggered: true,
-    cascadeEvidence: evidences.map((item) => item.type),
-    cascadeNextModel: decision.nextModel,
-    latencyMs: 240,
-  });
-}
-
 describe('routing outcome synthetic regression', () => {
   let router: TriggerRouter;
 
   beforeEach(() => {
     router = new TriggerRouter();
     sessionStateStore.clear();
+    governanceTraceStore.clear();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     sessionStateStore.clear();
+    governanceTraceStore.clear();
   });
 
   it('covers rule, semantic, SmartRouter, sticky and cascade outcomes with fixed tasks', async () => {
@@ -210,11 +177,13 @@ describe('routing outcome synthetic regression', () => {
     const semanticReq = createRequest('请帮我重构系统结构并拆分核心模块', 'synthetic-semantic');
     const smartReq = createRequest('帮我选择适合这个长上下文任务的模型', 'synthetic-smart');
     const stickyReq = createRequest('继续修复登录逻辑', 'synthetic-sticky', 'sticky-session');
+    const cascadeReq = createRequest('长上下文任务生成后请验证失败并自动升级', 'synthetic-cascade');
 
     const ruleResult = await router.route(ruleReq);
     const semanticResult = await router.route(semanticReq);
     const smartResult = await router.route(smartReq);
     const stickyResult = await router.route(stickyReq);
+    const cascadeRouteResult = await router.route(cascadeReq);
 
     expect(ruleResult).toMatchObject({
       matched: true,
@@ -238,14 +207,72 @@ describe('routing outcome synthetic regression', () => {
       model: HAIKU,
       routeSource: 'sticky_correction',
     });
+    expect(cascadeRouteResult).toMatchObject({
+      matched: true,
+      model: SONNET,
+      routeSource: 'smart_router',
+    });
     expect(smartSpy).toHaveBeenCalled();
+
+    cascadeReq.body.model = cascadeRouteResult.model!;
+    cascadeReq.triggerResult = cascadeRouteResult;
+    const cascadeRetryInputs: Array<{
+      model?: string;
+      nextModel: string;
+      port: number;
+      apiKey?: string;
+      timeoutMs?: number;
+    }> = [];
+    const cascadeRetry = vi.fn(async (body: any, nextModel: string, port: number, apiKey?: string, timeoutMs?: number) => {
+      cascadeRetryInputs.push({ model: body?.model, nextModel, port, apiKey, timeoutMs });
+      return {
+        content: [{ text: 'rescued output from stronger model' }],
+      };
+    });
+    await applyResponseGovernance({
+      req: cascadeReq,
+      payload: {
+        content: [
+          {
+            text: 'Build failed with a TypeScript error. Test failed with AssertionError. TODO left in implementation.',
+          },
+        ],
+      },
+      config,
+      servicePort: 5678,
+      deps: {
+        executeCascadeRetry: cascadeRetry,
+      },
+    });
+
+    const cascadeTrace = cascadeReq.governanceTrace!;
+    cascadeTrace.latencyMs = 240;
+    expect(cascadeReq.body.model).toBe(OPUS);
+    expect(cascadeRetryInputs).toEqual([
+      {
+        model: SONNET,
+        nextModel: OPUS,
+        port: 5678,
+        apiKey: undefined,
+        timeoutMs: undefined,
+      },
+    ]);
+    expect(cascadeTrace).toMatchObject({
+      finalModel: OPUS,
+      cascadeTriggered: true,
+      cascadeNextModel: OPUS,
+      cascadeEvidence: ['compile_failure', 'test_failure', 'placeholder_pattern'],
+    });
+    expect(cascadeTrace.routeReason).toEqual(
+      expect.arrayContaining(['smart_router', 'cascade_gate', 'cascade_retry_executed'])
+    );
 
     const traces = [
       finishRouteTrace(ruleReq, ruleResult, 80),
       finishRouteTrace(semanticReq, semanticResult, 160),
       finishRouteTrace(smartReq, smartResult, 120),
       finishRouteTrace(stickyReq, stickyResult, 90),
-      createCascadeTrace(config),
+      cascadeTrace,
     ];
     const outcome = summarizeRoutingOutcomes(traces);
 
@@ -266,6 +293,7 @@ describe('routing outcome synthetic regression', () => {
       smart_router: 180,
       sticky_correction: 90,
       cascade_gate: 240,
+      cascade_retry_executed: 240,
     });
     expect(outcome.byRouteReason).toEqual(
       expect.arrayContaining([
@@ -287,9 +315,10 @@ describe('routing outcome synthetic regression', () => {
           averageLatencyMs: 180,
         }),
         expect.objectContaining({
-          key: 'sticky_correction',
+          key: 'cascade_retry_executed',
           totalTraces: 1,
           modelSwitchRate: 1,
+          cascadeAfterSwitchRate: 1,
         }),
       ])
     );
