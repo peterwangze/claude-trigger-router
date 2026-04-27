@@ -20,8 +20,18 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - **SmartRouter**：先用显式规则命中高确定性任务，也可以在规则未命中时让路由模型从候选模型中自动选择。
 - **Governance 观测**：记录 trace、metrics、异常摘要，帮助你理解路由选择和运行状态。
 - **doctor 诊断**：检查配置、服务可启动性、模型兼容策略和可选模型探测。
-- **UI 工作台**：`ctr ui` 打开本地页面，查看配置草稿、compiled models、capability warnings、治理 trace 和 metrics。
+- **UI 工作台**：`ctr ui` 打开本地页面，查看服务上下文、远程状态、配置草稿、compiled models、capability warnings、治理 trace 和 metrics。
 - **远程状态基础**：可配置 `Runtime.remote_service`，通过 `/api/remote-status` 查看远程服务健康、compiled model 摘要和治理告警摘要。默认用户不需要配置远程模式。
+
+## 部署模式与边界
+
+当前配置里可以用 `Runtime.mode` 表达部署心智：
+
+- `local`：默认模式。你的机器上运行一个本地 `ctr` 服务，Claude Code 通过本地代理访问上游模型。
+- `server`：把 `ctr` 作为远程路由服务运行。它暴露 `/api/service-info`、`/api/remote-status`、`/api/registration`、`/ui` 等服务端状态和管理入口。
+- `cloud`：保留给托管/云端形态的配置语义；当前 npm 包仍按自托管进程运行，不包含托管控制面或集群编排。
+
+已落地的远程能力聚焦在“远程服务连接配置、状态查询和注册摘要”。它不会默认替代本地代理主路径，也不会自动启用尚未实现的集群、节点调度或托管控制面。
 
 ## 安装
 
@@ -48,19 +58,23 @@ ctr setup
 
 - 复用已有 `~/.claude-trigger-router/config.yaml`
 - 探测并迁移旧 `claude-code-router` 配置
-- 在没有可用配置时创建最小可用配置
-- 引导填写默认模型 ID、接口地址、API Key 和模型名
-- 可选追加复杂任务模型，并生成 SmartRouter 起步模板
+- 在没有可用配置时询问“本地使用”还是“连接远程服务”
+- 本地使用时创建最小可用配置
+- 连接远程服务时写入 `Runtime.remote_service`，不要求你先填写本地 provider/model
+- 本地使用时，引导填写默认模型 ID、接口地址、API Key 和模型名
+- 本地使用时，可选追加复杂任务模型，并生成 SmartRouter 起步模板
 - 保存配置后启动本地服务
 
-完成后按这个顺序使用：
+本地使用路径完成后按这个顺序使用：
 
 ```bash
 ctr status
 ctr code
 ```
 
-`ctr code` 会带着本地代理环境启动 Claude Code。之后你在 Claude Code 里的请求会经过 Trigger Router。
+`ctr code` 会带着本地代理环境启动 Claude Code。之后你在 Claude Code 里的请求会经过本地 Trigger Router。
+
+如果 setup 选择的是“连接远程服务”，当前主要用于生成远程服务连接配置并检查远程状态；首次日常使用仍建议先跑通本地 `Models + Router.default` 主路径。
 
 ## 手动配置
 
@@ -250,6 +264,13 @@ http://127.0.0.1:5678/ui
 - **使用者工作台**：查看和编辑配置草稿、模型、路由、compiled preview 和保存结果。
 - **维护者工作台**：查看 Governance trace、metrics、异常阈值、快照和归档。
 
+首屏状态区会显示：
+
+- 本地服务 ready 状态、端口、模型数和 `Router.default`
+- `Runtime.mode` 与当前服务角色
+- 远程服务状态摘要
+- Registration 模型和上游服务摘要
+
 如果服务没有启动，`ctr ui` 会提示先运行：
 
 ```bash
@@ -276,17 +297,19 @@ ctr doctor
 - 缺失字段和低风险结构问题
 - 配置是否能通过本地校验
 - 服务是否可启动
+- 当前服务上下文：`local` / `server` / `cloud`
+- 如果启用了 `Runtime.remote_service`，会单独检查远程服务可达和 ready 状态
 - 模型兼容策略和请求编译方式
 - capability hint 可能触发的运行时降级
 - 在你确认后，对模型发送最小探测请求
 
-模型探测会消耗少量额度，所以 doctor 会先征求确认。
+模型探测会消耗少量额度，所以 doctor 会先征求确认。如果当前是远程客户端配置且没有本地 `Models`，doctor 会跳过本地模型探测。
 
 ## 远程服务状态
 
 默认情况下，你只需要本地模式，不需要配置远程服务。
 
-如果你已经有一个远程 Trigger Router 服务，可以在本地配置远程目标：
+如果你已经有一个远程 Trigger Router 服务，可以通过 `ctr setup` 选择“连接远程服务”，或手动配置远程目标：
 
 ```yaml
 Runtime:
@@ -305,7 +328,15 @@ Router: {}
 GET /api/remote-status
 ```
 
-这条能力当前作为远程接入基础 contract 提供；首次使用仍建议从本地 `ctr setup -> ctr start -> ctr code` 开始。
+相关服务端状态接口：
+
+```text
+GET /api/service-info
+GET /api/remote-status
+GET /api/registration
+```
+
+这条能力当前作为远程接入基础 contract 提供，用于服务发现、状态检查和注册摘要；它不表示已经自动把 Claude Code 请求转发到远端。首次使用仍建议从本地 `ctr setup -> ctr start -> ctr code` 开始。
 
 ## 常用命令
 

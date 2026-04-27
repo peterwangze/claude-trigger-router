@@ -322,7 +322,7 @@ Expected: PASS.
 - Modify: `README.md`
 - Modify: `docs/configuration-guide.md`
 
-- [ ] **Step 1: Write the doc checklist**
+- [x] **Step 1: Write the doc checklist**
 
 Checklist:
 - local / server / cloud meanings are explicit
@@ -330,17 +330,24 @@ Checklist:
 - service/client responsibilities are described without inventing unsupported features
 - `/ui` and setup references mention local vs remote context
 
-- [ ] **Step 2: Verify current docs fail the checklist**
+- [x] **Step 2: Verify current docs fail the checklist**
 
 Read the affected sections and confirm gaps.
 
-- [ ] **Step 3: Write minimal documentation updates**
+- [x] **Step 3: Write minimal documentation updates**
 
 Update only the behavior that has landed.
 
-- [ ] **Step 4: Verify docs against checklist**
+- [x] **Step 4: Verify docs against checklist**
 
 Expected: PASS.
+
+2026-04-27 closure note:
+
+- `README.md` now explains `local / server / cloud` as deployment modes, with `local` as the default and `cloud` documented only as reserved configuration semantics, not a shipped hosted control plane.
+- `README.md` documents the setup local-vs-remote entry path, UI service-context tiles, doctor remote-service checks, and the remote status / service-info / registration endpoints.
+- `docs/configuration-guide.md` now includes `Runtime.remote_service`, service/client responsibility boundaries, doctor and UI service context behavior, and the narrow `Registration.models` / `Registration.upstream_services` contract.
+- The docs explicitly avoid claiming unsupported cluster/node orchestration and keep the local `Models + Router.default` path as the recommended default.
 
 ### Task 9: Run focused regression suite
 
@@ -351,7 +358,7 @@ Expected: PASS.
 - Test: `src/doctor/index.test.ts`
 - Test: `src/cli-run.test.ts`
 
-- [ ] **Step 1: Run focused tests**
+- [x] **Step 1: Run focused tests**
 
 Run:
 
@@ -361,14 +368,20 @@ npm test -- src/utils/config.test.ts src/server.test.ts src/setup/index.test.ts 
 
 Expected: PASS.
 
-- [ ] **Step 2: Run build verification**
+- [x] **Step 2: Run build verification**
 
 Run: `npm run build`
 Expected: PASS.
 
-- [ ] **Step 3: Review final diffs before handoff**
+- [x] **Step 3: Review final diffs before handoff**
 
 Expected:
 - no accidental split runtime
 - no unsupported cluster semantics
 - local path remains default and intact
+
+2026-04-27 closure note:
+
+- Focused regression passed: `npm test -- --run src/utils/config.test.ts src/server.test.ts src/setup/index.test.ts src/doctor/index.test.ts src/cli-run.test.ts`.
+- Build verification passed: `npm run build`.
+- Final diff review confirmed the Task 8 documentation changes stay within `README.md`, `docs/configuration-guide.md`, and this plan, with no runtime split or unsupported cluster semantics introduced.
