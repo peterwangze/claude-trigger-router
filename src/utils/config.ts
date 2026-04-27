@@ -387,6 +387,35 @@ function validateManagedApiKeys(keys: any[], errors: string[]): void {
   });
 }
 
+function validateAuthQuotaUsage(usage: unknown, errors: string[]): void {
+  if (usage === undefined) {
+    return;
+  }
+  if (!usage || typeof usage !== 'object' || Array.isArray(usage)) {
+    errors.push('Auth.quota_usage must be an object when provided');
+    return;
+  }
+
+  Object.entries(usage as Record<string, any>).forEach(([keyId, item]) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      errors.push(`Auth.quota_usage.${keyId} must be an object`);
+      return;
+    }
+    if (!Number.isInteger(item.requests) || item.requests < 0) {
+      errors.push(`Auth.quota_usage.${keyId}.requests must be a non-negative integer`);
+    }
+    if (!Number.isInteger(item.tokens) || item.tokens < 0) {
+      errors.push(`Auth.quota_usage.${keyId}.tokens must be a non-negative integer`);
+    }
+    if (!item.window_started_at || typeof item.window_started_at !== 'string' || Number.isNaN(Date.parse(item.window_started_at))) {
+      errors.push(`Auth.quota_usage.${keyId}.window_started_at must be an ISO date string`);
+    }
+    if (item.window_seconds !== undefined && (!Number.isInteger(item.window_seconds) || item.window_seconds <= 0)) {
+      errors.push(`Auth.quota_usage.${keyId}.window_seconds must be a positive integer when provided`);
+    }
+  });
+}
+
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
@@ -485,6 +514,7 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
   } else if (Array.isArray(config.Auth?.managed_keys)) {
     validateManagedApiKeys(config.Auth.managed_keys, errors);
   }
+  validateAuthQuotaUsage(config.Auth?.quota_usage, errors);
 
   // Provider/model 交叉引用校验（仅在 Providers 列表有效时执行）
   const validProviders = config.Providers?.filter(p => p.name && p.models?.length) ?? [];

@@ -60,7 +60,7 @@ Router:
 ctr start --daemon
 ```
 
-注意：如果配置了 `HOST: "0.0.0.0"` 但没有设置 `APIKEY` 或 active managed key，运行时会为了安全强制只监听 `127.0.0.1`。`APIKEY` 现在定位为 bootstrap/admin key；服务端启动后可以用它调用 `POST /api/auth/keys` 生成 managed client key，再把生成的一次性 secret 填到远程客户端的 `Runtime.remote_service.auth_token`。managed key 支持 `admin` / `client` / `read-only` scope、过期时间、撤销和可选 `quota.request_limit` / `quota.token_limit` / `quota.window_seconds`；运行时会按进程内当前窗口的模型调用用量拒绝超额请求，并写入鉴权审计，窗口配额超限时 429 会返回 `quota.windowResetAt` 和 `Retry-After`。状态查询和管理请求不会消耗模型调用配额。`read-only` key 只适合读取健康和状态接口，不能调用模型或管理配置。列表接口只返回前后缀，不回显 secret。`GET /api/service-info` 会返回脱敏的 `auth` / `security` 摘要和按 key 汇总的 quota 用量；`/ui` 维护者工作台也会显示 Auth quota 表，便于定位哪把 managed key 接近或耗尽配额。`GET /api/auth/audit` 可用 admin key 查看最近鉴权允许/拒绝记录。公网入口仍建议放在 HTTPS 反向代理之后。启用 `APIKEY` 或 managed key 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
+注意：如果配置了 `HOST: "0.0.0.0"` 但没有设置 `APIKEY` 或 active managed key，运行时会为了安全强制只监听 `127.0.0.1`。`APIKEY` 现在定位为 bootstrap/admin key；服务端启动后可以用它调用 `POST /api/auth/keys` 生成 managed client key，再把生成的一次性 secret 填到远程客户端的 `Runtime.remote_service.auth_token`。managed key 支持 `admin` / `client` / `read-only` scope、过期时间、撤销和可选 `quota.request_limit` / `quota.token_limit` / `quota.window_seconds`；运行时会按模型调用用量拒绝超额请求，并把 quota usage 持久化到 `.claude-trigger-router/auth-quota-usage.json`，服务重启后仍会延续计数。窗口配额超限时 429 会返回 `quota.windowResetAt` 和 `Retry-After`。状态查询和管理请求不会消耗模型调用配额。`read-only` key 只适合读取健康和状态接口，不能调用模型或管理配置。列表接口只返回前后缀，不回显 secret。`GET /api/service-info` 会返回脱敏的 `auth` / `security` 摘要和按 key 汇总的 quota 用量；`/ui` 维护者工作台也会显示 Auth quota 表，便于定位哪把 managed key 接近或耗尽配额。`GET /api/auth/audit` 可用 admin key 查看最近鉴权允许/拒绝记录。公网入口仍建议放在 HTTPS 反向代理之后。启用 `APIKEY` 或 managed key 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
 
 ## 安装
 

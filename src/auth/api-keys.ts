@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
-import type { IAppConfig, IManagedApiKeyConfig, TManagedApiKeyScope } from '../trigger/types';
+import type { IAppConfig, IAuthConfig, IManagedApiKeyConfig, TManagedApiKeyScope } from '../trigger/types';
 
 export type TApiKeyRequirement = TManagedApiKeyScope;
 
@@ -326,6 +326,58 @@ type TQuotaUsageEntry = { requests: number; tokens: number; windowStartedAt: num
 
 export class AuthQuotaUsageStore {
   private usage = new Map<string, TQuotaUsageEntry>();
+
+  hydrate(input: IAuthConfig['quota_usage'] | undefined): void {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      return;
+    }
+
+    Object.entries(input).forEach(([keyId, item]) => {
+      if (!item || typeof item !== 'object') {
+        return;
+      }
+      const requests = Number(item.requests);
+      const tokens = Number(item.tokens);
+      const windowStartedAt = Date.parse(item.window_started_at);
+      const windowSeconds = Number(item.window_seconds);
+      if (!keyId || !Number.isFinite(requests) || requests < 0 || !Number.isFinite(tokens) || tokens < 0 || !Number.isFinite(windowStartedAt)) {
+        return;
+      }
+
+      const existing = this.usage.get(keyId);
+      if (
+        existing &&
+        existing.windowStartedAt === windowStartedAt &&
+        existing.requests >= requests &&
+        existing.tokens >= tokens
+      ) {
+        return;
+      }
+
+      this.usage.set(keyId, {
+        requests: Math.floor(requests),
+        tokens: Math.floor(tokens),
+        windowStartedAt,
+        windowSeconds: Number.isInteger(windowSeconds) && windowSeconds > 0 ? windowSeconds : undefined,
+      });
+    });
+  }
+
+  exportForConfig(now = new Date()): NonNullable<IAuthConfig['quota_usage']> {
+    const nowMs = now.getTime();
+    return Object.fromEntries(
+      Array.from(this.usage.entries()).map(([keyId, item]) => [
+        keyId,
+        {
+          requests: item.requests,
+          tokens: item.tokens,
+          window_started_at: new Date(item.windowStartedAt).toISOString(),
+          ...(item.windowSeconds !== undefined ? { window_seconds: item.windowSeconds } : {}),
+          updated_at: new Date(nowMs).toISOString(),
+        },
+      ])
+    );
+  }
 
   private resolveLimits(quota: IManagedApiKeyConfig['quota'] | undefined) {
     const requestLimit = Number.isInteger(quota?.request_limit) && Number(quota?.request_limit) > 0

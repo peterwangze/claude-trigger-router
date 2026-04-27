@@ -147,6 +147,43 @@ describe('managed API keys', () => {
     });
   });
 
+  it('hydrates and exports managed key quota usage for restart persistence', () => {
+    const created = createManagedApiKey({
+      scopes: ['client'],
+      quota: {
+        request_limit: 5,
+        window_seconds: 3600,
+      },
+    });
+    authQuotaUsageStore.hydrate({
+      [created.record.id]: {
+        requests: 2,
+        tokens: 40,
+        window_started_at: '2026-04-28T00:00:00.000Z',
+        window_seconds: 3600,
+      },
+    });
+
+    expect(authQuotaUsageStore.snapshotForKey(created.record.id, created.record.quota)).toEqual(expect.objectContaining({
+      requestLimit: 5,
+      requestsUsed: 2,
+      tokensUsed: 40,
+      windowSeconds: 3600,
+      windowStartedAt: '2026-04-28T00:00:00.000Z',
+      windowResetAt: '2026-04-28T01:00:00.000Z',
+    }));
+
+    expect(authQuotaUsageStore.exportForConfig(new Date('2026-04-28T00:05:00.000Z'))).toEqual({
+      [created.record.id]: {
+        requests: 2,
+        tokens: 40,
+        window_started_at: '2026-04-28T00:00:00.000Z',
+        window_seconds: 3600,
+        updated_at: '2026-04-28T00:05:00.000Z',
+      },
+    });
+  });
+
   it('validates managed key quota input', () => {
     expect(validateManagedApiKeyQuota({
       request_limit: 10,

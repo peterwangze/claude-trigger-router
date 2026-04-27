@@ -231,6 +231,13 @@ export interface IManagedApiKeyConfig {
 
 export interface IAuthConfig {
   managed_keys?: IManagedApiKeyConfig[];
+  quota_usage?: Record<string, {
+    requests: number;
+    tokens: number;
+    window_started_at: string;
+    window_seconds?: number;
+    updated_at?: string;
+  }>;
 }
 
 /**

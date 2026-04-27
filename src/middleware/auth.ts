@@ -5,10 +5,13 @@
  */
 
 import { FastifyRequest, FastifyReply } from "fastify";
-import { IAppConfig, TManagedApiKeyScope } from "../trigger/types";
+import { IAppConfig, IAuthConfig, TManagedApiKeyScope } from "../trigger/types";
 import { authAuditStore, authQuotaUsageStore, extractApiKeyFromHeaders, verifyApiKey } from "../auth/api-keys";
 
 type AuthConfigInput = Partial<IAppConfig> | (() => Partial<IAppConfig> | Promise<Partial<IAppConfig>>);
+type AuthMiddlewareOptions = {
+  persistQuotaUsage?: (usage: NonNullable<IAuthConfig['quota_usage']>) => void | Promise<void>;
+};
 
 function estimateRequestTokens(body: unknown): number {
   if (body === undefined || body === null) {
@@ -44,10 +47,11 @@ function isQuotaMeteredRequest(req: FastifyRequest): boolean {
 /**
  * API Key 认证中间件
  */
-export function apiKeyAuth(configInput: AuthConfigInput) {
+export function apiKeyAuth(configInput: AuthConfigInput, options: AuthMiddlewareOptions = {}) {
   return (req: FastifyRequest, reply: FastifyReply, done: (err?: Error) => void) => {
     Promise.resolve(typeof configInput === "function" ? configInput() : configInput)
-      .then((config) => {
+      .then(async (config) => {
+        authQuotaUsageStore.hydrate(config.Auth?.quota_usage);
         const required = authRequirementForRequest(req);
         const auditBase = {
           required,
@@ -128,6 +132,9 @@ export function apiKeyAuth(configInput: AuthConfigInput) {
           statusCode: 200,
           quota: quotaResult.usage,
         });
+        if (quotaResult.usage && options.persistQuotaUsage) {
+          await options.persistQuotaUsage(authQuotaUsageStore.exportForConfig());
+        }
         done();
       })
       .catch((error) => {

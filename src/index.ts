@@ -12,7 +12,8 @@ import { initConfig, initDir, readConfigFile } from "./utils";
 import { createServer } from "./server";
 import { router } from "./router";
 import { apiKeyAuth } from "./middleware/auth";
-import { managedApiKeySummary } from "./auth/api-keys";
+import { authQuotaUsageStore, managedApiKeySummary } from "./auth/api-keys";
+import { loadPersistedAuthQuotaUsage, savePersistedAuthQuotaUsage } from "./auth/quota-persistence";
 import {
   cleanupPidFile,
   isServiceRunning,
@@ -101,6 +102,12 @@ async function run(options: RunOptions = {}) {
   await initDir();
 
   const config = await initConfig();
+  authQuotaUsageStore.hydrate(config.Auth?.quota_usage);
+  try {
+    authQuotaUsageStore.hydrate(await loadPersistedAuthQuotaUsage());
+  } catch (error) {
+    logWarn(`[AuthQuota] Failed to load persisted quota usage: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   // 配置日志
   configureLogging(config);
@@ -188,6 +195,14 @@ async function run(options: RunOptions = {}) {
       logWarn(`[Auth] Failed to refresh auth config, using startup auth config: ${error instanceof Error ? error.message : String(error)}`);
       return config;
     }
+  }, {
+    persistQuotaUsage: async (usage) => {
+      try {
+        await savePersistedAuthQuotaUsage(usage);
+      } catch (error) {
+        logWarn(`[AuthQuota] Failed to persist quota usage: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
   });
 
   // 认证中间件
