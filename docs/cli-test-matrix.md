@@ -65,6 +65,7 @@
 ### 部署入口
 
 - `deploy init --target server --force` 会生成带随机 bootstrap `APIKEY`、`HOST: 0.0.0.0`、`Runtime.mode: server`、`Models` 和 `Router.default` 的自托管 server 起步配置
+- `deploy init --target server` 在已有配置时不会覆盖文件，会提示显式追加 `--force`
 - deploy 入口不会自动启动服务；后续仍要求维护者运行 `ctr doctor` 和 `ctr start --daemon`
 
 ### UI / 服务状态

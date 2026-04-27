@@ -118,7 +118,7 @@ Claude Trigger Router - 智能触发路由器
   setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置
   doctor      诊断并修复当前配置，按需探测模型可用性
   init        初始化最小配置模板
-  deploy      生成 server/cloud 部署入口配置（当前支持 deploy init --target server）
+  deploy      生成部署入口配置（当前支持 deploy init --target server）
   start       启动路由服务（默认前台运行）
   stop        停止后台服务
   restart     重启后台服务
@@ -132,7 +132,7 @@ Claude Trigger Router - 智能触发路由器
 选项：
   --port, -p    指定监听端口（默认：5678）
   --daemon, -d  以后台方式运行（配合 start/restart 使用）
-  --force       强制覆盖已有配置（配合 init 使用）
+  --force       强制覆盖已有配置（配合 init/deploy init 使用）
 
 使用示例：
   ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置

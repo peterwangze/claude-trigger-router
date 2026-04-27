@@ -119,7 +119,8 @@ describe('runClaudeCode', () => {
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
     expect(output).toContain('setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置');
     expect(output).toContain('doctor      诊断并修复当前配置，按需探测模型可用性');
-    expect(output).toContain('deploy      生成 server/cloud 部署入口配置');
+    expect(output).toContain('deploy      生成部署入口配置');
+    expect(output).toContain('--force       强制覆盖已有配置（配合 init/deploy init 使用）');
     expect(output).toContain('version     查看当前安装版本与包信息');
     expect(output).toContain('upgrade     查看升级到最新 npm 版本的指引');
     expect(output).toContain('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置');
@@ -264,6 +265,23 @@ describe('runClaudeCode', () => {
     expect(written).toContain('mode: server');
     expect(written).toContain('default: sonnet');
     expect(written).toMatch(/APIKEY: ctr_bootstrap_[a-f0-9]{48}/);
+
+    logSpy.mockRestore();
+  });
+
+  it('does not overwrite an existing config during deploy init without --force', async () => {
+    process.argv = ['node', 'cli.ts', 'deploy', 'init', '--target', 'server'];
+    mockExistsSync.mockImplementation((filePath: string) => String(filePath).endsWith('config.yaml'));
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('配置文件已存在');
+    expect(output).toContain('如需覆盖部署模板，请使用 --force 参数');
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
+    expect(mockMkdirSync).not.toHaveBeenCalled();
 
     logSpy.mockRestore();
   });

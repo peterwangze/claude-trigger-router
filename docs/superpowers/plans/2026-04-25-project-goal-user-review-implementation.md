@@ -314,6 +314,7 @@ P3-3：持续 closed 事项复审
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-d）：已在 `/ui` 维护者工作台新增 Auth scope guide，明确 admin、client、read-only 与 `client + read-only` 的适用场景；`ctr doctor` 同步输出 scope 指引与远程 token 发放建议，降低服务使用者误用 admin key 或用纯 client key 做状态探测的概率。
 - P1-6 Chunk 3c-d 复审补强：已将 UI/doctor 的 scope 说明补成可操作指引，直接列出 admin key 可调用的 `GET /api/auth/keys`、`POST /api/auth/keys`、`POST /api/auth/keys/:id/revoke`，并提示 generated secret 只返回一次，避免维护者知道 scope 但不知道如何正确发放/吊销 key。
 - P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 1）：已新增 `ctr deploy init --target server`，生成带随机 bootstrap `APIKEY`、`HOST: 0.0.0.0`、`Runtime.mode: server`、日志、可编辑 `Models` 与 `Router.default` 的自托管 server 起步配置；命令默认不覆盖已有配置、不自动启动服务，并提示维护者先跑 `ctr doctor`、再 `ctr start --daemon`，之后通过 managed `client + read-only` key 给远程客户端使用。
+- P1-7 Chunk 1 复审补强：已修正 CLI 帮助中 `--force` 只标注给 `init` 的文案偏差，并补充 deploy init 在已有配置且未显式 `--force` 时不会写文件的回归测试，守住“部署模板不误覆盖现有配置”的安全承诺。
 
 下一项按优先级继续推进：
 
