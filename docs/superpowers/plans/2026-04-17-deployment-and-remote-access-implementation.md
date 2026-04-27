@@ -307,6 +307,7 @@ Expected: PASS.
 
 - `doctor` now prints the normalized service context (`Runtime.mode` plus local agent / router service role) before model probing.
 - When `Runtime.remote_service.enabled` is set, `doctor` probes the configured remote service through the existing service-info contract and reports reachable / ready state separately from the local service health check.
+- For remote-client configs without local `Models`, `doctor` now skips the local model probe prompt instead of asking the user to probe `0` models.
 - `/ui` first screen now renders service mode, service role, remote service summary and registration summary alongside the existing ready / port / model / default-router status tiles.
 - The UI refresh action now uses `/api/service-info` and `/api/remote-status`, so the displayed context stays aligned with the existing runtime and remote-status API contracts.
 - Targeted verification used: `npm test -- --run src/doctor/index.test.ts src/server.test.ts`.

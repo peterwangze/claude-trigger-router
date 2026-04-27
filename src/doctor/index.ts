@@ -737,9 +737,15 @@ export async function runDoctorCli(customDeps?: Partial<IDoctorDeps>): Promise<v
 
     await ensureServiceUsable(normalized.config, deps, configChanged);
 
+    const modelCount = normalized.config.Models?.length ?? 0;
+    if (modelCount === 0) {
+      deps.io.info('已跳过模型探测：当前配置没有本地模型。配置和服务诊断已完成。');
+      return;
+    }
+
     const shouldProbeModels = hasArg('--check-models')
-      ? await deps.io.confirm(`即将向 ${normalized.config.Models?.length ?? 0} 个模型发送最小探测请求，可能消耗少量额度，是否继续？`, true)
-      : await deps.io.confirm(`是否继续探测 ${normalized.config.Models?.length ?? 0} 个模型的可用性？这会消耗少量额度。`, false);
+      ? await deps.io.confirm(`即将向 ${modelCount} 个模型发送最小探测请求，可能消耗少量额度，是否继续？`, true)
+      : await deps.io.confirm(`是否继续探测 ${modelCount} 个模型的可用性？这会消耗少量额度。`, false);
 
     if (!shouldProbeModels) {
       deps.io.info('已跳过模型探测。配置和服务诊断已完成。');
