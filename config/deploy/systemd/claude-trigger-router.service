@@ -1,0 +1,33 @@
+# Claude Trigger Router self-hosted server unit.
+# Copy to /etc/systemd/system/claude-trigger-router.service, then edit User,
+# WorkingDirectory, Environment, and ExecStart paths for your host.
+#
+# Prepare the service user's config first:
+#   sudo -u ctr env HOME=/var/lib/claude-trigger-router ctr deploy init --target server
+#
+# The generated config must keep APIKEY or an active managed key before
+# exposing HOST: 0.0.0.0.
+[Unit]
+Description=Claude Trigger Router
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ctr
+Group=ctr
+WorkingDirectory=/var/lib/claude-trigger-router
+Environment=HOME=/var/lib/claude-trigger-router
+Environment=USERPROFILE=/var/lib/claude-trigger-router
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env ctr start --port 5678
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+ReadWritePaths=/var/lib/claude-trigger-router
+
+[Install]
+WantedBy=multi-user.target

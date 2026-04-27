@@ -126,6 +126,64 @@ set "USERPROFILE=$escapedHome"
   return $releaseConfigFile
 }
 
+function New-ReleaseServerProfile {
+  if (-not (Test-Path -LiteralPath $releaseServerHome)) {
+    New-Item -ItemType Directory -Path $releaseServerHome -Force | Out-Null
+  }
+
+  if ($IsWindows) {
+    $serverWrapperCmd = Join-Path $stagePrefix "ctr-release-server-home.cmd"
+    $serverWrapperPs1 = Join-Path $stagePrefix "ctr-release-server-home.ps1"
+    $escapedHome = $releaseServerHome.Replace('"', '""')
+    $escapedCli = $stageCliPath.Replace('"', '""')
+    Set-Content -LiteralPath $serverWrapperCmd -Value @"
+@echo off
+set "HOME=$escapedHome"
+set "USERPROFILE=$escapedHome"
+"$escapedCli" %*
+"@
+    Set-Content -LiteralPath $serverWrapperPs1 -Value @"
+`$env:HOME = '$releaseServerHome'
+`$env:USERPROFILE = '$releaseServerHome'
+& '$stageCliPath' @args
+"@
+    Invoke-CommandChecked {
+      & $serverWrapperCmd deploy init --target server --force
+    } "Staged server profile generation failed"
+    $serverWrapper = $serverWrapperCmd
+  } else {
+    $serverWrapperSh = Join-Path $stagePrefix "ctr-release-server-home.sh"
+    $wrapperShContent = "#!/usr/bin/env sh`n" +
+      "HOME='$releaseServerHome'`n" +
+      "USERPROFILE='$releaseServerHome'`n" +
+      "export HOME`n" +
+      "export USERPROFILE`n" +
+      "exec '$stageCliPath' `"`$@`"`n"
+    $wrapperShContent = $wrapperShContent -replace "`r`n", "`n"
+    [System.IO.File]::WriteAllText(
+      $serverWrapperSh,
+      $wrapperShContent,
+      (New-Object System.Text.UTF8Encoding($false))
+    )
+    & chmod +x $serverWrapperSh
+    Invoke-CommandChecked {
+      & $serverWrapperSh deploy init --target server --force
+    } "Staged server profile generation failed"
+    $serverWrapper = $serverWrapperSh
+  }
+
+  $serverConfigFile = Join-Path $releaseServerHome ".claude-trigger-router\config.yaml"
+  if (-not (Test-Path -LiteralPath $serverConfigFile)) {
+    throw "Staged server config was not created: $serverConfigFile"
+  }
+
+  return [pscustomobject]@{
+    Home = $releaseServerHome
+    ConfigFile = $serverConfigFile
+    Wrapper = $serverWrapper
+  }
+}
+
 function New-ReleaseMigrationSample {
   $legacyConfigDir = Join-Path $releaseHome ".claude-code-router"
   $legacyConfigFile = Join-Path $legacyConfigDir "config.json"
@@ -272,6 +330,10 @@ function Invoke-ReleaseStage {
     if (Test-Path -LiteralPath $releaseHome) {
       Remove-Item -LiteralPath $releaseHome -Recurse -Force
     }
+
+    if (Test-Path -LiteralPath $releaseServerHome) {
+      Remove-Item -LiteralPath $releaseServerHome -Recurse -Force
+    }
   }
 
   Invoke-Step "Build dist bundle" {
@@ -308,6 +370,7 @@ function Invoke-ReleaseStage {
   }
 
   $releaseConfigFile = New-ReleaseTestConfig
+  $releaseServerProfile = New-ReleaseServerProfile
   $legacyConfigFile = New-ReleaseMigrationSample
   $script:keepArtifacts = $true
 
@@ -317,6 +380,8 @@ function Invoke-ReleaseStage {
   Write-Host "CLI path: $stageCliPath"
   Write-Host "Isolated HOME: $releaseHome"
   Write-Host "Test config: $releaseConfigFile"
+  Write-Host "Server profile HOME: $($releaseServerProfile.Home)"
+  Write-Host "Server profile config: $($releaseServerProfile.ConfigFile)"
   Write-Host "Legacy CCR sample: $legacyConfigFile"
   Write-Host ""
   Write-Host "Example commands:" -ForegroundColor Cyan
@@ -329,6 +394,7 @@ function Invoke-ReleaseStage {
     Write-Host "  `"$wrapperCmd`" ui"
     Write-Host "  `"$wrapperCmd`" stop"
     Write-Host "  `"$wrapperCmd`" init --force"
+    Write-Host "  `"$($releaseServerProfile.Wrapper)`" deploy init --target server --force"
     Write-Host "  `"$wrapperCmd`" start --port $Port"
     Write-Host ""
     Write-Host "Before running start/setup, edit the staged test config if needed:" -ForegroundColor Yellow
@@ -344,6 +410,7 @@ function Invoke-ReleaseStage {
     Write-Host "  `"$wrapperSh`" ui"
     Write-Host "  `"$wrapperSh`" stop"
     Write-Host "  `"$wrapperSh`" init --force"
+    Write-Host "  `"$($releaseServerProfile.Wrapper)`" deploy init --target server --force"
     Write-Host "  `"$wrapperSh`" start --port $Port"
   }
   Write-Host ""
@@ -373,6 +440,10 @@ function Invoke-ReleaseStage {
      notepad "$legacyConfigFile"
      & "$wrapperCmd" setup
      notepad "$migrationTargetConfigFile"
+
+  6) Server deployment profile:
+     notepad "$($releaseServerProfile.ConfigFile)"
+     & "$($releaseServerProfile.Wrapper)" doctor
 "@
   } else {
     $wrapperSh = Join-Path $stagePrefix "ctr-release-home.sh"
@@ -400,6 +471,10 @@ function Invoke-ReleaseStage {
      ${EDITOR:-vi} "$legacyConfigFile"
      "$wrapperSh" setup
      ${EDITOR:-vi} "$migrationTargetConfigFile"
+
+  6) Server deployment profile:
+     ${EDITOR:-vi} "$($releaseServerProfile.ConfigFile)"
+     "$($releaseServerProfile.Wrapper)" doctor
 "@
   }
   Write-Host ""
@@ -426,6 +501,13 @@ function Invoke-ReleaseClean {
     Write-Host "Removed staged HOME/config: $releaseHome" -ForegroundColor Green
   } else {
     Write-Host "No staged HOME/config found at: $releaseHome" -ForegroundColor Yellow
+  }
+
+  if (Test-Path -LiteralPath $releaseServerHome) {
+    Remove-Item -LiteralPath $releaseServerHome -Recurse -Force
+    Write-Host "Removed staged server HOME/config: $releaseServerHome" -ForegroundColor Green
+  } else {
+    Write-Host "No staged server HOME/config found at: $releaseServerHome" -ForegroundColor Yellow
   }
 
   if (Test-Path -LiteralPath $tarballGlobPath) {
@@ -467,6 +549,7 @@ Set-Location -LiteralPath $repoRoot
 $tempPrefix = Join-Path $repoRoot ".tmp-npm-global"
 $stagePrefix = Join-Path $repoRoot ".release-stage"
 $releaseHome = Join-Path $repoRoot ".release-home"
+$releaseServerHome = Join-Path $repoRoot ".release-server-home"
 $tarballGlobPath = Join-Path $repoRoot "*.tgz"
 $packageFile = $null
 $keepArtifacts = $false

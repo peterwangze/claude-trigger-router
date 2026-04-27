@@ -95,6 +95,7 @@ npm run release:stage
 
 - 把当前版本打包并安装到仓库内的隔离目录 `.release-stage`
 - 准备一个隔离的测试 HOME 目录 `.release-home`，并自动生成测试配置
+- 准备一个独立的 server profile HOME 目录 `.release-server-home`，并通过 staged wrapper 执行 `deploy init --target server --force`
 - 在同一个 `.release-home` 下同时放入 `claude-code-router` legacy 配置样本，保证迁移验证走主流程 HOME
 
 这样你在手动验证时不会污染自己真实的 `~/.claude-trigger-router` 配置。
@@ -120,6 +121,7 @@ Windows 下脚本会额外生成一个包装命令 `.release-stage\ctr-release-h
 ".release-stage\\ctr-release-home.cmd" ui
 ".release-stage\\ctr-release-home.cmd" stop
 ".release-stage\\ctr-release-home.cmd" init --force
+".release-stage\\ctr-release-server-home.cmd" deploy init --target server --force
 ".release-stage\\ctr-release-home.cmd" start --port 5678
 ```
 
@@ -138,6 +140,20 @@ Windows 下脚本会额外生成一个包装命令 `.release-stage\ctr-release-h
 - `start`
 - `status`
 - `stop`
+
+如果你还想额外验证 server 部署入口，`release:stage` 会生成：
+
+```bash
+.release-server-home\.claude-trigger-router\config.yaml
+```
+
+Windows 下可以继续使用：
+
+```bash
+".release-stage\\ctr-release-server-home.cmd" doctor
+```
+
+该 profile 与普通 staged HOME 隔离，避免 server 模板覆盖本地用户主路径测试配置。
 
 对于本次 `claude-code-router` 配置迁移这种高频通用能力，`release:stage` 现在也会默认在同一个主流程 HOME 中准备 legacy 配置样本。Windows 下可直接继续使用同一个 wrapper：
 

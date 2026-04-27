@@ -100,6 +100,8 @@
 
 - `release:stage` 能生成 `.release-stage`
 - wrapper 能指向隔离 `.release-home`
+- `release:stage` 会额外生成 `.release-server-home` server profile，并通过 staged wrapper 执行 `deploy init --target server --force`
+- npm 包随附 `config/deploy/docker-compose.server.yaml` 与 `config/deploy/systemd/claude-trigger-router.service`
 - staged wrapper 启动后的服务能返回 `/ui` HTML 与 `GET /api/governance/health`
 - wrapper 下可执行：
   - `--help`

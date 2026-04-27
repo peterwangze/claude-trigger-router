@@ -315,10 +315,11 @@ P3-3：持续 closed 事项复审
 - P1-6 Chunk 3c-d 复审补强：已将 UI/doctor 的 scope 说明补成可操作指引，直接列出 admin key 可调用的 `GET /api/auth/keys`、`POST /api/auth/keys`、`POST /api/auth/keys/:id/revoke`，并提示 generated secret 只返回一次，避免维护者知道 scope 但不知道如何正确发放/吊销 key。
 - P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 1）：已新增 `ctr deploy init --target server`，生成带随机 bootstrap `APIKEY`、`HOST: 0.0.0.0`、`Runtime.mode: server`、日志、可编辑 `Models` 与 `Router.default` 的自托管 server 起步配置；命令默认不覆盖已有配置、不自动启动服务，并提示维护者先跑 `ctr doctor`、再 `ctr start --daemon`，之后通过 managed `client + read-only` key 给远程客户端使用。
 - P1-7 Chunk 1 复审补强：已修正 CLI 帮助中 `--force` 只标注给 `init` 的文案偏差，并补充 deploy init 在已有配置且未显式 `--force` 时不会写文件的回归测试，守住“部署模板不误覆盖现有配置”的安全承诺。
+- P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 2）：已在 npm 包随附 `config/deploy/docker-compose.server.yaml`、`config/deploy/systemd/claude-trigger-router.service` 与部署模板 README；`release:stage` 现在会准备独立 `.release-server-home` 并用 staged wrapper 执行 `deploy init --target server --force`，让维护者在发布前能验收 server profile，而不会覆盖普通 staged 用户配置。
 
 下一项按优先级继续推进：
 
-- P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 2）：继续补 systemd / Docker Compose / release-stage server profile 等可复制部署载体，并把维护者与远程使用者手册进一步拆分。
+- P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 3）：把维护者与远程使用者手册进一步拆分，并继续让 `ctr status / doctor / ui` 在 server/cloud 模式下显示更明确的角色、监听地址、认证状态和远程客户端连接说明。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

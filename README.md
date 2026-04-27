@@ -41,6 +41,13 @@ ctr deploy init --target server
 
 该命令会写入 `HOST: "0.0.0.0"`、随机 bootstrap `APIKEY`、`Runtime.mode: "server"`、日志开关、健康检查所需端口和一份可编辑的 `Models + Router.default` 起步模板。它不会覆盖已有配置；如需重建模板，显式追加 `--force`。
 
+npm 包也随附可复制部署模板：
+
+- `config/deploy/docker-compose.server.yaml`
+- `config/deploy/systemd/claude-trigger-router.service`
+
+这些模板仍以 `ctr deploy init --target server` 生成的配置为起点。首次暴露给其他机器前，请先确认 `APIKEY` 或 active managed key 存在，并优先放在 HTTPS 反向代理或内网之后。
+
 生成后确认或调整的最小结构如下：
 
 ```yaml
