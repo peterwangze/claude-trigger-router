@@ -320,4 +320,91 @@ describe('apiKeyAuth', () => {
       }),
     ]);
   });
+
+  it('enforces admin, client, and read-only boundaries for management APIs', async () => {
+    const readOnlyKey = createManagedApiKey({
+      label: 'status viewer',
+      scopes: ['read-only'],
+    });
+    const clientKey = createManagedApiKey({
+      label: 'model client',
+      scopes: ['client'],
+    });
+    const adminKey = createManagedApiKey({
+      label: 'service admin',
+      scopes: ['admin'],
+    });
+    const middleware = apiKeyAuth({
+      Auth: {
+        managed_keys: [readOnlyKey.record, clientKey.record, adminKey.record],
+      },
+    });
+
+    const readOnlyHeaders = { authorization: `Bearer ${readOnlyKey.secret}` };
+    const clientHeaders = { authorization: `Bearer ${clientKey.secret}` };
+    const adminHeaders = { authorization: `Bearer ${adminKey.secret}` };
+
+    await expect(runAuth(middleware, readOnlyHeaders, undefined, {
+      method: 'GET',
+      url: '/api/governance/health',
+    })).resolves.toEqual(expect.objectContaining({
+      error: undefined,
+    }));
+    await expect(runAuth(middleware, readOnlyHeaders, undefined, {
+      method: 'GET',
+      url: '/api/governance/traces/trace-1',
+    })).resolves.toEqual(expect.objectContaining({
+      error: undefined,
+    }));
+
+    const readOnlyConfig = await runAuth(middleware, readOnlyHeaders, undefined, {
+      method: 'GET',
+      url: '/api/config',
+    });
+    const clientConfig = await runAuth(middleware, clientHeaders, undefined, {
+      method: 'POST',
+      url: '/api/config',
+    });
+    const clientRestart = await runAuth(middleware, clientHeaders, undefined, {
+      method: 'POST',
+      url: '/api/restart',
+    });
+    const adminConfig = await runAuth(middleware, adminHeaders, undefined, {
+      method: 'GET',
+      url: '/api/config',
+    });
+    const clientModelCall = await runAuth(middleware, clientHeaders, {
+      messages: [{ role: 'user', content: 'hello' }],
+    }, {
+      method: 'POST',
+      url: '/v1/messages',
+    });
+
+    expect(readOnlyConfig.error).toBeInstanceOf(Error);
+    expect(readOnlyConfig.reply.code).toHaveBeenCalledWith(403);
+    expect(clientConfig.error).toBeInstanceOf(Error);
+    expect(clientConfig.reply.code).toHaveBeenCalledWith(403);
+    expect(clientRestart.error).toBeInstanceOf(Error);
+    expect(clientRestart.reply.code).toHaveBeenCalledWith(403);
+    expect(adminConfig.error).toBeUndefined();
+    expect(clientModelCall.error).toBeUndefined();
+    expect(authAuditStore.list(7)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        outcome: 'denied',
+        required: 'admin',
+        path: '/api/config',
+        reason: 'insufficient_scope',
+      }),
+      expect.objectContaining({
+        outcome: 'allowed',
+        required: 'read-only',
+        path: '/api/governance/health',
+      }),
+      expect.objectContaining({
+        outcome: 'allowed',
+        required: 'client',
+        path: '/v1/messages',
+      }),
+    ]));
+  });
 });

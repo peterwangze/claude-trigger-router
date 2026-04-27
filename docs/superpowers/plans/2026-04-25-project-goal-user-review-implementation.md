@@ -309,10 +309,11 @@ P3-3：持续 closed 事项复审
 - P1-6 Chunk 3c-a 复审补强：已移除 `/api/service-info` quota 明细中的 `keyPrefix/keySuffix`，避免 read-only 状态接口扩大 managed key 片段暴露面；完整 key 前后缀仍只保留在 admin-only `GET /api/auth/keys`。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-b）：已新增 managed key quota usage 持久化切片，启动时会从配置兼容字段与本地状态文件 hydrate 用量，模型调用成功后导出并写回 `.claude-trigger-router/auth-quota-usage.json`；配额用量不再只存在于进程内存，服务重启后仍能延续 request/token/window 计数。
 - P1-6 Chunk 3c-b 复审补强：已将 quota usage 持久化从模型调用关键路径中移出，磁盘写入失败不再导致已通过鉴权的模型请求失败；状态文件写入改为串行队列 + 临时文件 rename，避免并发请求下旧快照覆盖新快照或写出半文件。
+- P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-c）：已收紧运行时全局权限矩阵，`client` key 只覆盖模型调用，`read-only` key 覆盖健康、服务状态、compiled models、transformers 和 governance 观测 GET 接口，配置读取/保存、`/ui`、重启、auth 管理和治理写操作需要 `admin`；README 与中间件回归测试同步 scope 语义。
 
 下一项按优先级继续推进：
 
-- P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-c）：继续补 admin / client / read-only 在更多维护者 API 上的精细边界。
+- P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-d）：继续补 UI/CLI 对 admin、client、read-only scope 的可见提示与操作引导，降低远程服务使用者误用管理 key 的概率。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

@@ -30,9 +30,32 @@ function authRequirementForRequest(req: FastifyRequest): TManagedApiKeyScope {
     '/api/remote-status',
     '/api/registration',
     '/api/models/compiled',
+    '/api/transformers',
+    '/api/governance/health',
+    '/api/governance/metrics',
+    '/api/governance/metrics/export',
+    '/api/governance/metrics/exports',
+  ]);
+  const modelCallPaths = new Set([
+    '/v1/messages',
+    '/v1/chat/completions',
   ]);
 
-  return method === 'GET' && readOnlyPaths.has(path) ? 'read-only' : 'client';
+  if (method === 'GET' && (
+    readOnlyPaths.has(path) ||
+    path === '/api/governance/traces' ||
+    path.startsWith('/api/governance/traces/') ||
+    path === '/api/governance/archives' ||
+    path.startsWith('/api/governance/archives/')
+  )) {
+    return 'read-only';
+  }
+
+  if (modelCallPaths.has(path)) {
+    return 'client';
+  }
+
+  return path.startsWith('/api/') || path === '/ui' ? 'admin' : 'client';
 }
 
 function isQuotaMeteredRequest(req: FastifyRequest): boolean {
