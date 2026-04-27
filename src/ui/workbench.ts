@@ -312,6 +312,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="stat"><span class="muted">Cascade rate</span><strong>-</strong></div>` +
     `<div class="stat"><span class="muted">Shadow rate</span><strong>-</strong></div>` +
     `<div class="stat"><span class="muted">Alignment rate</span><strong>-</strong></div>` +
+    `<div class="stat"><span class="muted">Model switch rate</span><strong>-</strong></div>` +
+    `<div class="stat"><span class="muted">Alignment on switch</span><strong>-</strong></div>` +
     `<div class="stat"><span class="muted">Avg latency</span><strong>-</strong></div>` +
     `</div>` +
     `<div class="subpanel">` +
@@ -352,6 +354,18 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="panel" style="margin-bottom:0">` +
     `<div class="row"><strong>Intent ranking</strong><span class="muted">近期语义意图 Top 5</span></div>` +
     `<ul id="intentRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="panel" style="margin-bottom:0">` +
+    `<div class="row"><strong>Outcome by route</strong><span class="muted">切换率与延迟</span></div>` +
+    `<ul id="routeOutcomeRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="panel" style="margin-bottom:0">` +
+    `<div class="row"><strong>Outcome by model</strong><span class="muted">最终模型表现</span></div>` +
+    `<ul id="modelOutcomeRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="panel" style="margin-bottom:0">` +
+    `<div class="row"><strong>Outcome by intent</strong><span class="muted">任务意图表现</span></div>` +
+    `<ul id="intentOutcomeRanking" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
     `<div class="panel" style="margin-bottom:0">` +
     `<div class="row"><strong>Trend detail</strong><span class="muted">每个 bucket 的详细命中率</span></div>` +
@@ -479,6 +493,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const routeRanking=document.getElementById('routeRanking');` +
     `const modelRanking=document.getElementById('modelRanking');` +
     `const intentRanking=document.getElementById('intentRanking');` +
+    `const routeOutcomeRanking=document.getElementById('routeOutcomeRanking');` +
+    `const modelOutcomeRanking=document.getElementById('modelOutcomeRanking');` +
+    `const intentOutcomeRanking=document.getElementById('intentOutcomeRanking');` +
     `const healthSummary=document.getElementById('healthSummary');` +
     `const anomalyList=document.getElementById('anomalyList');` +
     `const saveThresholdsStatus=document.getElementById('saveThresholdsStatus');` +
@@ -1208,6 +1225,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(!entries || !entries.length){ target.innerHTML='<li><span class="muted">'+esc(emptyLabel)+'</span><strong>0</strong></li>'; return; }` +
     `  target.innerHTML=entries.map(item=>'<li><span><code>'+esc(item.key)+'</code></span><strong>'+esc(item.count)+' · '+esc(pct(item.rate))+'</strong></li>').join('');` +
     `}` +
+    `function renderOutcomeGroups(target,entries,emptyLabel){` +
+    `  if(!entries || !entries.length){ target.innerHTML='<li><span class="muted">'+esc(emptyLabel)+'</span><strong>0</strong></li>'; return; }` +
+    `  target.innerHTML=entries.map(item=>'<li><span><code>'+esc(item.key)+'</code><span class="muted"> · '+esc(item.totalTraces)+' traces</span></span><strong>'+esc(pct(item.modelSwitchRate))+' · '+esc(fmt(item.averageLatencyMs))+' ms</strong></li>').join('');` +
+    `}` +
     `function renderAnomalies(anomalies,health){` +
     `  const status=health?.status || 'idle';` +
     `  const message=health?.message || 'No governance traces yet.';` +
@@ -1314,6 +1335,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +
     `  renderRanking(modelRanking,metricsData.topFinalModels || [],'No models');` +
     `  renderRanking(intentRanking,metricsData.topSemanticIntents || [],'No intents');` +
+    `  renderOutcomeGroups(routeOutcomeRanking,metricsData.outcome?.byRouteReason || [],'No route outcomes');` +
+    `  renderOutcomeGroups(modelOutcomeRanking,metricsData.outcome?.byFinalModel || [],'No model outcomes');` +
+    `  renderOutcomeGroups(intentOutcomeRanking,metricsData.outcome?.bySemanticIntent || [],'No intent outcomes');` +
     `  renderTrendTable(metricsData || {});` +
     `  const traces=data.traces || [];` +
     `  if(!traces.length){ tbody.innerHTML='<tr><td colspan="6" class="muted">暂无 trace</td></tr>'; return; }` +

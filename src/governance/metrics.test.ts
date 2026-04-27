@@ -86,6 +86,7 @@ describe('summarizeGovernanceMetrics', () => {
         routeReason: ['request_received', 'smart_router'],
         stickyHit: false,
         alignmentUsed: true,
+        semanticIntent: 'reasoning',
         cascadeTriggered: false,
         shadowChecked: false,
         latencyMs: 120,
@@ -98,6 +99,7 @@ describe('summarizeGovernanceMetrics', () => {
         routeReason: ['request_received', 'sticky_correction'],
         stickyHit: true,
         alignmentUsed: false,
+        semanticIntent: 'coding',
         cascadeTriggered: false,
         shadowChecked: false,
         latencyMs: 80,
@@ -110,6 +112,7 @@ describe('summarizeGovernanceMetrics', () => {
         routeReason: ['request_received', 'cascade_gate'],
         stickyHit: false,
         alignmentUsed: false,
+        semanticIntent: 'coding',
         cascadeTriggered: true,
         shadowChecked: false,
         latencyMs: 220,
@@ -138,6 +141,20 @@ describe('summarizeGovernanceMetrics', () => {
     expect(outcome.topModelSwitches).toEqual([
       { key: 'sonnet -> opus', from: 'sonnet', to: 'opus', count: 1, rate: 0.5 },
       { key: 'sonnet -> reasoner', from: 'sonnet', to: 'reasoner', count: 1, rate: 0.5 },
+    ]);
+    expect(outcome.byRouteReason).toEqual([
+      expect.objectContaining({ key: 'cascade_gate', totalTraces: 1, modelSwitchRate: 1, cascadeAfterSwitchRate: 1, averageLatencyMs: 220 }),
+      expect.objectContaining({ key: 'smart_router', totalTraces: 1, modelSwitchRate: 1, alignmentOnSwitchRate: 1, averageLatencyMs: 120 }),
+      expect.objectContaining({ key: 'sticky_correction', totalTraces: 1, modelSwitchRate: 0, averageLatencyMs: 80 }),
+    ]);
+    expect(outcome.byFinalModel).toEqual([
+      expect.objectContaining({ key: 'opus', totalTraces: 1, modelSwitchRate: 1, averageLatencyMs: 220 }),
+      expect.objectContaining({ key: 'reasoner', totalTraces: 1, modelSwitchRate: 1, averageLatencyMs: 120 }),
+      expect.objectContaining({ key: 'sonnet', totalTraces: 1, modelSwitchRate: 0, averageLatencyMs: 80 }),
+    ]);
+    expect(outcome.bySemanticIntent).toEqual([
+      expect.objectContaining({ key: 'coding', totalTraces: 2, modelSwitchRate: 0.5, averageLatencyMs: 150 }),
+      expect.objectContaining({ key: 'reasoning', totalTraces: 1, modelSwitchRate: 1, averageLatencyMs: 120 }),
     ]);
   });
 
@@ -414,6 +431,48 @@ describe('summarizeGovernanceMetrics', () => {
         topModelSwitches: [
           { key: 'model-a -> model-b', from: 'model-a', to: 'model-b', count: 1, rate: 1 },
         ],
+        byRouteReason: [
+          {
+            key: 'sticky',
+            totalTraces: 2,
+            rate: 1,
+            modelSwitchCount: 1,
+            modelSwitchRate: 0.5,
+            alignmentOnSwitchCount: 1,
+            alignmentOnSwitchRate: 1,
+            cascadeAfterSwitchCount: 0,
+            cascadeAfterSwitchRate: 0,
+            averageLatencyMs: 120,
+          },
+        ],
+        byFinalModel: [
+          {
+            key: 'model-a',
+            totalTraces: 2,
+            rate: 1,
+            modelSwitchCount: 1,
+            modelSwitchRate: 0.5,
+            alignmentOnSwitchCount: 1,
+            alignmentOnSwitchRate: 1,
+            cascadeAfterSwitchCount: 0,
+            cascadeAfterSwitchRate: 0,
+            averageLatencyMs: 120,
+          },
+        ],
+        bySemanticIntent: [
+          {
+            key: 'review',
+            totalTraces: 1,
+            rate: 0.5,
+            modelSwitchCount: 1,
+            modelSwitchRate: 1,
+            alignmentOnSwitchCount: 1,
+            alignmentOnSwitchRate: 1,
+            cascadeAfterSwitchCount: 0,
+            cascadeAfterSwitchRate: 0,
+            averageLatencyMs: 120,
+          },
+        ],
       },
       buckets: [
         {
@@ -450,6 +509,9 @@ describe('summarizeGovernanceMetrics', () => {
     expect(csv).toContain('anomaly,cascade_rate_high,warn:0.5');
     expect(csv).toContain('topFinalModel,model-a,2:1');
     expect(csv).toContain('topModelSwitch,model-a -> model-b,1:1');
+    expect(csv).toContain('outcomeByRouteReason,sticky,2:0.5:120');
+    expect(csv).toContain('outcomeByFinalModel,model-a,2:0.5:120');
+    expect(csv).toContain('outcomeBySemanticIntent,review,1:1:120');
     expect(csv).toContain('bucket,bucket-1,2:0.5:0.5:0.5:0.5');
   });
 

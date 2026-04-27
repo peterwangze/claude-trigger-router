@@ -99,6 +99,19 @@ export interface IGovernanceModelSwitchEntry {
   rate: number;
 }
 
+export interface IGovernanceRoutingOutcomeGroupEntry {
+  key: string;
+  totalTraces: number;
+  rate: number;
+  modelSwitchCount: number;
+  modelSwitchRate: number;
+  alignmentOnSwitchCount: number;
+  alignmentOnSwitchRate: number;
+  cascadeAfterSwitchCount: number;
+  cascadeAfterSwitchRate: number;
+  averageLatencyMs: number;
+}
+
 export interface IGovernanceRoutingOutcomeSummary {
   totalTraces: number;
   routedTraces: number;
@@ -113,6 +126,9 @@ export interface IGovernanceRoutingOutcomeSummary {
   cascadeAfterSwitchRate: number;
   averageLatencyByRouteReason: Record<string, number>;
   topModelSwitches: IGovernanceModelSwitchEntry[];
+  byRouteReason: IGovernanceRoutingOutcomeGroupEntry[];
+  byFinalModel: IGovernanceRoutingOutcomeGroupEntry[];
+  bySemanticIntent: IGovernanceRoutingOutcomeGroupEntry[];
 }
 
 export interface IGovernanceMetricsReport {
@@ -227,6 +243,71 @@ function buildTopSwitchEntries(
     }));
 }
 
+type TOutcomeGroupAccumulator = {
+  key: string;
+  totalTraces: number;
+  modelSwitchCount: number;
+  alignmentOnSwitchCount: number;
+  cascadeAfterSwitchCount: number;
+  latencyValues: number[];
+};
+
+function addOutcomeGroup(
+  groups: Record<string, TOutcomeGroupAccumulator>,
+  key: string | undefined,
+  trace: IGovernanceTrace
+): void {
+  if (!key) {
+    return;
+  }
+
+  const switched = isModelSwitch(trace);
+  const group = groups[key] ?? {
+    key,
+    totalTraces: 0,
+    modelSwitchCount: 0,
+    alignmentOnSwitchCount: 0,
+    cascadeAfterSwitchCount: 0,
+    latencyValues: [],
+  };
+
+  group.totalTraces += 1;
+  group.modelSwitchCount += switched ? 1 : 0;
+  group.alignmentOnSwitchCount += switched && trace.alignmentUsed ? 1 : 0;
+  group.cascadeAfterSwitchCount += switched && trace.cascadeTriggered ? 1 : 0;
+  if (typeof trace.latencyMs === 'number' && Number.isFinite(trace.latencyMs)) {
+    group.latencyValues.push(trace.latencyMs);
+  }
+  groups[key] = group;
+}
+
+function buildOutcomeGroupEntries(
+  groups: Record<string, TOutcomeGroupAccumulator>,
+  totalTraces: number,
+  limit = 5
+): IGovernanceRoutingOutcomeGroupEntry[] {
+  return Object.values(groups)
+    .sort((left, right) => {
+      if (right.totalTraces !== left.totalTraces) {
+        return right.totalTraces - left.totalTraces;
+      }
+      return left.key.localeCompare(right.key);
+    })
+    .slice(0, limit)
+    .map((group) => ({
+      key: group.key,
+      totalTraces: group.totalTraces,
+      rate: rate(group.totalTraces, totalTraces),
+      modelSwitchCount: group.modelSwitchCount,
+      modelSwitchRate: rate(group.modelSwitchCount, group.totalTraces),
+      alignmentOnSwitchCount: group.alignmentOnSwitchCount,
+      alignmentOnSwitchRate: rate(group.alignmentOnSwitchCount, group.modelSwitchCount),
+      cascadeAfterSwitchCount: group.cascadeAfterSwitchCount,
+      cascadeAfterSwitchRate: rate(group.cascadeAfterSwitchCount, group.modelSwitchCount),
+      averageLatencyMs: average(group.latencyValues),
+    }));
+}
+
 function isRoutedTrace(trace: IGovernanceTrace): boolean {
   return trace.routeReason.some((reason) => reason !== 'request_received');
 }
@@ -245,6 +326,9 @@ export function summarizeRoutingOutcomes(traces: IGovernanceTrace[]): IGovernanc
   const cascadeAfterSwitchCount = switchedTraces.filter((trace) => trace.cascadeTriggered).length;
   const switchDistribution: Record<string, { from?: string; to?: string; count: number }> = {};
   const routeLatencyValues: Record<string, number[]> = {};
+  const routeReasonGroups: Record<string, TOutcomeGroupAccumulator> = {};
+  const finalModelGroups: Record<string, TOutcomeGroupAccumulator> = {};
+  const semanticIntentGroups: Record<string, TOutcomeGroupAccumulator> = {};
 
   for (const trace of traces) {
     if (isModelSwitch(trace)) {
@@ -261,6 +345,12 @@ export function summarizeRoutingOutcomes(traces: IGovernanceTrace[]): IGovernanc
         routeLatencyValues[reason] = [...(routeLatencyValues[reason] ?? []), trace.latencyMs];
       }
     }
+
+    for (const reason of trace.routeReason.filter((item) => item !== 'request_received')) {
+      addOutcomeGroup(routeReasonGroups, reason, trace);
+    }
+    addOutcomeGroup(finalModelGroups, trace.finalModel, trace);
+    addOutcomeGroup(semanticIntentGroups, trace.semanticIntent, trace);
   }
 
   const averageLatencyByRouteReason = Object.fromEntries(
@@ -283,6 +373,9 @@ export function summarizeRoutingOutcomes(traces: IGovernanceTrace[]): IGovernanc
     cascadeAfterSwitchRate: rate(cascadeAfterSwitchCount, switchedTraces.length),
     averageLatencyByRouteReason,
     topModelSwitches: buildTopSwitchEntries(switchDistribution, switchedTraces.length),
+    byRouteReason: buildOutcomeGroupEntries(routeReasonGroups, traces.length),
+    byFinalModel: buildOutcomeGroupEntries(finalModelGroups, traces.length),
+    bySemanticIntent: buildOutcomeGroupEntries(semanticIntentGroups, traces.length),
   };
 }
 
@@ -667,6 +760,18 @@ export function exportGovernanceMetricsReport(
 
   for (const item of report.outcome.topModelSwitches) {
     lines.push(`topModelSwitch,${item.key},${item.count}:${item.rate}`);
+  }
+
+  for (const item of report.outcome.byRouteReason) {
+    lines.push(`outcomeByRouteReason,${item.key},${item.totalTraces}:${item.modelSwitchRate}:${item.averageLatencyMs}`);
+  }
+
+  for (const item of report.outcome.byFinalModel) {
+    lines.push(`outcomeByFinalModel,${item.key},${item.totalTraces}:${item.modelSwitchRate}:${item.averageLatencyMs}`);
+  }
+
+  for (const item of report.outcome.bySemanticIntent) {
+    lines.push(`outcomeBySemanticIntent,${item.key},${item.totalTraces}:${item.modelSwitchRate}:${item.averageLatencyMs}`);
   }
 
   for (const bucket of report.buckets) {

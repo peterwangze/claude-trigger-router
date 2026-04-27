@@ -295,10 +295,11 @@ P3-3：持续 closed 事项复审
 - P2-3 `治理观测运营化`（Chunk 3）：已让 Health action 联动 trace 过滤，cascade action 会筛选 `cascadeTriggered=true`，shadow action 会筛选 `shadowChecked=true`，其他 action 回到近期 trace；README、configuration guide 和 CLI test matrix 已同步该维护者排查路径，UI HTML 渲染测试守住 action 按钮和过滤联动。
 - P2-3 `治理观测运营化`（Chunk 4a）：已把维护者工作台纳入 release-stage wrapper 验收链路，打包安装后的 staged 服务会直接 smoke `/ui` HTML 与 `GET /api/governance/health`，覆盖健康摘要占位、Health action 交互脚本入口和 idle 健康 API 结构，避免该路径只停留在源码级 HTML 测试。
 - P1-5 `智能路由收益与切换体感闭环`（Chunk 1）：已在 governance metrics 中新增 routing outcome scorecard，按现有 trace 汇总 routed rate、model switch rate、stable model rate、alignment-on-switch、cascade-after-switch、route reason 平均延迟和 Top model switches；`/api/governance/metrics` 返回 `outcome`，`/api/governance/health` 的 signals 带出切换与切换后 alignment 指标，`/ui` 维护者 metrics 区展示 Model switch rate 与 Alignment on switch。
+- P1-5 `智能路由收益与切换体感闭环`（Chunk 2）：已把 outcome 从全局汇总扩展为 route reason、final model、semantic intent 三类收益分组，每组包含样本数、切换率、切换后 alignment、切换后 cascade 和平均延迟；CSV 导出与 `/ui` 维护者工作台同步展示分组 outcome，维护者可以开始按任务意图和最终模型判断组合路由是否更稳、更快。
 
 下一项按优先级继续推进：
 
-- P1-5 `智能路由收益与切换体感闭环`（Chunk 2）：继续把 outcome 从汇总指标推进到可解释收益，补 synthetic tasks regression 与 route source / semantic intent / final model 的收益分组，让维护者能判断哪些任务组合真正更快、更稳。
+- P1-5 `智能路由收益与切换体感闭环`（Chunk 3）：补 synthetic tasks regression，覆盖规则命中、semantic、SmartRouter、sticky、cascade 的固定样例，证明智能路由不是随机切换，并为后续质量/速度基线提供可重复输入。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

@@ -1816,6 +1816,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Health');
     expect(html).toContain('Model switch rate');
     expect(html).toContain('Alignment on switch');
+    expect(html).toContain('Outcome by route');
+    expect(html).toContain('routeOutcomeRanking');
+    expect(html).toContain('renderOutcomeGroups');
     expect(html).toContain('healthSummary');
     expect(html).toContain('Health pending');
     expect(html).toContain("fetch('/api/governance/health'+query)");
