@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'fs';
+import { randomBytes } from 'crypto';
 import { createServer } from 'net';
 import { homedir } from 'os';
 import { join } from 'path';
@@ -19,7 +20,7 @@ import { decideServiceAction, applyServiceAction } from './service';
 import { getRepairFields } from './repair';
 import { migrateLegacyConfig } from './migrate';
 import { detectSetupEnvironment, RawCurrentConfigResult, RawLegacyConfigResult } from './detect';
-import { buildMinimalConfig, buildRemoteServiceConfig } from './templates';
+import { buildMinimalConfig, buildRemoteServiceConfig, buildServerDeploymentConfig } from './templates';
 import { persistSetupConfig } from './persist';
 import { runSetup } from './setup';
 import { ISetupConfigDraft, ProviderPresetKey } from './types';
@@ -39,7 +40,7 @@ interface ISetupIO {
 type TCapabilityChoice = '默认' | '支持' | '禁用';
 type TCapabilityEditChoice = '保持当前值' | '编辑 capability';
 type TRoutingBootstrapChoice = '先保持最小配置' | '开启复杂任务规则模板' | '开启复杂任务规则 + 智能兜底';
-type TSetupEntryChoice = '本地使用（推荐）' | '连接远程服务';
+type TSetupEntryChoice = '本地使用（推荐）' | '连接远程服务' | '部署为远程服务端';
 
 interface ISetupCollectedModelInput {
   name: string;
@@ -786,6 +787,10 @@ function applyRoutingBootstrap(
   return nextDraft;
 }
 
+function createSetupBootstrapApiKey(): string {
+  return `ctr_bootstrap_${randomBytes(24).toString('base64url')}`;
+}
+
 async function promptModelConnection(
   io: ISetupIO,
   input: {
@@ -836,9 +841,10 @@ async function promptModelConnection(
 }
 
 async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
-  const setupEntryChoice = await io.choose('当前要本地使用，还是连接远程服务？', [
+  const setupEntryChoice = await io.choose('当前要本地使用、连接远程服务，还是部署为远程服务端？', [
     '本地使用（推荐）',
     '连接远程服务',
+    '部署为远程服务端',
   ]) as TSetupEntryChoice;
 
   if (setupEntryChoice === '连接远程服务') {
@@ -846,9 +852,18 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
     const authToken = await io.input('远程服务 Auth Token（可选）', '${CTR_REMOTE_AUTH_TOKEN}');
     io.info('已生成远程服务连接配置，本机不会要求你先填写 provider/model。');
     io.info(REMOTE_CLIENT_ROLE_GUIDE);
-    io.info('如果你要把本机部署成服务端，请退出 setup 后运行：ctr deploy init --target server');
+    io.info('如果你其实要把本机部署成服务端，请重新运行 setup 选择“部署为远程服务端”，或运行：ctr deploy init --target server');
     io.info(SERVER_MAINTAINER_ROLE_GUIDE);
     return buildRemoteServiceConfig({ baseUrl, authToken });
+  }
+
+  if (setupEntryChoice === '部署为远程服务端') {
+    io.info(SERVER_MAINTAINER_ROLE_GUIDE);
+    io.info('setup 将生成 server profile 和 bootstrap admin APIKEY，但不会自动启动服务。');
+    io.info('保存后请先编辑 Models[].key / Models[].model，再运行：ctr doctor && ctr start --daemon');
+    return buildServerDeploymentConfig({
+      apiKey: createSetupBootstrapApiKey(),
+    });
   }
 
   const primaryModel = await promptModelConnection(io, {

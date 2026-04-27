@@ -289,7 +289,7 @@ describe('runSetupCli', () => {
       })
     );
     expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
-    expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用，还是连接远程服务？', ['本地使用（推荐）', '连接远程服务']);
+    expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用、连接远程服务，还是部署为远程服务端？', ['本地使用（推荐）', '连接远程服务', '部署为远程服务端']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(io.choose).toHaveBeenNthCalledWith(3, '选择 provider 预设', expect.any(Array));
     expect(io.choose).toHaveBeenNthCalledWith(4, '现在要不要继续添加一个“复杂任务专用模型”？', ['先不添加', '添加一个复杂任务专用模型']);
@@ -346,11 +346,11 @@ describe('runSetupCli', () => {
       io,
     });
 
-    expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用，还是连接远程服务？', ['本地使用（推荐）', '连接远程服务']);
+    expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用、连接远程服务，还是部署为远程服务端？', ['本地使用（推荐）', '连接远程服务', '部署为远程服务端']);
     expect(io.input).toHaveBeenNthCalledWith(1, '远程服务 URL');
     expect(io.input).toHaveBeenNthCalledWith(2, '远程服务 Auth Token（可选）', '${CTR_REMOTE_AUTH_TOKEN}');
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程使用者：拿到服务地址和 managed client + read-only key'));
-    expect(io.info).toHaveBeenCalledWith('如果你要把本机部署成服务端，请退出 setup 后运行：ctr deploy init --target server');
+    expect(io.info).toHaveBeenCalledWith('如果你其实要把本机部署成服务端，请重新运行 setup 选择“部署为远程服务端”，或运行：ctr deploy init --target server');
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('服务维护者：用 ctr deploy init --target server 生成 server 配置'));
     expect(io.input).not.toHaveBeenCalledWith('默认模型的 model id（Router.default 会引用它）', 'sonnet');
     expect(io.choose).not.toHaveBeenCalledWith('这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
@@ -372,6 +372,63 @@ describe('runSetupCli', () => {
     );
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
+    expect(enterClaudeCode).not.toHaveBeenCalled();
+  });
+
+  it('creates a server deployment profile without auto-starting from fresh setup', async () => {
+    const writeConfig = vi.fn().mockResolvedValue(undefined);
+    const executeStart = vi.fn().mockResolvedValue(undefined);
+    const verifyHealth = vi.fn().mockResolvedValue(true);
+    const enterClaudeCode = vi.fn().mockResolvedValue(undefined);
+
+    const io = {
+      choose: vi
+        .fn()
+        .mockResolvedValueOnce('部署为远程服务端'),
+      input: vi.fn(),
+      info: vi.fn(),
+    };
+
+    await runSetupCli({
+      readCurrentConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      probeService: vi.fn().mockResolvedValue({ kind: 'none' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig,
+      executeStart,
+      executeReload: vi.fn().mockResolvedValue(undefined),
+      executeRestart: vi.fn().mockResolvedValue(undefined),
+      verifyHealth,
+      enterClaudeCode,
+      io,
+    });
+
+    expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用、连接远程服务，还是部署为远程服务端？', ['本地使用（推荐）', '连接远程服务', '部署为远程服务端']);
+    expect(writeConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        HOST: '0.0.0.0',
+        APIKEY: expect.stringMatching(/^ctr_bootstrap_/),
+        Runtime: expect.objectContaining({
+          mode: 'server',
+        }),
+        Models: [
+          expect.objectContaining({
+            id: 'sonnet',
+            key: 'sk-xxx',
+          }),
+        ],
+        Router: {
+          default: 'sonnet',
+        },
+      })
+    );
+    expect(io.input).not.toHaveBeenCalled();
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('服务维护者：用 ctr deploy init --target server 生成 server 配置'));
+    expect(io.info).toHaveBeenCalledWith('setup 将生成 server profile 和 bootstrap admin APIKEY，但不会自动启动服务。');
+    expect(io.info).toHaveBeenCalledWith('已生成 server 部署配置；setup 不会自动启动远程服务。');
+    expect(io.info).toHaveBeenCalledWith('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+    expect(executeStart).not.toHaveBeenCalled();
+    expect(verifyHealth).not.toHaveBeenCalled();
     expect(enterClaudeCode).not.toHaveBeenCalled();
   });
 
@@ -616,7 +673,7 @@ describe('runSetupCli', () => {
         },
       })
     );
-    expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用，还是连接远程服务？', ['本地使用（推荐）', '连接远程服务']);
+    expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用、连接远程服务，还是部署为远程服务端？', ['本地使用（推荐）', '连接远程服务', '部署为远程服务端']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(io.choose).toHaveBeenNthCalledWith(3, '选择 provider 预设', expect.any(Array));
     expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');

@@ -102,6 +102,7 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
   }
 
   let configChanged = false;
+  let finalDraft: ISetupConfigDraft | undefined;
 
   if (branch.kind === 'repair_current') {
     if (detection.currentConfig.kind !== 'invalid' && detection.currentConfig.kind !== 'valid') {
@@ -124,6 +125,7 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
       draft: baseDraft,
       fields: repairPlan.fields,
     });
+    finalDraft = completedDraft;
     const persistResult = await deps.persistConfig({
       config: completedDraft,
       currentConfigPath: detection.currentConfig.path,
@@ -145,6 +147,7 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
 
   if (branch.kind === 'unparseable_current') {
     const draft = await deps.buildFreshConfig();
+    finalDraft = draft;
     const persistResult = await deps.persistConfig({
       config: draft,
       currentConfigPath: detection.currentConfig.path,
@@ -155,6 +158,7 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
 
   if (branch.kind === 'fresh_init') {
     const draft = await deps.buildFreshConfig();
+    finalDraft = draft;
     const persistResult = await deps.persistConfig({
       config: draft,
       currentConfigPath: getTargetConfigPath(detection),
@@ -180,16 +184,17 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
       deps.io.info(`以下旧字段未自动迁移：${migrated.skippedFields.join(', ')}`);
     }
 
-    let finalDraft = migrated.draft;
+    let migratedFinalDraft = migrated.draft;
     if (migrated.needsCompletion) {
-      finalDraft = await deps.completeDraft({
+      migratedFinalDraft = await deps.completeDraft({
         draft: migrated.draft,
         fields: migrated.missingFields,
       });
     }
 
+    finalDraft = migratedFinalDraft;
     const persistResult = await deps.persistConfig({
-      config: finalDraft,
+      config: migratedFinalDraft,
       currentConfigPath: getTargetConfigPath(detection),
       hasExistingConfig: detection.currentConfig.kind !== 'missing',
     });
@@ -197,6 +202,12 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
   }
 
   if (branch.kind === 'fresh_init' || branch.kind === 'repair_current' || branch.kind === 'unparseable_current' || branch.kind === 'migrate_legacy') {
+    if (finalDraft?.Runtime?.mode === 'server') {
+      deps.io.info('已生成 server 部署配置；setup 不会自动启动远程服务。');
+      deps.io.info('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+      return;
+    }
+
     await deps.ensureServiceReady({
       configChanged,
       detectedService: detection.detectedService,

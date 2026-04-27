@@ -320,10 +320,11 @@ P3-3：持续 closed 事项复审
 - P1-7 Chunk 3 复审补强：已修正 `ctr status` 主要按本地配置推导角色信息的偏差；现在服务可访问时会优先读取 live `/api/service-info` 中的 runtime mode、listener、auth 和 clientConnection，并在 PID 元数据缺失但健康探测 ready 时正确报告服务运行中，避免维护者看到与实际服务不一致的角色/监听/鉴权指引。
 - 配置产品化最终收口（Chunk 1）：已新增 `docs/configuration-roles.md` 作为本地使用者、服务维护者、远程使用者的统一角色入口；README 的部署安全说明已拆成可扫描边界；configuration guide、server/remote 手册、setup 交互输出和 `/ui` 角色说明均收敛到同一组 local / server maintainer / remote client 口径，减少 server/cloud、managed key、remote service 术语在入口之间分叉。
 - 配置产品化最终收口 Chunk 1 复审补强：已修正 npm payload 只包含少数角色手册、但 README 还链接 configuration guide / models migration / releasing 等顶层 docs 的可达性偏差；`package.json.files` 改为随包发布 `docs/*.md`，并补充打包资产回归，确保 README 中面向用户和维护者的顶层文档链接在 npm 包内可用。
+- CLI / setup UX 重设计（Chunk 1）：`ctr setup` fresh 入口已从“本地使用 / 连接远程服务”扩展为“本地使用 / 连接远程服务 / 部署为远程服务端”三类路径；选择服务端部署会生成带随机 bootstrap admin `APIKEY`、`HOST: "0.0.0.0"`、`Runtime.mode: "server"` 和可编辑 `Models + Router.default` 的 server profile，并保持安全边界：setup 不自动启动远程服务，而是提示维护者先编辑模型、运行 `ctr doctor`，再手动 `ctr start --daemon`。
 
 下一项按优先级继续推进：
 
-- CLI / setup UX 重设计：让 setup 明确承接本地使用、连接远程服务、部署服务端三类入口，并在进入不同路径前给出更清晰的后续命令。
+- CLI / setup UX 重设计：继续收拢 setup 后续命令与状态反馈，让本地、远程客户端、服务端三条路径在保存后各自给出更准确的 next steps。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

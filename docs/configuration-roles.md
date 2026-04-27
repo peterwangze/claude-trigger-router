@@ -18,6 +18,7 @@
 当你要把 `ctr` 作为共享的远程路由服务运行时，选择这条路径。
 
 - 用 `ctr deploy init --target server` 生成 server 配置。
+- 也可以在 fresh 环境里运行 `ctr setup` 并选择“部署为远程服务端”；setup 会生成 server profile，但不会自动启动服务。
 - 保留 bootstrap `APIKEY` 或 admin managed key 用于维护。
 - 给远程使用者发放 managed `client + read-only` key，不要发 admin/bootstrap key。
 - 公网部署建议放在 HTTPS 反向代理或内网访问之后。

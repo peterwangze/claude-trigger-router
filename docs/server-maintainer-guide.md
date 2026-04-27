@@ -10,6 +10,8 @@ If you are choosing between local use, server maintenance and remote service use
 ctr deploy init --target server
 ```
 
+Fresh machines can also run `ctr setup` and choose `部署为远程服务端`; setup writes the same server profile shape and intentionally does not start the service.
+
 The command creates a server-oriented config with:
 
 - `HOST: "0.0.0.0"`
