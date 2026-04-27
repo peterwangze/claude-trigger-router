@@ -71,6 +71,18 @@ function getMigratedModelCount(draft: ISetupConfigDraft): number {
   return 0;
 }
 
+function isServerDeploymentDraft(draft: ISetupConfigDraft | undefined): boolean {
+  return draft?.Runtime?.mode === 'server';
+}
+
+function printServerDeploymentNextSteps(
+  io: IRunSetupDeps['io'],
+  message = '已生成 server 部署配置；setup 不会自动启动远程服务。'
+): void {
+  io.info(message);
+  io.info('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+}
+
 export async function runSetup(deps: IRunSetupDeps): Promise<void> {
   const detection = await deps.detectSetupEnvironment();
   const currentConfigAction = await deps.chooseCurrentConfigAction({
@@ -135,6 +147,17 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
   }
 
   if (branch.kind === 'reuse_current') {
+    if (
+      detection.currentConfig.kind === 'valid' &&
+      isServerDeploymentDraft(detection.currentConfig.config)
+    ) {
+      printServerDeploymentNextSteps(
+        deps.io,
+        '当前配置是 server 部署配置；setup 不会自动启动远程服务。'
+      );
+      return;
+    }
+
     await deps.ensureServiceReady({
       configChanged: false,
       detectedService: detection.detectedService,
@@ -202,9 +225,8 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
   }
 
   if (branch.kind === 'fresh_init' || branch.kind === 'repair_current' || branch.kind === 'unparseable_current' || branch.kind === 'migrate_legacy') {
-    if (finalDraft?.Runtime?.mode === 'server') {
-      deps.io.info('已生成 server 部署配置；setup 不会自动启动远程服务。');
-      deps.io.info('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+    if (isServerDeploymentDraft(finalDraft)) {
+      printServerDeploymentNextSteps(deps.io);
       return;
     }
 

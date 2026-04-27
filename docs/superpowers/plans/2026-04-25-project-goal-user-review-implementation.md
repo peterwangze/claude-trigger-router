@@ -321,6 +321,7 @@ P3-3：持续 closed 事项复审
 - 配置产品化最终收口（Chunk 1）：已新增 `docs/configuration-roles.md` 作为本地使用者、服务维护者、远程使用者的统一角色入口；README 的部署安全说明已拆成可扫描边界；configuration guide、server/remote 手册、setup 交互输出和 `/ui` 角色说明均收敛到同一组 local / server maintainer / remote client 口径，减少 server/cloud、managed key、remote service 术语在入口之间分叉。
 - 配置产品化最终收口 Chunk 1 复审补强：已修正 npm payload 只包含少数角色手册、但 README 还链接 configuration guide / models migration / releasing 等顶层 docs 的可达性偏差；`package.json.files` 改为随包发布 `docs/*.md`，并补充打包资产回归，确保 README 中面向用户和维护者的顶层文档链接在 npm 包内可用。
 - CLI / setup UX 重设计（Chunk 1）：`ctr setup` fresh 入口已从“本地使用 / 连接远程服务”扩展为“本地使用 / 连接远程服务 / 部署为远程服务端”三类路径；选择服务端部署会生成带随机 bootstrap admin `APIKEY`、`HOST: "0.0.0.0"`、`Runtime.mode: "server"` 和可编辑 `Models + Router.default` 的 server profile，并保持安全边界：setup 不自动启动远程服务，而是提示维护者先编辑模型、运行 `ctr doctor`，再手动 `ctr start --daemon`。
+- CLI / setup UX 重设计 Chunk 1 复审补强：已修正复用已有 valid server profile 时仍会走本地 ready / Claude Code 入口的边界偏差；现在 `Runtime.mode: "server"` 的当前配置在 `ctr setup` 复用路径中同样不会自动启动服务或进入 Claude Code，只输出服务端维护者后续命令。
 
 下一项按优先级继续推进：
 

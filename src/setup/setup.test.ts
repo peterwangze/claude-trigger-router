@@ -365,6 +365,41 @@ describe('runSetup', () => {
     expect(deps.enterClaudeCode).toHaveBeenCalledTimes(1);
   });
 
+  it('reuses a valid current server config without auto-starting or entering Claude Code', async () => {
+    const existingConfig = {
+      ...createDraft(),
+      HOST: '0.0.0.0',
+      Runtime: {
+        mode: 'server',
+      },
+    } satisfies ISetupConfigDraft;
+    const { deps } = createDeps({
+      detectSetupEnvironment: vi.fn().mockResolvedValue({
+        currentConfig: {
+          kind: 'valid',
+          path: '/tmp/config.yaml',
+          format: 'yaml',
+          config: existingConfig,
+          errors: [],
+          warnings: [],
+        },
+        legacyConfig: { kind: 'missing' },
+        detectedService: { kind: 'none' },
+      }),
+      chooseCurrentConfigAction: vi.fn().mockResolvedValue('reuse'),
+    });
+
+    const { runSetup } = await import('./setup');
+
+    await runSetup(deps as any);
+
+    expect(deps.persistConfig).not.toHaveBeenCalled();
+    expect(deps.ensureServiceReady).not.toHaveBeenCalled();
+    expect(deps.enterClaudeCode).not.toHaveBeenCalled();
+    expect(deps.io.info).toHaveBeenCalledWith('当前配置是 server 部署配置；setup 不会自动启动远程服务。');
+    expect(deps.io.info).toHaveBeenCalledWith('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+  });
+
   it('repairs an invalid current config by mapping missing fields and persisting the completed draft', async () => {
     const repairedDraft = createDraft();
     const invalidConfig = {
