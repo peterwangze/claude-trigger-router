@@ -35,6 +35,12 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const registrationSummary = registration.enabled
     ? `${registrationModels} models / ${registrationUpstreamServices} upstream`
     : 'disabled';
+  const initialManagedKeys = Array.isArray(initialConfig.Auth?.managed_keys) ? initialConfig.Auth.managed_keys.length : 0;
+  const authSummary = initialConfig.APIKEY || initialManagedKeys > 0 ? `configured · ${initialManagedKeys} managed` : 'not configured';
+  const publicHost = ['0.0.0.0', '::', '[::]'].includes(String(initialConfig.HOST ?? '').trim());
+  const securitySummary = (!initialConfig.APIKEY && initialManagedKeys === 0 && (runtimeMode !== 'local' || publicHost))
+    ? 'critical'
+    : 'ok';
   const escapedDisplayPort = escapeHtml(displayPort);
   const escapedModelsCount = escapeHtml(modelsCount);
   const escapedRouterDefault = escapeHtml(routerDefault);
@@ -42,6 +48,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const escapedServiceRole = escapeHtml(serviceRole);
   const escapedRemoteSummary = escapeHtml(remoteSummary);
   const escapedRegistrationSummary = escapeHtml(registrationSummary);
+  const escapedAuthSummary = escapeHtml(authSummary);
+  const escapedSecuritySummary = escapeHtml(securitySummary);
   const escapedMinSampleSize = escapeHtml(configuredThresholds.min_sample_size ?? 3);
   const escapedCascadeWarnRate = escapeHtml(configuredThresholds.cascade_warn_rate ?? 0.4);
   const escapedShadowWarnRate = escapeHtml(configuredThresholds.shadow_warn_rate ?? 0.5);
@@ -128,6 +136,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="status-tile"><span class="muted">Router.default</span><strong id="routerDefaultStatus">${escapedRouterDefault}</strong></div>` +
     `<div class="status-tile"><span class="muted">Remote service</span><strong id="remoteStatusSummary">${escapedRemoteSummary}</strong></div>` +
     `<div class="status-tile"><span class="muted">Registration</span><strong id="registrationStatusSummary">${escapedRegistrationSummary}</strong></div>` +
+    `<div class="status-tile"><span class="muted">Auth</span><strong id="authStatusSummary">${escapedAuthSummary}</strong></div>` +
+    `<div class="status-tile"><span class="muted">Security</span><strong id="securityStatusSummary">${escapedSecuritySummary}</strong></div>` +
     `</div>` +
     `</div>` +
     `</div>` +
@@ -288,6 +298,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<section id="maintainerSurface" class="surface-panel" data-surface="maintainer" hidden>` +
     `<div class="panel">` +
     `<div class="surface-heading"><strong>维护者工作台</strong><span class="muted">运行观测、Governance Trace、metrics、归档与维护操作。</span></div>` +
+    `<div id="securitySummary" class="alert info"><strong>Security pending</strong><div class="muted">等待服务安全状态加载</div></div>` +
     `<div class="row"><strong>维护者观测</strong><span class="muted">按 requestId / sessionKey / routeReason 过滤 Governance Trace，并查看近期治理指标。</span></div>` +
     `<div class="row">` +
     `<input id="requestId" placeholder="requestId">` +
@@ -427,6 +438,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<li><code>GET /api/governance/archives/:file</code> — 查看归档内 traces</li>` +
     `<li><code>POST /api/governance/archives/:file/delete</code> — 删除指定归档</li>` +
     `<li><code>GET /api/governance/health</code> — 查看治理健康摘要</li>` +
+    `<li><code>GET /api/auth/audit</code> — 查看鉴权审计摘要</li>` +
     `<li><code>POST /api/governance/metrics/snapshots</code> — 生成一次治理指标快照</li>` +
     `<li><code>POST /api/governance/metrics/schedules</code> — 注册定时快照任务</li>` +
     `</ul>` +
@@ -454,6 +466,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const serviceRoleStatus=document.getElementById('serviceRoleStatus');` +
     `const remoteStatusSummary=document.getElementById('remoteStatusSummary');` +
     `const registrationStatusSummary=document.getElementById('registrationStatusSummary');` +
+    `const authStatusSummary=document.getElementById('authStatusSummary');` +
+    `const securityStatusSummary=document.getElementById('securityStatusSummary');` +
     `const modelCountStatus=document.getElementById('modelCountStatus');` +
     `const routerDefaultStatus=document.getElementById('routerDefaultStatus');` +
     `const triggerEnabled=document.getElementById('triggerEnabled');` +
@@ -497,6 +511,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const modelOutcomeRanking=document.getElementById('modelOutcomeRanking');` +
     `const intentOutcomeRanking=document.getElementById('intentOutcomeRanking');` +
     `const healthSummary=document.getElementById('healthSummary');` +
+    `const securitySummary=document.getElementById('securitySummary');` +
     `const anomalyList=document.getElementById('anomalyList');` +
     `const saveThresholdsStatus=document.getElementById('saveThresholdsStatus');` +
     `const snapshotStatus=document.getElementById('snapshotStatus');` +
@@ -1103,6 +1118,14 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    servicePortStatus.textContent=data.port || '-';` +
     `    serviceModeStatus.textContent=data.runtimeMode || '-';` +
     `    serviceRoleStatus.textContent=data.serviceRole || '-';` +
+    `    const auth=data.auth || {};` +
+    `    const managed=auth.managedKeys || {};` +
+    `    authStatusSummary.textContent=auth.required ? ((auth.bootstrapConfigured ? 'bootstrap' : 'managed')+' · '+(managed.active ?? 0)+' active') : 'not configured';` +
+    `    const security=data.security || {};` +
+    `    const issues=Array.isArray(security.issues) ? security.issues : [];` +
+    `    securityStatusSummary.textContent=security.status || '-';` +
+    `    securitySummary.className='alert '+((security.status === 'critical') ? 'critical' : (security.status === 'warning' ? 'warn' : 'info'));` +
+    `    securitySummary.innerHTML='<strong>Security: '+esc(security.status || '-')+'</strong><div>'+esc(issues[0]?.message || '当前服务未发现明显鉴权暴露风险')+'</div>'+ (issues.length ? '<ul class="mini-list">'+issues.map(issue=>'<li>'+esc(issue.action || issue.code)+'</li>').join('')+'</ul>' : '');` +
     `    const registration=data.registration || {};` +
     `    registrationStatusSummary.textContent=registration.enabled ? ((registration.models ?? 0)+' models / '+(registration.upstreamServices ?? 0)+' upstream') : 'disabled';` +
     `    const remote=remoteData.remote || {};` +
@@ -1111,6 +1134,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  } catch (_error) {` +
     `    serviceReadyStatus.textContent='unreachable';` +
     `    remoteStatusSummary.textContent='unknown';` +
+    `    securityStatusSummary.textContent='unknown';` +
     `  }` +
     `}` +
     `async function saveConfigDraft(){` +

@@ -20,6 +20,7 @@ import { toExternalModelConfig } from "./models/schema";
 import { buildValidationIssueReport } from "./utils/validation-contract";
 import { renderWorkbenchHtml } from "./ui/workbench";
 import {
+  authAuditStore,
   createManagedApiKey,
   extractApiKeyFromHeaders,
   listManagedApiKeys,
@@ -102,11 +103,37 @@ function buildServiceInfo(rawConfig: any) {
   const remoteService = runtime.remote_service ?? {};
   const registration = normalized.Registration ?? {};
   const runtimeMode = runtime.mode ?? "local";
+  const authSummary = managedApiKeySummary(normalized);
+  const host = rawConfig?.HOST ?? normalized.HOST;
+  const publicHost = ["0.0.0.0", "::", "[::]"].includes(String(host ?? "").trim());
+  const authRequired = Boolean(normalized.APIKEY || authSummary.active > 0);
+  const securityIssues: Array<{
+    code: string;
+    severity: "critical" | "warning";
+    message: string;
+    action: string;
+  }> = [];
+  if (!authRequired && (publicHost || runtimeMode !== "local")) {
+    securityIssues.push({
+      code: "server_without_auth",
+      severity: "critical",
+      message: "Server/cloud or public listener is running without API key authentication.",
+      action: "Set APIKEY or create an active managed admin/client key before exposing this service.",
+    });
+  }
+  if (authRequired && normalized.APIKEY && authSummary.total === 0 && runtimeMode !== "local") {
+    securityIssues.push({
+      code: "bootstrap_only_auth",
+      severity: "warning",
+      message: "Only the bootstrap APIKEY is configured for a server/cloud role.",
+      action: "Create managed client keys for remote users and keep APIKEY for administration.",
+    });
+  }
 
   return {
     service: SERVICE_NAME,
     ready: true,
-    host: rawConfig?.HOST ?? normalized.HOST,
+    host,
     port: rawConfig?.PORT ?? normalized.PORT,
     runtimeMode,
     serviceRole: runtimeMode === "local" ? "local_agent" : "router_service",
@@ -120,6 +147,21 @@ function buildServiceInfo(rawConfig: any) {
       enabled: Boolean(registration.enabled),
       models: Array.isArray(registration.models) ? registration.models.length : 0,
       upstreamServices: Array.isArray(registration.upstream_services) ? registration.upstream_services.length : 0,
+    },
+    auth: {
+      required: authRequired,
+      bootstrapConfigured: Boolean(normalized.APIKEY),
+      managedKeys: authSummary,
+      audit: authAuditStore.summary(),
+    },
+    security: {
+      status: securityIssues.some((issue) => issue.severity === "critical")
+        ? "critical"
+        : securityIssues.length > 0
+          ? "warning"
+          : "ok",
+      publicHost,
+      issues: securityIssues,
     },
   };
 }
@@ -415,11 +457,33 @@ function requireAdminAuth(req: any, reply: any, authConfig: any) {
     extractApiKeyFromHeaders(req?.headers ?? {}),
     "admin"
   );
+  const auditBase = {
+    required: "admin" as const,
+    method: req?.method,
+    path: req?.url,
+    requestId: req?.id,
+  };
 
   if (verification.ok) {
+    authAuditStore.add({
+      ...auditBase,
+      outcome: "allowed",
+      source: verification.source,
+      keyId: verification.keyId,
+      scopes: verification.scopes,
+      statusCode: 200,
+    });
     return null;
   }
 
+  authAuditStore.add({
+    ...auditBase,
+    outcome: "denied",
+    source: verification.source,
+    keyId: verification.keyId,
+    reason: verification.reason ?? "invalid",
+    statusCode: verification.reason === "insufficient_scope" ? 403 : 401,
+  });
   return denyAuth(
     reply,
     verification.reason === "insufficient_scope" ? 403 : 401,
@@ -653,7 +717,16 @@ export const createServer = (config: any): Server => {
   });
 
   server.app.get("/api/service-info", async () => {
-    return buildServiceInfo(config.initialConfig ?? {});
+    let currentConfig: any;
+    try {
+      currentConfig = await readConfigFile();
+    } catch {
+      currentConfig = undefined;
+    }
+    const serviceInfoConfig = currentConfig && Object.keys(currentConfig).length > 0
+      ? { ...(config.initialConfig ?? {}), ...currentConfig }
+      : (config.initialConfig ?? {});
+    return buildServiceInfo(serviceInfoConfig);
   });
 
   server.app.get("/api/registration", async () => {
@@ -671,6 +744,20 @@ export const createServer = (config: any): Server => {
     return {
       keys: listManagedApiKeys(normalized),
       summary: managedApiKeySummary(normalized),
+    };
+  });
+
+  server.app.get("/api/auth/audit", async (req: any, reply: any) => {
+    const currentConfig = await readConfigFile();
+    const denied = requireAdminAuth(req, reply, currentConfig);
+    if (denied) {
+      return denied;
+    }
+
+    const limit = Number(req.query?.limit ?? 50);
+    return {
+      events: authAuditStore.list(Number.isFinite(limit) ? limit : 50),
+      summary: authAuditStore.summary(),
     };
   });
 

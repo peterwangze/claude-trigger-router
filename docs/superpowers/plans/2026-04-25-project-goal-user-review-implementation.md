@@ -299,10 +299,11 @@ P3-3：持续 closed 事项复审
 - P1-5 `智能路由收益与切换体感闭环`（Chunk 3）：已新增 synthetic tasks regression，固定覆盖规则命中、semantic、SmartRouter、sticky correction 与真实非流式响应治理中的 cascade gate / retry；测试同时断言 route reason、最终模型、切换率、稳定模型、cascade-after-switch、route reason 平均延迟，以及 route reason / final model / semantic intent 三类 outcome 分组，确保智能路由收益不是只靠随机切换或单点 trace 观察。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 1）：已新增 `Auth.managed_keys` 最小数据结构，managed key 以哈希形式写入配置；`APIKEY` 保留为 bootstrap/admin key；新增 `GET /api/auth/keys`、`POST /api/auth/keys`、`POST /api/auth/keys/:id/revoke`，支持 label、admin/client/read-only scope、过期时间、撤销和脱敏列表；运行时 `apiKeyAuth` 已能接受 active managed client/admin key，同时拒绝 revoked、expired 或 scope 不足的 key；README 已同步远程客户端应优先使用 managed client key 的口径。
 - P1-6 Chunk 1 复审补强：已修正运行时鉴权只读取启动时内存配置的问题，`apiKeyAuth` 现在支持异步配置解析器，启动入口会在鉴权时刷新当前配置中的 `APIKEY/Auth`；因此新生成的 managed key 可即时用于运行时请求，已吊销 key 也会即时失效，不再依赖服务重启。
+- P1-6 `服务端 API key 与鉴权控制面`（Chunk 2）：已新增轻量 auth audit store，记录鉴权 allowed / denied / skipped、source、keyId、scope、reason、path 与 requestId；新增 admin-only `GET /api/auth/audit` 查看脱敏事件和摘要；`/api/service-info` 返回 `auth` / `security` 摘要，能识别 server/cloud 或公网监听无鉴权、bootstrap-only server 等风险；`ctr doctor` 和 `/ui` 均展示鉴权/安全状态，README 同步 managed client key 与 audit 入口说明。
 
 下一项按优先级继续推进：
 
-- P1-6 `服务端 API key 与鉴权控制面`（Chunk 2）：把 key 使用写入 trace / audit 摘要，并在 `/api/service-info`、`ctr doctor` 或 `/ui` 中补 server/cloud 模式安全检查，提示公网监听必须有 bootstrap/admin key 或 managed key，继续收口服务提供者与远程使用者的安全操作路径。
+- P1-6 `服务端 API key 与鉴权控制面`（Chunk 3）：继续把 quota 从配置字段推进到运行时执行与审计告警，并进一步明确 admin / client / read-only 在配置保存、状态查询、模型调用和维护者 API 上的权限边界。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

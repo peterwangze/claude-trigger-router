@@ -19,6 +19,7 @@ import { buildProviderDispatchRequest, describeProtocolDiagnostic, TProtocolDiag
 import { isServiceRunning, killProcess, readServiceInfo } from '../utils/processCheck';
 import { isTcpPortOccupied, probeRemoteServiceStatus, probeServiceHealth, waitForService } from '../service-health';
 import { buildUsableMinimalTemplateConfig } from '../setup/templates';
+import { managedApiKeySummary } from '../auth/api-keys';
 
 interface IDoctorIO {
   info(message: string): void;
@@ -612,8 +613,17 @@ async function reportRuntimeServiceContext(config: IAppConfig, deps: IDoctorDeps
   const runtimeMode = config.Runtime?.mode ?? 'local';
   const serviceRole = runtimeMode === 'local' ? 'local_agent' : 'router_service';
   const remoteService = config.Runtime?.remote_service;
+  const managedKeys = managedApiKeySummary(config);
+  const authRequired = Boolean(config.APIKEY || managedKeys.active > 0);
+  const publicHost = ['0.0.0.0', '::', '[::]'].includes(String(config.HOST ?? '').trim());
 
   deps.io.info(`服务上下文：${runtimeMode}（${serviceRole}）`);
+  deps.io.info(`鉴权状态：${authRequired ? 'enabled' : 'disabled'}（bootstrap=${Boolean(config.APIKEY)}, managed_active=${managedKeys.active}）`);
+  if (!authRequired && (runtimeMode !== 'local' || publicHost)) {
+    deps.io.error('安全风险：当前 server/cloud 或公网监听未配置 API key；暴露服务前请设置 APIKEY 或创建 managed client/admin key。');
+  } else if (authRequired && config.APIKEY && managedKeys.total === 0 && runtimeMode !== 'local') {
+    deps.io.info('安全提示：当前仅配置 bootstrap APIKEY；建议为远程使用者生成 managed client key，并保留 APIKEY 只做管理用途。');
+  }
 
   if (!remoteService?.enabled) {
     deps.io.info('远程服务检查：未启用，本机使用本地配置和本地服务健康检查。');
@@ -630,6 +640,16 @@ async function reportRuntimeServiceContext(config: IAppConfig, deps: IDoctorDeps
       ? 'reachable'
       : 'unreachable';
   deps.io.info(`远程服务状态：${statusLabel}（reachable=${remoteStatus.reachable}, ready=${remoteStatus.ready}）`);
+  const remoteSecurity = remoteStatus.security && typeof remoteStatus.security === 'object'
+    ? remoteStatus.security as { status?: unknown; issues?: Array<{ message?: string; action?: string }> }
+    : undefined;
+  if (remoteSecurity?.status) {
+    deps.io.info(`远程服务安全状态：${String(remoteSecurity.status)}`);
+    const firstIssue = Array.isArray(remoteSecurity.issues) ? remoteSecurity.issues[0] : undefined;
+    if (firstIssue?.message) {
+      deps.io.info(`远程服务安全提示：${firstIssue.message}${firstIssue.action ? `；${firstIssue.action}` : ''}`);
+    }
+  }
   if (remoteStatus.error) {
     deps.io.info(`远程服务提示：${remoteStatus.error}`);
   }

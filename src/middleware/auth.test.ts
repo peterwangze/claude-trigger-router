@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { createManagedApiKey } from '../auth/api-keys';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { authAuditStore, createManagedApiKey } from '../auth/api-keys';
 import { apiKeyAuth } from './auth';
 
 function runAuth(middleware: ReturnType<typeof apiKeyAuth>, headers: Record<string, string>) {
@@ -9,13 +9,22 @@ function runAuth(middleware: ReturnType<typeof apiKeyAuth>, headers: Record<stri
   };
 
   return new Promise<{ error?: Error; reply: typeof reply }>((resolve) => {
-    middleware({ headers } as any, reply as any, (error?: Error) => {
+    middleware({
+      id: 'req-1',
+      method: 'POST',
+      url: '/v1/messages',
+      headers,
+    } as any, reply as any, (error?: Error) => {
       resolve({ error, reply });
     });
   });
 }
 
 describe('apiKeyAuth', () => {
+  beforeEach(() => {
+    authAuditStore.clear();
+  });
+
   it('uses the latest resolved managed key config for accept and revoke decisions', async () => {
     const created = createManagedApiKey({ label: 'client', scopes: ['client'] });
     let currentConfig = {
@@ -53,5 +62,17 @@ describe('apiKeyAuth', () => {
       error: 'Unauthorized',
       reason: 'revoked',
     });
+    expect(authAuditStore.summary()).toEqual(expect.objectContaining({
+      total: 2,
+      allowed: 1,
+      denied: 1,
+      managed: 2,
+    }));
+    expect(authAuditStore.list(1)[0]).toEqual(expect.objectContaining({
+      outcome: 'denied',
+      path: '/v1/messages',
+      reason: 'revoked',
+      keyId: created.record.id,
+    }));
   });
 });

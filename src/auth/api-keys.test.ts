@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { createManagedApiKey, verifyApiKey } from './api-keys';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { authAuditStore, createManagedApiKey, verifyApiKey } from './api-keys';
 
 describe('managed API keys', () => {
+  beforeEach(() => {
+    authAuditStore.clear();
+  });
+
   it('allows bootstrap APIKEY as admin scope', () => {
     expect(verifyApiKey({ APIKEY: 'bootstrap' }, 'bootstrap', 'admin')).toMatchObject({
       ok: true,
@@ -45,5 +49,38 @@ describe('managed API keys', () => {
       ok: false,
       reason: 'revoked',
     });
+  });
+
+  it('summarizes auth audit events without storing secrets', () => {
+    authAuditStore.add({
+      outcome: 'allowed',
+      required: 'client',
+      source: 'managed',
+      keyId: 'key_1',
+      path: '/v1/messages',
+      scopes: ['client'],
+      statusCode: 200,
+    });
+    authAuditStore.add({
+      outcome: 'denied',
+      required: 'admin',
+      source: 'managed',
+      keyId: 'key_1',
+      reason: 'insufficient_scope',
+      path: '/api/auth/keys',
+      statusCode: 403,
+    });
+
+    expect(authAuditStore.summary()).toEqual(expect.objectContaining({
+      total: 2,
+      allowed: 1,
+      denied: 1,
+      managed: 2,
+      byReason: {
+        allowed: 1,
+        insufficient_scope: 1,
+      },
+    }));
+    expect(JSON.stringify(authAuditStore.list())).not.toContain('ctr_');
   });
 });

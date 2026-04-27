@@ -14,6 +14,8 @@ export interface IRemoteServiceStatusSummary {
   service?: unknown;
   runtimeMode?: unknown;
   remoteEnabled?: unknown;
+  auth?: unknown;
+  security?: unknown;
   error?: string;
 }
 
@@ -99,7 +101,14 @@ export async function probeRemoteServiceStatus(
 
     const payload = await res.json();
     const info = payload && typeof payload === 'object'
-      ? payload as { service?: unknown; ready?: unknown; runtimeMode?: unknown; remoteEnabled?: unknown }
+      ? payload as {
+          service?: unknown;
+          ready?: unknown;
+          runtimeMode?: unknown;
+          remoteEnabled?: unknown;
+          auth?: unknown;
+          security?: unknown;
+        }
       : {};
     return {
       enabled: true,
@@ -110,6 +119,8 @@ export async function probeRemoteServiceStatus(
       service: info.service,
       runtimeMode: info.runtimeMode,
       remoteEnabled: info.remoteEnabled,
+      ...(info.auth !== undefined ? { auth: info.auth } : {}),
+      ...(info.security !== undefined ? { security: info.security } : {}),
     };
   } catch (error: any) {
     return {

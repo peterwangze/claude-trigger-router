@@ -19,8 +19,8 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - **基础路由**：用 `Router.default`、`Router.think`、`Router.longContext` 等槽位指定不同任务的默认模型。
 - **SmartRouter**：先用显式规则命中高确定性任务，也可以在规则未命中时让路由模型从候选模型中自动选择。
 - **Governance 观测**：记录 trace、metrics、异常摘要和健康状态，帮助你理解路由选择和运行风险。
-- **doctor 诊断**：检查配置、服务可启动性、模型兼容策略和可选模型探测。
-- **UI 工作台**：`ctr ui` 打开本地页面，查看服务上下文、远程状态、配置草稿、compiled models、capability warnings、治理 trace、metrics 和 Health 摘要。
+- **doctor 诊断**：检查配置、服务可启动性、鉴权安全状态、模型兼容策略和可选模型探测。
+- **UI 工作台**：`ctr ui` 打开本地页面，查看服务上下文、远程状态、鉴权安全状态、配置草稿、compiled models、capability warnings、治理 trace、metrics 和 Health 摘要。
 - **远程状态基础**：可配置 `Runtime.remote_service`，通过 `/api/remote-status` 查看远程服务健康、compiled model 摘要和治理告警摘要。默认用户不需要配置远程模式。
 
 ## 部署模式与边界
@@ -60,7 +60,7 @@ Router:
 ctr start --daemon
 ```
 
-注意：如果配置了 `HOST: "0.0.0.0"` 但没有设置 `APIKEY`，运行时会为了安全强制只监听 `127.0.0.1`。`APIKEY` 现在定位为 bootstrap/admin key；服务端启动后可以用它调用 `POST /api/auth/keys` 生成 managed client key，再把生成的一次性 secret 填到远程客户端的 `Runtime.remote_service.auth_token`。managed key 支持 `admin` / `client` / `read-only` scope、过期时间和撤销，列表接口只返回前后缀，不回显 secret。公网入口仍建议放在 HTTPS 反向代理之后。启用 `APIKEY` 或 managed key 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
+注意：如果配置了 `HOST: "0.0.0.0"` 但没有设置 `APIKEY`，运行时会为了安全强制只监听 `127.0.0.1`。`APIKEY` 现在定位为 bootstrap/admin key；服务端启动后可以用它调用 `POST /api/auth/keys` 生成 managed client key，再把生成的一次性 secret 填到远程客户端的 `Runtime.remote_service.auth_token`。managed key 支持 `admin` / `client` / `read-only` scope、过期时间和撤销，列表接口只返回前后缀，不回显 secret。`GET /api/service-info` 会返回脱敏的 `auth` / `security` 摘要，`GET /api/auth/audit` 可用 admin key 查看最近鉴权允许/拒绝记录。公网入口仍建议放在 HTTPS 反向代理之后。启用 `APIKEY` 或 managed key 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
 
 ## 安装
 
@@ -299,6 +299,7 @@ http://127.0.0.1:5678/ui
 - `Runtime.mode` 与当前服务角色
 - 远程服务状态摘要
 - Registration 模型和上游服务摘要
+- Auth 与 Security 摘要，用于发现 server/cloud 或公网监听无鉴权风险
 
 维护者工作台里的 Health 摘要来自 `GET /api/governance/health`，用于快速判断近期治理状态：
 
@@ -338,6 +339,7 @@ ctr doctor
 - 配置是否能通过本地校验
 - 服务是否可启动
 - 当前服务上下文：`local` / `server` / `cloud`
+- 当前鉴权状态；如果 server/cloud 或公网监听没有配置 `APIKEY` / managed key，会提示安全风险
 - 如果启用了 `Runtime.remote_service`，会单独检查远程服务可达和 ready 状态
 - 模型兼容策略和请求编译方式
 - capability hint 可能触发的运行时降级
@@ -357,7 +359,7 @@ Runtime:
   remote_service:
     enabled: true
     base_url: "https://router.example.com"
-    auth_token: "${CTR_REMOTE_AUTH_TOKEN}" # 对应远程服务端 APIKEY
+    auth_token: "${CTR_REMOTE_AUTH_TOKEN}" # 推荐使用远程服务端生成的 managed client key
 
 Router: {}
 ```
@@ -374,6 +376,7 @@ GET /api/remote-status
 GET /api/service-info
 GET /api/remote-status
 GET /api/registration
+GET /api/auth/audit
 ```
 
 这条能力当前作为远程接入基础 contract 提供，用于服务发现、状态检查和注册摘要；它不表示已经自动把 Claude Code 请求转发到远端。首次使用仍建议从本地 `ctr setup -> ctr start -> ctr code` 开始。

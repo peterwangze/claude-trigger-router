@@ -48,7 +48,7 @@ import { createServer } from './server';
 import { buildServerInitialConfig } from './index';
 import { governanceMetricsExportStore, governanceTraceStore } from './governance';
 import { normalizeAndValidateConfig } from './utils/config';
-import { createManagedApiKey } from './auth/api-keys';
+import { authAuditStore, createManagedApiKey } from './auth/api-keys';
 
 describe('createServer /api/config', () => {
 
@@ -113,7 +113,74 @@ describe('createServer /api/config', () => {
         models: 0,
         upstreamServices: 1,
       },
+      auth: {
+        required: false,
+        bootstrapConfigured: false,
+        managedKeys: {
+          total: 0,
+          active: 0,
+          revoked: 0,
+          expired: 0,
+        },
+        audit: {
+          total: 0,
+          allowed: 0,
+          denied: 0,
+          skipped: 0,
+          managed: 0,
+          bootstrap: 0,
+          byReason: {},
+          latestAt: undefined,
+        },
+      },
+      security: {
+        status: 'critical',
+        publicHost: true,
+        issues: [
+          expect.objectContaining({
+            code: 'server_without_auth',
+            severity: 'critical',
+          }),
+        ],
+      },
     });
+  });
+
+  it('reports configured auth and security status without secrets', async () => {
+    const created = createManagedApiKey({ label: 'remote client', scopes: ['client'] });
+    const server = createServer({
+      initialConfig: {
+        HOST: '0.0.0.0',
+        PORT: 4567,
+        APIKEY: 'bootstrap-key',
+        Runtime: {
+          mode: 'server',
+        },
+        Auth: {
+          managed_keys: [created.record],
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/service-info');
+
+    const result = await handler({}, {});
+
+    expect(result.auth).toEqual(expect.objectContaining({
+      required: true,
+      bootstrapConfigured: true,
+      managedKeys: expect.objectContaining({
+        total: 1,
+        active: 1,
+      }),
+    }));
+    expect(result.security).toEqual(expect.objectContaining({
+      status: 'ok',
+      publicHost: true,
+      issues: [],
+    }));
+    expect(JSON.stringify(result)).not.toContain('bootstrap-key');
+    expect(JSON.stringify(result)).not.toContain(created.secret);
+    expect(JSON.stringify(result)).not.toContain(created.record.key_hash);
   });
 
   it('reports local service info when Runtime is not configured', async () => {
@@ -340,6 +407,7 @@ describe('createServer /api/config', () => {
     vi.clearAllMocks();
     governanceTraceStore.clear();
     governanceMetricsExportStore.clear();
+    authAuditStore.clear();
     mockBackupConfigFile.mockResolvedValue(null);
     mockWriteConfigFile.mockResolvedValue(undefined);
     mockReadConfigFile.mockResolvedValue({});
@@ -398,6 +466,36 @@ describe('createServer /api/config', () => {
     expect(reply.code).not.toHaveBeenCalled();
   });
 
+  it('refreshes service info auth status from the current config', async () => {
+    const created = createManagedApiKey({ label: 'remote client', scopes: ['client'] });
+    mockReadConfigFile.mockResolvedValue({
+      APIKEY: 'bootstrap-key',
+      Auth: {
+        managed_keys: [created.record],
+      },
+    });
+    const server = createServer({
+      initialConfig: {
+        HOST: '0.0.0.0',
+        Runtime: {
+          mode: 'server',
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/service-info');
+
+    const result = await handler({}, {});
+
+    expect(result.auth).toEqual(expect.objectContaining({
+      required: true,
+      bootstrapConfigured: true,
+      managedKeys: expect.objectContaining({
+        active: 1,
+      }),
+    }));
+    expect(result.security.status).toBe('ok');
+  });
+
   it('lists managed API keys without exposing hashes or secrets', async () => {
     const created = createManagedApiKey({ label: 'admin', scopes: ['admin'] });
     mockReadConfigFile.mockResolvedValue({
@@ -443,6 +541,45 @@ describe('createServer /api/config', () => {
     });
     expect(JSON.stringify(result)).not.toContain(created.record.key_hash);
     expect(JSON.stringify(result)).not.toContain(created.secret);
+  });
+
+  it('exposes auth audit events behind admin auth', async () => {
+    authAuditStore.add({
+      outcome: 'denied',
+      required: 'client',
+      reason: 'missing',
+      path: '/v1/messages',
+      statusCode: 401,
+    });
+    mockReadConfigFile.mockResolvedValue({
+      APIKEY: 'bootstrap-key',
+    });
+    const server = createServer({});
+    const handler = server.app.routes.get('GET /api/auth/audit');
+
+    const result = await handler({
+      headers: { authorization: 'Bearer bootstrap-key' },
+      query: { limit: 5 },
+    }, {});
+
+    expect(result.summary).toEqual(expect.objectContaining({
+      total: 2,
+      denied: 1,
+      allowed: 1,
+      bootstrap: 1,
+    }));
+    expect(result.events).toEqual([
+      expect.objectContaining({
+        outcome: 'allowed',
+        required: 'admin',
+        source: 'bootstrap',
+      }),
+      expect.objectContaining({
+        outcome: 'denied',
+        reason: 'missing',
+        path: '/v1/messages',
+      }),
+    ]);
   });
 
   it('rejects non-admin managed keys for auth key management', async () => {

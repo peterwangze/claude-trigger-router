@@ -328,4 +328,54 @@ describe('runDoctorCli', () => {
       global.fetch = originalFetch;
     }
   });
+
+  it('warns when server mode is configured without auth', async () => {
+    const io = createIo({
+      confirm: vi.fn().mockResolvedValue(false),
+    });
+
+    vi.doMock('fs', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('fs')>();
+      return {
+        ...actual,
+        existsSync: vi.fn((filePath: string) => String(filePath).endsWith('config.yaml')),
+        readFileSync: vi.fn((filePath: string) => {
+          if (String(filePath).endsWith('config.yaml')) {
+            return [
+              'HOST: "0.0.0.0"',
+              'Runtime:',
+              '  mode: "server"',
+              'Models:',
+              '  - id: "sonnet"',
+              '    api: "https://api.example.com/v1/messages"',
+              '    key: "sk-test"',
+              '    interface: "anthropic"',
+              '    model: "claude-sonnet-4-5"',
+              'Router:',
+              '  default: "sonnet"',
+            ].join('\n');
+          }
+          return '';
+        }),
+      };
+    });
+
+    const { runDoctorCli } = await import('./index');
+    await runDoctorCli({
+      io: io as any,
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig: vi.fn().mockResolvedValue(undefined),
+      isServiceRunning: vi.fn().mockReturnValue(true),
+      readServiceInfo: vi.fn().mockReturnValue({ pid: 123, port: 5678, startTime: '' }),
+      killProcess: vi.fn(),
+      probeServiceHealth: vi.fn().mockResolvedValue(true),
+      isTcpPortOccupied: vi.fn().mockResolvedValue(true),
+      waitForService: vi.fn().mockResolvedValue(true),
+      startDaemon: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('鉴权状态：disabled'));
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('安全风险'));
+  });
 });

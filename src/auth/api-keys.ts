@@ -31,6 +31,22 @@ export interface IApiKeyVerificationResult {
   reason?: 'missing' | 'invalid' | 'expired' | 'revoked' | 'insufficient_scope';
 }
 
+export type TAuthAuditOutcome = 'allowed' | 'denied' | 'skipped';
+
+export interface IAuthAuditEvent {
+  timestamp: string;
+  outcome: TAuthAuditOutcome;
+  required: TApiKeyRequirement;
+  method?: string;
+  path?: string;
+  requestId?: string;
+  source?: 'bootstrap' | 'managed';
+  keyId?: string;
+  scopes?: TManagedApiKeyScope[];
+  reason?: string;
+  statusCode?: number;
+}
+
 const VALID_SCOPES: TManagedApiKeyScope[] = ['admin', 'client', 'read-only'];
 
 function createSecret(): string {
@@ -219,3 +235,59 @@ export function extractApiKeyFromHeaders(headers: Record<string, any> | undefine
   }
   return typeof xApiKey === 'string' ? xApiKey : undefined;
 }
+
+export class AuthAuditStore {
+  private events: IAuthAuditEvent[] = [];
+
+  constructor(private readonly max = 200) {}
+
+  add(event: Omit<IAuthAuditEvent, 'timestamp'> & { timestamp?: string }): IAuthAuditEvent {
+    const recorded = {
+      ...event,
+      timestamp: event.timestamp ?? new Date().toISOString(),
+    };
+    this.events.unshift(recorded);
+    if (this.events.length > this.max) {
+      this.events = this.events.slice(0, this.max);
+    }
+    return recorded;
+  }
+
+  list(limit = 50): IAuthAuditEvent[] {
+    return this.events.slice(0, Math.max(0, Math.min(limit, this.max))).map((event) => ({
+      ...event,
+      scopes: event.scopes ? [...event.scopes] : undefined,
+    }));
+  }
+
+  summary() {
+    const total = this.events.length;
+    const denied = this.events.filter((event) => event.outcome === 'denied').length;
+    const allowed = this.events.filter((event) => event.outcome === 'allowed').length;
+    const skipped = this.events.filter((event) => event.outcome === 'skipped').length;
+    const managed = this.events.filter((event) => event.source === 'managed').length;
+    const bootstrap = this.events.filter((event) => event.source === 'bootstrap').length;
+    const byReason = this.events.reduce<Record<string, number>>((acc, event) => {
+      const reason = event.reason ?? event.outcome;
+      acc[reason] = (acc[reason] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      total,
+      allowed,
+      denied,
+      skipped,
+      managed,
+      bootstrap,
+      byReason,
+      latestAt: this.events[0]?.timestamp,
+    };
+  }
+
+  clear(): void {
+    this.events = [];
+  }
+}
+
+export const authAuditStore = new AuthAuditStore();
