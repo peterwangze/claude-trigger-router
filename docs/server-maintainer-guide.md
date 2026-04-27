@@ -2,6 +2,8 @@
 
 This guide is for the person who owns a self-hosted Claude Trigger Router server.
 
+If you are choosing between local use, server maintenance and remote service use, start with `docs/configuration-roles.md`.
+
 ## 1. Prepare the server profile
 
 ```bash

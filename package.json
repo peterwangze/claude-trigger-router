@@ -8,6 +8,7 @@
   "files": [
     "dist",
     "config",
+    "docs/configuration-roles.md",
     "docs/server-maintainer-guide.md",
     "docs/remote-client-guide.md",
     "README.md"

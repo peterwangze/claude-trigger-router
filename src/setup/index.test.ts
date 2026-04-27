@@ -297,7 +297,7 @@ describe('runSetupCli', () => {
     expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（留空使用预设，写入 Models[].api）', '');
     expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
     expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', 'anthropic/claude-sonnet-4');
-    expect(io.info).toHaveBeenCalledWith('我们先创建一份最小可用配置。');
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('本地使用者：先跑通 Models + Router.default'));
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).not.toHaveBeenCalled();
@@ -349,6 +349,9 @@ describe('runSetupCli', () => {
     expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用，还是连接远程服务？', ['本地使用（推荐）', '连接远程服务']);
     expect(io.input).toHaveBeenNthCalledWith(1, '远程服务 URL');
     expect(io.input).toHaveBeenNthCalledWith(2, '远程服务 Auth Token（可选）', '${CTR_REMOTE_AUTH_TOKEN}');
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程使用者：拿到服务地址和 managed client + read-only key'));
+    expect(io.info).toHaveBeenCalledWith('如果你要把本机部署成服务端，请退出 setup 后运行：ctr deploy init --target server');
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('服务维护者：用 ctr deploy init --target server 生成 server 配置'));
     expect(io.input).not.toHaveBeenCalledWith('默认模型的 model id（Router.default 会引用它）', 'sonnet');
     expect(io.choose).not.toHaveBeenCalledWith('这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(writeConfig).toHaveBeenCalledWith(

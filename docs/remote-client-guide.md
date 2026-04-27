@@ -2,6 +2,8 @@
 
 This guide is for someone who uses an existing Claude Trigger Router server.
 
+If you are choosing between local use, server maintenance and remote service use, start with `docs/configuration-roles.md`.
+
 You need two values from the server maintainer:
 
 - server base URL, for example `https://router.example.com`

@@ -13,6 +13,12 @@
 ctr setup
 ```
 
+如果你不确定自己属于哪种部署角色，先看 `docs/configuration-roles.md`。当前三条路径是：
+
+- 本地使用者：配置 `Models + Router.default`，运行 `ctr start / ctr status / ctr code`。
+- 服务维护者：用 `ctr deploy init --target server` 生成 server 配置，并用 admin/bootstrap key 管理服务。
+- 远程使用者：拿到服务地址和 managed `client + read-only` key，再配置 `Runtime.remote_service` 或直接设置 Claude Code 的 `ANTHROPIC_BASE_URL`。
+
 ## 1. 推荐配置心智
 
 当前推荐始终以 `Models` 为主。

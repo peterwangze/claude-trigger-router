@@ -69,6 +69,7 @@
 - `deploy init --target server` 在已有配置时不会覆盖文件，会提示显式追加 `--force`
 - deploy 入口不会自动启动服务；后续仍要求维护者运行 `ctr doctor` 和 `ctr start --daemon`
 - `ctr status` 在 server/cloud 模式下输出 role、listener、auth 摘要、维护入口和远程客户端连接说明；服务已 ready 时优先使用 live `/api/service-info`，PID 元数据缺失时也不能误报停止
+- `ctr setup` 在本地使用和连接远程服务两条 fresh 路径中输出统一角色说明，避免把 remote service、server deploy 和 managed key 混成同一条用户路径
 
 ### UI / 服务状态
 

@@ -1,4 +1,9 @@
 import { getUiProviderTemplates } from "../provider-presets";
+import {
+  LOCAL_USER_ROLE_GUIDE,
+  REMOTE_CLIENT_ROLE_GUIDE,
+  SERVER_MAINTAINER_ROLE_GUIDE,
+} from "../runtime-role-guidance";
 
 function toInlineScriptJson(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
@@ -74,6 +79,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const escapedRegistrationSummary = escapeHtml(registrationSummary);
   const escapedAuthSummary = escapeHtml(authSummary);
   const escapedSecuritySummary = escapeHtml(securitySummary);
+  const escapedLocalUserRoleGuide = escapeHtml(LOCAL_USER_ROLE_GUIDE);
+  const escapedServerMaintainerRoleGuide = escapeHtml(SERVER_MAINTAINER_ROLE_GUIDE);
+  const escapedRemoteClientRoleGuide = escapeHtml(REMOTE_CLIENT_ROLE_GUIDE);
   const escapedMinSampleSize = escapeHtml(configuredThresholds.min_sample_size ?? 3);
   const escapedCascadeWarnRate = escapeHtml(configuredThresholds.cascade_warn_rate ?? 0.4);
   const escapedShadowWarnRate = escapeHtml(configuredThresholds.shadow_warn_rate ?? 0.5);
@@ -335,7 +343,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div><strong>listener</strong><span id="listenerConnectionSummary" class="muted">${escapedListenerSummary}</span></div>` +
     `<div><strong>remote clients</strong><span id="clientConnectionSummary" class="muted">${escapedClientConnectionSummary}</span></div>` +
     `</div>` +
-    `<div class="muted" style="margin-top:.75rem">server/cloud 模式下，远程使用者应配置 <code>ANTHROPIC_BASE_URL</code> 指向服务地址，并使用 managed <code>client + read-only</code> key；维护者继续使用 admin key 打开 <code>/ui</code> 和 auth 管理接口。</div>` +
+    `<div class="muted" style="margin-top:.75rem">${escapedLocalUserRoleGuide}</div>` +
+    `<div class="muted" style="margin-top:.5rem">${escapedServerMaintainerRoleGuide}</div>` +
+    `<div class="muted" style="margin-top:.5rem">${escapedRemoteClientRoleGuide}</div>` +
     `</div>` +
     `<div class="subpanel" id="authScopeGuide">` +
     `<div class="row"><strong>Auth scope guide</strong><span class="muted">按用途发放最小权限 key，远程客户端不要复用 admin key。</span></div>` +

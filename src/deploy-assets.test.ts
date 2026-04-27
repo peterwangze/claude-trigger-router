@@ -6,6 +6,7 @@ import packageJson from '../package.json';
 describe('deployment assets', () => {
   it('ships server deployment templates through the config package payload', () => {
     expect(packageJson.files).toContain('config');
+    expect(packageJson.files).toContain('docs/configuration-roles.md');
     expect(packageJson.files).toContain('docs/server-maintainer-guide.md');
     expect(packageJson.files).toContain('docs/remote-client-guide.md');
 
@@ -32,6 +33,11 @@ describe('deployment assets', () => {
     const remoteClientGuide = readFileSync(join(process.cwd(), 'docs', 'remote-client-guide.md'), 'utf-8');
     expect(remoteClientGuide).toContain('client + read-only');
     expect(remoteClientGuide).toContain('Runtime:');
+
+    const roleGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-roles.md'), 'utf-8');
+    expect(roleGuide).toContain('Local user');
+    expect(roleGuide).toContain('Server maintainer');
+    expect(roleGuide).toContain('Remote service user');
   });
 
   it('keeps release-stage server profile output out of the returned profile object', () => {

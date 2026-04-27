@@ -23,6 +23,11 @@ import { buildMinimalConfig, buildRemoteServiceConfig } from './templates';
 import { persistSetupConfig } from './persist';
 import { runSetup } from './setup';
 import { ISetupConfigDraft, ProviderPresetKey } from './types';
+import {
+  LOCAL_USER_ROLE_GUIDE,
+  REMOTE_CLIENT_ROLE_GUIDE,
+  SERVER_MAINTAINER_ROLE_GUIDE,
+} from '../runtime-role-guidance';
 
 interface ISetupIO {
   choose: (message: string, options: string[]) => Promise<string>;
@@ -840,11 +845,14 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
     const baseUrl = await io.input('远程服务 URL');
     const authToken = await io.input('远程服务 Auth Token（可选）', '${CTR_REMOTE_AUTH_TOKEN}');
     io.info('已生成远程服务连接配置，本机不会要求你先填写 provider/model。');
+    io.info(REMOTE_CLIENT_ROLE_GUIDE);
+    io.info('如果你要把本机部署成服务端，请退出 setup 后运行：ctr deploy init --target server');
+    io.info(SERVER_MAINTAINER_ROLE_GUIDE);
     return buildRemoteServiceConfig({ baseUrl, authToken });
   }
 
   const primaryModel = await promptModelConnection(io, {
-    intro: '我们先创建一份最小可用配置。',
+    intro: `我们先创建一份最小可用配置。${LOCAL_USER_ROLE_GUIDE}`,
     modelIdPrompt: '默认模型的 model id（Router.default 会引用它）',
     suggestedModelId: 'sonnet',
   });

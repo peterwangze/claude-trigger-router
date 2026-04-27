@@ -318,10 +318,11 @@ P3-3：持续 closed 事项复审
 - P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 2）：已在 npm 包随附 `config/deploy/docker-compose.server.yaml`、`config/deploy/systemd/claude-trigger-router.service` 与部署模板 README；`release:stage` 现在会准备独立 `.release-server-home` 并用 staged wrapper 执行 `deploy init --target server --force`，让维护者在发布前能验收 server profile，而不会覆盖普通 staged 用户配置。
 - P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 3）：已拆出 `docs/server-maintainer-guide.md` 与 `docs/remote-client-guide.md` 两条角色手册；`/api/service-info` 新增 listener 与 clientConnection contract；`ctr status`、`ctr doctor` 与 `/ui` 均显示当前 role、监听地址、鉴权状态、维护入口和远程客户端 `ANTHROPIC_BASE_URL` / managed `client + read-only` key 指引。
 - P1-7 Chunk 3 复审补强：已修正 `ctr status` 主要按本地配置推导角色信息的偏差；现在服务可访问时会优先读取 live `/api/service-info` 中的 runtime mode、listener、auth 和 clientConnection，并在 PID 元数据缺失但健康探测 ready 时正确报告服务运行中，避免维护者看到与实际服务不一致的角色/监听/鉴权指引。
+- 配置产品化最终收口（Chunk 1）：已新增 `docs/configuration-roles.md` 作为本地使用者、服务维护者、远程使用者的统一角色入口；README 的部署安全说明已拆成可扫描边界；configuration guide、server/remote 手册、setup 交互输出和 `/ui` 角色说明均收敛到同一组 local / server maintainer / remote client 口径，减少 server/cloud、managed key、remote service 术语在入口之间分叉。
 
 下一项按优先级继续推进：
 
-- 配置产品化最终收口：继续收拢 README / configuration guide / setup / UI，避免 server/cloud、managed key、remote service 等术语在不同入口分叉。
+- CLI / setup UX 重设计：让 setup 明确承接本地使用、连接远程服务、部署服务端三类入口，并在进入不同路径前给出更清晰的后续命令。
 
 ## 七、2026-04-27 智能路由与服务化复审
 
