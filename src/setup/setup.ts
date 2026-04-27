@@ -26,7 +26,13 @@ interface IRunSetupDeps extends ISetupPrompts {
     action: 'reuse' | 'start' | 'reload' | 'restart';
     healthChecked: boolean;
   }>;
-  enterClaudeCode: () => Promise<void>;
+  enterClaudeCode: (input: {
+    config: ISetupConfigDraft;
+    service: {
+      action: 'reuse' | 'start' | 'reload' | 'restart';
+      healthChecked: boolean;
+    };
+  }) => Promise<void>;
   reloadSupported: boolean;
 }
 
@@ -158,13 +164,16 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
       return;
     }
 
-    await deps.ensureServiceReady({
+    const service = await deps.ensureServiceReady({
       configChanged: false,
       detectedService: detection.detectedService,
       reloadSupported: deps.reloadSupported,
     });
 
-    await deps.enterClaudeCode();
+    await deps.enterClaudeCode({
+      config: detection.currentConfig.config,
+      service,
+    });
     return;
   }
 
@@ -230,13 +239,20 @@ export async function runSetup(deps: IRunSetupDeps): Promise<void> {
       return;
     }
 
-    await deps.ensureServiceReady({
+    const service = await deps.ensureServiceReady({
       configChanged,
       detectedService: detection.detectedService,
       reloadSupported: deps.reloadSupported,
     });
 
-    await deps.enterClaudeCode();
+    if (!finalDraft) {
+      throw new Error('setup finished without a final config draft');
+    }
+
+    await deps.enterClaudeCode({
+      config: finalDraft,
+      service,
+    });
     return;
   }
 

@@ -322,10 +322,11 @@ P3-3：持续 closed 事项复审
 - 配置产品化最终收口 Chunk 1 复审补强：已修正 npm payload 只包含少数角色手册、但 README 还链接 configuration guide / models migration / releasing 等顶层 docs 的可达性偏差；`package.json.files` 改为随包发布 `docs/*.md`，并补充打包资产回归，确保 README 中面向用户和维护者的顶层文档链接在 npm 包内可用。
 - CLI / setup UX 重设计（Chunk 1）：`ctr setup` fresh 入口已从“本地使用 / 连接远程服务”扩展为“本地使用 / 连接远程服务 / 部署为远程服务端”三类路径；选择服务端部署会生成带随机 bootstrap admin `APIKEY`、`HOST: "0.0.0.0"`、`Runtime.mode: "server"` 和可编辑 `Models + Router.default` 的 server profile，并保持安全边界：setup 不自动启动远程服务，而是提示维护者先编辑模型、运行 `ctr doctor`，再手动 `ctr start --daemon`。
 - CLI / setup UX 重设计 Chunk 1 复审补强：已修正复用已有 valid server profile 时仍会走本地 ready / Claude Code 入口的边界偏差；现在 `Runtime.mode: "server"` 的当前配置在 `ctr setup` 复用路径中同样不会自动启动服务或进入 Claude Code，只输出服务端维护者后续命令。
+- CLI / setup UX 重设计（Chunk 2）：已让 setup 完成回调拿到最终配置与服务动作结果，并按角色输出更准确的保存后 next steps；本地路径说明本地代理是 start/reuse/reload/restart 后 ready，并提示 `ctr code` 与 SmartRouter 模板，远程客户端路径只承诺当前已落地的 ready/status 检查和直连远端所需 `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_KEY`，不再误提示本地路由模板或自动进入 Claude Code。
 
 下一项按优先级继续推进：
 
-- CLI / setup UX 重设计：继续收拢 setup 后续命令与状态反馈，让本地、远程客户端、服务端三条路径在保存后各自给出更准确的 next steps。
+- CLI / setup UX 重设计：复审本地、远程客户端、服务端三条 setup 路径的闭环标准；若无新增阻塞，进入 P2-4 同模型多源池化与注册调度的最小可编译模型池设计。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

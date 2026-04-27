@@ -986,6 +986,35 @@ function printRoutingNextSteps(io: ISetupIO): void {
   io.info('  - 配置模板参考：config/trigger.advanced.yaml');
 }
 
+function formatSetupServiceReadyMessage(action: 'reuse' | 'start' | 'reload' | 'restart'): string {
+  if (action === 'start') {
+    return '本地代理已启动并通过健康检查。';
+  }
+  if (action === 'reload') {
+    return '本地代理已重载配置并通过健康检查。';
+  }
+  if (action === 'restart') {
+    return '本地代理已重启并通过健康检查。';
+  }
+  return '本地代理已在运行并通过健康检查。';
+}
+
+function printRemoteClientNextSteps(io: ISetupIO, action: 'reuse' | 'start' | 'reload' | 'restart'): void {
+  io.info(`${formatSetupServiceReadyMessage(action)}远程服务连接配置已保存，可用于检查远端 ready/status。`);
+  io.info('下一步：运行 ctr status 查看本地代理与远程服务 ready 状态。');
+  io.info('日常直连远程服务时，请按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_API_KEY 配置 Claude Code。');
+  io.info('如果远端不可用，请确认 Runtime.remote_service.base_url 和 managed client + read-only key。');
+}
+
+function printLocalClientNextSteps(io: ISetupIO, action: 'reuse' | 'start' | 'reload' | 'restart'): void {
+  io.info(`${formatSetupServiceReadyMessage(action)}日常使用运行：ctr code`);
+  printRoutingNextSteps(io);
+}
+
+function isRemoteServiceClientConfig(config: ISetupConfigDraft): boolean {
+  return config.Runtime?.mode === 'local' && Boolean(config.Runtime.remote_service?.enabled);
+}
+
 export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promise<void> {
   const defaults = createDefaultDeps(customDeps?.io);
   const deps = { ...defaults, ...customDeps } as IRunSetupCliDeps;
@@ -1098,8 +1127,14 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
           healthChecked: true,
         };
       },
-      enterClaudeCode: async () => {
-        printRoutingNextSteps(deps.io);
+      enterClaudeCode: async ({ config, service }) => {
+        if (isRemoteServiceClientConfig(config)) {
+          printRemoteClientNextSteps(deps.io, service.action);
+          return;
+        } else {
+          printLocalClientNextSteps(deps.io, service.action);
+        }
+
         if (!shouldAutoEnterClaudeCodeAfterSetup()) {
           deps.io.info('为避免 setup 结束后接管当前终端，请手动运行：ctr code');
           deps.io.info('如果你明确需要 setup 结束后自动进入 Claude Code，可设置环境变量 CTR_SETUP_AUTO_ENTER_CODE=1');

@@ -123,7 +123,7 @@ ctr setup
 - 部署为远程服务端时生成 server profile 和 bootstrap admin `APIKEY`，但不会自动启动服务
 - 本地使用时，引导填写默认模型 ID、接口地址、API Key 和模型名
 - 本地使用时，可选追加复杂任务模型，并生成 SmartRouter 起步模板
-- 保存配置后启动本地服务
+- 保存配置后按角色输出下一步：本地路径提示 `ctr code` 和路由模板，远程客户端路径提示 `ctr status` / 远端 ready 检查，服务端路径提示 `ctr doctor` / `ctr start --daemon`
 
 本地使用路径完成后按这个顺序使用：
 
@@ -134,7 +134,7 @@ ctr code
 
 `ctr code` 会带着本地代理环境启动 Claude Code。之后你在 Claude Code 里的请求会经过本地 Trigger Router。
 
-如果 setup 选择的是“连接远程服务”，当前主要用于生成远程服务连接配置并检查远程状态；首次日常使用仍建议先跑通本地 `Models + Router.default` 主路径。如果选择“部署为远程服务端”，setup 只生成配置，不会自动启动；请先编辑 `Models[].key` / `Models[].model`，再运行 `ctr doctor` 和 `ctr start --daemon`。
+如果 setup 选择的是“连接远程服务”，当前主要用于生成远程服务连接配置并通过 `ctr status` 检查远端 ready 状态；日常直连远程服务时，请按服务维护者提供的 `ANTHROPIC_BASE_URL` 和 `ANTHROPIC_API_KEY` 配置 Claude Code。首次日常使用仍建议先跑通本地 `Models + Router.default` 主路径。如果选择“部署为远程服务端”，setup 只生成配置，不会自动启动；请先编辑 `Models[].key` / `Models[].model`，再运行 `ctr doctor` 和 `ctr start --daemon`。
 
 ## 手动配置
 
