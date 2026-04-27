@@ -93,6 +93,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `.action-row{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-top:.75rem}` +
     `.management-table{width:100%;margin-top:.75rem}` +
     `.management-table th,.management-table td{padding:.5rem;border-bottom:1px solid #e5e7eb;font-size:.92rem;vertical-align:top}` +
+    `.scope-guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.75rem;margin-top:.75rem}` +
+    `.scope-guide div{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:.75rem}` +
+    `.scope-guide strong{display:block;margin-bottom:.35rem}` +
     `.alert-list{display:grid;gap:.75rem;margin-top:1rem}` +
     `.alert{border-radius:12px;padding:.85rem 1rem;border:1px solid}` +
     `.alert.warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}` +
@@ -313,6 +316,15 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="panel">` +
     `<div class="surface-heading"><strong>维护者工作台</strong><span class="muted">运行观测、Governance Trace、metrics、归档与维护操作。</span></div>` +
     `<div id="securitySummary" class="alert info"><strong>Security pending</strong><div class="muted">等待服务安全状态加载</div></div>` +
+    `<div class="subpanel" id="authScopeGuide">` +
+    `<div class="row"><strong>Auth scope guide</strong><span class="muted">按用途发放最小权限 key，远程客户端不要复用 admin key。</span></div>` +
+    `<div class="scope-guide">` +
+    `<div><strong>admin</strong><span class="muted">维护者使用：/ui、配置保存、重启、auth 管理和治理写操作。</span></div>` +
+    `<div><strong>client</strong><span class="muted">客户端模型调用：/v1/messages、/v1/chat/completions；模型调用配额只计入这里。</span></div>` +
+    `<div><strong>read-only</strong><span class="muted">只读观测：health、service-info、compiled models、transformers 和 governance GET。</span></div>` +
+    `<div><strong>client + read-only</strong><span class="muted">远程 token 同时需要 ready/status 探测与模型调用时使用该组合。</span></div>` +
+    `</div>` +
+    `</div>` +
     `<div class="subpanel">` +
     `<div class="row"><strong>Auth quota</strong><span class="muted">按 managed key 查看模型调用配额、当前用量与窗口重置时间</span></div>` +
     `<table id="authQuotaTable" class="management-table">` +

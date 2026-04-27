@@ -621,6 +621,7 @@ async function reportRuntimeServiceContext(config: IAppConfig, deps: IDoctorDeps
 
   deps.io.info(`服务上下文：${runtimeMode}（${serviceRole}）`);
   deps.io.info(`鉴权状态：${authRequired ? 'enabled' : 'disabled'}（bootstrap=${hasBootstrapAuth}, managed_active=${managedKeys.active}）`);
+  deps.io.info('Scope 指引：admin 用于 /ui、配置保存、重启、auth 管理和治理写操作；client 只用于模型调用；read-only 只用于 health/status/compiled/governance 观测。');
   if (!authRequired && (runtimeMode !== 'local' || publicHost)) {
     deps.io.error('安全风险：当前 server/cloud 或公网监听未配置 API key；暴露服务前请设置 APIKEY 或创建 managed client/admin key。');
   } else if (!hasBootstrapAuth && hasManagedAuthRecords && managedKeys.active === 0) {
@@ -636,6 +637,7 @@ async function reportRuntimeServiceContext(config: IAppConfig, deps: IDoctorDeps
 
   const baseUrl = remoteService.base_url?.trim().replace(/\/+$/, '') || '<missing>';
   deps.io.info(`远程服务检查：${baseUrl}`);
+  deps.io.info('远程 token 指引：Runtime.remote_service.auth_token 如果同时要探测 ready/status 并调用模型，请授予 client + read-only；避免复用 admin key。');
 
   const remoteStatus = await probeRemoteServiceStatus(remoteService);
   const statusLabel = remoteStatus.ready

@@ -311,10 +311,11 @@ P3-3：持续 closed 事项复审
 - P1-6 Chunk 3c-b 复审补强：已将 quota usage 持久化从模型调用关键路径中移出，磁盘写入失败不再导致已通过鉴权的模型请求失败；状态文件写入改为串行队列 + 临时文件 rename，避免并发请求下旧快照覆盖新快照或写出半文件。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-c）：已收紧运行时全局权限矩阵，`client` key 只覆盖模型调用，`read-only` key 覆盖健康、服务状态、compiled models、transformers 和 governance 观测 GET 接口，配置读取/保存、`/ui`、重启、auth 管理和治理写操作需要 `admin`；README 与中间件回归测试同步 scope 语义。
 - P1-6 Chunk 3c-c 复审补强：已修正底层 `scopeAllows()` 仍允许 `client` 访问 `read-only` 接口的语义漂移；现在纯 `client` key 不能读取 service-info/status，远程 token 如需同时模型调用与 ready/status 探测，需要显式授予 `client + read-only` scope。
+- P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-d）：已在 `/ui` 维护者工作台新增 Auth scope guide，明确 admin、client、read-only 与 `client + read-only` 的适用场景；`ctr doctor` 同步输出 scope 指引与远程 token 发放建议，降低服务使用者误用 admin key 或用纯 client key 做状态探测的概率。
 
 下一项按优先级继续推进：
 
-- P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-d）：继续补 UI/CLI 对 admin、client、read-only scope 的可见提示与操作引导，降低远程服务使用者误用管理 key 的概率。
+- P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 1）：在 P1-6 安全边界收口后，补齐服务端/云端/本地三类部署形态的命令、配置模板、维护者与使用者操作入口。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

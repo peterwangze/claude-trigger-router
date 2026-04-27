@@ -2042,6 +2042,10 @@ describe('createServer /api/config', () => {
     expect(html).toContain('refreshStatusHeroBtn');
     expect(html).toContain('loadServiceStatus');
     expect(html).toContain('authQuotaTable');
+    expect(html).toContain('authScopeGuide');
+    expect(html).toContain('Auth scope guide');
+    expect(html).toContain('client + read-only');
+    expect(html).toContain('远程 token 同时需要 ready/status 探测与模型调用');
     expect(html).toContain('userSurfaceTab');
     expect(html).toContain('maintainerSurfaceTab');
     expect(html).toContain('id="userSurface"');

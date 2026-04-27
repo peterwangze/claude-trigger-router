@@ -320,7 +320,10 @@ describe('runDoctorCli', () => {
         },
       }));
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('服务上下文：local'));
+      expect(io.info).toHaveBeenCalledWith(expect.stringContaining('Scope 指引：admin'));
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程服务检查：https://router.example.com'));
+      expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程 token 指引'));
+      expect(io.info).toHaveBeenCalledWith(expect.stringContaining('client + read-only'));
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程服务状态：ready'));
       expect(io.confirm).not.toHaveBeenCalled();
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('已跳过模型探测：当前配置没有本地模型'));
