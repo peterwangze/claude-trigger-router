@@ -17,7 +17,7 @@ import { getModelApi, getModelInterface, getModelKey, inferInterfaceFromApiEndpo
 import { buildModelRegistry, describeCompatibilityProfile, describeDispatchFormat } from '../models/compile';
 import { buildProviderDispatchRequest, describeProtocolDiagnostic, TProtocolDiagnosticCode } from '../protocols';
 import { isServiceRunning, killProcess, readServiceInfo } from '../utils/processCheck';
-import { isTcpPortOccupied, probeServiceHealth, waitForService } from '../service-health';
+import { isTcpPortOccupied, probeRemoteServiceStatus, probeServiceHealth, waitForService } from '../service-health';
 import { buildUsableMinimalTemplateConfig } from '../setup/templates';
 
 interface IDoctorIO {
@@ -608,6 +608,33 @@ async function ensureServiceUsable(config: IAppConfig, deps: IDoctorDeps, config
   deps.io.info(`服务已就绪：http://127.0.0.1:${port}`);
 }
 
+async function reportRuntimeServiceContext(config: IAppConfig, deps: IDoctorDeps): Promise<void> {
+  const runtimeMode = config.Runtime?.mode ?? 'local';
+  const serviceRole = runtimeMode === 'local' ? 'local_agent' : 'router_service';
+  const remoteService = config.Runtime?.remote_service;
+
+  deps.io.info(`服务上下文：${runtimeMode}（${serviceRole}）`);
+
+  if (!remoteService?.enabled) {
+    deps.io.info('远程服务检查：未启用，本机使用本地配置和本地服务健康检查。');
+    return;
+  }
+
+  const baseUrl = remoteService.base_url?.trim().replace(/\/+$/, '') || '<missing>';
+  deps.io.info(`远程服务检查：${baseUrl}`);
+
+  const remoteStatus = await probeRemoteServiceStatus(remoteService);
+  const statusLabel = remoteStatus.ready
+    ? 'ready'
+    : remoteStatus.reachable
+      ? 'reachable'
+      : 'unreachable';
+  deps.io.info(`远程服务状态：${statusLabel}（reachable=${remoteStatus.reachable}, ready=${remoteStatus.ready}）`);
+  if (remoteStatus.error) {
+    deps.io.info(`远程服务提示：${remoteStatus.error}`);
+  }
+}
+
 function createDefaultDeps(io = createConsoleIO()): IDoctorDeps {
   return {
     readLegacyConfig,
@@ -671,6 +698,8 @@ export async function runDoctorCli(customDeps?: Partial<IDoctorDeps>): Promise<v
     if (normalized.warnings.length > 0) {
       deps.io.info(`配置提示：${formatValidationIssueReport(buildValidationIssueReport({ warnings: normalized.warnings })).join('; ')}`);
     }
+
+    await reportRuntimeServiceContext(normalized.config, deps);
 
     const registry = buildModelRegistry(normalized.config);
     for (const model of normalized.config.Models ?? []) {

@@ -20,9 +20,28 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     : 0;
   const routerDefault = initialConfig.Router?.default ?? '-';
   const displayPort = initialConfig.PORT ?? '-';
+  const runtimeMode = initialConfig.Runtime?.mode ?? 'local';
+  const serviceRole = runtimeMode === 'local' ? 'local_agent' : 'router_service';
+  const remoteService = initialConfig.Runtime?.remote_service ?? {};
+  const remoteBaseUrl = typeof remoteService.base_url === 'string'
+    ? remoteService.base_url.trim().replace(/\/+$/, '')
+    : '';
+  const remoteSummary = remoteService.enabled
+    ? `${remoteBaseUrl || '-'} (checking)`
+    : 'disabled';
+  const registration = initialConfig.Registration ?? {};
+  const registrationModels = Array.isArray(registration.models) ? registration.models.length : 0;
+  const registrationUpstreamServices = Array.isArray(registration.upstream_services) ? registration.upstream_services.length : 0;
+  const registrationSummary = registration.enabled
+    ? `${registrationModels} models / ${registrationUpstreamServices} upstream`
+    : 'disabled';
   const escapedDisplayPort = escapeHtml(displayPort);
   const escapedModelsCount = escapeHtml(modelsCount);
   const escapedRouterDefault = escapeHtml(routerDefault);
+  const escapedRuntimeMode = escapeHtml(runtimeMode);
+  const escapedServiceRole = escapeHtml(serviceRole);
+  const escapedRemoteSummary = escapeHtml(remoteSummary);
+  const escapedRegistrationSummary = escapeHtml(registrationSummary);
   const escapedMinSampleSize = escapeHtml(configuredThresholds.min_sample_size ?? 3);
   const escapedCascadeWarnRate = escapeHtml(configuredThresholds.cascade_warn_rate ?? 0.4);
   const escapedShadowWarnRate = escapeHtml(configuredThresholds.shadow_warn_rate ?? 0.5);
@@ -103,8 +122,12 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="status-grid">` +
     `<div class="status-tile"><span class="muted">Service</span><strong id="serviceReadyStatus">ready</strong></div>` +
     `<div class="status-tile"><span class="muted">Port</span><strong id="servicePortStatus">${escapedDisplayPort}</strong></div>` +
+    `<div class="status-tile"><span class="muted">Mode</span><strong id="serviceModeStatus">${escapedRuntimeMode}</strong></div>` +
+    `<div class="status-tile"><span class="muted">Role</span><strong id="serviceRoleStatus">${escapedServiceRole}</strong></div>` +
     `<div class="status-tile"><span class="muted">Models</span><strong id="modelCountStatus">${escapedModelsCount}</strong></div>` +
     `<div class="status-tile"><span class="muted">Router.default</span><strong id="routerDefaultStatus">${escapedRouterDefault}</strong></div>` +
+    `<div class="status-tile"><span class="muted">Remote service</span><strong id="remoteStatusSummary">${escapedRemoteSummary}</strong></div>` +
+    `<div class="status-tile"><span class="muted">Registration</span><strong id="registrationStatusSummary">${escapedRegistrationSummary}</strong></div>` +
     `</div>` +
     `</div>` +
     `</div>` +
@@ -408,6 +431,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const draftModelsCount=document.getElementById('draftModelsCount');` +
     `const serviceReadyStatus=document.getElementById('serviceReadyStatus');` +
     `const servicePortStatus=document.getElementById('servicePortStatus');` +
+    `const serviceModeStatus=document.getElementById('serviceModeStatus');` +
+    `const serviceRoleStatus=document.getElementById('serviceRoleStatus');` +
+    `const remoteStatusSummary=document.getElementById('remoteStatusSummary');` +
+    `const registrationStatusSummary=document.getElementById('registrationStatusSummary');` +
     `const modelCountStatus=document.getElementById('modelCountStatus');` +
     `const routerDefaultStatus=document.getElementById('routerDefaultStatus');` +
     `const triggerEnabled=document.getElementById('triggerEnabled');` +
@@ -1046,12 +1073,21 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `async function loadServiceStatus(){` +
     `  serviceReadyStatus.textContent='checking';` +
     `  try {` +
-    `    const res=await fetch('/api/health');` +
-    `    const data=await res.json();` +
+    `    const [serviceRes,remoteRes]=await Promise.all([fetch('/api/service-info'),fetch('/api/remote-status')]);` +
+    `    const data=await serviceRes.json();` +
+    `    const remoteData=await remoteRes.json();` +
     `    serviceReadyStatus.textContent=data.ready ? 'ready' : 'not ready';` +
     `    servicePortStatus.textContent=data.port || '-';` +
+    `    serviceModeStatus.textContent=data.runtimeMode || '-';` +
+    `    serviceRoleStatus.textContent=data.serviceRole || '-';` +
+    `    const registration=data.registration || {};` +
+    `    registrationStatusSummary.textContent=registration.enabled ? ((registration.models ?? 0)+' models / '+(registration.upstreamServices ?? 0)+' upstream') : 'disabled';` +
+    `    const remote=remoteData.remote || {};` +
+    `    remoteStatusSummary.textContent=remote.enabled ? ((remote.ready ? 'ready' : (remote.reachable ? 'reachable' : 'unreachable'))+' · '+(remote.baseUrl || '-')) : 'disabled';` +
+    `    if(remoteData.compiledModels){ modelCountStatus.textContent=remoteData.compiledModels.modelCount ?? modelCountStatus.textContent; }` +
     `  } catch (_error) {` +
     `    serviceReadyStatus.textContent='unreachable';` +
+    `    remoteStatusSummary.textContent='unknown';` +
     `  }` +
     `}` +
     `async function saveConfigDraft(){` +

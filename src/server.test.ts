@@ -1743,6 +1743,48 @@ describe('createServer /api/config', () => {
     expect(html).not.toContain('<img src=x onerror=alert(1)>');
   });
 
+  it('renders service context and remote status summary at /ui', async () => {
+    const server = createServer({
+      initialConfig: {
+        PORT: 6789,
+        Runtime: {
+          mode: 'local',
+          remote_service: {
+            enabled: true,
+            base_url: 'https://router.example.com/',
+            auth_token: 'remote-token',
+          },
+        },
+        Registration: {
+          enabled: true,
+          upstream_services: [
+            {
+              id: 'edge-router',
+              base_url: 'https://edge.example.com',
+            },
+          ],
+        },
+        Router: {},
+      },
+    });
+    const handler = server.app.routes.get('GET /ui');
+    const reply = {
+      header: vi.fn().mockReturnThis(),
+      send: vi.fn((html: string) => html),
+    };
+
+    const html = await handler({}, reply);
+
+    expect(html).toContain('serviceModeStatus');
+    expect(html).toContain('serviceRoleStatus');
+    expect(html).toContain('remoteStatusSummary');
+    expect(html).toContain('registrationStatusSummary');
+    expect(html).toContain('https://router.example.com');
+    expect(html).toContain('local_agent');
+    expect(html).toContain('/api/service-info');
+    expect(html).toContain('/api/remote-status');
+  });
+
   it('rejects invalid config before writing', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('POST /api/config');

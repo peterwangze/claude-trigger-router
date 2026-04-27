@@ -258,4 +258,72 @@ describe('runDoctorCli', () => {
       })
     );
   });
+
+  it('reports remote service context separately from local config checks', async () => {
+    const io = createIo({
+      confirm: vi.fn().mockResolvedValue(false),
+    });
+
+    vi.doMock('fs', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('fs')>();
+      return {
+        ...actual,
+        existsSync: vi.fn((filePath: string) => String(filePath).endsWith('config.yaml')),
+        readFileSync: vi.fn((filePath: string) => {
+          if (String(filePath).endsWith('config.yaml')) {
+            return [
+              'Runtime:',
+              '  mode: "local"',
+              '  remote_service:',
+              '    enabled: true',
+              '    base_url: "https://router.example.com/"',
+              '    auth_token: "remote-token"',
+              'Router: {}',
+            ].join('\n');
+          }
+          return '';
+        }),
+      };
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        service: 'claude-trigger-router',
+        ready: true,
+        runtimeMode: 'server',
+        remoteEnabled: false,
+      }),
+    });
+    const originalFetch = global.fetch;
+    global.fetch = fetchMock as any;
+
+    try {
+      const { runDoctorCli } = await import('./index');
+      await runDoctorCli({
+        io: io as any,
+        readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+        backupCurrentConfig: vi.fn().mockResolvedValue(null),
+        writeConfig: vi.fn().mockResolvedValue(undefined),
+        isServiceRunning: vi.fn().mockReturnValue(true),
+        readServiceInfo: vi.fn().mockReturnValue({ pid: 123, port: 5678, startTime: '' }),
+        killProcess: vi.fn(),
+        probeServiceHealth: vi.fn().mockResolvedValue(true),
+        isTcpPortOccupied: vi.fn().mockResolvedValue(true),
+        waitForService: vi.fn().mockResolvedValue(true),
+        startDaemon: vi.fn().mockResolvedValue(undefined),
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith('https://router.example.com/api/service-info', expect.objectContaining({
+        headers: {
+          Authorization: 'Bearer remote-token',
+        },
+      }));
+      expect(io.info).toHaveBeenCalledWith(expect.stringContaining('服务上下文：local'));
+      expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程服务检查：https://router.example.com'));
+      expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程服务状态：ready'));
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });
