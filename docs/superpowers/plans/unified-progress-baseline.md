@@ -65,8 +65,13 @@
 | 事项 / 特性 | 类型 | 当前状态 | 当前优先级 | 当前闭环结论 | 详细进展 / 设计 / 实施文档 |
 |---|---|---|---|---|---|
 | Governance 治理主链首轮落地 | 核心能力 | closed | closed | sticky / alignment / cascade / semantic / shadow 首轮能力已闭环，当前已转入观测增强与运营化阶段；输入侧 Prompt / Intent Optimization 被定义为治理下一轮增强子特性，而不是独立新总线 | `docs/superpowers/plans/2026-04-04-router-evolution-roadmap.md` ; `docs/superpowers/specs/2026-04-04-router-governance-design.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-04-governance-milestone-summary.md` ; `docs/superpowers/plans/2026-04-04-governance-release-notes.md` |
-| 治理观测增强 / 运营化 | 持续演进特性 | in_progress | P2-能力扩展 | metrics、快照、归档、异常检测、时间窗趋势和治理健康摘要已具备第一轮基础，当前闭环结论是“已从可调试进入可运营增强阶段，维护者能通过 `health` 摘要判断 idle / healthy / watch / critical，并能通过 Health action 联动 trace 过滤进入 cascade / shadow 排查视图；README / configuration guide / CLI test matrix 已同步健康摘要口径；release-stage wrapper 已覆盖打包后 `/ui` HTML 与 `/api/governance/health` smoke”；输入侧优化将作为治理增强链路的下一轮设计输入推进，真实浏览器 DOM 交互 smoke 后续作为 UI 看护增强项保留 | `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` |
+| 智能路由收益与切换体感治理 | 复审新增持续演进特性 | planned | P1-主路径易用性 | 当前 SmartRouter 已具备规则路由、语义匹配、LLM 选模、sticky correction、context alignment、cascade retry、shadow supervisor 和治理 health；当前闭环结论是“多模型组合链路已成立，但还缺能证明质量 / 速度 / 连续体验提升的 outcome scorecard、切换策略指标和用户可理解的收益解释，因此应先于 coverage 主线推进” | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
+| 服务端 API key 与鉴权控制面 | 复审新增持续演进特性 | planned | P1-主路径易用性 | 当前只有单一 `APIKEY`、Bearer / `x-api-key` 认证与公网监听安全回退；当前闭环结论是“简单自托管入口有最低保护，但 server/cloud 推荐部署前必须补 generated keys、scope、过期、撤销、配额和审计，否则模型资源泄漏风险不可控” | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` ; `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` |
+| server/cloud 一键部署与角色化运维入口 | 复审新增持续演进特性 | planned | P1-主路径易用性 | Runtime / remote status / registration 已形成最小边界；当前闭环结论是“还不能宣称一键 server/cloud 部署或完整服务端控制面，下一步必须在安全默认值前提下提供服务提供者、维护者和远程使用者三类路径” | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` ; `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` |
+| 治理观测增强 / 运营化 | 持续演进特性 | in_progress | P2-能力扩展 | metrics、快照、归档、异常检测、时间窗趋势和治理健康摘要已具备第一轮基础，当前闭环结论是“已从可调试进入可运营增强阶段，维护者能通过 `health` 摘要判断 idle / healthy / watch / critical，并能通过 Health action 联动 trace 过滤进入 cascade / shadow 排查视图；README / configuration guide / CLI test matrix 已同步健康摘要口径；release-stage wrapper 已覆盖打包后 `/ui` HTML 与 `/api/governance/health` smoke；后续应承接智能路由收益 scorecard、pool health 和 key audit 进入同一 health/metrics 口径”；输入侧优化将作为治理增强链路的下一轮设计输入推进，真实浏览器 DOM 交互 smoke 后续作为 UI 看护增强项保留 | `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` |
 | 部署形态与远程接入收敛 | 持续演进特性 | in_progress | P2-能力扩展 | 本地单机部署已形成基础，且已落地 Runtime/Registration 配置归一化、`/api/service-info` runtime metadata contract、显式 Runtime/Registration 保存保留、远程服务配置草稿、`/api/remote-status` 摘要、registration semantics、setup/doctor/UI 远程心智和公开文档叙事；当前闭环结论是“远程接入最小双端边界已完成阶段闭环，后续远程请求转发、注册同步和集群/节点编排仍不宣称已支持” | `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` ; `docs/superpowers/plans/2026-04-17-deployment-and-remote-access-implementation.md` ; `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` ; `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` |
+| 同模型多源池化与注册调度 | 复审新增持续演进特性 | planned | P2-能力扩展 | Registration.models / upstream_services 当前只做摘要展示和校验；当前闭环结论是“同类型 N 个 LLM 服务源池化尚未落地，需在鉴权和部署边界稳定后再把 logical model pool、health-aware routing、fallback、熔断、延迟窗口和 trace 原因接入运行时” | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` ; `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` |
+| Agent / 工具能力演进探索 | 复审新增持续演进特性 | planned | P2-能力扩展 | 当前已有 image agent、tools fallback、governance trace 和 context alignment 基础；当前闭环结论是“后续可借鉴 handoff、supervisor、guardrail、tracing 等主流 agent 心智，但项目定位仍应保持 Claude Code 路由代理，优先做低侵入的 handoff summary、guardrail 与 trace span 化，不先扩张为完整 agent 平台” | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` |
 | UI 双层工作台收敛 | 持续演进特性 | in_progress | P2-能力扩展 | 当前 `/ui` 已完成首轮使用者 / 维护者 surface 分层：使用者默认进入配置草稿、模型、路由、compiled preview 与保存动作，维护者独立承接 trace、metrics、异常阈值、快照和归档；当前闭环结论是“UI 双层产品边界已有可操作入口，但更细的导航拆分、公开文档叙事和远程状态表达仍需继续收口” | `docs/superpowers/specs/2026-04-17-dual-surface-ui-ux-design.md` ; `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` ; `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` |
 | SmartRouter 早期专项计划 | 历史专项 | archived | archived | SmartRouter 已不再是独立新增主线，当前闭环结论是“历史计划价值保留，但后续演进应纳入统一 Router 心智与配置产品化体系” | `docs/superpowers/plans/2026-03-22-smart-router.md` |
 | `ctr setup` 早期实施计划 | 历史专项 | archived | archived | setup 已完成从早期 checklist 到产品入口的阶段跃迁，当前闭环结论是“原始计划归档，后续演进转由 setup UX 与配置产品化文档承接” | `docs/superpowers/plans/2026-04-02-ctr-setup.md` ; `docs/superpowers/specs/2026-04-02-setup-usability-design.md` |
@@ -77,7 +82,7 @@
 | 统一 Router 运行时收敛 | 持续演进特性 | closed | closed | `smart_rule -> semantic_match -> smart_router -> sticky_correction` 决策链、统一 route-source/trace、structured smart hint、unified Router schema 双读与 runtime normalize 已完成首轮闭环；同时已补齐 unified `Router.defaults` 对治理层的真实启用与 mixed config + model id 引用兼容，当前闭环结论是“运行时底座已可作为后续 setup/UI/docs 收口前提，剩余工作转入对外心智与产品入口主线” | `docs/superpowers/specs/2026-04-09-unified-router-evolution-design.md` ; `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md` |
 | Trigger 收编到 SmartRouter（统一路由引擎化） | 持续演进特性 | closed | closed | SmartRouter 已成为统一路由运行时入口；Trigger 规则已内收为 SmartRouter 前置规则能力；legacy intent 已折入 SmartRouter semantic classifier；semantic / sticky / alignment 已作为 SmartRouter 默认增强层启用并支持显式关闭；统一 Router routes/defaults 归一不再派生并列 TriggerRouter / Governance semantic-sticky 分支；routeSource / trace reason 已切到 `smart_rule` / `semantic_match` / `smart_router` 等统一标签。当前闭环结论是“运行时主线已阶段闭环，后续对外模板、README、setup、UI 的叙事收口并入配置产品化与 CLI/setup UX 主线继续推进” | `docs/superpowers/plans/2026-04-15-trigger-smart-router-consolidation.md` |
 | CLI / setup UX 重设计 | 持续演进特性 | in_progress | P1-主路径易用性 | migration-first、model-id-first 主入口已继续落地：fresh setup 已改为先收集默认模型 ID，再进入接入方式；并支持在最小配置后可选追加复杂任务模型与 SmartRouter 起步模板。当前闭环结论是“setup 主路径已明显收口，但 CLI / README / 模板 / `/ui` 的统一叙事仍未完全闭环” | `docs/superpowers/specs/2026-04-10-cli-setup-ux-redesign-design.md` ; `docs/superpowers/plans/2026-04-10-cli-setup-ux-redesign-implementation.md` |
-| 项目目标与用户使用视角复审 | 复审 / 实施计划 | in_progress | P1-主路径易用性 | 已完成 2026-04-25 首轮横向复审，并已闭环 P1-1 权威入口修正与 P1-2 `ctr ui` 使用者入口第一屏收口；2026-04-26 复审补强已修正生产启动路径缺失完整配置与 `/ui` 状态值未转义的问题，并已完成 P1-3 setup/UI/doctor/server save 共享 validation issue contract、P1-4 UI 渲染职责拆分、P2-1 UI 双层 surface 首轮落地、P2-2 远程接入最小双端边界，以及 P2-3 治理健康摘要首轮落地。当前闭环结论是“P1 复审发现已完成阶段闭环，P2/P3 事项按计划下沉到治理观测运营化、UI 导航细化和 release/coverage 看护继续推进” | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
+| 项目目标与用户使用视角复审 | 复审 / 实施计划 | in_progress | P1-主路径易用性 | 已完成 2026-04-25 首轮横向复审，并已闭环 P1-1 权威入口修正与 P1-2 `ctr ui` 使用者入口第一屏收口；2026-04-26 复审补强已修正生产启动路径缺失完整配置与 `/ui` 状态值未转义的问题，并已完成 P1-3 setup/UI/doctor/server save 共享 validation issue contract、P1-4 UI 渲染职责拆分、P2-1 UI 双层 surface 首轮落地、P2-2 远程接入最小双端边界，以及 P2-3 治理健康摘要首轮落地。2026-04-27 已追加智能路由收益、模型切换体感、server/cloud 鉴权、一键部署、同模型多源池化和 agent/tool 演进复审，并重排近期优先级。当前闭环结论是“项目复审继续作为跨主线校准入口，新增 P1/P2 事项已归档到统一基线和本实施计划，下一步优先闭环智能路由收益与服务端安全前置” | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
 | CLI 稳定性与发布工程 | 持续演进特性 | in_progress | P3-治理支撑 | packaged CLI E2E、acceptance、release-stage wrapper 已形成首轮门禁，并已把 staged `/ui` HTML 与治理健康 API smoke 纳入 acceptance；当前闭环结论是“发布前质量门槛已成型，但仍需持续覆盖新路径与压低回归概率” | `docs/superpowers/specs/2026-04-12-cli-e2e-test-design.md` |
 | 已闭环事项复审校准 | 治理事项 | in_progress | P3-治理支撑 | 已开始按统一基线顺序复审 closed 事项；当前阶段结论是“不回退既有 closed 结论，但对复审发现的问题通过新增事项持续跟踪，并要求文档、测试和用户主路径证据与原闭环事务建立显式关联”。当前已识别的首批问题包括 OpenAI-compatible 主路径兼容补强，以及统一 Router 运行时闭环描述与当前代码链路的校准需求。 | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
 | 进展文档体系治理 | 治理事项 | in_progress | P3-治理支撑 | 公共入口已切换为不带日期标签的统一基线，当前闭环结论是“单一入口已经建立，但后续仍需按规则维护特性表与问题记录，防止再次膨胀或口径漂移” | `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/progress-issue-log.md` |
@@ -272,12 +277,27 @@
 
 #### P1：主路径易用性
 
-1. 配置产品化最终收口
-2. CLI / setup UX 重设计
-3. 项目目标与用户使用视角复审
+1. 智能路由收益与切换体感治理
+2. 服务端 API key 与鉴权控制面
+3. server/cloud 一键部署与角色化运维入口
+4. 配置产品化最终收口
+5. CLI / setup UX 重设计
+6. 项目目标与用户使用视角复审
 
 ##### P1 主线离闭环还差什么
 
+- `智能路由收益与切换体感治理`
+  - 已有规则路由、语义匹配、LLM 选模、sticky correction、context alignment、cascade、shadow 和 health，但还缺 outcome scorecard 来证明“更好、更快、更稳”。
+  - 需要把 route source、initial/final model、切换、sticky、alignment、cascade、shadow、延迟、错误与失败证据沉淀成可查询指标。
+  - 需要让 UI / API 能回答“多模型组合到底在哪些任务上提升了质量或速度”，避免 SmartRouter 只停留在可配置能力。
+- `服务端 API key 与鉴权控制面`
+  - 当前单一 `APIKEY` 足以保护简单自托管入口，但不适合多客户端或 cloud/server 推荐部署。
+  - 需要支持 generated keys、scope、过期、撤销、配额和审计，并区分 admin / client / read-only 操作。
+  - 在该事项闭环前，不应把公网 server/cloud 一键部署作为默认推荐路径。
+- `server/cloud 一键部署与角色化运维入口`
+  - 当前已有 Runtime / remote status / registration 的边界雏形，但还缺安全默认的一键部署命令、Docker/systemd 或等价脚本，以及服务提供者 / 维护者 / 远程使用者分角色指导。
+  - setup、doctor、status、`/ui` 需要清晰展示当前角色、认证状态、监听地址、远程连接说明和维护入口。
+  - 该事项依赖服务端鉴权控制面，否则一键部署会放大 API key 泄漏风险。
 - `配置产品化最终收口`
   - warning、capability hint、repair/save 路径与 setup 多模型引导已继续收拢，setup 侧已补齐首轮 warning 快捷修正模板，`/ui` 与 setup fresh/repair/migration 草稿模型字段也已投影为用户入口字段，`/ui` 字段说明、JSON 草稿提示和 setup 问答字段说明已开始对齐同一字段心智。
   - 后续继续按同一 validation/capability contract 增补更多 warning 类型，避免“UI 可修、CLI 只能提示”的分叉回流。
@@ -293,12 +313,18 @@
 
 #### P2：能力扩展与体验增强
 
-7. 部署形态与远程接入收敛
-8. UI 双层工作台收敛
-9. 治理观测增强 / 运营化
+7. 同模型多源池化与注册调度
+8. 部署形态与远程接入收敛
+9. UI 双层工作台收敛
+10. 治理观测增强 / 运营化
+11. Agent / 工具能力演进探索
 
 ##### P2 主线离闭环还差什么
 
+- `同模型多源池化与注册调度`
+  - `Registration.models` 与 `Registration.upstream_services` 目前只形成配置/状态摘要，尚未参与运行时 model registry、健康探测、负载均衡、熔断或 fallback。
+  - 需要定义 logical model pool 与 endpoint 的关系，并从保守策略开始支持 priority / round-robin / health-aware / fallback-on-error。
+  - 该事项依赖 API key 控制面和 server/cloud 部署边界，否则池化会放大资源滥用和故障定位风险。
 - `部署形态与远程接入收敛`
   - 先按实施计划补齐 service mode、remote status、registration 与 service info，形成最小可验证的服务端 / 客户端边界。
   - 让 setup、doctor、`/ui` 与公开文档都能稳定表达“本地使用 vs 连接远程服务”，避免远程能力只停留在底层 schema 或 API。
@@ -311,13 +337,17 @@
   - 在现有 metrics、异常检测、快照、归档和趋势能力基础上，补齐长期运营闭环所需的稳定入口、查询方式与独立验证抓手。
   - 继续把治理增强与输入侧优化拉通，确保 Prompt / Intent Optimization 等下一轮治理子特性能纳入统一 trace、metrics 与运营观察口径。
   - 让治理观测边界与维护者工作台、导出 / 调度 / archive 管理形成稳定配套，而不是能力已在但日常运营路径仍然分散。
+- `Agent / 工具能力演进探索`
+  - 当前项目不应先扩张成完整 agent 平台，而应优先借鉴 handoff、guardrail、tracing、supervisor 等机制中对 Claude Code 路由代理直接有收益的部分。
+  - 低侵入优先级是 route handoff summary、tool capability guardrail、输入/输出 guardrail、trace span 化和任务 scorecard。
+  - 新增 agent/tool 能力必须进入同一 governance trace / health，而不是另起一套观测结构。
 
 #### P3：治理支撑与持续维护
 
-10. CLI 稳定性与发布工程
-11. 已闭环事项复审校准
-12. 进展文档体系治理
-13. 问题修改记录
+12. CLI 稳定性与发布工程
+13. 已闭环事项复审校准
+14. 进展文档体系治理
+15. 问题修改记录
 
 ##### P3 主线离闭环还差什么
 
@@ -344,20 +374,25 @@
 
 | 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
 |---|---|---|---|---|
-| 1 | 配置产品化最终收口 | P1-主路径易用性 | 继续围绕同一 validation/capability contract 收拢 README 和 configuration guide | SmartRouter 统一路由运行时已阶段闭环，且 setup warning 快捷修正、`/ui` 草稿字段归一、setup fresh/repair/migration 草稿字段归一、`/ui` 字段说明与 setup 问答字段说明已完成首轮落地，下一步应继续压低配置入口分叉 |
-| 2 | CLI / setup UX 重设计 | P1-主路径易用性 | 继续完成 migration-first、model-id-first 与 help/README 一致性落地 | 它是 P1 的主入口收口动作，应建立在 SmartRouter 统一运行时和配置产品心智更稳定之后推进 |
-| 3 | 项目目标与用户使用视角复审 | P1-主路径易用性 | P1 复审发现已完成阶段闭环；后续 P2/P3 事项下沉到对应主线推进 | 该复审从用户主路径暴露出文档入口、UI 入口和 server monolith 对 P1 收口的直接影响，应作为配置产品化与 setup UX 的校准抓手，而不是等到 P2 UI 改版时再处理 |
-| 4 | 部署形态与远程接入收敛 | P2-能力扩展与体验增强 | 先补最小双端边界、remote status 与 setup/doctor/ui 本地-远程心智 | 这条线已经超出基础闭环，适合放在主路径可用后推进，否则容易让基础入口和远程能力交叉返工 |
-| 5 | UI 双层工作台收敛 | P2-能力扩展与体验增强 | 先完成 service context、surface 标识与首页双入口 | 它依赖前面配置主路径、远程语义和维护者边界更稳定，否则 UI 分层容易只做视觉拆分而不是产品收口 |
-| 6 | 治理观测增强 / 运营化 | P2-能力扩展与体验增强 | 继续补长期运营入口、验证抓手，并拉通输入侧优化 | 它在现阶段已经有首轮基础，适合放在部署与 UI 边界更清晰后再做长期运营化，避免观测入口再次分散 |
-| 7 | CLI 稳定性与发布工程 | P3-治理支撑 | 持续补 packaged CLI 用户流 E2E 与 release verify slice | 它需要持续跟随前面新路径一起扩 coverage，属于伴随式治理支撑，不应抢到主功能闭环之前 |
-| 8 | 已闭环事项复审校准 | P3-治理支撑 | 持续复审 closed 事项，并把新发现的问题承接为增量事项 | 它能避免“历史上标 closed 后就再也不回看”，同时满足不回退旧结论、只做增量校准的治理策略 |
-| 9 | 进展文档体系治理 | P3-治理支撑 | 持续维护统一基线、优先级、闭环标准和执行顺序表 | 它是总台账机制，必须持续维护，但其价值建立在前面主线真实推进基础上 |
-| 10 | 问题修改记录 | P3-治理支撑 | 发现治理偏差就即时追加 issue log 并更新闭环结论 | 它是防重复踩坑机制，属于全程伴随动作，不单独抢占功能主线资源，但必须同步执行 |
+| 1 | 智能路由收益与切换体感治理 | P1-主路径易用性 | 建立 outcome scorecard、切换指标和 UI/API 收益摘要 | 这是项目 `1+1>2` 的核心价值主张，当前能力存在但收益不可证明，应先于 coverage 和更复杂部署推进 |
+| 2 | 服务端 API key 与鉴权控制面 | P1-主路径易用性 | 在单一 `APIKEY` 之上补 generated keys、scope、过期、撤销、配额和审计 | server/cloud 推荐路径和池化都会放大资源泄漏风险，安全前置必须先闭环 |
+| 3 | server/cloud 一键部署与角色化运维入口 | P1-主路径易用性 | 提供安全默认的一键部署脚本/命令，并补服务提供者、维护者、远程使用者三类指导 | 一键部署必须建立在鉴权控制面之后，否则会把不安全配置包装成便利入口 |
+| 4 | 配置产品化最终收口 | P1-主路径易用性 | 将收益指标、鉴权字段、部署角色继续收敛进 README / configuration guide / UI / setup | 新增 P1 事项会引入新术语，配置产品化需要继续作为统一心智的收口层 |
+| 5 | CLI / setup UX 重设计 | P1-主路径易用性 | 承接本地使用、连接远程服务、部署服务端三类入口 | setup 是用户进入三种运行形态的关键路径，需在角色和安全边界明确后继续改 |
+| 6 | 项目目标与用户使用视角复审 | P1-主路径易用性 | 作为校准主线继续归档新增事项和顺序调整 | 本轮复审新增的智能路由收益、安全部署和池化调度必须回到同一个实施计划 |
+| 7 | 同模型多源池化与注册调度 | P2-能力扩展与体验增强 | 定义 logical model pool、endpoint health、fallback、熔断和 trace 原因 | 它能提升服务质量，但依赖鉴权、部署和注册边界稳定后再做 |
+| 8 | 部署形态与远程接入收敛 | P2-能力扩展与体验增强 | 在一键部署之后继续补远端请求转发、注册同步和更完整服务模式 | 远程状态查询已阶段闭环，下一步应建立在安全部署和池化调度基础上 |
+| 9 | UI 双层工作台收敛 | P2-能力扩展与体验增强 | 承载收益、鉴权、部署、池化和维护者观测入口 | UI 后续不只是分层，还要把新服务化状态变成可操作界面 |
+| 10 | 治理观测增强 / 运营化 | P2-能力扩展与体验增强 | 把路由收益、pool health、key audit 纳入 health/metrics | 治理观测需要跟随核心价值和服务化风险扩展，而不只是 trace 查看 |
+| 11 | Agent / 工具能力演进探索 | P2-能力扩展与体验增强 | 先做 handoff summary、guardrail、trace span 化等低侵入增强 | 可以借鉴主流 agent 工具，但不能让项目偏离 Claude Code 路由代理定位 |
+| 12 | CLI 稳定性与发布工程 | P3-治理支撑 | 持续补 packaged CLI 用户流 E2E 与 release verify slice | 它需要持续跟随前面新路径一起扩 coverage，属于伴随式治理支撑 |
+| 13 | 已闭环事项复审校准 | P3-治理支撑 | 持续复审 closed 事项，并把新发现的问题承接为增量事项 | 避免历史 closed 结论与新路由/服务化目标漂移 |
+| 14 | 进展文档体系治理 | P3-治理支撑 | 持续维护统一基线、优先级、闭环标准和执行顺序表 | 它是总台账机制，必须持续维护，但不抢占主功能闭环 |
+| 15 | 问题修改记录 | P3-治理支撑 | 发现治理偏差就即时追加 issue log 并更新闭环结论 | 它是防重复踩坑机制，属于全程伴随动作 |
 
 补充约束：
 
-1. `10-12` 这三条 P3 事项虽然排在顺序表后段，但不是“最后才做”，而是必须从当前开始伴随推进；这里只表示它们不应抢占 `1-9` 的主闭环顺序。
+1. `12-15` 这些 P3 事项虽然排在顺序表后段，但不是“最后才做”，而是必须从当前开始伴随推进；这里只表示它们不应抢占 `1-11` 的主闭环顺序。
 2. 若再次出现会阻塞默认请求链路、兼容主路径或统一 schema 双读的新 gap，应先重新加入 P0 段并优先处理，而不是直接跳做新的 P1 / P2 事项。
 3. 若 `1-3` 中某条 P1 主线因上游 runtime / migration 变化而失去前提，应先回补对应 P0 主线，再恢复 P1 推进。
 4. 后续若新增事项，必须同时补：优先级、remaining gap、以及本顺序表中的插入位置与原因。

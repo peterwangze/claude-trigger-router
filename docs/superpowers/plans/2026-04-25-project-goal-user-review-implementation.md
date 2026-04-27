@@ -255,9 +255,9 @@ P3-3：持续 closed 事项复审
 
 - closed 事项的当前结论能追到现有代码和测试证据。
 
-## 五、近期执行顺序
+## 五、首轮近期执行顺序
 
-建议近期按以下顺序推进：
+以下是 2026-04-25 首轮复审后的推进顺序。2026-04-27 智能路由与服务化复审已经在本文第七节追加新的依赖判断和优先级重排；后续执行以第七节和 `unified-progress-baseline.md` 的最新顺序为准。
 
 | 顺序 | 优先级 | 事项 | 先做什么 | 原因 |
 |---|---|---|---|---|
@@ -297,9 +297,90 @@ P3-3：持续 closed 事项复审
 
 下一项按优先级继续推进：
 
-- P3-1 `coverage 口径扩展`：在不显著拖慢发布门禁的前提下，将 coverage 从早期 trigger 目录扩展到 setup / config / models / protocols / governance 的核心模块；真实浏览器 DOM 交互 smoke 作为后续 UI 看护增强项继续保留。
+- P1-5 `智能路由收益与切换体感闭环`：先让 SmartRouter 从“能选模型”升级为“能证明组合模型带来质量 / 速度收益，并能解释模型切换是否影响连续体验”。
 
-## 七、关联文件
+## 七、2026-04-27 智能路由与服务化复审
+
+### 复审范围
+
+本轮复审围绕 6 个问题展开：
+
+1. 智能路由是否足以帮助用户组合不同 LLM，形成 `1+1>2` 的效果。
+2. 多模型反复切换是否有机制保障连续体验，并让用户感到质量和速度提升。
+3. cloud / server / local 部署边界、一键部署、维护命令、UI 和手册是否清晰。
+4. cloud / server 是否支持同类型 N 个 LLM 服务源池化注册与管理。
+5. cloud / server 是否支持生成 API key、鉴权、配额或撤销，降低模型资源泄漏风险。
+6. 后续工具能力是否可以借鉴主流 agent / gateway 的 handoff、guardrail、tracing、routing、virtual key 与 provider routing 设计。
+
+外部参照只作为方向校准，不直接等同于本项目必须实现的功能。参考项包括 LiteLLM Proxy 的 virtual key / budget / routing 思路、OpenRouter 的 provider routing / fallback 思路、OpenAI Agents SDK 的 handoff / guardrail / tracing 思路，以及 LangChain / LangGraph 多 agent supervisor / handoff 心智。
+
+### 复审结论
+
+- 当前 SmartRouter 已有规则路由、语义匹配、LLM 选模、sticky correction、context alignment、cascade retry、shadow supervisor 和治理 health，因此“组合多模型”的基础链路成立。
+- 但当前还缺一个面向用户价值的收益闭环：路由为什么更好、是否更快、是否更便宜、是否减少失败、是否在模型切换时保持上下文连续，目前主要靠 trace 事后观察，尚未形成可对比的 scorecard 或策略调优入口。
+- 模型切换体验已经有 sticky 与 context alignment 的实现基础，但它们还没有被产品化为“切换策略”。例如什么时候允许切换、什么时候强制保持同模型、切换后摘要是否成功注入、切换是否带来质量提升，都缺少显式状态和验收指标。
+- 部署边界已有 `Runtime.mode = local | server | cloud`、`Runtime.remote_service`、`Registration`、`/api/service-info`、`/api/remote-status`、`/api/registration`，但当前仍是“配置语义 + 状态查询”的最小闭环；还不能宣称支持一键 server/cloud 部署、自动远端请求转发、完整服务端控制面或集群编排。
+- 服务端安全当前只有单一 `APIKEY` 与 HOST 安全回退，足以保护简单自托管入口，但不足以支撑云端/多用户服务。缺少 generated API key、作用域、过期时间、撤销、限额、审计与 admin/user 分权。
+- `Registration.models` 与 `Registration.upstream_services` 已能表达注册摘要，但未参与运行时 model registry、健康探测、负载均衡、熔断或 fallback，因此同类型 N 个 LLM 服务源池化仍未落地。
+- 因此，本轮新增事项不应先从 coverage 开始，而应先补 P1 的“智能路由收益与切换体感”以及“服务端安全前置”，再推进一键部署和池化调度。coverage / release 继续伴随式跟进。
+
+### 新增事项
+
+P1-5：智能路由收益与切换体感闭环
+
+- 为每次路由建立 outcome scorecard：route source、初始模型、最终模型、是否切换、是否 sticky、是否 context alignment、是否 cascade、是否 shadow、延迟、错误、用户可感知失败证据。
+- 在 `/api/governance/metrics` 与 `/api/governance/health` 中增加“路由收益”视角：按任务类型 / route source / final model 展示成功率、cascade 率、平均延迟、慢请求、切换率。
+- 在 UI 维护者工作台增加“路由收益”摘要，避免用户只能看到 trace 明细。
+- 建立最小 regression：给同一批 synthetic tasks 跑规则命中、semantic、SmartRouter、sticky、cascade 的契约测试，证明智能路由不是随机切换。
+- 验收：维护者能回答“哪些任务被切到哪个模型，切换是否稳定，速度是否改善，失败是否减少”；用户侧不会因为频繁切换而丢上下文。
+
+P1-6：服务端 API key 与鉴权控制面
+
+- 保留现有单一 `APIKEY` 作为 bootstrap/admin key，但新增服务端 managed keys：生成、列表、吊销、过期时间、用途标签、作用域、可选配额。
+- 区分 admin / client / read-only scopes：管理 UI、配置保存、模型调用、只读 status/health 不再都依赖同一个全能 key。
+- 将 key 使用写入 trace / audit 摘要，便于定位泄漏风险。
+- 在 setup / doctor / UI 中给出 server/cloud 模式的安全检查：公网监听必须有认证，推荐 HTTPS 反向代理，不允许把 cloud 模式误当无鉴权本地模式。
+- 验收：服务端可以生成客户端 token；泄漏某个客户端 token 时能撤销且不影响 admin key；关键管理 API 需要 admin scope。
+
+P1-7：server/cloud 一键部署与角色化运维入口
+
+- 增加安全默认的一键部署命令或脚本，例如 `ctr deploy init --target server` / Docker Compose / systemd unit / release-stage server profile，生成带 `APIKEY`、HOST、PORT、日志和健康检查的最小服务端配置。
+- README 与 configuration guide 分成三类读者路径：本地使用者、服务提供者/维护者、远程服务使用者。
+- `ctr status / doctor / ui` 在 server/cloud 模式下明确展示当前角色、监听地址、认证状态、远程客户端连接说明和维护入口。
+- 验收：维护者能在新机器上按文档一轮启动 server；远程使用者能按一段配置连接并看到远程 ready 状态；本地默认路径不变复杂。
+
+P2-4：同模型多源池化与注册调度
+
+- 将 `Registration.models` / `Registration.upstream_services` 从“摘要展示”推进到可参与编译的 model pool：同一个 logical model 可以挂多个 endpoint。
+- 增加池化策略：priority / round-robin / least-latency / health-aware / fallback-on-error；先从保守策略开始。
+- 增加健康探测、熔断、冷却、失败计数、延迟窗口、成本/速率元数据。
+- UI 维护者工作台展示 pool health、endpoint 状态、当前禁用/降级原因。
+- 验收：同一模型的多个服务源可以自动 fallback；单个 endpoint 异常不直接影响 logical model 可用性；调度原因进入 trace。
+
+P2-5：Agent / 工具能力演进探索
+
+- 借鉴主流 agent 框架的 handoff / supervisor / guardrail / tracing 心智，但保持本项目定位为 Claude Code 路由代理，不扩张为完整 agent 平台。
+- 优先探索“低侵入增强”：route handoff summary、tool capability guardrail、输入/输出 guardrail、任务类型 scorecard、trace span 化，而不是先做多 agent 编排平台。
+- 将现有 governance trace 与未来 agent trace 对齐，避免另起一套观测结构。
+- 验收：新增 agent/tool 能力必须能解释其对 Claude Code 使用路径的直接收益，并能在 trace / health 中被观测。
+
+### 依赖与调整后的近期顺序
+
+| 顺序 | 事项 | 优先级 | 依赖 | 调整原因 |
+|---|---|---|---|---|
+| 1 | P1-5 智能路由收益与切换体感闭环 | P1 | 现有 SmartRouter / Governance trace | 这是项目核心价值主张，先证明多模型组合确实提升质量、速度和连续体验 |
+| 2 | P1-6 服务端 API key 与鉴权控制面 | P1 | 现有 `APIKEY` / auth middleware / service-info | 没有分权 key、撤销和审计，就不应把 server/cloud 一键部署做成推荐路径 |
+| 3 | P1-7 server/cloud 一键部署与角色化运维入口 | P1 | P1-6 安全前置、Runtime.mode | 一键部署必须带安全默认值和维护者/使用者分层说明 |
+| 4 | 配置产品化最终收口 | P1 | 前述安全与角色边界 | 继续收拢 README / configuration guide / setup / UI，避免新 server/cloud 术语分叉 |
+| 5 | CLI / setup UX 重设计 | P1 | 配置产品化、远程角色路径 | setup 需要承接本地使用、连接远程服务、部署服务端三类入口 |
+| 6 | P2-4 同模型多源池化与注册调度 | P2 | P1-6、P1-7、Registration schema | 池化会放大资源风险，必须在鉴权和服务边界清晰后推进 |
+| 7 | 部署形态与远程接入收敛 | P2 | P1-7、P2-4 | 从“状态查询”继续推进到注册同步、远端请求转发和更完整服务模式 |
+| 8 | UI 双层工作台收敛 | P2 | P1-5、P1-7、P2-4 | UI 需要承载收益、鉴权、部署、池化四类新状态，不能只做视觉分层 |
+| 9 | 治理观测增强 / 运营化 | P2 | P1-5 | 将收益 scorecard、pool health、key audit 纳入 health/metrics |
+| 10 | P2-5 Agent / 工具能力演进探索 | P2 | 路由收益与治理 trace | 先做 guardrail / handoff / tracing 这类低侵入增强，再考虑更复杂 agent 编排 |
+| 11 | coverage 口径扩展与 release 门禁同步 | P3 | 伴随所有新增路径 | 不再作为下一主线抢跑，但每个新增路径都必须补测试层级和发布门禁归属 |
+
+## 八、关联文件
 
 本次复审重点参考：
 
@@ -319,3 +400,10 @@ P3-3：持续 closed 事项复审
 - `src/models/`
 - `src/protocols/`
 - `src/governance/`
+
+外部参照：
+
+- LiteLLM Proxy docs：`https://docs.litellm.ai/docs/proxy/virtual_keys`、`https://docs.litellm.ai/docs/proxy/reliability`
+- OpenRouter provider routing docs：`https://openrouter.ai/docs/guides/routing/provider-selection`
+- OpenAI Agents SDK docs：`https://openai.github.io/openai-agents-js/guides/handoffs/`、`https://openai.github.io/openai-agents-js/guides/tracing/`
+- LangChain multi-agent docs：`https://docs.langchain.com/oss/javascript/langchain/multi-agent`
