@@ -714,6 +714,43 @@ describe('createServer /api/config', () => {
     );
   });
 
+  it('projects legacy Models aliases to user-facing fields from GET /api/config', async () => {
+    mockReadConfigFile.mockResolvedValue({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          protocol: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+          thinking: {
+            mode: 'on',
+            effort: 'high',
+          },
+        },
+      ],
+    });
+
+    const server = createServer({});
+    const handler = server.app.routes.get('GET /api/config');
+
+    const result = await handler({}, {});
+
+    expect(result.Models[0]).toEqual({
+      id: 'sonnet',
+      api: 'https://openrouter.ai/api/v1/chat/completions',
+      key: 'sk-test',
+      interface: 'openai',
+      model: 'anthropic/claude-sonnet-4',
+      thinking: 'high',
+      metadata: undefined,
+    });
+    expect(result.Models[0]).not.toHaveProperty('api_base_url');
+    expect(result.Models[0]).not.toHaveProperty('api_key');
+    expect(result.Models[0]).not.toHaveProperty('protocol');
+  });
+
   it('reports capability warnings in compiled preview results', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('POST /api/models/compiled/preview');
