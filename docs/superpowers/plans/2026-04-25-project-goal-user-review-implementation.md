@@ -312,6 +312,7 @@ P3-3：持续 closed 事项复审
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-c）：已收紧运行时全局权限矩阵，`client` key 只覆盖模型调用，`read-only` key 覆盖健康、服务状态、compiled models、transformers 和 governance 观测 GET 接口，配置读取/保存、`/ui`、重启、auth 管理和治理写操作需要 `admin`；README 与中间件回归测试同步 scope 语义。
 - P1-6 Chunk 3c-c 复审补强：已修正底层 `scopeAllows()` 仍允许 `client` 访问 `read-only` 接口的语义漂移；现在纯 `client` key 不能读取 service-info/status，远程 token 如需同时模型调用与 ready/status 探测，需要显式授予 `client + read-only` scope。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-d）：已在 `/ui` 维护者工作台新增 Auth scope guide，明确 admin、client、read-only 与 `client + read-only` 的适用场景；`ctr doctor` 同步输出 scope 指引与远程 token 发放建议，降低服务使用者误用 admin key 或用纯 client key 做状态探测的概率。
+- P1-6 Chunk 3c-d 复审补强：已将 UI/doctor 的 scope 说明补成可操作指引，直接列出 admin key 可调用的 `GET /api/auth/keys`、`POST /api/auth/keys`、`POST /api/auth/keys/:id/revoke`，并提示 generated secret 只返回一次，避免维护者知道 scope 但不知道如何正确发放/吊销 key。
 
 下一项按优先级继续推进：
 

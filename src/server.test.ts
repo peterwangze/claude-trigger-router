@@ -2046,6 +2046,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Auth scope guide');
     expect(html).toContain('client + read-only');
     expect(html).toContain('远程 token 同时需要 ready/status 探测与模型调用');
+    expect(html).toContain('POST /api/auth/keys');
+    expect(html).toContain('POST /api/auth/keys/:id/revoke');
+    expect(html).toContain('secret 只返回一次');
     expect(html).toContain('userSurfaceTab');
     expect(html).toContain('maintainerSurfaceTab');
     expect(html).toContain('id="userSurface"');
