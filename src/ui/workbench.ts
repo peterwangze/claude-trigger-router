@@ -1285,15 +1285,18 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(limit) params.set('limit',limit);` +
     `  tbody.innerHTML='<tr><td colspan="6" class="muted">加载中...</td></tr>';` +
     `  const query=params.toString()?('?'+params.toString()):'';` +
-    `  const [traceRes,metricsRes]=await Promise.all([` +
+    `  const [traceRes,metricsRes,healthRes]=await Promise.all([` +
     `    fetch('/api/governance/traces'+query),` +
-    `    fetch('/api/governance/metrics'+query)` +
+    `    fetch('/api/governance/metrics'+query),` +
+    `    fetch('/api/governance/health'+query)` +
     `  ]);` +
     `  const data=await traceRes.json();` +
     `  const metricsData=await metricsRes.json();` +
-    `  renderMetrics(metricsData.metrics || {},metricsData.health);` +
+    `  const healthData=await healthRes.json();` +
+    `  const health=healthData.health || metricsData.health;` +
+    `  renderMetrics(metricsData.metrics || {},health);` +
     `  renderBuckets(metricsData || {});` +
-    `  renderAnomalies(metricsData.anomalies || [],metricsData.health);` +
+    `  renderAnomalies(metricsData.anomalies || [],health);` +
     `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +
     `  renderRanking(modelRanking,metricsData.topFinalModels || [],'No models');` +
     `  renderRanking(intentRanking,metricsData.topSemanticIntents || [],'No intents');` +

@@ -1802,7 +1802,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Health');
     expect(html).toContain('healthSummary');
     expect(html).toContain('Health pending');
-    expect(html).toContain("renderAnomalies(metricsData.anomalies || [],metricsData.health)");
+    expect(html).toContain("fetch('/api/governance/health'+query)");
+    expect(html).toContain("const health=healthData.health || metricsData.health");
+    expect(html).toContain("renderAnomalies(metricsData.anomalies || [],health)");
     expect(html).toContain('查看治理健康摘要');
     expect(html).toContain('anomalyList');
     expect(html).toContain('minSampleSize');

@@ -291,6 +291,7 @@ P3-3：持续 closed 事项复审
 - P2-3 `治理观测运营化`（Chunk 1）：已在治理 metrics 报告中新增 `health` 摘要，将 trace 样本数、异常数量、critical/warn 计数、关键命中率、平均延迟、Top route / model 和可执行 action 收口为 `idle / healthy / watch / critical` 状态；同时新增 `/api/governance/health` 维护者健康查询，并在 `/ui` 维护者 metrics 区优先展示 Health 状态。
 - P2-3 Chunk 1 复审补强：已修正 `health.message` 只按 critical 或 warning 单类数量描述告警的问题，改为总告警数加 critical / warning 明细，避免维护者低估当前治理风险；同时将 `/api/governance/health` 补入 `/ui` 管理 API 列表和统一基线治理观测口径。
 - P2-3 `治理观测运营化`（Chunk 2）：已将 Health 摘要接入日常维护路径，`/ui` 维护者工作台展示健康状态、说明和 action；README 与 configuration guide 说明 `idle / healthy / watch / critical` 语义和 `/api/governance/health`；`docs/cli-test-matrix.md` 将 Health 摘要纳入 UI / 服务状态看护口径。
+- P2-3 Chunk 2 复审补强：已修正 `/ui` 只从 `/api/governance/metrics` 读取 `health`、但文档和测试矩阵宣称 Health 来源为 `/api/governance/health` 的契约偏差；现在维护者工作台会实际请求 `/api/governance/health`，并以 metrics 内嵌 `health` 作为兜底。
 
 下一项按优先级继续推进：
 
