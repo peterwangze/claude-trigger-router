@@ -148,7 +148,7 @@ set "USERPROFILE=$escapedHome"
 & '$stageCliPath' @args
 "@
     Invoke-CommandChecked {
-      & $serverWrapperCmd deploy init --target server --force
+      & $serverWrapperCmd deploy init --target server --force | Out-Host
     } "Staged server profile generation failed"
     $serverWrapper = $serverWrapperCmd
   } else {
@@ -167,7 +167,7 @@ set "USERPROFILE=$escapedHome"
     )
     & chmod +x $serverWrapperSh
     Invoke-CommandChecked {
-      & $serverWrapperSh deploy init --target server --force
+      & $serverWrapperSh deploy init --target server --force | Out-Host
     } "Staged server profile generation failed"
     $serverWrapper = $serverWrapperSh
   }

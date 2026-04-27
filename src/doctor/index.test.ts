@@ -80,6 +80,63 @@ describe('runDoctorCli', () => {
     );
   });
 
+  it('uses bootstrap APIKEY when verifying an authenticated server profile service', async () => {
+    const io = createIo({
+      confirm: vi.fn().mockResolvedValue(false),
+    });
+
+    vi.doMock('fs', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('fs')>();
+      return {
+        ...actual,
+        existsSync: vi.fn((filePath: string) => String(filePath).endsWith('config.yaml')),
+        readFileSync: vi.fn((filePath: string) => {
+          if (String(filePath).endsWith('config.yaml')) {
+            return [
+              'HOST: "0.0.0.0"',
+              'PORT: 5678',
+              'APIKEY: "bootstrap-key"',
+              'Runtime:',
+              '  mode: "server"',
+              'Models:',
+              '  - id: sonnet',
+              '    api: "https://example.com/v1/chat/completions"',
+              '    key: "sk-test"',
+              '    interface: "openai"',
+              '    model: "anthropic/claude-sonnet-4"',
+              'Router:',
+              '  default: "sonnet"',
+            ].join('\n');
+          }
+          return '';
+        }),
+      };
+    });
+
+    const probeServiceHealth = vi.fn().mockResolvedValue(false);
+    const waitForService = vi.fn().mockResolvedValue(true);
+    const startDaemon = vi.fn().mockResolvedValue(undefined);
+
+    const { runDoctorCli } = await import('./index');
+    await runDoctorCli({
+      io: io as any,
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig: vi.fn().mockResolvedValue(undefined),
+      isServiceRunning: vi.fn().mockReturnValue(false),
+      readServiceInfo: vi.fn().mockReturnValue(null),
+      killProcess: vi.fn(),
+      probeServiceHealth,
+      isTcpPortOccupied: vi.fn().mockResolvedValue(false),
+      waitForService,
+      startDaemon,
+    });
+
+    expect(probeServiceHealth).toHaveBeenCalledWith(5678, 500, { apiKey: 'bootstrap-key' });
+    expect(waitForService).toHaveBeenCalledWith(5678, 5000, { apiKey: 'bootstrap-key' });
+    expect(startDaemon).toHaveBeenCalledTimes(1);
+  });
+
   it('prompts to probe models and reports probe failures with exact category', async () => {
     const io = createIo({
       confirm: vi.fn().mockResolvedValue(true),

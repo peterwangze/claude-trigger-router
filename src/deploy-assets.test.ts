@@ -23,4 +23,11 @@ describe('deployment assets', () => {
     expect(readme).toContain('managed `client + read-only` keys');
     expect(readme).toContain('HTTPS reverse proxy');
   });
+
+  it('keeps release-stage server profile output out of the returned profile object', () => {
+    const releaseScript = readFileSync(join(process.cwd(), 'scripts', 'release-package.ps1'), 'utf-8');
+    expect(releaseScript).toContain('& $serverWrapperCmd deploy init --target server --force | Out-Host');
+    expect(releaseScript).toContain('& $serverWrapperSh deploy init --target server --force | Out-Host');
+    expect(releaseScript).toContain('Server profile HOME: $($releaseServerProfile.Home)');
+  });
 });

@@ -176,7 +176,16 @@ function createConsoleIO(): IDoctorIO {
   }
 
   const rl = createInterface({ input, output });
-  const ask = async (message: string) => (await rl.question(message)).trim();
+  const ask = async (message: string): Promise<string | undefined> => {
+    try {
+      return (await rl.question(message)).trim();
+    } catch (error: any) {
+      if (error?.code === 'ERR_USE_AFTER_CLOSE') {
+        return undefined;
+      }
+      throw error;
+    }
+  };
 
   return {
     info(message) {
@@ -190,6 +199,9 @@ function createConsoleIO(): IDoctorIO {
       options.forEach((option, index) => output.write(`  ${index + 1}. ${option}\n`));
       while (true) {
         const answer = await ask('> ');
+        if (answer === undefined) {
+          return options[0];
+        }
         const index = Number(answer);
         if (Number.isInteger(index) && index >= 1 && index <= options.length) {
           return options[index - 1];
@@ -206,7 +218,7 @@ function createConsoleIO(): IDoctorIO {
       return answer || defaultValue || '';
     },
     async confirm(message, defaultValue = true) {
-      const answer = (await ask(`${message} ${defaultValue ? '[Y/n]' : '[y/N]'}: `)).toLowerCase();
+      const answer = (await ask(`${message} ${defaultValue ? '[Y/n]' : '[y/N]'}: `))?.toLowerCase();
       if (!answer) {
         return defaultValue;
       }
@@ -577,7 +589,8 @@ function explainProbeFailure(category: TProbeResult extends { kind: 'failure'; c
 
 async function ensureServiceUsable(config: IAppConfig, deps: IDoctorDeps, configChanged: boolean): Promise<void> {
   const port = config.PORT ?? DEFAULT_CONFIG.PORT;
-  const healthy = await deps.probeServiceHealth(port, 500);
+  const serviceHealthOptions = config.APIKEY ? { apiKey: config.APIKEY } : {};
+  const healthy = await deps.probeServiceHealth(port, 500, serviceHealthOptions);
   const occupied = await deps.isTcpPortOccupied(port, 500);
   const running = deps.isServiceRunning();
 
@@ -602,7 +615,7 @@ async function ensureServiceUsable(config: IAppConfig, deps: IDoctorDeps, config
   }
 
   await deps.startDaemon();
-  const verified = await deps.waitForService(port, 5000);
+  const verified = await deps.waitForService(port, 5000, serviceHealthOptions);
   if (!verified) {
     throw new Error(`doctor 自动启动后健康检查仍未通过（端口 ${port}）。`);
   }

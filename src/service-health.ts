@@ -19,6 +19,15 @@ export interface IRemoteServiceStatusSummary {
   error?: string;
 }
 
+export interface IServiceHealthProbeOptions {
+  apiKey?: string;
+}
+
+function buildServiceHealthHeaders(options: IServiceHealthProbeOptions = {}): Record<string, string> | undefined {
+  const apiKey = options.apiKey?.trim();
+  return apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined;
+}
+
 export function isExpectedServiceHealth(payload: unknown): boolean {
   if (!payload || typeof payload !== 'object') {
     return false;
@@ -32,9 +41,14 @@ export function isExpectedServiceHealth(payload: unknown): boolean {
   return health.service === SERVICE_NAME && health.ready === true;
 }
 
-export async function probeServiceHealth(port: number, timeoutMs = 500): Promise<boolean> {
+export async function probeServiceHealth(
+  port: number,
+  timeoutMs = 500,
+  options: IServiceHealthProbeOptions = {}
+): Promise<boolean> {
   try {
     const res = await fetch(`http://127.0.0.1:${port}${SERVICE_HEALTH_PATH}`, {
+      headers: buildServiceHealthHeaders(options),
       signal: AbortSignal.timeout(timeoutMs),
     });
 
@@ -163,10 +177,14 @@ export async function isTcpPortOccupied(port: number, timeoutMs = 500): Promise<
   });
 }
 
-export async function waitForService(port: number, timeoutMs = 5000): Promise<boolean> {
+export async function waitForService(
+  port: number,
+  timeoutMs = 5000,
+  options: IServiceHealthProbeOptions = {}
+): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    if (await probeServiceHealth(port, 500)) {
+    if (await probeServiceHealth(port, 500, options)) {
       return true;
     }
     await new Promise((resolve) => setTimeout(resolve, 300));
