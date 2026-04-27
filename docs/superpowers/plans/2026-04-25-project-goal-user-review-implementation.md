@@ -308,6 +308,7 @@ P3-3：持续 closed 事项复审
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-a）：已将 `/api/service-info` 的 quota 摘要扩展为按 managed key 脱敏的配额明细，包含 key id、label、scope、active、配置限额、当前用量和 ok/watch/exhausted/inactive/unlimited 状态；`/ui` 维护者工作台新增 Auth quota 表，维护者能定位是哪把 key 接近或耗尽模型调用配额。
 - P1-6 Chunk 3c-a 复审补强：已移除 `/api/service-info` quota 明细中的 `keyPrefix/keySuffix`，避免 read-only 状态接口扩大 managed key 片段暴露面；完整 key 前后缀仍只保留在 admin-only `GET /api/auth/keys`。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-b）：已新增 managed key quota usage 持久化切片，启动时会从配置兼容字段与本地状态文件 hydrate 用量，模型调用成功后导出并写回 `.claude-trigger-router/auth-quota-usage.json`；配额用量不再只存在于进程内存，服务重启后仍能延续 request/token/window 计数。
+- P1-6 Chunk 3c-b 复审补强：已将 quota usage 持久化从模型调用关键路径中移出，磁盘写入失败不再导致已通过鉴权的模型请求失败；状态文件写入改为串行队列 + 临时文件 rename，避免并发请求下旧快照覆盖新快照或写出半文件。
 
 下一项按优先级继续推进：
 

@@ -1,10 +1,11 @@
 import { existsSync, mkdirSync } from 'fs';
-import { readFile, writeFile } from 'fs/promises';
+import { readFile, rename, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { HOME_DIR } from '../constants';
 import type { IAuthConfig } from '../trigger/types';
 
 const QUOTA_USAGE_FILE = join(HOME_DIR, 'auth-quota-usage.json');
+let quotaUsageWriteQueue: Promise<void> = Promise.resolve();
 
 export async function loadPersistedAuthQuotaUsage(): Promise<IAuthConfig['quota_usage'] | undefined> {
   if (!existsSync(QUOTA_USAGE_FILE)) {
@@ -22,7 +23,14 @@ export async function savePersistedAuthQuotaUsage(usage: NonNullable<IAuthConfig
   if (!existsSync(HOME_DIR)) {
     mkdirSync(HOME_DIR, { recursive: true });
   }
-  await writeFile(QUOTA_USAGE_FILE, JSON.stringify(usage, null, 2), 'utf-8');
+  const tempFile = `${QUOTA_USAGE_FILE}.tmp`;
+  quotaUsageWriteQueue = quotaUsageWriteQueue
+    .catch(() => undefined)
+    .then(async () => {
+      await writeFile(tempFile, JSON.stringify(usage, null, 2), 'utf-8');
+      await rename(tempFile, QUOTA_USAGE_FILE);
+    });
+  await quotaUsageWriteQueue;
 }
 
 export { QUOTA_USAGE_FILE };

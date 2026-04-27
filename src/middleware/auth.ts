@@ -133,7 +133,9 @@ export function apiKeyAuth(configInput: AuthConfigInput, options: AuthMiddleware
           quota: quotaResult.usage,
         });
         if (quotaResult.usage && options.persistQuotaUsage) {
-          await options.persistQuotaUsage(authQuotaUsageStore.exportForConfig());
+          Promise.resolve()
+            .then(() => options.persistQuotaUsage?.(authQuotaUsageStore.exportForConfig()))
+            .catch(() => undefined);
         }
         done();
       })

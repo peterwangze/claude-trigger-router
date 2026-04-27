@@ -172,6 +172,35 @@ describe('apiKeyAuth', () => {
     }));
   });
 
+  it('does not fail model calls when quota persistence fails', async () => {
+    const created = createManagedApiKey({
+      label: 'persistent client',
+      scopes: ['client'],
+      quota: {
+        request_limit: 2,
+      },
+    });
+    const persistQuotaUsage = vi.fn(() => {
+      throw new Error('disk full');
+    });
+    const middleware = apiKeyAuth({
+      Auth: {
+        managed_keys: [created.record],
+      },
+    }, {
+      persistQuotaUsage,
+    });
+
+    const result = await runAuth(middleware, {
+      authorization: `Bearer ${created.secret}`,
+    }, { messages: [{ role: 'user', content: 'do not block' }] });
+    await Promise.resolve();
+
+    expect(result.error).toBeUndefined();
+    expect(result.reply.code).not.toHaveBeenCalled();
+    expect(persistQuotaUsage).toHaveBeenCalled();
+  });
+
   it('returns window reset details when windowed quota is exhausted', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-28T00:00:00.000Z'));
