@@ -15,6 +15,7 @@ import {
   governanceMetricsExportStore,
 } from "./governance";
 import { buildModelRegistry, collectCapabilityWarnings } from "./models/compile";
+import { toExternalModelConfig } from "./models/schema";
 import { buildValidationIssueReport } from "./utils/validation-contract";
 import { renderWorkbenchHtml } from "./ui/workbench";
 
@@ -384,6 +385,9 @@ function buildDraftConfigView(config: any) {
   const runtimeSmartRouterConfig = deriveRuntimeSmartRouterConfig(normalizedConfig);
   const draftConfig = {
     ...normalizedConfig,
+    Models: Array.isArray(normalizedConfig.Models)
+      ? normalizedConfig.Models.map((item: any) => toExternalModelConfig(item))
+      : normalizedConfig.Models,
     SmartRouter: runtimeSmartRouterConfig,
   } as any;
 

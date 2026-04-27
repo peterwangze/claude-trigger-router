@@ -547,6 +547,18 @@ describe('createServer /api/config', () => {
       source: 'models',
     });
     expect(result.normalizedConfig.Router?.default).toBe('haiku');
+    expect(result.normalizedConfig.Models[0]).toEqual({
+      id: 'haiku',
+      api: 'https://openrouter.ai/api/v1/chat/completions',
+      key: 'sk-preview',
+      interface: 'openai',
+      model: 'anthropic/claude-3.5-haiku',
+      thinking: 'off',
+      metadata: undefined,
+    });
+    expect(result.normalizedConfig.Models[0]).not.toHaveProperty('api_base_url');
+    expect(result.normalizedConfig.Models[0]).not.toHaveProperty('api_key');
+    expect(result.normalizedConfig.Models[0]).not.toHaveProperty('protocol');
     expect(result.normalizedConfig.TriggerRouter).toBeUndefined();
     expect(result.diff.summary).toEqual({
       addedProviders: 1,
@@ -664,6 +676,18 @@ describe('createServer /api/config', () => {
     const result = await handler({}, {});
 
     expect(result.TriggerRouter).toBeUndefined();
+    expect(result.Models[0]).toEqual({
+      id: 'sonnet',
+      api: 'https://openrouter.ai/api/v1/chat/completions',
+      key: 'sk-test',
+      interface: 'openai',
+      model: 'anthropic/claude-sonnet-4',
+      thinking: undefined,
+      metadata: undefined,
+    });
+    expect(result.Models[0]).not.toHaveProperty('api_base_url');
+    expect(result.Models[0]).not.toHaveProperty('api_key');
+    expect(result.Models[0]).not.toHaveProperty('protocol');
     expect(result.SmartRouter).toEqual(
       expect.objectContaining({
         enabled: true,

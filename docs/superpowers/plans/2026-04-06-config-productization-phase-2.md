@@ -314,3 +314,10 @@
 - 对 warning-only 的现有有效配置，setup 入口现在会提供“快速修正配置提示”，不再只能直接复用或重建
 - repair 流程会优先给出与 `/ui` warning 面板一致的定向动作：移除 ignored thinking、恢复默认 tool/image capability，或显式接受 fallback
 - 当前 remaining gap 主要是继续观察更多 warning 类型，后续按同一 contract 增补模板，而不是新增分裂的 CLI 专用修复心智
+
+### 阶段 2O：UI 草稿模型字段归一首轮落地
+
+- `/api/config` 返回给 `/ui` 的 draft config view 现已把 `Models` 投影为用户入口字段：`id / api / key / interface / model / thinking / metadata`
+- `/api/models/compiled/preview` 的 `normalizedConfig.Models` 也使用同一外部字段投影，不再把 `api_base_url / api_key / protocol` 兼容字段重新带回草稿编辑入口
+- 配置文件写回、setup 保存、UI 草稿读取和编译预览现在围绕同一组模型入口字段继续收口
+- 当前 remaining gap 主要是继续把字段说明、帮助文案和高级 JSON 编辑提示与这组入口字段保持同步
