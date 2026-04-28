@@ -1877,7 +1877,7 @@ describe('packaged CLI E2E', () => {
       const configText = await readCurrentCtrConfigText(env.homeDir);
 
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain('当前要本地使用，还是连接远程服务？');
+      expect(result.stdout).toContain('当前要本地使用、连接远程服务，还是部署为远程服务端？');
       expect(configText).toContain('id: sonnet');
       expect(configText).toContain('key: sk-first-use');
       expect(configText).toContain('default: sonnet');

@@ -218,7 +218,7 @@ describe('isolated packaged CLI acceptance', () => {
 
       expect(setupResult.code).toBe(0);
       expectNoTerminalCorruption(`${setupResult.stdout}\n${setupResult.stderr}`);
-      expect(setupResult.stdout).toContain('当前要本地使用，还是连接远程服务？');
+      expect(setupResult.stdout).toContain('当前要本地使用、连接远程服务，还是部署为远程服务端？');
       expect(setupResult.stdout).toContain('我们先创建一份最小可用配置。');
       expect(setupResult.stdout).toContain('为避免 setup 结束后接管当前终端，请手动运行：ctr code');
       const configPathCandidates = [
