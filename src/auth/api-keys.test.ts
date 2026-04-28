@@ -168,7 +168,8 @@ describe('managed API keys', () => {
       },
     });
 
-    expect(authQuotaUsageStore.snapshotForKey(created.record.id, created.record.quota)).toEqual(expect.objectContaining({
+    const withinPersistedWindow = new Date('2026-04-28T00:05:00.000Z');
+    expect(authQuotaUsageStore.snapshotForKey(created.record.id, created.record.quota, withinPersistedWindow)).toEqual(expect.objectContaining({
       requestLimit: 5,
       requestsUsed: 2,
       tokensUsed: 40,
@@ -177,7 +178,7 @@ describe('managed API keys', () => {
       windowResetAt: '2026-04-28T01:00:00.000Z',
     }));
 
-    expect(authQuotaUsageStore.exportForConfig(new Date('2026-04-28T00:05:00.000Z'))).toEqual({
+    expect(authQuotaUsageStore.exportForConfig(withinPersistedWindow)).toEqual({
       [created.record.id]: {
         requests: 2,
         tokens: 40,
