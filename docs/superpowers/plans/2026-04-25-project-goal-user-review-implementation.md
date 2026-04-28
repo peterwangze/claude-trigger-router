@@ -326,10 +326,11 @@ P3-3：持续 closed 事项复审
 - CLI / setup UX 重设计 Chunk 2 复审补强：已将 setup 复用路径的服务部署安全边界从 `Runtime.mode: "server"` 扩展到 `server/cloud`，避免已有 cloud profile 被误当成本地 Claude Code 使用路径自动启动服务或输出本地 next steps。
 - P2-4 `同模型多源池化与注册调度`（Chunk 1）：已新增编译期 model pool contract，`Registration.models` 中相同 `id` 的多个 endpoint 会进入同一 logical model pool；池内先采用 `priority` 策略，并显式暴露 endpoint id、priority、enabled、activeEndpointId、upstream service 关联、capability 和 warning。`/api/models/compiled`、`/api/models/compiled/preview` 与 `/ui` compiled models 区已能展示 model pools；本轮不改变主 `Models` / `Providers` 路由解析，避免未完成 health/fallback 前影响真实请求路径。
 - P2-4 Chunk 1 复审补强：已修正配置校验层仍要求 `Registration.models[].id` 唯一的闭环裂缝；现在顶层 `Models[]` 仍保持唯一 ID 约束，但 `Registration.models` 允许多个相同 logical model id 进入同一 model pool，并补充回归测试守住真实配置保存 / preview 路径。
+- P2-4 `同模型多源池化与注册调度`（Chunk 2a）：已将 priority active endpoint 接入运行时模型解析。`Registration.models` 会编译为内部 `registration__*` providers；当没有同名顶层 `Models[]` 覆盖时，logical model id 会解析到 active pool endpoint，并在治理 trace 中追加 `model_pool:<modelId>:<endpointId>` 调度原因。当前仍不做失败重试、health-aware routing、熔断或延迟窗口，避免在健康模型未落地前扩大运行时行为面。
 
 下一项按优先级继续推进：
 
-- P2-4 同模型多源池化与注册调度：在已建立 priority 编译契约后，继续推进运行时选择器的最小 fallback 设计，要求调度原因进入 trace，并保持默认本地 `Models` 路径不受影响。
+- P2-4 同模型多源池化与注册调度：在 priority active endpoint 已可运行时解析后，继续推进最小 fallback-on-error 设计，要求失败证据、endpoint 选择与 fallback 原因进入 trace，并保持默认本地 `Models` 路径优先。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

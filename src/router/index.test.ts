@@ -94,6 +94,67 @@ describe('router model registry integration', () => {
     expect(req.body.model).toBe('openrouter,anthropic/claude-sonnet-4');
   });
 
+  it('routes registration logical model ids to the active pool endpoint and marks trace reason', async () => {
+    const req = {
+      ...baseRequest(),
+      governanceTrace: {
+        requestId: 'req-1',
+        routeReason: [],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: Date.now(),
+      },
+    };
+
+    await router(req as any, {} as any, {
+      config: {
+        Providers: [],
+        Registration: {
+          enabled: true,
+          models: [
+            {
+              id: 'sonnet',
+              api: 'https://edge-b.example.com/v1',
+              key: 'sk-edge-b',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-b',
+                pool_priority: 20,
+              },
+            },
+            {
+              id: 'sonnet',
+              api: 'https://edge-a.example.com/v1',
+              key: 'sk-edge-a',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-a',
+                pool_priority: 10,
+              },
+            },
+          ],
+        },
+        Router: {
+          default: 'sonnet',
+        },
+      },
+      event: undefined,
+    });
+
+    expect(req.body.model).toBe('registration__edge-a,claude-sonnet-4-5');
+    expect(req.modelPoolSelection).toEqual({
+      modelId: 'sonnet',
+      endpointId: 'edge-a',
+      strategy: 'priority',
+    });
+    expect(req.governanceTrace.finalModel).toBe('registration__edge-a,claude-sonnet-4-5');
+    expect(req.governanceTrace.routeReason).toContain('model_pool:sonnet:edge-a');
+  });
+
   it('applies model-level thinking config when selected model enables thinking', async () => {
     const req = baseRequest();
 

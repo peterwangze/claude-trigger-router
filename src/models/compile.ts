@@ -22,7 +22,12 @@ export interface ICompiledModelRef {
   dispatchFormat: TDispatchFormat;
   thinking?: IModelThinkingConfig;
   capabilities: ICompiledModelCapabilities;
-  source: 'models' | 'providers';
+  source: 'models' | 'providers' | 'registration';
+  modelPool?: {
+    modelId: string;
+    endpointId: string;
+    strategy: TModelPoolStrategy;
+  };
 }
 
 export interface ICompiledModelRegistry {
@@ -37,6 +42,8 @@ export interface ICompiledModelPoolEndpoint {
   id: string;
   modelId: string;
   modelName: string;
+  providerName: string;
+  legacyRef: string;
   interface?: 'openai' | 'anthropic';
   protocol: 'openai' | 'anthropic';
   api?: string;
@@ -56,6 +63,12 @@ export interface ICompiledModelPool {
   endpoints: ICompiledModelPoolEndpoint[];
   activeEndpointId?: string;
   warnings: string[];
+}
+
+interface IRegistrationPoolCompileResult {
+  providers: IProvider[];
+  modelMap: Record<string, ICompiledModelRef>;
+  modelPools: Record<string, ICompiledModelPool>;
 }
 
 export interface ICompiledCapabilityWarningEntry {
@@ -211,14 +224,61 @@ function createUniqueEndpointId(
   return endpointId;
 }
 
-function buildRegistrationModelPools(config: IAppConfig): Record<string, ICompiledModelPool> {
+function createUniqueName(preferredName: string, usedNames: Set<string>): string {
+  let name = preferredName;
+  let suffix = 2;
+  while (usedNames.has(name)) {
+    name = `${preferredName}_${suffix}`;
+    suffix += 1;
+  }
+  usedNames.add(name);
+  return name;
+}
+
+function sanitizeProviderName(value: string): string {
+  const sanitized = value.trim().replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+  return sanitized || 'endpoint';
+}
+
+function buildCompiledModelRefFromPoolEndpoint(
+  endpoint: ICompiledModelPoolEndpoint,
+  thinking: IModelThinkingConfig | undefined,
+  compatibilityProfile: TCompatibilityProfile
+): ICompiledModelRef {
+  return {
+    id: endpoint.modelId,
+    providerName: endpoint.providerName,
+    modelName: endpoint.modelName,
+    interface: endpoint.interface,
+    protocol: endpoint.protocol,
+    compatibilityProfile,
+    dispatchFormat: getDispatchFormatForProfile(endpoint.protocol, compatibilityProfile),
+    thinking,
+    capabilities: endpoint.capabilities,
+    source: 'registration',
+    modelPool: {
+      modelId: endpoint.modelId,
+      endpointId: endpoint.id,
+      strategy: 'priority',
+    },
+  };
+}
+
+function buildRegistrationModelPools(config: IAppConfig): IRegistrationPoolCompileResult {
   const registration = config.Registration;
   if (!registration?.enabled || !Array.isArray(registration.models) || registration.models.length === 0) {
-    return {};
+    return {
+      providers: [],
+      modelMap: {},
+      modelPools: {},
+    };
   }
 
   const upstreamServices = buildRegistrationUpstreamIndex(config);
   const usedEndpointIds = new Set<string>();
+  const usedProviderNames = new Set<string>();
+  const providers: IProvider[] = [];
+  const modelMap: Record<string, ICompiledModelRef> = {};
   const pools: Record<string, ICompiledModelPool> = {};
 
   registration.models.forEach((rawItem, index) => {
@@ -240,12 +300,20 @@ function buildRegistrationModelPools(config: IAppConfig): Record<string, ICompil
         (upstreamServiceId ? `${item.id}@${upstreamServiceId}` : `${item.id}@registration-${index + 1}`),
       usedEndpointIds
     );
+    const providerName = createUniqueName(
+      `registration__${sanitizeProviderName(endpointId)}`,
+      usedProviderNames
+    );
     const poolPriority = readMetadataNumber(item.metadata, 'pool_priority') ?? index + 1;
     const enabled = readMetadataBoolean(item.metadata, 'pool_enabled') ?? true;
+    const compatibilityProfile = inferCompatibilityProfile(item, modelInterface);
+    const capabilities = buildCompiledCapabilities(item, modelInterface);
     const endpoint: ICompiledModelPoolEndpoint = {
       id: endpointId,
       modelId: item.id,
       modelName: item.model,
+      providerName,
+      legacyRef: `${providerName},${item.model}`,
       interface: modelInterface,
       protocol: modelInterface,
       api: getModelApi(item) || undefined,
@@ -255,9 +323,21 @@ function buildRegistrationModelPools(config: IAppConfig): Record<string, ICompil
       upstreamAuthConfigured: Boolean(upstreamService?.auth_token),
       priority: poolPriority,
       enabled,
-      capabilities: buildCompiledCapabilities(item, modelInterface),
+      capabilities,
       source: 'registration',
     };
+    providers.push({
+      name: providerName,
+      api_base_url: getModelApi(item),
+      api_key: getModelKey(item),
+      models: [item.model],
+      transformer: inferTransformer(modelInterface),
+    });
+    modelMap[endpoint.legacyRef] = buildCompiledModelRefFromPoolEndpoint(
+      endpoint,
+      item.thinking as IModelThinkingConfig | undefined,
+      compatibilityProfile
+    );
 
     const pool = pools[item.id] ?? {
       modelId: item.id,
@@ -273,9 +353,17 @@ function buildRegistrationModelPools(config: IAppConfig): Record<string, ICompil
   Object.values(pools).forEach((pool) => {
     pool.endpoints.sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
     pool.activeEndpointId = pool.endpoints.find((endpoint) => endpoint.enabled)?.id;
+    const activeEndpoint = pool.endpoints.find((endpoint) => endpoint.id === pool.activeEndpointId);
+    if (activeEndpoint) {
+      modelMap[pool.modelId] = modelMap[activeEndpoint.legacyRef];
+    }
   });
 
-  return pools;
+  return {
+    providers,
+    modelMap,
+    modelPools: pools,
+  };
 }
 
 export function compileModelsToProviders(models: IModelEndpointConfig[]): IProvider[] {
@@ -293,10 +381,13 @@ export function compileModelsToProviders(models: IModelEndpointConfig[]): IProvi
 }
 
 export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
-  const modelPools = buildRegistrationModelPools(config);
+  const registrationPools = buildRegistrationModelPools(config);
 
   if (Array.isArray(config.Models) && config.Models.length > 0) {
-    const providers = compileModelsToProviders(config.Models);
+    const providers = [
+      ...compileModelsToProviders(config.Models),
+      ...registrationPools.providers,
+    ];
     const modelMap = config.Models.reduce<Record<string, ICompiledModelRef>>((result, rawItem) => {
       const item = normalizeModelEndpointConfig(rawItem);
       const modelInterface = getModelInterface(item) || 'openai';
@@ -314,24 +405,34 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
       source: 'models',
       };
       return result;
-    }, {});
+    }, {
+      ...registrationPools.modelMap,
+    });
 
     return {
       providers,
       modelMap,
-      modelPools,
+      modelPools: registrationPools.modelPools,
     };
   }
 
-  const providers = config.Providers ?? [];
+  const providers = [
+    ...(config.Providers ?? []),
+    ...registrationPools.providers,
+  ];
   const modelMap = providers.reduce<Record<string, ICompiledModelRef>>((result, provider) => {
     for (const model of provider.models ?? []) {
+      const legacyRef = `${provider.name},${model}`;
+      if (registrationPools.modelMap[legacyRef]) {
+        result[legacyRef] = registrationPools.modelMap[legacyRef];
+        continue;
+      }
       const compatibilityProfile = inferCompatibilityProfile(
         { api_base_url: provider.api_base_url },
         'openai'
       );
-      result[`${provider.name},${model}`] = {
-        id: `${provider.name},${model}`,
+      result[legacyRef] = {
+        id: legacyRef,
         providerName: provider.name,
         modelName: model,
         interface: 'openai',
@@ -350,12 +451,14 @@ export function buildModelRegistry(config: IAppConfig): ICompiledModelRegistry {
       };
     }
     return result;
-  }, {});
+  }, {
+    ...registrationPools.modelMap,
+  });
 
   return {
     providers,
     modelMap,
-    modelPools,
+    modelPools: registrationPools.modelPools,
   };
 }
 
@@ -404,6 +507,10 @@ export function isKnownModelReference(config: IAppConfig, ref?: string): boolean
   }
 
   if (ref.includes(',')) {
+    const registry = buildModelRegistry(config);
+    if (registry.modelMap[ref]) {
+      return true;
+    }
     const [provider, model] = ref.split(',');
     return Boolean(
       config.Providers?.find((item) =>

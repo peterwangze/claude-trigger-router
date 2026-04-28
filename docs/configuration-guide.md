@@ -340,7 +340,7 @@ Registration:
         pool_priority: 20
 ```
 
-编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 只建立可观测的编译契约，不会自动接管真实请求 fallback；运行时 health-aware routing、熔断和 trace 调度原因仍在后续 P2-4 中推进。
+编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 会把 priority active endpoint 编译成真实内部 provider；如果没有同名顶层 `Models[]` 覆盖，`Router.default: sonnet` 这类 logical model id 会解析到 active pool endpoint，并在治理 trace 中记录 `model_pool:<modelId>:<endpointId>`。运行时失败重试、health-aware routing、熔断和延迟窗口仍在后续 P2-4 中推进。
 
 当前明确不支持 `nodes`、`node_id`、`cluster` 这类集群/节点编排字段。
 

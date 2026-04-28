@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildModelRegistry, compileModelsToProviders, describeCompatibilityProfile, describeDispatchFormat, getDispatchFormatForProfile } from './compile';
+import { buildModelRegistry, compileModelsToProviders, describeCompatibilityProfile, describeDispatchFormat, getCompiledModelRef, getDispatchFormatForProfile, resolveModelReference } from './compile';
 
 describe('model compile', () => {
   it('compiles simplified Models config into internal providers', () => {
@@ -305,11 +305,22 @@ describe('model compile', () => {
     expect(registry.modelPools.sonnet.endpoints[0]).toEqual(
       expect.objectContaining({
         api: 'https://edge-a.example.com/v1/messages',
+        providerName: 'registration__edge-a',
+        legacyRef: 'registration__edge-a,claude-sonnet-4-5',
         keyConfigured: true,
         priority: 10,
         enabled: true,
         source: 'registration',
       })
+    );
+    expect(registry.providers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'registration__edge-a',
+          api_base_url: 'https://edge-a.example.com/v1/messages',
+          models: ['claude-sonnet-4-5'],
+        }),
+      ])
     );
   });
 
@@ -371,6 +382,59 @@ describe('model compile', () => {
     );
     expect(registry.modelPools.haiku.warnings).toContain(
       'Registration.models[1].metadata.upstream_service_id references missing upstream service "missing-edge".'
+    );
+  });
+
+  it('resolves registration logical model ids to the active pool endpoint when no primary model exists', () => {
+    const config = {
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+        ],
+      },
+    } as any;
+
+    expect(resolveModelReference(config, 'sonnet')).toBe('registration__edge-a,claude-sonnet-4-5');
+    expect(getCompiledModelRef(config, 'sonnet')).toEqual(
+      expect.objectContaining({
+        providerName: 'registration__edge-a',
+        source: 'registration',
+        modelPool: {
+          modelId: 'sonnet',
+          endpointId: 'edge-a',
+          strategy: 'priority',
+        },
+      })
+    );
+    expect(getCompiledModelRef(config, 'registration__edge-a,claude-sonnet-4-5')).toEqual(
+      expect.objectContaining({
+        id: 'sonnet',
+        source: 'registration',
+      })
     );
   });
 });

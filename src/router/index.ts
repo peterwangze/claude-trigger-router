@@ -14,6 +14,7 @@ import { IAppConfig } from '../trigger/types';
 import { sessionUsageCache, Usage } from './cache';
 import { log, logError } from '../utils/log';
 import { getCompiledModelRef, resolveModelReference } from '../models/compile';
+import { appendTraceReason } from '../governance';
 
 const enc = get_encoding("cl100k_base");
 
@@ -237,6 +238,17 @@ export const router = async (req: any, _res: any, context: any) => {
     // 如果触发路由已命中（模型含逗号），保留其选择
     req.body.model = model ?? req.body.model;
     applyModelThinking(req, config, req.body.model);
+    const compiledModel = getCompiledModelRef(config, req.body.model);
+    if (compiledModel?.source === 'registration' && compiledModel.modelPool) {
+      req.modelPoolSelection = compiledModel.modelPool;
+      if (req.governanceTrace) {
+        req.governanceTrace.finalModel = req.body.model;
+        appendTraceReason(
+          req.governanceTrace,
+          `model_pool:${compiledModel.modelPool.modelId}:${compiledModel.modelPool.endpointId}`
+        );
+      }
+    }
     req.tokenCount = tokenCount;
   } catch (error: any) {
     logError("Error in router middleware:", error.message);
