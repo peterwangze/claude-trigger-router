@@ -55,7 +55,7 @@ function normalizeEndpointPath(pathname: string, modelInterface: ModelInterface)
     if (!normalizedPath) {
       return '/v1/messages';
     }
-    return `${normalizedPath}/messages`;
+    return normalizedPath;
   }
 
   if (lowerPath.endsWith('/chat/completions')) {
@@ -67,7 +67,7 @@ function normalizeEndpointPath(pathname: string, modelInterface: ModelInterface)
   if (!normalizedPath) {
     return '/v1/chat/completions';
   }
-  return `${normalizedPath}/chat/completions`;
+  return normalizedPath;
 }
 
 export function normalizeApiEndpoint(api?: string, explicitInterface?: ModelInterface): string {

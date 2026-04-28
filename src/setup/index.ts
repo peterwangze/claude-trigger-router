@@ -1002,7 +1002,7 @@ function formatSetupServiceReadyMessage(action: 'reuse' | 'start' | 'reload' | '
 function printRemoteClientNextSteps(io: ISetupIO, action: 'reuse' | 'start' | 'reload' | 'restart'): void {
   io.info(`${formatSetupServiceReadyMessage(action)}远程服务连接配置已保存，可用于检查远端 ready/status。`);
   io.info('下一步：运行 ctr status 查看本地代理与远程服务 ready 状态。');
-  io.info('日常直连远程服务时，请按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_API_KEY 配置 Claude Code。');
+  io.info('日常直连远程服务时，请按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_AUTH_TOKEN 配置 Claude Code。');
   io.info('如果远端不可用，请确认 Runtime.remote_service.base_url 和 managed client + read-only key。');
 }
 

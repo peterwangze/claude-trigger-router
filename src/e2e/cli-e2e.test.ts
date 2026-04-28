@@ -1639,7 +1639,8 @@ describe('packaged CLI E2E', () => {
       expect(result.stdout).toContain(`Starting Claude Code with Trigger Router (port: ${port})`);
       expect(marker).toContain('invoked');
       expect(marker).toContain(`ANTHROPIC_BASE_URL=http://127.0.0.1:${port}`);
-      expect(marker).toContain('ANTHROPIC_API_KEY=ctr-local-proxy');
+      expect(marker).toContain('ANTHROPIC_AUTH_TOKEN=ctr-local-proxy');
+      expect(marker).toContain('ANTHROPIC_API_KEY=');
     } finally {
       try {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });

@@ -641,7 +641,7 @@ async function reportRuntimeServiceContext(config: IAppConfig, deps: IDoctorDeps
   deps.io.info('Scope 指引：admin 用于 /ui、配置保存、重启、auth 管理和治理写操作；client 只用于模型调用；read-only 只用于 health/status/compiled/governance 观测。');
   deps.io.info('Key 操作指引：使用 admin key 调用 GET /api/auth/keys 查看列表、POST /api/auth/keys 生成 key、POST /api/auth/keys/:id/revoke 吊销 key；生成的 secret 只返回一次。');
   if (runtimeMode !== 'local') {
-    deps.io.info(`远程客户端接入：ANTHROPIC_BASE_URL=${listenerUrl}，ANTHROPIC_API_KEY 使用 managed client + read-only key。`);
+    deps.io.info(`远程客户端接入：ANTHROPIC_BASE_URL=${listenerUrl}，ANTHROPIC_AUTH_TOKEN 使用 managed client + read-only key。`);
     deps.io.info(`维护入口：http://127.0.0.1:${port}/ui；公网访问请放在 HTTPS 反向代理或内网之后。`);
   }
   if (!authRequired && (runtimeMode !== 'local' || publicHost)) {

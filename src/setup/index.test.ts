@@ -376,7 +376,7 @@ describe('runSetupCli', () => {
     expect(enterClaudeCode).not.toHaveBeenCalled();
     expect(io.info).toHaveBeenCalledWith('本地代理已启动并通过健康检查。远程服务连接配置已保存，可用于检查远端 ready/status。');
     expect(io.info).toHaveBeenCalledWith('下一步：运行 ctr status 查看本地代理与远程服务 ready 状态。');
-    expect(io.info).toHaveBeenCalledWith('日常直连远程服务时，请按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_API_KEY 配置 Claude Code。');
+    expect(io.info).toHaveBeenCalledWith('日常直连远程服务时，请按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_AUTH_TOKEN 配置 Claude Code。');
     expect(io.info).toHaveBeenCalledWith('如果远端不可用，请确认 Runtime.remote_service.base_url 和 managed client + read-only key。');
     expect(io.info).not.toHaveBeenCalledWith('你可以按需继续配置路由能力：');
     expect(io.info).not.toHaveBeenCalledWith('为避免 setup 结束后接管当前终端，请手动运行：ctr code');

@@ -176,6 +176,11 @@ function readConfigForCliStatus(): any {
   return {};
 }
 
+function getLocalClaudeProxyToken(config: any): string {
+  const bootstrapKey = typeof config?.APIKEY === "string" ? config.APIKEY.trim() : "";
+  return bootstrapKey || "ctr-local-proxy";
+}
+
 async function fetchLiveServiceInfo(port: number, apiKey?: string): Promise<any | null> {
   try {
     const headers = apiKey?.trim()
@@ -638,6 +643,8 @@ async function restartService() {
  */
 export async function runClaudeCode() {
   const port = getPort();
+  const config = readConfigForCliStatus();
+  const proxyToken = getLocalClaudeProxyToken(config);
 
   // 确保 ~/.claude.json 存在（跳过 Claude Code 首次引导流程）
   // 仅在此处执行，避免在 ctr start 时产生不必要的全局副作用
@@ -646,7 +653,7 @@ export async function runClaudeCode() {
   // 先看本地元数据，再用健康检查确认当前端口上确实是本服务
   const running = isServiceRunning();
   console.log(`🔍 Checking if service is available on port ${port}...`);
-  const reachable = await waitForService(port, 2000);
+  const reachable = await waitForService(port, 2000, { apiKey: proxyToken });
 
   if (!reachable) {
     console.log(`⚠️  Trigger Router service is not running on port ${port}.`);
@@ -667,14 +674,17 @@ export async function runClaudeCode() {
 
   // 启动 Claude Code（Windows 上 npm 全局命令为 .cmd shim，需要 shell: true）
   const isWindows = process.platform === "win32";
+  const claudeEnv = {
+    ...process.env,
+    ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`,
+    ANTHROPIC_AUTH_TOKEN: proxyToken,
+  };
+  delete claudeEnv.ANTHROPIC_API_KEY;
+
   const claude = spawn("claude", [], {
     stdio: "inherit",
     shell: isWindows,
-    env: {
-      ...process.env,
-      ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`,
-      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "ctr-local-proxy",
-    },
+    env: claudeEnv,
   });
 
   claude.on("error", (error) => {

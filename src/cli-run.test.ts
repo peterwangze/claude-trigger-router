@@ -108,6 +108,8 @@ describe('runClaudeCode', () => {
   afterEach(() => {
     process.argv = [...originalArgv];
     global.fetch = originalFetch;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_AUTH_TOKEN;
     delete process.env.CTR_AUTO_START;
     delete process.env.CTR_UI_SKIP_OPEN;
   });
@@ -337,18 +339,53 @@ describe('runClaudeCode', () => {
 
   it('starts Claude when health check succeeds', async () => {
     mockWaitForService.mockResolvedValue(true);
+    process.env.ANTHROPIC_API_KEY = 'sk-real-user-key';
 
     const { runClaudeCode } = await import('./cli');
 
     await expect(runClaudeCode()).resolves.toBeUndefined();
-    expect(mockWaitForService).toHaveBeenCalled();
+    expect(mockWaitForService).toHaveBeenCalledWith(5678, 2000, { apiKey: 'ctr-local-proxy' });
     expect(mockSpawn).toHaveBeenCalledWith(
       'claude',
       [],
       expect.objectContaining({
         env: expect.objectContaining({
           ANTHROPIC_BASE_URL: 'http://127.0.0.1:5678',
-          ANTHROPIC_API_KEY: 'ctr-local-proxy',
+          ANTHROPIC_AUTH_TOKEN: 'ctr-local-proxy',
+        }),
+      })
+    );
+    const env = mockSpawn.mock.calls[0]?.[2]?.env as Record<string, string | undefined>;
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+  });
+
+  it('uses the configured bootstrap API key as the Claude proxy auth token', async () => {
+    mockWaitForService.mockResolvedValue(true);
+    mockExistsSync.mockImplementation((filePath: string) => String(filePath).endsWith('config.yaml'));
+    mockReadFileSync.mockImplementation((filePath: string) => {
+      if (String(filePath).endsWith('config.yaml')) {
+        return 'PORT: 6789\nAPIKEY: "bootstrap-key"\n';
+      }
+      if (String(filePath).endsWith('package.json')) {
+        return JSON.stringify({
+          name: '@peterwangze/claude-trigger-router',
+          version: '1.1.0',
+        });
+      }
+      throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
+    });
+
+    const { runClaudeCode } = await import('./cli');
+
+    await expect(runClaudeCode()).resolves.toBeUndefined();
+    expect(mockWaitForService).toHaveBeenCalledWith(6789, 2000, { apiKey: 'bootstrap-key' });
+    expect(mockSpawn).toHaveBeenCalledWith(
+      'claude',
+      [],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          ANTHROPIC_BASE_URL: 'http://127.0.0.1:6789',
+          ANTHROPIC_AUTH_TOKEN: 'bootstrap-key',
         }),
       })
     );

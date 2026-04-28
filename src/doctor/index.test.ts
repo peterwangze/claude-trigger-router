@@ -137,6 +137,7 @@ describe('runDoctorCli', () => {
     expect(startDaemon).toHaveBeenCalledTimes(1);
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('监听地址：0.0.0.0:5678'));
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程客户端接入：ANTHROPIC_BASE_URL=http://<server-host>:5678'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('ANTHROPIC_AUTH_TOKEN 使用 managed client + read-only key'));
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('managed client + read-only key'));
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('维护入口：http://127.0.0.1:5678/ui'));
   });

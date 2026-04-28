@@ -21,10 +21,28 @@ describe('model schema endpoint normalization', () => {
     ).toBe('https://example.com/openai/v1/chat/completions');
   });
 
+  it('keeps custom openai-compatible operation endpoints unchanged', () => {
+    expect(
+      normalizeApiEndpoint('https://api.minimax.chat/v1/text/chatcompletion_v2', 'openai')
+    ).toBe('https://api.minimax.chat/v1/text/chatcompletion_v2');
+    expect(
+      normalizeApiEndpoint('https://gateway.example.com/v1/responses?trace=1', 'openai')
+    ).toBe('https://gateway.example.com/v1/responses?trace=1');
+  });
+
   it('appends v1/messages for anthropic root endpoints', () => {
     expect(
       normalizeApiEndpoint('https://api.anthropic.com', 'anthropic')
     ).toBe('https://api.anthropic.com/v1/messages');
+  });
+
+  it('keeps custom anthropic-compatible operation endpoints unchanged', () => {
+    expect(
+      normalizeApiEndpoint('https://router.example.com/custom/anthropic/messages', 'anthropic')
+    ).toBe('https://router.example.com/custom/anthropic/messages');
+    expect(
+      normalizeApiEndpoint('https://router.example.com/custom/claude', 'anthropic')
+    ).toBe('https://router.example.com/custom/claude');
   });
 
   it('infers anthropic interface from a bare anthropic host endpoint', () => {
