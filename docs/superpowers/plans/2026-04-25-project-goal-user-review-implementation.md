@@ -328,10 +328,11 @@ P3-3：持续 closed 事项复审
 - P2-4 Chunk 1 复审补强：已修正配置校验层仍要求 `Registration.models[].id` 唯一的闭环裂缝；现在顶层 `Models[]` 仍保持唯一 ID 约束，但 `Registration.models` 允许多个相同 logical model id 进入同一 model pool，并补充回归测试守住真实配置保存 / preview 路径。
 - P2-4 `同模型多源池化与注册调度`（Chunk 2a）：已将 priority active endpoint 接入运行时模型解析。`Registration.models` 会编译为内部 `registration__*` providers；当没有同名顶层 `Models[]` 覆盖时，logical model id 会解析到 active pool endpoint，并在治理 trace 中追加 `model_pool:<modelId>:<endpointId>` 调度原因。当前仍不做失败重试、health-aware routing、熔断或延迟窗口，避免在健康模型未落地前扩大运行时行为面。
 - P2-4 `同模型多源池化与注册调度`（Chunk 2b）：已新增最小 fallback-on-error 运行时切片。非流式响应返回 upstream error 且请求来自 registration model pool 时，会按 priority 选择当前 endpoint 之后的下一个 enabled endpoint，通过本地 `/v1/messages` 重试，并带 `x-ctr-smart-router: 1` 避免重试被 SmartRouter 再次改写；治理 trace 记录 `model_pool_fallback:<modelId>:<endpointId>`、fallback from / next endpoint 与错误证据。当前仍不做 health-aware routing、熔断、冷却或延迟窗口。
+- P2-4 `同模型多源池化与注册调度`（Chunk 2c）：已新增最小内存 endpoint health 与冷却窗口。pool endpoint 失败会记录 failure count、last failure 和 cooldownUntil；fallback 成功会记录 success 并清除冷却。`buildModelRegistry()` 在选择 logical model active endpoint 和 fallback candidate 时会跳过冷却中的 endpoint，`/api/models/compiled` 与 `/ui` compiled model pools 可看到 endpoint health status。当前仍不做持久化 health、熔断阈值、延迟窗口或 least-latency。
 
 下一项按优先级继续推进：
 
-- P2-4 同模型多源池化与注册调度：在最小 fallback-on-error 已可运行后，继续推进 endpoint health 状态、失败计数、冷却窗口和 health-aware 选择，保持默认本地 `Models` 路径优先。
+- P2-4 同模型多源池化与注册调度：在最小内存 health/cooldown 已可运行后，继续推进熔断阈值、延迟窗口、持久化 health 和维护者 pool health 运营视图，保持默认本地 `Models` 路径优先。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

@@ -1,5 +1,6 @@
 import { IAppConfig, ICompiledModelCapabilities, IModelEndpointConfig, IModelThinkingConfig, IProvider } from '../trigger/types';
 import { getModelApi, getModelInterface, getModelKey, normalizeModelEndpointConfig } from './schema';
+import { IModelPoolEndpointHealthSnapshot, modelPoolHealthStore } from './pool-health';
 
 export type TCompatibilityProfile =
   | 'anthropic-native'
@@ -61,6 +62,7 @@ export interface ICompiledModelPoolEndpoint {
   upstreamAuthConfigured: boolean;
   priority: number;
   enabled: boolean;
+  health: IModelPoolEndpointHealthSnapshot;
   capabilities: ICompiledModelCapabilities;
   source: 'registration';
 }
@@ -331,6 +333,7 @@ function buildRegistrationModelPools(config: IAppConfig): IRegistrationPoolCompi
       upstreamAuthConfigured: Boolean(upstreamService?.auth_token),
       priority: poolPriority,
       enabled,
+      health: modelPoolHealthStore.getSnapshot(item.id, endpointId),
       capabilities,
       source: 'registration',
     };
@@ -360,7 +363,11 @@ function buildRegistrationModelPools(config: IAppConfig): IRegistrationPoolCompi
 
   Object.values(pools).forEach((pool) => {
     pool.endpoints.sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
-    pool.activeEndpointId = pool.endpoints.find((endpoint) => endpoint.enabled)?.id;
+    pool.activeEndpointId =
+      pool.endpoints.find((endpoint) =>
+        endpoint.enabled && modelPoolHealthStore.isEndpointAvailable(pool.modelId, endpoint.id)
+      )?.id
+      ?? pool.endpoints.find((endpoint) => endpoint.enabled)?.id;
     const activeEndpoint = pool.endpoints.find((endpoint) => endpoint.id === pool.activeEndpointId);
     if (activeEndpoint) {
       modelMap[pool.modelId] = modelMap[activeEndpoint.legacyRef];
@@ -525,9 +532,12 @@ export function getModelPoolFallbackCandidate(
 
   const enabledEndpoints = pool.endpoints.filter((endpoint) => endpoint.enabled);
   const currentIndex = enabledEndpoints.findIndex((endpoint) => endpoint.id === selection.endpointId);
-  const fallbackEndpoint = currentIndex >= 0
-    ? enabledEndpoints[currentIndex + 1]
-    : enabledEndpoints.find((endpoint) => endpoint.id !== selection.endpointId);
+  const fallbackCandidates = currentIndex >= 0
+    ? enabledEndpoints.slice(currentIndex + 1)
+    : enabledEndpoints.filter((endpoint) => endpoint.id !== selection.endpointId);
+  const fallbackEndpoint = fallbackCandidates.find((endpoint) =>
+    modelPoolHealthStore.isEndpointAvailable(pool.modelId, endpoint.id)
+  );
 
   if (!fallbackEndpoint) {
     return undefined;

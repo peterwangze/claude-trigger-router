@@ -11,6 +11,7 @@ import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetry } f
 import { shadowSupervisor } from './shadow-supervisor';
 import { getModelPoolFallbackCandidate, resolveModelReference } from '../models/compile';
 import { extractApiKeyFromHeaders } from '../auth/api-keys';
+import { modelPoolHealthStore } from '../models/pool-health';
 
 export interface IResponseGovernanceDeps {
   decideCascadeEscalation?: typeof decideCascadeEscalation;
@@ -132,8 +133,9 @@ export async function applyResponseGovernance({
   const loopbackApiKey = getLoopbackApiKey(req, config);
 
   if (hasUpstreamError(nextPayload) && req.modelPoolSelection && req.governanceTrace) {
-    const fallback = getModelPoolFallbackCandidate(config, req.modelPoolSelection);
     const fallbackAttempt = getModelPoolFallbackAttempt(req);
+    modelPoolHealthStore.recordFailure(req.modelPoolSelection.modelId, req.modelPoolSelection.endpointId);
+    const fallback = getModelPoolFallbackCandidate(config, req.modelPoolSelection);
     req.governanceTrace.modelPoolFallbackEvidence = describeUpstreamError(nextPayload);
 
     if (fallback && fallbackAttempt < 1) {
@@ -160,8 +162,11 @@ export async function applyResponseGovernance({
           endpointId: fallback.endpointId,
           strategy: fallback.strategy,
         };
+        modelPoolHealthStore.recordSuccess(fallback.modelId, fallback.endpointId);
         appendTraceReason(req.governanceTrace, 'model_pool_fallback_executed');
         nextPayload = retriedPayload;
+      } else {
+        modelPoolHealthStore.recordFailure(fallback.modelId, fallback.endpointId);
       }
     } else if (fallbackAttempt >= 1) {
       appendTraceReason(req.governanceTrace, 'model_pool_fallback_skipped:max_attempts');

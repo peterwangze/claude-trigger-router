@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { buildModelRegistry, compileModelsToProviders, describeCompatibilityProfile, describeDispatchFormat, getCompiledModelRef, getDispatchFormatForProfile, getModelPoolFallbackCandidate, resolveModelReference } from './compile';
+import { modelPoolHealthStore } from './pool-health';
 
 describe('model compile', () => {
+  beforeEach(() => {
+    modelPoolHealthStore.clear();
+  });
+
   it('compiles simplified Models config into internal providers', () => {
     const providers = compileModelsToProviders([
       {
@@ -310,6 +315,10 @@ describe('model compile', () => {
         keyConfigured: true,
         priority: 10,
         enabled: true,
+        health: expect.objectContaining({
+          status: 'healthy',
+          failureCount: 0,
+        }),
         source: 'registration',
       })
     );
@@ -501,5 +510,59 @@ describe('model compile', () => {
       endpointId: 'edge-b',
       strategy: 'priority',
     })).toBeUndefined();
+  });
+
+  it('skips cooling endpoints when resolving active pool endpoint and fallback candidate', () => {
+    const config = {
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+        ],
+      },
+    } as any;
+
+    modelPoolHealthStore.recordFailure('sonnet', 'edge-a');
+
+    const registry = buildModelRegistry(config);
+    expect(registry.modelPools.sonnet.activeEndpointId).toBe('edge-b');
+    expect(registry.modelPools.sonnet.endpoints[0].health).toEqual(
+      expect.objectContaining({
+        status: 'cooldown',
+        failureCount: 1,
+      })
+    );
+    expect(resolveModelReference(config, 'sonnet')).toBe('registration__edge-b,claude-sonnet-4-5');
+    expect(getModelPoolFallbackCandidate(config, {
+      modelId: 'sonnet',
+      endpointId: 'edge-a',
+      strategy: 'priority',
+    })).toEqual(expect.objectContaining({
+      endpointId: 'edge-b',
+      legacyRef: 'registration__edge-b,claude-sonnet-4-5',
+    }));
   });
 });

@@ -1,10 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createGovernanceTrace } from './trace';
 import { applyResponseGovernance, executeModelPoolFallbackRetry } from './response-governance';
 import { ModelSelector } from '../trigger/selector';
 import { sessionStateStore } from './session-store';
+import { modelPoolHealthStore } from '../models/pool-health';
 
 describe('applyResponseGovernance', () => {
+  beforeEach(() => {
+    modelPoolHealthStore.clear();
+  });
+
   it('executes cascade retry when response contains failure evidence', async () => {
     const req: any = {
       body: {
@@ -319,6 +324,14 @@ describe('applyResponseGovernance', () => {
     expect(req.governanceTrace.modelPoolFallbackEvidence).toBe('upstream timeout');
     expect(req.governanceTrace.routeReason).toContain('model_pool_fallback:sonnet:edge-b');
     expect(req.governanceTrace.routeReason).toContain('model_pool_fallback_executed');
+    expect(modelPoolHealthStore.getSnapshot('sonnet', 'edge-a').status).toBe('cooldown');
+    expect(modelPoolHealthStore.getSnapshot('sonnet', 'edge-b')).toEqual(
+      expect.objectContaining({
+        status: 'healthy',
+        failureCount: 0,
+        successCount: 1,
+      })
+    );
   });
 
   it('uses the current request API key for model pool fallback when bootstrap APIKEY is absent', async () => {
@@ -465,6 +478,7 @@ describe('applyResponseGovernance', () => {
     expect(executeModelPoolFallbackRetry).not.toHaveBeenCalled();
     expect(req.governanceTrace.modelPoolFallbackEvidence).toBe('fallback endpoint still failed');
     expect(req.governanceTrace.routeReason).toContain('model_pool_fallback_skipped:max_attempts');
+    expect(modelPoolHealthStore.getSnapshot('sonnet', 'edge-b').status).toBe('cooldown');
   });
 
   it('retries model pool fallback through the local service with SmartRouter bypassed', async () => {
