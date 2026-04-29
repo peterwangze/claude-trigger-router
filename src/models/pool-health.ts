@@ -1,4 +1,4 @@
-export type TModelPoolEndpointHealthStatus = 'healthy' | 'cooldown';
+export type TModelPoolEndpointHealthStatus = 'healthy' | 'cooldown' | 'open';
 
 export interface IModelPoolEndpointHealthSnapshot {
   modelId: string;
@@ -9,6 +9,7 @@ export interface IModelPoolEndpointHealthSnapshot {
   lastFailureAt?: number;
   lastSuccessAt?: number;
   cooldownUntil?: number;
+  circuitOpenUntil?: number;
 }
 
 interface IModelPoolEndpointHealthState {
@@ -17,12 +18,17 @@ interface IModelPoolEndpointHealthState {
   lastFailureAt?: number;
   lastSuccessAt?: number;
   cooldownUntil?: number;
+  circuitOpenUntil?: number;
 }
 
 export class ModelPoolHealthStore {
   private states = new Map<string, IModelPoolEndpointHealthState>();
 
-  constructor(private readonly cooldownMs = 60_000) {}
+  constructor(
+    private readonly cooldownMs = 60_000,
+    private readonly circuitBreakerFailureThreshold = 3,
+    private readonly circuitBreakerCooldownMs = 300_000
+  ) {}
 
   clear(): void {
     this.states.clear();
@@ -34,11 +40,14 @@ export class ModelPoolHealthStore {
       failureCount: 0,
       successCount: 0,
     };
+    const failureCount = current.failureCount + 1;
+    const shouldOpenCircuit = failureCount >= this.circuitBreakerFailureThreshold;
     const next = {
       ...current,
-      failureCount: current.failureCount + 1,
+      failureCount,
       lastFailureAt: now,
       cooldownUntil: now + this.cooldownMs,
+      circuitOpenUntil: shouldOpenCircuit ? now + this.circuitBreakerCooldownMs : current.circuitOpenUntil,
     };
     this.states.set(key, next);
     return this.toSnapshot(modelId, endpointId, next, now);
@@ -56,6 +65,7 @@ export class ModelPoolHealthStore {
       successCount: current.successCount + 1,
       lastSuccessAt: now,
       cooldownUntil: undefined,
+      circuitOpenUntil: undefined,
     };
     this.states.set(key, next);
     return this.toSnapshot(modelId, endpointId, next, now);
@@ -85,16 +95,19 @@ export class ModelPoolHealthStore {
     now = Date.now()
   ): IModelPoolEndpointHealthSnapshot {
     const cooldownUntil = state?.cooldownUntil;
+    const circuitOpenUntil = state?.circuitOpenUntil;
     const inCooldown = typeof cooldownUntil === 'number' && cooldownUntil > now;
+    const circuitOpen = typeof circuitOpenUntil === 'number' && circuitOpenUntil > now;
     return {
       modelId,
       endpointId,
-      status: inCooldown ? 'cooldown' : 'healthy',
+      status: circuitOpen ? 'open' : inCooldown ? 'cooldown' : 'healthy',
       failureCount: state?.failureCount ?? 0,
       successCount: state?.successCount ?? 0,
       lastFailureAt: state?.lastFailureAt,
       lastSuccessAt: state?.lastSuccessAt,
       ...(inCooldown ? { cooldownUntil } : {}),
+      ...(circuitOpen ? { circuitOpenUntil } : {}),
     };
   }
 }

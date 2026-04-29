@@ -326,7 +326,7 @@
 - `同模型多源池化与注册调度`
   - `Registration.models` 与 `Registration.upstream_services` 已形成最小 model pool，`Registration.models` 中相同 `id` 的多个 endpoint 会进入同一 logical model pool，并暴露 priority active endpoint、启停状态、upstream service 关联和 warning。
   - priority active endpoint 已能编译为内部 provider 并参与 logical model id 解析，治理 trace 会记录 `model_pool:<modelId>:<endpointId>`。
-  - 仍需从当前 priority + fallback-on-error + 内存 health/cooldown 继续扩展到持久化 health、熔断阈值和延迟窗口。
+  - 仍需从当前 priority + fallback-on-error + 内存 health/cooldown/熔断继续扩展到持久化 health 和延迟窗口。
   - 该事项依赖 API key 控制面和 server/cloud 部署边界，否则池化会放大资源滥用和故障定位风险。
 - `部署形态与远程接入收敛`
   - 先按实施计划补齐 service mode、remote status、registration 与 service info，形成最小可验证的服务端 / 客户端边界。
@@ -383,7 +383,7 @@
 | 4 | 配置产品化最终收口 | P1-主路径易用性 | 将收益指标、鉴权字段、部署角色继续收敛进 README / configuration guide / UI / setup | 新增 P1 事项会引入新术语，配置产品化需要继续作为统一心智的收口层 |
 | 5 | CLI / setup UX 重设计 | P1-主路径易用性 | 承接本地使用、连接远程服务、部署服务端三类入口 | setup 是用户进入三种运行形态的关键路径，需在角色和安全边界明确后继续改 |
 | 6 | 项目目标与用户使用视角复审 | P1-主路径易用性 | 作为校准主线继续归档新增事项和顺序调整 | 本轮复审新增的智能路由收益、安全部署和池化调度必须回到同一个实施计划 |
-| 7 | 同模型多源池化与注册调度 | P2-能力扩展与体验增强 | 定义 logical model pool、endpoint health、fallback、熔断和 trace 原因 | 它能提升服务质量，但依赖鉴权、部署和注册边界稳定后再做 |
+| 7 | 同模型多源池化与注册调度 | P2-能力扩展与体验增强 | 在 logical model pool、endpoint health、fallback、熔断和 trace 原因基础上补延迟窗口与持久化 health | 它能提升服务质量，但依赖鉴权、部署和注册边界稳定后再做 |
 | 8 | 部署形态与远程接入收敛 | P2-能力扩展与体验增强 | 在一键部署之后继续补远端请求转发、注册同步和更完整服务模式 | 远程状态查询已阶段闭环，下一步应建立在安全部署和池化调度基础上 |
 | 9 | UI 双层工作台收敛 | P2-能力扩展与体验增强 | 承载收益、鉴权、部署、池化和维护者观测入口 | UI 后续不只是分层，还要把新服务化状态变成可操作界面 |
 | 10 | 治理观测增强 / 运营化 | P2-能力扩展与体验增强 | 把路由收益、pool health、key audit 纳入 health/metrics | 治理观测需要跟随核心价值和服务化风险扩展，而不只是 trace 查看 |

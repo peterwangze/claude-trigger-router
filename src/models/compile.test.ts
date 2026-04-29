@@ -565,4 +565,64 @@ describe('model compile', () => {
       legacyRef: 'registration__edge-b,claude-sonnet-4-5',
     }));
   });
+
+  it('opens the model pool endpoint circuit after repeated failures', () => {
+    const config = {
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+        ],
+      },
+    } as any;
+
+    const now = Date.now();
+    modelPoolHealthStore.recordFailure('sonnet', 'edge-a', now);
+    modelPoolHealthStore.recordFailure('sonnet', 'edge-a', now + 1_000);
+    modelPoolHealthStore.recordFailure('sonnet', 'edge-a', now + 2_000);
+
+    const registry = buildModelRegistry(config);
+    expect(registry.modelPools.sonnet.activeEndpointId).toBe('edge-b');
+    expect(registry.modelPools.sonnet.endpoints[0].health).toEqual(
+      expect.objectContaining({
+        status: 'open',
+        failureCount: 3,
+        circuitOpenUntil: now + 302_000,
+      })
+    );
+    expect(resolveModelReference(config, 'sonnet')).toBe('registration__edge-b,claude-sonnet-4-5');
+    expect(modelPoolHealthStore.isEndpointAvailable('sonnet', 'edge-a', now + 3_000)).toBe(false);
+
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-a', now + 4_000);
+    expect(modelPoolHealthStore.getSnapshot('sonnet', 'edge-a', now + 4_000)).toEqual(
+      expect.objectContaining({
+        status: 'healthy',
+        failureCount: 0,
+        successCount: 1,
+      })
+    );
+  });
 });
