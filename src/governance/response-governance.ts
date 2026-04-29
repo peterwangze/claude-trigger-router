@@ -155,7 +155,7 @@ export async function applyResponseGovernance({
         config.API_TIMEOUT_MS
       );
 
-      if (retriedPayload) {
+      if (retriedPayload && !hasUpstreamError(retriedPayload)) {
         req.body.model = fallback.legacyRef;
         req.modelPoolSelection = {
           modelId: fallback.modelId,
@@ -167,6 +167,10 @@ export async function applyResponseGovernance({
         nextPayload = retriedPayload;
       } else {
         modelPoolHealthStore.recordFailure(fallback.modelId, fallback.endpointId);
+        appendTraceReason(req.governanceTrace, 'model_pool_fallback_failed');
+        if (retriedPayload) {
+          nextPayload = retriedPayload;
+        }
       }
     } else if (fallbackAttempt >= 1) {
       appendTraceReason(req.governanceTrace, 'model_pool_fallback_skipped:max_attempts');

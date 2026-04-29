@@ -407,6 +407,94 @@ describe('applyResponseGovernance', () => {
     );
   });
 
+  it('records the fallback endpoint as failed when model pool fallback returns an error payload', async () => {
+    const executeModelPoolFallbackRetry = vi.fn().mockResolvedValue({
+      error: {
+        message: 'fallback endpoint timeout',
+      },
+    });
+    const req: any = {
+      headers: {},
+      body: {
+        model: 'registration__edge-a,claude-sonnet-4-5',
+        metadata: {},
+      },
+      modelPoolSelection: {
+        modelId: 'sonnet',
+        endpointId: 'edge-a',
+        strategy: 'priority',
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-pool-fallback-error' }),
+    };
+    const config: any = {
+      APIKEY: 'admin-key',
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+        ],
+      },
+    };
+
+    const nextPayload = await applyResponseGovernance({
+      req,
+      payload: {
+        error: {
+          message: 'upstream timeout',
+        },
+      },
+      config,
+      servicePort: 5678,
+      deps: {
+        executeModelPoolFallbackRetry,
+      },
+    });
+
+    expect(nextPayload).toEqual({
+      error: {
+        message: 'fallback endpoint timeout',
+      },
+    });
+    expect(req.body.model).toBe('registration__edge-a,claude-sonnet-4-5');
+    expect(req.modelPoolSelection).toEqual({
+      modelId: 'sonnet',
+      endpointId: 'edge-a',
+      strategy: 'priority',
+    });
+    expect(req.governanceTrace.routeReason).toContain('model_pool_fallback:sonnet:edge-b');
+    expect(req.governanceTrace.routeReason).toContain('model_pool_fallback_failed');
+    expect(req.governanceTrace.routeReason).not.toContain('model_pool_fallback_executed');
+    expect(modelPoolHealthStore.getSnapshot('sonnet', 'edge-a').status).toBe('cooldown');
+    expect(modelPoolHealthStore.getSnapshot('sonnet', 'edge-b')).toEqual(
+      expect.objectContaining({
+        status: 'cooldown',
+        failureCount: 1,
+        successCount: 0,
+      })
+    );
+  });
+
   it('does not chain model pool fallback after the first fallback attempt', async () => {
     const executeModelPoolFallbackRetry = vi.fn();
     const req: any = {
