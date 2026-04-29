@@ -407,6 +407,124 @@ describe('applyResponseGovernance', () => {
     );
   });
 
+  it('records successful model pool response latency in endpoint health', async () => {
+    const req: any = {
+      headers: {},
+      body: {
+        model: 'registration__edge-a,claude-sonnet-4-5',
+        metadata: {},
+      },
+      modelPoolSelection: {
+        modelId: 'sonnet',
+        endpointId: 'edge-a',
+        strategy: 'priority',
+      },
+      governanceTrace: createGovernanceTrace({
+        requestId: 'req-pool-latency',
+        startedAt: Date.now() - 25,
+      }),
+    };
+
+    await applyResponseGovernance({
+      req,
+      payload: {
+        content: [{ text: 'ok' }],
+      },
+      config: {} as any,
+      servicePort: 5678,
+    });
+
+    expect(modelPoolHealthStore.getSnapshot('sonnet', 'edge-a')).toEqual(
+      expect.objectContaining({
+        status: 'healthy',
+        failureCount: 0,
+        successCount: 1,
+        latency: expect.objectContaining({
+          sampleCount: 1,
+          lastMs: expect.any(Number),
+          averageMs: expect.any(Number),
+        }),
+      })
+    );
+  });
+
+  it('does not clear a failed pool endpoint when cascade rescues the response', async () => {
+    const req: any = {
+      headers: {},
+      body: {
+        model: 'registration__edge-a,claude-sonnet-4-5',
+        metadata: {},
+      },
+      modelPoolSelection: {
+        modelId: 'sonnet',
+        endpointId: 'edge-a',
+        strategy: 'priority',
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-pool-cascade-rescue' }),
+    };
+    const config: any = {
+      Governance: {
+        enabled: true,
+        cascade: {
+          enabled: true,
+          max_attempts: 1,
+          triggers: {
+            placeholder_patterns: ['timeout'],
+          },
+          levels: [
+            {
+              from: 'registration__edge-a,claude-sonnet-4-5',
+              to: 'provider,model-b',
+            },
+          ],
+        },
+      },
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+        ],
+      },
+    };
+
+    const nextPayload = await applyResponseGovernance({
+      req,
+      payload: {
+        error: {
+          message: 'upstream timeout',
+        },
+      },
+      config,
+      servicePort: 5678,
+      deps: {
+        executeCascadeRetry: vi.fn().mockResolvedValue({
+          content: [{ text: 'rescued by cascade' }],
+        }),
+      },
+    });
+
+    expect(nextPayload).toEqual({ content: [{ text: 'rescued by cascade' }] });
+    expect(req.body.model).toBe('provider,model-b');
+    expect(req.governanceTrace.routeReason).toContain('cascade_retry_executed');
+    expect(modelPoolHealthStore.getSnapshot('sonnet', 'edge-a')).toEqual(
+      expect.objectContaining({
+        status: 'cooldown',
+        failureCount: 1,
+        successCount: 0,
+      })
+    );
+  });
+
   it('records the fallback endpoint as failed when model pool fallback returns an error payload', async () => {
     const executeModelPoolFallbackRetry = vi.fn().mockResolvedValue({
       error: {

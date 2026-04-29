@@ -55,4 +55,20 @@ describe('ModelPoolHealthStore', () => {
     expect(store.getSnapshot('sonnet', 'edge-a', 11_001)).not.toHaveProperty('cooldownUntil');
     expect(store.getSnapshot('sonnet', 'edge-a', 11_001)).not.toHaveProperty('circuitOpenUntil');
   });
+
+  it('keeps a bounded successful latency window for endpoint operations', () => {
+    const store = new ModelPoolHealthStore(1_000, 3, 5_000, 2);
+
+    store.recordSuccess('sonnet', 'edge-a', 10_000, 120);
+    store.recordSuccess('sonnet', 'edge-a', 11_000, 180);
+    const snapshot = store.recordSuccess('sonnet', 'edge-a', 12_000, 300);
+
+    expect(snapshot.latency).toEqual({
+      sampleCount: 2,
+      averageMs: 240,
+      lastMs: 300,
+      windowStartedAt: 11_000,
+      windowEndedAt: 12_000,
+    });
+  });
 });

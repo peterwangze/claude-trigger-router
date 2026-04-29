@@ -352,7 +352,7 @@ Registration:
         pool_priority: 20
 ```
 
-编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 会把 priority active endpoint 编译成真实内部 provider；如果没有同名顶层 `Models[]` 覆盖，`Router.default: sonnet` 这类 logical model id 会解析到 active pool endpoint，并在治理 trace 中记录 `model_pool:<modelId>:<endpointId>`。当当前 pool endpoint 返回非流式 upstream error 时，运行时会按 priority 选择下一个 enabled endpoint 做一次本地重试，并记录 `model_pool_fallback:<modelId>:<endpointId>`；失败 endpoint 会进入短冷却，连续失败达到阈值后会进入更长的 `open` 熔断状态，后续 logical model 解析和 fallback candidate 会优先跳过冷却或熔断中的 endpoint。更完整的延迟窗口、持久化 health 和运营视图仍在后续 P2-4 中推进。
+编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 会把 priority active endpoint 编译成真实内部 provider；如果没有同名顶层 `Models[]` 覆盖，`Router.default: sonnet` 这类 logical model id 会解析到 active pool endpoint，并在治理 trace 中记录 `model_pool:<modelId>:<endpointId>`。当当前 pool endpoint 返回非流式 upstream error 时，运行时会按 priority 选择下一个 enabled endpoint 做一次本地重试，并记录 `model_pool_fallback:<modelId>:<endpointId>`；失败 endpoint 会进入短冷却，连续失败达到阈值后会进入更长的 `open` 熔断状态，后续 logical model 解析和 fallback candidate 会优先跳过冷却或熔断中的 endpoint。成功响应会写入内存延迟窗口，compiled model pool 和 `/ui` 可看到 endpoint 的平均延迟。更完整的持久化 health、least-latency 调度和运营视图仍在后续 P2-4 中推进。
 
 当前明确不支持 `nodes`、`node_id`、`cluster` 这类集群/节点编排字段。
 

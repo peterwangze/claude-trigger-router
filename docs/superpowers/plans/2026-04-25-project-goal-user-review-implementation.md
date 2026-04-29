@@ -330,10 +330,11 @@ P3-3：持续 closed 事项复审
 - P2-4 `同模型多源池化与注册调度`（Chunk 2b）：已新增最小 fallback-on-error 运行时切片。非流式响应返回 upstream error 且请求来自 registration model pool 时，会按 priority 选择当前 endpoint 之后的下一个 enabled endpoint，通过本地 `/v1/messages` 重试，并带 `x-ctr-smart-router: 1` 避免重试被 SmartRouter 再次改写；治理 trace 记录 `model_pool_fallback:<modelId>:<endpointId>`、fallback from / next endpoint 与错误证据。当前仍不做 health-aware routing、熔断、冷却或延迟窗口。
 - P2-4 `同模型多源池化与注册调度`（Chunk 2c）：已新增最小内存 endpoint health 与冷却窗口。pool endpoint 失败会记录 failure count、last failure 和 cooldownUntil；fallback 成功会记录 success 并清除冷却。`buildModelRegistry()` 在选择 logical model active endpoint 和 fallback candidate 时会跳过冷却中的 endpoint，`/api/models/compiled` 与 `/ui` compiled model pools 可看到 endpoint health status。当前仍不做持久化 health、熔断阈值、延迟窗口或 least-latency。
 - P2-4 `同模型多源池化与注册调度`（Chunk 2d）：已在内存 health 上补齐最小熔断阈值。endpoint 连续失败达到阈值后会从短冷却升级为 `open` 熔断状态，logical model active endpoint 与 fallback candidate 会跳过熔断 endpoint；成功响应会清空失败计数、冷却和熔断。当前仍不做延迟窗口、持久化 health 或 least-latency。
+- P2-4 `同模型多源池化与注册调度`（Chunk 2e）：已在 model pool endpoint health 上新增内存延迟窗口。非流式 pool 请求成功后会记录 endpoint 成功次数和总请求延迟，health snapshot 暴露 sample count、last latency、average latency 与窗口起止时间；compiled model pool 和 `/ui` endpoint 行可看到平均延迟。当前仍不做持久化 health 或 least-latency 调度。
 
 下一项按优先级继续推进：
 
-- P2-4 同模型多源池化与注册调度：在最小内存 health/cooldown/熔断已可运行后，继续推进延迟窗口、持久化 health 和维护者 pool health 运营视图，保持默认本地 `Models` 路径优先。
+- P2-4 同模型多源池化与注册调度：在最小内存 health/cooldown/熔断/延迟窗口已可运行后，继续推进持久化 health、least-latency 调度和维护者 pool health 运营视图，保持默认本地 `Models` 路径优先。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

@@ -10,6 +10,20 @@ export interface IModelPoolEndpointHealthSnapshot {
   lastSuccessAt?: number;
   cooldownUntil?: number;
   circuitOpenUntil?: number;
+  latency?: IModelPoolEndpointLatencyWindow;
+}
+
+export interface IModelPoolEndpointLatencyWindow {
+  sampleCount: number;
+  averageMs: number;
+  lastMs: number;
+  windowStartedAt?: number;
+  windowEndedAt?: number;
+}
+
+interface IModelPoolEndpointLatencySample {
+  latencyMs: number;
+  recordedAt: number;
 }
 
 interface IModelPoolEndpointHealthState {
@@ -19,6 +33,7 @@ interface IModelPoolEndpointHealthState {
   lastSuccessAt?: number;
   cooldownUntil?: number;
   circuitOpenUntil?: number;
+  latencySamples?: IModelPoolEndpointLatencySample[];
 }
 
 export class ModelPoolHealthStore {
@@ -27,7 +42,8 @@ export class ModelPoolHealthStore {
   constructor(
     private readonly cooldownMs = 60_000,
     private readonly circuitBreakerFailureThreshold = 3,
-    private readonly circuitBreakerCooldownMs = 300_000
+    private readonly circuitBreakerCooldownMs = 300_000,
+    private readonly latencyWindowSize = 20
   ) {}
 
   clear(): void {
@@ -53,12 +69,18 @@ export class ModelPoolHealthStore {
     return this.toSnapshot(modelId, endpointId, next, now);
   }
 
-  recordSuccess(modelId: string, endpointId: string, now = Date.now()): IModelPoolEndpointHealthSnapshot {
+  recordSuccess(
+    modelId: string,
+    endpointId: string,
+    now = Date.now(),
+    latencyMs?: number
+  ): IModelPoolEndpointHealthSnapshot {
     const key = this.key(modelId, endpointId);
     const current = this.states.get(key) ?? {
       failureCount: 0,
       successCount: 0,
     };
+    const latencySamples = this.appendLatencySample(current.latencySamples, latencyMs, now);
     const next = {
       ...current,
       failureCount: 0,
@@ -66,6 +88,7 @@ export class ModelPoolHealthStore {
       lastSuccessAt: now,
       cooldownUntil: undefined,
       circuitOpenUntil: undefined,
+      ...(latencySamples ? { latencySamples } : {}),
     };
     this.states.set(key, next);
     return this.toSnapshot(modelId, endpointId, next, now);
@@ -88,6 +111,42 @@ export class ModelPoolHealthStore {
     return `${modelId}\u0000${endpointId}`;
   }
 
+  private appendLatencySample(
+    samples: IModelPoolEndpointLatencySample[] | undefined,
+    latencyMs: number | undefined,
+    recordedAt: number
+  ): IModelPoolEndpointLatencySample[] | undefined {
+    if (typeof latencyMs !== 'number' || !Number.isFinite(latencyMs) || latencyMs < 0) {
+      return samples;
+    }
+
+    return [
+      ...(samples ?? []),
+      {
+        latencyMs,
+        recordedAt,
+      },
+    ].slice(-this.latencyWindowSize);
+  }
+
+  private toLatencyWindow(
+    samples: IModelPoolEndpointLatencySample[] | undefined
+  ): IModelPoolEndpointLatencyWindow | undefined {
+    if (!samples?.length) {
+      return undefined;
+    }
+
+    const latencyValues = samples.map((sample) => sample.latencyMs);
+    const recordedAtValues = samples.map((sample) => sample.recordedAt);
+    return {
+      sampleCount: samples.length,
+      averageMs: latencyValues.reduce((sum, value) => sum + value, 0) / latencyValues.length,
+      lastMs: samples[samples.length - 1].latencyMs,
+      windowStartedAt: Math.min(...recordedAtValues),
+      windowEndedAt: Math.max(...recordedAtValues),
+    };
+  }
+
   private toSnapshot(
     modelId: string,
     endpointId: string,
@@ -108,6 +167,7 @@ export class ModelPoolHealthStore {
       lastSuccessAt: state?.lastSuccessAt,
       ...(inCooldown ? { cooldownUntil } : {}),
       ...(circuitOpen ? { circuitOpenUntil } : {}),
+      ...(state?.latencySamples?.length ? { latency: this.toLatencyWindow(state.latencySamples) } : {}),
     };
   }
 }

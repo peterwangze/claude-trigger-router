@@ -55,6 +55,27 @@ function getModelPoolFallbackAttempt(req: Record<string, any>): number {
   return Number.isFinite(attempt) && attempt > 0 ? attempt : 0;
 }
 
+function shouldRecordModelPoolSuccess(
+  req: Record<string, any>,
+  originalPayload: any,
+  finalPayload: any
+): boolean {
+  if (!req.modelPoolSelection || hasUpstreamError(finalPayload)) {
+    return false;
+  }
+
+  const routeReason = req.governanceTrace?.routeReason ?? [];
+  if (routeReason.includes('cascade_retry_executed') || routeReason.includes('shadow_sync_guard')) {
+    return false;
+  }
+
+  if (!hasUpstreamError(originalPayload)) {
+    return true;
+  }
+
+  return routeReason.includes('model_pool_fallback_executed');
+}
+
 export async function executeModelPoolFallbackRetry(
   requestBody: any,
   fallbackModelRef: string,
@@ -162,7 +183,6 @@ export async function applyResponseGovernance({
           endpointId: fallback.endpointId,
           strategy: fallback.strategy,
         };
-        modelPoolHealthStore.recordSuccess(fallback.modelId, fallback.endpointId);
         appendTraceReason(req.governanceTrace, 'model_pool_fallback_executed');
         nextPayload = retriedPayload;
       } else {
@@ -285,6 +305,14 @@ export async function applyResponseGovernance({
     req.governanceTrace = finalizeTrace(req.governanceTrace, {
       finalModel: req.body?.model ?? req.governanceTrace.finalModel,
     });
+    if (shouldRecordModelPoolSuccess(req, payload, nextPayload)) {
+      modelPoolHealthStore.recordSuccess(
+        req.modelPoolSelection.modelId,
+        req.modelPoolSelection.endpointId,
+        req.governanceTrace.completedAt ?? Date.now(),
+        req.governanceTrace.latencyMs
+      );
+    }
     recordGovernanceTrace(req.governanceTrace);
   }
 

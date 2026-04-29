@@ -326,7 +326,7 @@
 - `同模型多源池化与注册调度`
   - `Registration.models` 与 `Registration.upstream_services` 已形成最小 model pool，`Registration.models` 中相同 `id` 的多个 endpoint 会进入同一 logical model pool，并暴露 priority active endpoint、启停状态、upstream service 关联和 warning。
   - priority active endpoint 已能编译为内部 provider 并参与 logical model id 解析，治理 trace 会记录 `model_pool:<modelId>:<endpointId>`。
-  - 仍需从当前 priority + fallback-on-error + 内存 health/cooldown/熔断继续扩展到持久化 health 和延迟窗口。
+  - 仍需从当前 priority + fallback-on-error + 内存 health/cooldown/熔断/延迟窗口继续扩展到持久化 health 和 least-latency 调度。
   - 该事项依赖 API key 控制面和 server/cloud 部署边界，否则池化会放大资源滥用和故障定位风险。
 - `部署形态与远程接入收敛`
   - 先按实施计划补齐 service mode、remote status、registration 与 service info，形成最小可验证的服务端 / 客户端边界。

@@ -329,7 +329,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</table>` +
     `</div>` +
     `<div class="panel" style="margin-bottom:0">` +
-    `<div class="row"><strong>Model pools</strong><span class="muted">Registration.models 编译出的同模型多源池，当前支持 priority active endpoint、非流式错误 fallback、内存 health/cooldown 与熔断状态</span></div>` +
+    `<div class="row"><strong>Model pools</strong><span class="muted">Registration.models 编译出的同模型多源池，当前支持 priority active endpoint、非流式错误 fallback、内存 health/cooldown、熔断状态与延迟窗口</span></div>` +
     `<table id="compiledModelPoolsTable" class="management-table">` +
     `<thead><tr><th>Pool</th><th>Strategy</th><th>Active endpoint</th><th>Endpoints</th><th>Warnings</th></tr></thead>` +
     `<tbody><tr><td colspan="5" class="muted">Loading model pools...</td></tr></tbody>` +
@@ -1166,7 +1166,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `      '<td><code>'+esc(modelId)+'</code></td>' +` +
     `      '<td>'+esc(pool.strategy || '-')+'</td>' +` +
     `      '<td><code>'+esc(pool.activeEndpointId || '-')+'</code></td>' +` +
-    `      '<td>'+endpoints.map(endpoint=>'<div><code>'+esc(endpoint.id)+'</code><span class="muted"> priority '+esc(endpoint.priority)+' / '+esc(endpoint.enabled ? 'enabled' : 'disabled')+' / '+esc(endpoint.health?.status || 'healthy')+'</span><div class="muted">'+esc(endpoint.upstreamServiceId || endpoint.api || '-')+'</div></div>').join('')+'</td>' +` +
+    `      '<td>'+endpoints.map(endpoint=>{ const latency=endpoint.health?.latency; return '<div><code>'+esc(endpoint.id)+'</code><span class="muted"> priority '+esc(endpoint.priority)+' / '+esc(endpoint.enabled ? 'enabled' : 'disabled')+' / '+esc(endpoint.health?.status || 'healthy')+(latency ? ' / avg '+esc(Math.round(latency.averageMs))+'ms' : '')+'</span><div class="muted">'+esc(endpoint.upstreamServiceId || endpoint.api || '-')+'</div></div>'; }).join('')+'</td>' +` +
     `      '<td>'+((pool.warnings || []).length ? pool.warnings.map(w=>'<div class="warning-text">'+esc(w)+'</div>').join('') : '<span class="muted">-</span>')+'</td>' +` +
     `    '</tr>';` +
     `  }).join('') : '<tr><td colspan="5" class="muted">No compiled model pools</td></tr>';` +
