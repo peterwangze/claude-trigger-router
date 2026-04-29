@@ -213,6 +213,18 @@ SmartRouter:
       description: "复杂推理"
 ```
 
+默认情况下，`SmartRouter` 会启用语义增强和 sticky 稳定性修正，但不会自动启用 `sticky.alignment` 上下文摘要注入。Claude Code 会在每次请求里携带已有会话上下文；只有在你明确需要跨模型切换交接摘要，并接受额外一次 summarizer 调用带来的首包等待时，才建议显式开启：
+
+```yaml
+SmartRouter:
+  sticky:
+    enabled: true
+    alignment:
+      enabled: true
+      summarizer_model: "sonnet"
+      max_summary_tokens: 256
+```
+
 治理模块：
 
 ```yaml

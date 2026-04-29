@@ -140,6 +140,8 @@ SmartRouter:
     session_ttl_ms: 3600000
     fingerprint_similarity_threshold: 0.82
     break_on_explicit_route: true
+    # Alignment is opt-in because Claude Code already sends conversation context.
+    # Enable it only when cross-model handoff summaries are worth the extra call.
     alignment:
       enabled: true
       summarizer_model: "sonnet"

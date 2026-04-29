@@ -857,7 +857,7 @@ export function deriveRuntimeSmartRouterConfig(
             config.Governance?.sticky?.alignment
           )
             ? (baseSmartRouterConfig.sticky?.alignment?.enabled ?? derivedSticky.alignment?.enabled)
-            : true,
+            : false,
           summarizer_model:
             baseSmartRouterConfig.sticky?.alignment?.summarizer_model
             || derivedSticky.alignment?.summarizer_model

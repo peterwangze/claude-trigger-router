@@ -966,7 +966,7 @@ describe('normalizeAndValidateConfig governance', () => {
     expect(result.config.TriggerRouter).toBeUndefined();
   });
 
-  it('enables SmartRouter semantic, sticky, and alignment defaults when SmartRouter is enabled', () => {
+  it('enables SmartRouter semantic and sticky defaults but keeps alignment opt-in', () => {
     const result = normalizeAndValidateConfig({
       Router: { default: 'sonnet' },
       Models: [
@@ -1010,10 +1010,48 @@ describe('normalizeAndValidateConfig governance', () => {
       sticky: expect.objectContaining({
         enabled: true,
         alignment: expect.objectContaining({
-          enabled: true,
+          enabled: false,
           summarizer_model: 'sonnet',
         }),
       }),
+    }));
+  });
+
+  it('preserves explicit SmartRouter alignment opt-in when SmartRouter is enabled', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+        {
+          id: 'opus',
+          api: 'https://openrouter.ai/api/v1/chat/completions',
+          key: 'sk-test',
+          interface: 'openai',
+          model: 'anthropic/claude-opus-4',
+        },
+      ],
+      SmartRouter: {
+        enabled: true,
+        sticky: {
+          enabled: true,
+          alignment: {
+            enabled: true,
+            summarizer_model: 'sonnet',
+          },
+        },
+      },
+    } as any);
+
+    expect(result.errors).toEqual([]);
+    expect(result.config.SmartRouter?.sticky?.alignment).toEqual(expect.objectContaining({
+      enabled: true,
+      summarizer_model: 'sonnet',
     }));
   });
 
