@@ -241,6 +241,7 @@ describe('applyResponseGovernance', () => {
       content: [{ text: 'fallback output' }],
     });
     const req: any = {
+      headers: {},
       body: {
         model: 'registration__edge-a,claude-sonnet-4-5',
         metadata: {},
@@ -318,6 +319,152 @@ describe('applyResponseGovernance', () => {
     expect(req.governanceTrace.modelPoolFallbackEvidence).toBe('upstream timeout');
     expect(req.governanceTrace.routeReason).toContain('model_pool_fallback:sonnet:edge-b');
     expect(req.governanceTrace.routeReason).toContain('model_pool_fallback_executed');
+  });
+
+  it('uses the current request API key for model pool fallback when bootstrap APIKEY is absent', async () => {
+    const executeModelPoolFallbackRetry = vi.fn().mockResolvedValue({
+      content: [{ text: 'fallback output' }],
+    });
+    const req: any = {
+      headers: {
+        authorization: 'Bearer managed-client-key',
+      },
+      body: {
+        model: 'registration__edge-a,claude-sonnet-4-5',
+        metadata: {},
+      },
+      modelPoolSelection: {
+        modelId: 'sonnet',
+        endpointId: 'edge-a',
+        strategy: 'priority',
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-pool-managed-key' }),
+    };
+    const config: any = {
+      API_TIMEOUT_MS: 1234,
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+        ],
+      },
+    };
+
+    await applyResponseGovernance({
+      req,
+      payload: {
+        error: {
+          message: 'upstream timeout',
+        },
+      },
+      config,
+      servicePort: 5678,
+      deps: {
+        executeModelPoolFallbackRetry,
+      },
+    });
+
+    expect(executeModelPoolFallbackRetry).toHaveBeenCalledWith(
+      expect.any(Object),
+      'registration__edge-b,claude-sonnet-4-5',
+      5678,
+      'managed-client-key',
+      1234
+    );
+  });
+
+  it('does not chain model pool fallback after the first fallback attempt', async () => {
+    const executeModelPoolFallbackRetry = vi.fn();
+    const req: any = {
+      headers: {
+        'x-api-key': 'managed-client-key',
+      },
+      body: {
+        model: 'registration__edge-b,claude-sonnet-4-5',
+        metadata: {
+          ctr_model_pool_fallback_attempt: 1,
+        },
+      },
+      modelPoolSelection: {
+        modelId: 'sonnet',
+        endpointId: 'edge-b',
+        strategy: 'priority',
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-pool-fallback-once' }),
+    };
+    const config: any = {
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-c.example.com/v1',
+            key: 'sk-edge-c',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-c',
+              pool_priority: 30,
+            },
+          },
+        ],
+      },
+    };
+
+    const nextPayload = await applyResponseGovernance({
+      req,
+      payload: {
+        error: {
+          message: 'fallback endpoint still failed',
+        },
+      },
+      config,
+      servicePort: 5678,
+      deps: {
+        executeModelPoolFallbackRetry,
+      },
+    });
+
+    expect(nextPayload).toEqual({
+      error: {
+        message: 'fallback endpoint still failed',
+      },
+    });
+    expect(executeModelPoolFallbackRetry).not.toHaveBeenCalled();
+    expect(req.governanceTrace.modelPoolFallbackEvidence).toBe('fallback endpoint still failed');
+    expect(req.governanceTrace.routeReason).toContain('model_pool_fallback_skipped:max_attempts');
   });
 
   it('retries model pool fallback through the local service with SmartRouter bypassed', async () => {

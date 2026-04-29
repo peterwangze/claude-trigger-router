@@ -10,6 +10,7 @@ import { createTaskFingerprint, sessionStateStore } from './session-store';
 import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetry } from './cascade-gate';
 import { shadowSupervisor } from './shadow-supervisor';
 import { getModelPoolFallbackCandidate, resolveModelReference } from '../models/compile';
+import { extractApiKeyFromHeaders } from '../auth/api-keys';
 
 export interface IResponseGovernanceDeps {
   decideCascadeEscalation?: typeof decideCascadeEscalation;
@@ -42,6 +43,15 @@ function describeUpstreamError(payload: any): string {
     return error.type;
   }
   return 'upstream_error';
+}
+
+function getLoopbackApiKey(req: Record<string, any>, config: IAppConfig): string | undefined {
+  return extractApiKeyFromHeaders(req.headers) || config.APIKEY;
+}
+
+function getModelPoolFallbackAttempt(req: Record<string, any>): number {
+  const attempt = Number(req.body?.metadata?.ctr_model_pool_fallback_attempt ?? 0);
+  return Number.isFinite(attempt) && attempt > 0 ? attempt : 0;
 }
 
 export async function executeModelPoolFallbackRetry(
@@ -119,12 +129,14 @@ export async function applyResponseGovernance({
   const decideCascadeEscalationFn = deps?.decideCascadeEscalation ?? decideCascadeEscalation;
   const executeCascadeRetryFn = deps?.executeCascadeRetry ?? executeCascadeRetry;
   const executeModelPoolFallbackRetryFn = deps?.executeModelPoolFallbackRetry ?? executeModelPoolFallbackRetry;
+  const loopbackApiKey = getLoopbackApiKey(req, config);
 
   if (hasUpstreamError(nextPayload) && req.modelPoolSelection && req.governanceTrace) {
     const fallback = getModelPoolFallbackCandidate(config, req.modelPoolSelection);
+    const fallbackAttempt = getModelPoolFallbackAttempt(req);
     req.governanceTrace.modelPoolFallbackEvidence = describeUpstreamError(nextPayload);
 
-    if (fallback) {
+    if (fallback && fallbackAttempt < 1) {
       req.governanceTrace.modelPoolFallbackTriggered = true;
       req.governanceTrace.modelPoolFallbackFromEndpoint = req.modelPoolSelection.endpointId;
       req.governanceTrace.modelPoolFallbackNextEndpoint = fallback.endpointId;
@@ -137,7 +149,7 @@ export async function applyResponseGovernance({
         req.body,
         fallback.legacyRef,
         servicePort,
-        config.APIKEY,
+        loopbackApiKey,
         config.API_TIMEOUT_MS
       );
 
@@ -151,6 +163,8 @@ export async function applyResponseGovernance({
         appendTraceReason(req.governanceTrace, 'model_pool_fallback_executed');
         nextPayload = retriedPayload;
       }
+    } else if (fallbackAttempt >= 1) {
+      appendTraceReason(req.governanceTrace, 'model_pool_fallback_skipped:max_attempts');
     }
   }
 
@@ -179,7 +193,7 @@ export async function applyResponseGovernance({
             req.body,
             decision.nextModel,
             servicePort,
-            config.APIKEY,
+            loopbackApiKey,
             config.API_TIMEOUT_MS
           );
 
@@ -215,7 +229,7 @@ export async function applyResponseGovernance({
           resolvedShadowConfig,
           servicePort,
           undefined,
-          config.APIKEY,
+          loopbackApiKey,
           config.API_TIMEOUT_MS
         )
       : shadowSupervisor.inspect(nextPayload, resolvedShadowConfig);
@@ -242,7 +256,7 @@ export async function applyResponseGovernance({
             req.body,
             guardDecision.nextModel,
             servicePort,
-            config.APIKEY,
+            loopbackApiKey,
             config.API_TIMEOUT_MS
           );
 
