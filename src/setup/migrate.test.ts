@@ -157,6 +157,25 @@ describe('migrateLegacyConfig', () => {
     );
   });
 
+  it('preserves a legacy endpoint trailing slash during migration', () => {
+    const result = migrateLegacyConfig({
+      Providers: [
+        {
+          name: 'slash_sensitive',
+          api_base_url: 'https://example.com/openai/v1/chat/completions/',
+          api_key: 'sk-fake',
+          models: ['gpt-5.4'],
+        },
+      ],
+      Router: {
+        default: 'slash_sensitive,gpt-5.4',
+      },
+    });
+
+    expect(result.draft.Models?.[0]?.api).toBe('https://example.com/openai/v1/chat/completions/');
+    expect(result.needsCompletion).toBe(false);
+  });
+
   it('marks migration as incomplete when default model is missing', () => {
     const result = migrateLegacyConfig({
       providers: [

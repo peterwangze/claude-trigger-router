@@ -6,6 +6,10 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
+function restoreTrailingSlash(value: string, shouldRestore: boolean): string {
+  return shouldRestore && value ? `${value}/` : value;
+}
+
 function trimString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -41,13 +45,14 @@ export function inferInterfaceFromApiEndpoint(api?: string, modelName?: string):
 }
 
 function normalizeEndpointPath(pathname: string, modelInterface: ModelInterface): string {
+  const hadExplicitTrailingSlash = pathname.length > 1 && /\/+$/.test(pathname);
   const trimmedPath = trimTrailingSlash(pathname || '');
   const normalizedPath = trimmedPath || '';
   const lowerPath = normalizedPath.toLowerCase();
 
   if (modelInterface === 'anthropic') {
     if (lowerPath.endsWith('/v1/messages') || lowerPath.endsWith('/messages')) {
-      return normalizedPath || '/v1/messages';
+      return restoreTrailingSlash(normalizedPath || '/v1/messages', hadExplicitTrailingSlash);
     }
     if (lowerPath.endsWith('/v1')) {
       return `${normalizedPath}/messages`;
@@ -55,11 +60,11 @@ function normalizeEndpointPath(pathname: string, modelInterface: ModelInterface)
     if (!normalizedPath) {
       return '/v1/messages';
     }
-    return normalizedPath;
+    return restoreTrailingSlash(normalizedPath, hadExplicitTrailingSlash);
   }
 
   if (lowerPath.endsWith('/chat/completions')) {
-    return normalizedPath || '/chat/completions';
+    return restoreTrailingSlash(normalizedPath || '/chat/completions', hadExplicitTrailingSlash);
   }
   if (lowerPath.endsWith('/v1')) {
     return `${normalizedPath}/chat/completions`;
@@ -67,7 +72,7 @@ function normalizeEndpointPath(pathname: string, modelInterface: ModelInterface)
   if (!normalizedPath) {
     return '/v1/chat/completions';
   }
-  return normalizedPath;
+  return restoreTrailingSlash(normalizedPath, hadExplicitTrailingSlash);
 }
 
 export function normalizeApiEndpoint(api?: string, explicitInterface?: ModelInterface): string {
@@ -84,8 +89,7 @@ export function normalizeApiEndpoint(api?: string, explicitInterface?: ModelInte
     return url.toString();
   } catch {
     const [base, suffix = ''] = trimmed.split(/([?#].*)/, 2);
-    const normalizedBase = trimTrailingSlash(base);
-    const normalizedPath = normalizeEndpointPath(normalizedBase, modelInterface);
+    const normalizedPath = normalizeEndpointPath(base, modelInterface);
     return `${normalizedPath}${suffix}`;
   }
 }
