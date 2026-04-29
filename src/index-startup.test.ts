@@ -9,6 +9,9 @@ const mockConfigureLogging = vi.fn();
 const mockSavePid = vi.fn();
 const mockTriggerInit = vi.fn();
 const mockTriggerIsEnabled = vi.fn().mockReturnValue(true);
+const mockTriggerRoute = vi.fn();
+const mockTriggerGetSmartRouterConfig = vi.fn();
+const mockSessionStateGet = vi.fn();
 
 vi.mock('./server', () => ({
   createServer: mockCreateServer,
@@ -42,6 +45,8 @@ vi.mock('./trigger', () => ({
   triggerRouter: {
     init: mockTriggerInit,
     isEnabled: mockTriggerIsEnabled,
+    route: mockTriggerRoute,
+    getSmartRouterConfig: mockTriggerGetSmartRouterConfig,
   },
 }));
 
@@ -87,7 +92,7 @@ vi.mock('./governance', () => ({
   createGovernanceTrace: vi.fn().mockReturnValue({}),
   governStreamingResponse: vi.fn((payload: unknown) => payload),
   sessionStateStore: {
-    get: vi.fn(),
+    get: mockSessionStateGet,
   },
 }));
 
@@ -143,6 +148,23 @@ describe('run startup wiring', () => {
         post: vi.fn(),
       },
     });
+    mockTriggerIsEnabled.mockReturnValue(true);
+    mockTriggerRoute.mockResolvedValue({
+      matched: false,
+      confidence: 0,
+      analysisTime: 0,
+    });
+    mockTriggerGetSmartRouterConfig.mockReturnValue({
+      enabled: true,
+      sticky: {
+        enabled: true,
+        alignment: {
+          enabled: false,
+          summarizer_model: 'sonnet',
+        },
+      },
+    });
+    mockSessionStateGet.mockReturnValue(undefined);
   });
 
   it('creates the server without jsonPath and writes log files directly under HOME_DIR', async () => {
@@ -251,5 +273,52 @@ describe('run startup wiring', () => {
         managed_keys: [],
       },
     }));
+  });
+
+  it('does not run context alignment summarizer when alignment is default-disabled', async () => {
+    mockTriggerRoute.mockResolvedValueOnce({
+      matched: true,
+      model: 'opus',
+      rule: { name: 'complex-task' },
+      analyzedText: '继续修复 API timeout',
+      confidence: 0.9,
+      analysisTime: 1,
+    });
+    mockSessionStateGet.mockReturnValue({
+      lastSuccessfulModel: 'sonnet',
+    });
+
+    const { run } = await import('./index');
+    const { contextAlignmentService } = await import('./governance');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const smartRouterHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler').at(-1)?.[1];
+    expect(smartRouterHook).toBeTypeOf('function');
+
+    const req: any = {
+      id: 'req-1',
+      url: '/v1/messages',
+      headers: {},
+      body: {
+        model: 'sonnet',
+        metadata: {
+          user_id: 'user_session_sticky-session',
+        },
+        messages: [
+          {
+            role: 'user',
+            content: 'hi',
+          },
+        ],
+      },
+    };
+
+    await smartRouterHook(req, {});
+
+    expect(req.body.model).toBe('opus');
+    expect(contextAlignmentService.summarizeTransition).not.toHaveBeenCalled();
+    expect(contextAlignmentService.injectAlignmentContext).not.toHaveBeenCalled();
   });
 });
