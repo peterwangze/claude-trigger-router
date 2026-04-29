@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createGovernanceTrace } from './trace';
-import { applyResponseGovernance } from './response-governance';
+import { applyResponseGovernance, executeModelPoolFallbackRetry } from './response-governance';
 import { ModelSelector } from '../trigger/selector';
 import { sessionStateStore } from './session-store';
 
@@ -232,6 +232,132 @@ describe('applyResponseGovernance', () => {
       expect.objectContaining({
         preferredModel: 'provider,model-a',
         lastSuccessfulModel: 'provider,model-a',
+      })
+    );
+  });
+
+  it('falls back to the next registration model pool endpoint on upstream error', async () => {
+    const executeModelPoolFallbackRetry = vi.fn().mockResolvedValue({
+      content: [{ text: 'fallback output' }],
+    });
+    const req: any = {
+      body: {
+        model: 'registration__edge-a,claude-sonnet-4-5',
+        metadata: {},
+      },
+      modelPoolSelection: {
+        modelId: 'sonnet',
+        endpointId: 'edge-a',
+        strategy: 'priority',
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-pool-fallback' }),
+    };
+    const config: any = {
+      APIKEY: 'admin-key',
+      API_TIMEOUT_MS: 1234,
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+        ],
+      },
+    };
+
+    const nextPayload = await applyResponseGovernance({
+      req,
+      payload: {
+        error: {
+          message: 'upstream timeout',
+        },
+      },
+      config,
+      servicePort: 5678,
+      deps: {
+        executeModelPoolFallbackRetry,
+      },
+    });
+
+    expect(nextPayload).toEqual({ content: [{ text: 'fallback output' }] });
+    expect(executeModelPoolFallbackRetry).toHaveBeenCalledWith(
+      req.body,
+      'registration__edge-b,claude-sonnet-4-5',
+      5678,
+      'admin-key',
+      1234
+    );
+    expect(req.body.model).toBe('registration__edge-b,claude-sonnet-4-5');
+    expect(req.modelPoolSelection).toEqual({
+      modelId: 'sonnet',
+      endpointId: 'edge-b',
+      strategy: 'priority',
+    });
+    expect(req.governanceTrace.modelPoolFallbackTriggered).toBe(true);
+    expect(req.governanceTrace.modelPoolFallbackFromEndpoint).toBe('edge-a');
+    expect(req.governanceTrace.modelPoolFallbackNextEndpoint).toBe('edge-b');
+    expect(req.governanceTrace.modelPoolFallbackEvidence).toBe('upstream timeout');
+    expect(req.governanceTrace.routeReason).toContain('model_pool_fallback:sonnet:edge-b');
+    expect(req.governanceTrace.routeReason).toContain('model_pool_fallback_executed');
+  });
+
+  it('retries model pool fallback through the local service with SmartRouter bypassed', async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ content: [{ text: 'fallback ok' }] }),
+    });
+
+    const payload = await executeModelPoolFallbackRetry(
+      {
+        model: 'registration__edge-a,claude-sonnet-4-5',
+        metadata: {
+          request_id: 'req-1',
+          ctr_model_pool_fallback_attempt: 1,
+        },
+      },
+      'registration__edge-b,claude-sonnet-4-5',
+      6789,
+      'admin-key',
+      2345,
+      fetchFn as any
+    );
+
+    expect(payload).toEqual({ content: [{ text: 'fallback ok' }] });
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://127.0.0.1:6789/v1/messages',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'x-api-key': 'admin-key',
+          'x-ctr-smart-router': '1',
+        }),
+        body: JSON.stringify({
+          model: 'registration__edge-b,claude-sonnet-4-5',
+          metadata: {
+            request_id: 'req-1',
+            ctr_model_pool_fallback_attempt: 2,
+          },
+        }),
       })
     );
   });

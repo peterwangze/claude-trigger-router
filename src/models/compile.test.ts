@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildModelRegistry, compileModelsToProviders, describeCompatibilityProfile, describeDispatchFormat, getCompiledModelRef, getDispatchFormatForProfile, resolveModelReference } from './compile';
+import { buildModelRegistry, compileModelsToProviders, describeCompatibilityProfile, describeDispatchFormat, getCompiledModelRef, getDispatchFormatForProfile, getModelPoolFallbackCandidate, resolveModelReference } from './compile';
 
 describe('model compile', () => {
   it('compiles simplified Models config into internal providers', () => {
@@ -436,5 +436,70 @@ describe('model compile', () => {
         source: 'registration',
       })
     );
+  });
+
+  it('selects the next enabled model pool endpoint as fallback candidate', () => {
+    const config = {
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-disabled.example.com/v1',
+            key: 'sk-disabled',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-disabled',
+              pool_priority: 15,
+              pool_enabled: false,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+        ],
+      },
+    } as any;
+
+    expect(getModelPoolFallbackCandidate(config, {
+      modelId: 'sonnet',
+      endpointId: 'edge-a',
+      strategy: 'priority',
+    })).toEqual({
+      modelId: 'sonnet',
+      endpointId: 'edge-b',
+      strategy: 'priority',
+      legacyRef: 'registration__edge-b,claude-sonnet-4-5',
+      providerName: 'registration__edge-b',
+      modelName: 'claude-sonnet-4-5',
+    });
+
+    expect(getModelPoolFallbackCandidate(config, {
+      modelId: 'sonnet',
+      endpointId: 'edge-b',
+      strategy: 'priority',
+    })).toBeUndefined();
   });
 });

@@ -145,6 +145,10 @@ export interface IGovernanceTrace {
   cascadeNextModel?: string;
   shadowChecked: boolean;
   verificationResult?: string;
+  modelPoolFallbackTriggered?: boolean;
+  modelPoolFallbackFromEndpoint?: string;
+  modelPoolFallbackNextEndpoint?: string;
+  modelPoolFallbackEvidence?: string;
   latencyMs?: number;
   estimatedCost?: number;
   startedAt: number;

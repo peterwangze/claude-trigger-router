@@ -537,6 +537,24 @@ async function run(options: RunOptions = {}) {
       sessionUsageCache.put(req.sessionId, payload.usage);
     }
     if (typeof payload === "object" && payload.error) {
+      if (req.modelPoolSelection) {
+        applyResponseGovernance({
+          req,
+          payload,
+          config,
+          servicePort,
+        }).then((governedPayload) => {
+          req.responseGovernanceApplied = true;
+          if (governedPayload && typeof governedPayload === "object" && governedPayload.error) {
+            return done(governedPayload.error, null);
+          }
+          if (req.sessionId && governedPayload?.usage) {
+            sessionUsageCache.put(req.sessionId, governedPayload.usage);
+          }
+          return done(null, governedPayload);
+        }).catch((error) => done(error, null));
+        return;
+      }
       return done(payload.error, null);
     }
     done(null, payload);
@@ -547,12 +565,14 @@ async function run(options: RunOptions = {}) {
       return payload;
     }
 
-    payload = await applyResponseGovernance({
-      req,
-      payload,
-      config,
-      servicePort,
-    });
+    if (!req.responseGovernanceApplied) {
+      payload = await applyResponseGovernance({
+        req,
+        payload,
+        config,
+        servicePort,
+      });
+    }
 
     if (req.governanceTrace) {
       logDebug("[GovernanceTrace]", JSON.stringify(req.governanceTrace));

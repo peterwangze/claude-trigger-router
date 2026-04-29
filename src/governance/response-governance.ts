@@ -9,12 +9,13 @@ import { appendTraceReason, finalizeTrace, recordGovernanceTrace } from './trace
 import { createTaskFingerprint, sessionStateStore } from './session-store';
 import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetry } from './cascade-gate';
 import { shadowSupervisor } from './shadow-supervisor';
-import { resolveModelReference } from '../models/compile';
+import { getModelPoolFallbackCandidate, resolveModelReference } from '../models/compile';
 
 export interface IResponseGovernanceDeps {
   decideCascadeEscalation?: typeof decideCascadeEscalation;
   detectFailureEvidence?: typeof detectFailureEvidence;
   executeCascadeRetry?: typeof executeCascadeRetry;
+  executeModelPoolFallbackRetry?: typeof executeModelPoolFallbackRetry;
 }
 
 export interface IApplyResponseGovernanceInput {
@@ -23,6 +24,65 @@ export interface IApplyResponseGovernanceInput {
   config: IAppConfig;
   servicePort: number;
   deps?: IResponseGovernanceDeps;
+}
+
+function hasUpstreamError(payload: any): boolean {
+  return Boolean(payload && typeof payload === 'object' && payload.error);
+}
+
+function describeUpstreamError(payload: any): string {
+  const error = payload?.error;
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (typeof error?.message === 'string') {
+    return error.message;
+  }
+  if (typeof error?.type === 'string') {
+    return error.type;
+  }
+  return 'upstream_error';
+}
+
+export async function executeModelPoolFallbackRetry(
+  requestBody: any,
+  fallbackModelRef: string,
+  port: number,
+  apiKey?: string,
+  timeoutMs?: number,
+  fetchFn?: typeof fetch
+): Promise<any | null> {
+  const fetchImpl = fetchFn || fetch;
+  const currentAttempt = Number(requestBody?.metadata?.ctr_model_pool_fallback_attempt ?? 0);
+  const retryBody = {
+    ...requestBody,
+    model: fallbackModelRef,
+    metadata: {
+      ...(requestBody?.metadata ?? {}),
+      ctr_model_pool_fallback_attempt: currentAttempt + 1,
+    },
+  };
+
+  try {
+    const response = await fetchImpl(`http://127.0.0.1:${port}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-ctr-smart-router': '1',
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      },
+      body: JSON.stringify(retryBody),
+      ...(timeoutMs && timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function applyResponseGovernance({
@@ -58,6 +118,41 @@ export async function applyResponseGovernance({
   const detectFailureEvidenceFn = deps?.detectFailureEvidence ?? detectFailureEvidence;
   const decideCascadeEscalationFn = deps?.decideCascadeEscalation ?? decideCascadeEscalation;
   const executeCascadeRetryFn = deps?.executeCascadeRetry ?? executeCascadeRetry;
+  const executeModelPoolFallbackRetryFn = deps?.executeModelPoolFallbackRetry ?? executeModelPoolFallbackRetry;
+
+  if (hasUpstreamError(nextPayload) && req.modelPoolSelection && req.governanceTrace) {
+    const fallback = getModelPoolFallbackCandidate(config, req.modelPoolSelection);
+    req.governanceTrace.modelPoolFallbackEvidence = describeUpstreamError(nextPayload);
+
+    if (fallback) {
+      req.governanceTrace.modelPoolFallbackTriggered = true;
+      req.governanceTrace.modelPoolFallbackFromEndpoint = req.modelPoolSelection.endpointId;
+      req.governanceTrace.modelPoolFallbackNextEndpoint = fallback.endpointId;
+      appendTraceReason(
+        req.governanceTrace,
+        `model_pool_fallback:${fallback.modelId}:${fallback.endpointId}`
+      );
+
+      const retriedPayload = await executeModelPoolFallbackRetryFn(
+        req.body,
+        fallback.legacyRef,
+        servicePort,
+        config.APIKEY,
+        config.API_TIMEOUT_MS
+      );
+
+      if (retriedPayload) {
+        req.body.model = fallback.legacyRef;
+        req.modelPoolSelection = {
+          modelId: fallback.modelId,
+          endpointId: fallback.endpointId,
+          strategy: fallback.strategy,
+        };
+        appendTraceReason(req.governanceTrace, 'model_pool_fallback_executed');
+        nextPayload = retriedPayload;
+      }
+    }
+  }
 
   if (
     config.Governance?.enabled &&

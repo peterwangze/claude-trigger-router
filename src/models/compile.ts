@@ -23,11 +23,7 @@ export interface ICompiledModelRef {
   thinking?: IModelThinkingConfig;
   capabilities: ICompiledModelCapabilities;
   source: 'models' | 'providers' | 'registration';
-  modelPool?: {
-    modelId: string;
-    endpointId: string;
-    strategy: TModelPoolStrategy;
-  };
+  modelPool?: ICompiledModelPoolSelection;
 }
 
 export interface ICompiledModelRegistry {
@@ -37,6 +33,18 @@ export interface ICompiledModelRegistry {
 }
 
 export type TModelPoolStrategy = 'priority';
+
+export interface ICompiledModelPoolSelection {
+  modelId: string;
+  endpointId: string;
+  strategy: TModelPoolStrategy;
+}
+
+export interface IModelPoolFallbackCandidate extends ICompiledModelPoolSelection {
+  legacyRef: string;
+  providerName: string;
+  modelName: string;
+}
 
 export interface ICompiledModelPoolEndpoint {
   id: string;
@@ -499,6 +507,40 @@ export function getCompiledModelRef(config: IAppConfig, ref?: string): ICompiled
   return Object.values(registry.modelMap).find(
     (item) => item.providerName === providerName && item.modelName === modelName
   );
+}
+
+export function getModelPoolFallbackCandidate(
+  config: IAppConfig,
+  selection?: ICompiledModelPoolSelection
+): IModelPoolFallbackCandidate | undefined {
+  if (!selection?.modelId || !selection.endpointId) {
+    return undefined;
+  }
+
+  const registry = buildModelRegistry(config);
+  const pool = registry.modelPools[selection.modelId];
+  if (!pool) {
+    return undefined;
+  }
+
+  const enabledEndpoints = pool.endpoints.filter((endpoint) => endpoint.enabled);
+  const currentIndex = enabledEndpoints.findIndex((endpoint) => endpoint.id === selection.endpointId);
+  const fallbackEndpoint = currentIndex >= 0
+    ? enabledEndpoints[currentIndex + 1]
+    : enabledEndpoints.find((endpoint) => endpoint.id !== selection.endpointId);
+
+  if (!fallbackEndpoint) {
+    return undefined;
+  }
+
+  return {
+    modelId: fallbackEndpoint.modelId,
+    endpointId: fallbackEndpoint.id,
+    strategy: pool.strategy,
+    legacyRef: fallbackEndpoint.legacyRef,
+    providerName: fallbackEndpoint.providerName,
+    modelName: fallbackEndpoint.modelName,
+  };
 }
 
 export function isKnownModelReference(config: IAppConfig, ref?: string): boolean {
