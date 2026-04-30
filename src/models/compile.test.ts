@@ -593,6 +593,116 @@ describe('model compile', () => {
     }));
   });
 
+  it('uses least-latency registration strategy when endpoints have latency samples', () => {
+    const config = {
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Registration: {
+        enabled: true,
+        strategy: 'least-latency',
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-c.example.com/v1',
+            key: 'sk-edge-c',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-c',
+              pool_priority: 30,
+            },
+          },
+        ],
+      },
+    } as any;
+
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-a', 10_000, 900);
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-b', 10_000, 200);
+
+    const registry = buildModelRegistry(config);
+    expect(registry.modelPools.sonnet).toEqual(
+      expect.objectContaining({
+        strategy: 'least-latency',
+        activeEndpointId: 'edge-b',
+      })
+    );
+    expect(resolveModelReference(config, 'sonnet')).toBe('registration__edge-b,claude-sonnet-4-5');
+    expect(getCompiledModelRef(config, 'sonnet')?.modelPool).toEqual({
+      modelId: 'sonnet',
+      endpointId: 'edge-b',
+      strategy: 'least-latency',
+    });
+    expect(getModelPoolFallbackCandidate(config, {
+      modelId: 'sonnet',
+      endpointId: 'edge-b',
+      strategy: 'least-latency',
+    })).toEqual(expect.objectContaining({
+      endpointId: 'edge-a',
+      legacyRef: 'registration__edge-a,claude-sonnet-4-5',
+    }));
+  });
+
+  it('falls back to priority order for least-latency pools without latency samples', () => {
+    const config = {
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Registration: {
+        enabled: true,
+        strategy: 'least-latency',
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+        ],
+      },
+    } as any;
+
+    const registry = buildModelRegistry(config);
+    expect(registry.modelPools.sonnet.activeEndpointId).toBe('edge-a');
+    expect(resolveModelReference(config, 'sonnet')).toBe('registration__edge-a,claude-sonnet-4-5');
+  });
+
   it('opens the model pool endpoint circuit after repeated failures', () => {
     const config = {
       Providers: [],

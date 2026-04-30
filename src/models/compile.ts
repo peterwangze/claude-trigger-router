@@ -33,7 +33,7 @@ export interface ICompiledModelRegistry {
   modelPools: Record<string, ICompiledModelPool>;
 }
 
-export type TModelPoolStrategy = 'priority';
+export type TModelPoolStrategy = 'priority' | 'least-latency';
 
 export interface ICompiledModelPoolSelection {
   modelId: string;
@@ -257,7 +257,8 @@ function sanitizeProviderName(value: string): string {
 function buildCompiledModelRefFromPoolEndpoint(
   endpoint: ICompiledModelPoolEndpoint,
   thinking: IModelThinkingConfig | undefined,
-  compatibilityProfile: TCompatibilityProfile
+  compatibilityProfile: TCompatibilityProfile,
+  strategy: TModelPoolStrategy
 ): ICompiledModelRef {
   return {
     id: endpoint.modelId,
@@ -273,9 +274,42 @@ function buildCompiledModelRefFromPoolEndpoint(
     modelPool: {
       modelId: endpoint.modelId,
       endpointId: endpoint.id,
-      strategy: 'priority',
+      strategy,
     },
   };
+}
+
+function getRegistrationPoolStrategy(config: IAppConfig): TModelPoolStrategy {
+  return config.Registration?.strategy === 'least-latency' ? 'least-latency' : 'priority';
+}
+
+function latencyScore(endpoint: ICompiledModelPoolEndpoint): number | undefined {
+  const averageMs = endpoint.health.latency?.averageMs;
+  return typeof averageMs === 'number' && Number.isFinite(averageMs) ? averageMs : undefined;
+}
+
+function sortEndpointsForStrategy(
+  endpoints: ICompiledModelPoolEndpoint[],
+  strategy: TModelPoolStrategy
+): ICompiledModelPoolEndpoint[] {
+  if (strategy !== 'least-latency') {
+    return [...endpoints].sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
+  }
+
+  return [...endpoints].sort((a, b) => {
+    const leftLatency = latencyScore(a);
+    const rightLatency = latencyScore(b);
+    if (leftLatency !== undefined && rightLatency !== undefined && leftLatency !== rightLatency) {
+      return leftLatency - rightLatency;
+    }
+    if (leftLatency !== undefined && rightLatency === undefined) {
+      return -1;
+    }
+    if (leftLatency === undefined && rightLatency !== undefined) {
+      return 1;
+    }
+    return a.priority - b.priority || a.id.localeCompare(b.id);
+  });
 }
 
 function buildRegistrationModelPools(config: IAppConfig): IRegistrationPoolCompileResult {
@@ -294,6 +328,7 @@ function buildRegistrationModelPools(config: IAppConfig): IRegistrationPoolCompi
   const providers: IProvider[] = [];
   const modelMap: Record<string, ICompiledModelRef> = {};
   const pools: Record<string, ICompiledModelPool> = {};
+  const strategy = getRegistrationPoolStrategy(config);
 
   registration.models.forEach((rawItem, index) => {
     const item = normalizeModelEndpointConfig(rawItem);
@@ -351,12 +386,13 @@ function buildRegistrationModelPools(config: IAppConfig): IRegistrationPoolCompi
     modelMap[endpoint.legacyRef] = buildCompiledModelRefFromPoolEndpoint(
       endpoint,
       item.thinking as IModelThinkingConfig | undefined,
-      compatibilityProfile
+      compatibilityProfile,
+      strategy
     );
 
     const pool = pools[item.id] ?? {
       modelId: item.id,
-      strategy: 'priority' as const,
+      strategy,
       endpoints: [],
       warnings: [],
     };
@@ -367,8 +403,9 @@ function buildRegistrationModelPools(config: IAppConfig): IRegistrationPoolCompi
 
   Object.values(pools).forEach((pool) => {
     pool.endpoints.sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
+    const selectionOrder = sortEndpointsForStrategy(pool.endpoints, pool.strategy);
     pool.activeEndpointId =
-      pool.endpoints.find((endpoint) =>
+      selectionOrder.find((endpoint) =>
         endpoint.enabled && modelPoolHealthStore.isEndpointAvailable(pool.modelId, endpoint.id)
       )?.id
       ?? pool.endpoints.find((endpoint) => endpoint.enabled)?.id;
@@ -536,10 +573,12 @@ export function getModelPoolFallbackCandidate(
 
   const enabledEndpoints = pool.endpoints.filter((endpoint) => endpoint.enabled);
   const currentIndex = enabledEndpoints.findIndex((endpoint) => endpoint.id === selection.endpointId);
-  const fallbackCandidates = currentIndex >= 0
-    ? enabledEndpoints.slice(currentIndex + 1)
-    : enabledEndpoints.filter((endpoint) => endpoint.id !== selection.endpointId);
-  const fallbackEndpoint = fallbackCandidates.find((endpoint) =>
+  const fallbackCandidates = pool.strategy === 'least-latency'
+    ? enabledEndpoints.filter((endpoint) => endpoint.id !== selection.endpointId)
+    : currentIndex >= 0
+      ? enabledEndpoints.slice(currentIndex + 1)
+      : enabledEndpoints.filter((endpoint) => endpoint.id !== selection.endpointId);
+  const fallbackEndpoint = sortEndpointsForStrategy(fallbackCandidates, pool.strategy).find((endpoint) =>
     modelPoolHealthStore.isEndpointAvailable(pool.modelId, endpoint.id)
   );
 

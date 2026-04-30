@@ -37,6 +37,7 @@ const DEFAULT_RUNTIME_CONFIG: NonNullable<IAppConfig['Runtime']> = {
 
 const DEFAULT_REGISTRATION_CONFIG: NonNullable<IAppConfig['Registration']> = {
   enabled: false,
+  strategy: 'priority',
   models: [],
   upstream_services: [],
 };
@@ -511,6 +512,9 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
   }
 
   const registration = config.Registration as any;
+  if (registration?.strategy !== undefined && !['priority', 'least-latency'].includes(registration.strategy)) {
+    errors.push('Registration.strategy must be one of "priority", "least-latency"');
+  }
   if (registration?.nodes !== undefined) {
     errors.push('Registration.nodes is not supported yet; use Registration.models or Registration.upstream_services');
   }

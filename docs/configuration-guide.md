@@ -318,8 +318,9 @@ Health 摘要只解释已有 trace / metrics / anomaly 数据，不会改变路�
 
 - `models`：可注册模型列表，字段复用 `Models[]` 的最小模型配置语义；多个相同 `id` 会编译成同一个 logical model pool。
 - `upstream_services`：上游服务引用列表，只保存服务 ID、base URL 和可选 token。
+- `strategy`：可选，当前支持 `priority` 和 `least-latency`；默认是 `priority`，显式设置 `least-latency` 后会优先选择已有成功延迟样本中平均延迟最低的健康 endpoint，没有样本时回退 priority。
 - `metadata.pool_endpoint_id`：可选，给某个 pool endpoint 一个稳定 ID。
-- `metadata.pool_priority`：可选，数值越小优先级越高；当前 pool 策略固定为 `priority`。
+- `metadata.pool_priority`：可选，数值越小优先级越高；在 `priority` 策略下直接决定 active endpoint，在 `least-latency` 没有延迟样本或延迟相同时作为稳定回退顺序。
 - `metadata.pool_enabled`：可选，设为 `false` 时该 endpoint 会保留在 pool 中但不会成为 active endpoint。
 - `metadata.upstream_service_id`：可选，将 endpoint 关联到 `upstream_services[].id`，用于维护者观测和后续调度。
 
@@ -328,6 +329,7 @@ Health 摘要只解释已有 trace / metrics / anomaly 数据，不会改变路�
 ```yaml
 Registration:
   enabled: true
+  strategy: "least-latency"
   upstream_services:
     - id: "edge-router"
       base_url: "https://edge.example.com"
@@ -352,7 +354,7 @@ Registration:
         pool_priority: 20
 ```
 
-编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 会把 priority active endpoint 编译成真实内部 provider；如果没有同名顶层 `Models[]` 覆盖，`Router.default: sonnet` 这类 logical model id 会解析到 active pool endpoint，并在治理 trace 中记录 `model_pool:<modelId>:<endpointId>`。当当前 pool endpoint 返回非流式 upstream error 时，运行时会按 priority 选择下一个 enabled endpoint 做一次本地重试，并记录 `model_pool_fallback:<modelId>:<endpointId>`；失败 endpoint 会进入短冷却，连续失败达到阈值后会进入更长的 `open` 熔断状态，后续 logical model 解析和 fallback candidate 会优先跳过冷却或熔断中的 endpoint。成功响应会写入内存延迟窗口，compiled model pool 和 `/ui` 可看到 endpoint 的平均延迟。更完整的持久化 health、least-latency 调度和运营视图仍在后续 P2-4 中推进。
+编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 会把 active endpoint 编译成真实内部 provider；如果没有同名顶层 `Models[]` 覆盖，`Router.default: sonnet` 这类 logical model id 会解析到 active pool endpoint，并在治理 trace 中记录 `model_pool:<modelId>:<endpointId>`。当当前 pool endpoint 返回非流式 upstream error 时，运行时会按当前策略选择下一个 enabled endpoint 做一次本地重试，并记录 `model_pool_fallback:<modelId>:<endpointId>`；失败 endpoint 会进入短冷却，连续失败达到阈值后会进入更长的 `open` 熔断状态，后续 logical model 解析和 fallback candidate 会优先跳过冷却或熔断中的 endpoint。成功响应会写入内存延迟窗口，compiled model pool 和 `/ui` 可看到 endpoint 的平均延迟；当 `Registration.strategy: "least-latency"` 时，这个延迟窗口会参与 active endpoint 和 fallback candidate 选择。更完整的持久化 health 和运营视图仍在后续 P2-4 中推进。
 
 当前明确不支持 `nodes`、`node_id`、`cluster` 这类集群/节点编排字段。
 

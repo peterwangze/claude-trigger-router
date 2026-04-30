@@ -82,6 +82,7 @@ describe('normalizeAndValidateConfig governance', () => {
     });
     expect(result.config.Registration).toEqual({
       enabled: true,
+      strategy: 'priority',
       models: [],
       upstream_services: [
         {
@@ -136,6 +137,27 @@ describe('normalizeAndValidateConfig governance', () => {
         auth_token: 'remote-token',
       },
     ]);
+  });
+
+  it('accepts explicit registration pool strategy and rejects unsupported values', () => {
+    const valid = normalizeAndValidateConfig({
+      ...baseConfig,
+      Registration: {
+        enabled: true,
+        strategy: 'least-latency',
+      },
+    });
+    expect(valid.errors).toEqual([]);
+    expect(valid.config.Registration?.strategy).toBe('least-latency');
+
+    const invalid = normalizeAndValidateConfig({
+      ...baseConfig,
+      Registration: {
+        enabled: true,
+        strategy: 'round-robin',
+      },
+    } as any);
+    expect(invalid.errors).toContain('Registration.strategy must be one of "priority", "least-latency"');
   });
 
   it('allows duplicate Registration model ids for logical model pools', () => {
