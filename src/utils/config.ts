@@ -313,6 +313,27 @@ function validateModelEndpointList(
     if (thinking?.budget_tokens !== undefined && thinking.budget_tokens <= 0) {
       errors.push(`${prefix}[${index}].thinking.budget_tokens must be greater than 0`);
     }
+
+    const metadata = item.metadata;
+    if (metadata?.context_window_tokens !== undefined) {
+      if (!Number.isInteger(metadata.context_window_tokens) || metadata.context_window_tokens <= 0) {
+        errors.push(`${prefix}[${index}].metadata.context_window_tokens must be a positive integer`);
+      }
+    }
+
+    if (metadata?.safe_input_tokens !== undefined) {
+      if (!Number.isInteger(metadata.safe_input_tokens) || metadata.safe_input_tokens <= 0) {
+        errors.push(`${prefix}[${index}].metadata.safe_input_tokens must be a positive integer`);
+      }
+    }
+
+    if (
+      Number.isInteger(metadata?.context_window_tokens) &&
+      Number.isInteger(metadata?.safe_input_tokens) &&
+      metadata.safe_input_tokens > metadata.context_window_tokens
+    ) {
+      errors.push(`${prefix}[${index}].metadata.safe_input_tokens must be less than or equal to context_window_tokens`);
+    }
   });
 }
 

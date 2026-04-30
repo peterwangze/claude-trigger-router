@@ -351,6 +351,17 @@ async function run(options: RunOptions = {}) {
         event,
       });
 
+      if (req.contextWindowExceeded) {
+        reply.code(413);
+        return reply.send({
+          error: {
+            type: "context_window_exceeded",
+            message: "Selected model cannot safely handle the current request context.",
+            details: req.contextWindowExceeded,
+          },
+        });
+      }
+
       const compiledModel = getCompiledModelRef(config, req.body?.model);
       if (compiledModel?.interface && req.body?.messages) {
         const originalBody = cloneRequestBody(req.body);

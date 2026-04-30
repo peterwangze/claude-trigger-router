@@ -182,6 +182,8 @@ function buildCompiledCapabilities(
   modelInterface: 'openai' | 'anthropic'
 ): ICompiledModelCapabilities {
   const reasoningSupported = item.metadata?.supports_reasoning !== false;
+  const contextWindowTokens = readMetadataNumber(item.metadata, 'context_window_tokens');
+  const safeInputTokens = readMetadataNumber(item.metadata, 'safe_input_tokens');
 
   return {
     thinking: {
@@ -191,6 +193,8 @@ function buildCompiledCapabilities(
     tools: item.metadata?.supports_tools !== false,
     images: item.metadata?.supports_images !== false,
     systemMessageStyle: modelInterface,
+    ...(contextWindowTokens ? { contextWindowTokens } : {}),
+    ...(safeInputTokens ? { safeInputTokens } : {}),
   };
 }
 

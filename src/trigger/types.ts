@@ -265,6 +265,8 @@ export interface IModelEndpointMetadata {
   supports_tools?: boolean;
   supports_reasoning?: boolean;
   supports_images?: boolean;
+  context_window_tokens?: number;
+  safe_input_tokens?: number;
   pool_endpoint_id?: string;
   upstream_service_id?: string;
   pool_priority?: number;
@@ -281,6 +283,8 @@ export interface ICompiledModelCapabilities {
   tools: boolean;
   images: boolean;
   systemMessageStyle: 'openai' | 'anthropic';
+  contextWindowTokens?: number;
+  safeInputTokens?: number;
 }
 
 export interface IModelEndpointConfig {

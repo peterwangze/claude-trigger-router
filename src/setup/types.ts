@@ -52,6 +52,8 @@ export interface ISetupModelDraft {
     supports_reasoning?: boolean;
     supports_tools?: boolean;
     supports_images?: boolean;
+    context_window_tokens?: number;
+    safe_input_tokens?: number;
     [key: string]: unknown;
   };
 }

@@ -359,4 +359,50 @@ describe('run startup wiring', () => {
     expect(contextAlignmentService.summarizeTransition).not.toHaveBeenCalled();
     expect(contextAlignmentService.injectAlignmentContext).not.toHaveBeenCalled();
   });
+
+  it('returns 413 before upstream dispatch when router marks context window overflow', async () => {
+    const { run } = await import('./index');
+    const { router } = await import('./router');
+
+    vi.mocked(router).mockImplementationOnce(async (req: any) => {
+      req.contextWindowExceeded = {
+        code: 'safe_input_exceeded',
+        model: 'small',
+        inputTokens: 50000,
+        estimatedTotalTokens: 54096,
+        limit: 32000,
+      };
+    });
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const smartRouterHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler').at(-1)?.[1];
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+    };
+
+    await smartRouterHook({
+      id: 'req-context',
+      url: '/v1/messages',
+      headers: {},
+      body: {
+        model: 'sonnet',
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+    }, reply);
+
+    expect(reply.code).toHaveBeenCalledWith(413);
+    expect(reply.send).toHaveBeenCalledWith({
+      error: {
+        type: 'context_window_exceeded',
+        message: 'Selected model cannot safely handle the current request context.',
+        details: expect.objectContaining({
+          code: 'safe_input_exceeded',
+          model: 'small',
+        }),
+      },
+    });
+  });
 });

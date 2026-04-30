@@ -295,6 +295,15 @@ Models:
       supports_reasoning: false
       supports_tools: false
       supports_images: false
+
+  - id: long_context
+    api: "https://api.example.com/v1/messages"
+    key: "sk-xxx"
+    interface: "anthropic"
+    model: "vendor/long-context"
+    metadata:
+      context_window_tokens: 200000
+      safe_input_tokens: 180000
 ```
 
 当前行为：
@@ -302,8 +311,10 @@ Models:
 - `supports_reasoning: false`：忽略 `thinking`
 - `supports_tools: false`：工具调用退化为文本表达
 - `supports_images: false`：图片输入退化为文本描述
+- `context_window_tokens`：模型总上下文窗口；路由会用 `input + max_tokens + thinking budget` 做容量保护
+- `safe_input_tokens`：建议输入上限；当前请求超过已选模型上限时，会优先切到 `Router.longContext`
 
-不确定时可以先不配，等主路径跑通后再补。
+多模型上下文大小不一致时，建议给小窗口模型和长上下文模型都补上这两个字段，并配置 `Router.longContext`。不确定时可以先不配，等主路径跑通后再补；未声明上下文窗口的模型会保持原有兼容行为。
 
 ## UI 工作台
 

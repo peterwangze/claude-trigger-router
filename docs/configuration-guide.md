@@ -371,6 +371,15 @@ Models:
       supports_reasoning: false
       supports_tools: false
       supports_images: false
+
+  - id: long_context
+    api: "https://api.example.com/v1/messages"
+    key: "sk-xxx"
+    interface: "anthropic"
+    model: "vendor/long-context"
+    metadata:
+      context_window_tokens: 200000
+      safe_input_tokens: 180000
 ```
 
 当前行为：
@@ -378,8 +387,10 @@ Models:
 - `supports_reasoning: false`：忽略 `thinking`
 - `supports_tools: false`：工具能力退化为文本
 - `supports_images: false`：图片输入退化为文本说明
+- `context_window_tokens`：声明模型总上下文窗口；运行时按 `input + max_tokens + thinking budget` 判断是否能安全承载
+- `safe_input_tokens`：声明输入安全上限；已选模型放不下时会优先切到 `Router.longContext`
 
-如果你不确定，不建议一开始就配太多 capability hint，先让模型跑通主路径。
+多模型上下文大小差异明显时，建议同时配置小窗口模型和长上下文模型的上下文 metadata，并设置 `Router.longContext`。如果所有候选模型都放不下，运行时会在发往上游前返回明确的 context window 错误，避免让小模型隐性截断或质量劣化。如果你不确定，不建议一开始就配太多 capability hint，先让模型跑通主路径。
 
 ## 11. 建议的配置演进顺序
 

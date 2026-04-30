@@ -252,6 +252,33 @@ describe('model compile', () => {
     });
   });
 
+  it('builds context window capability hints from model metadata', () => {
+    const registry = buildModelRegistry({
+      Providers: [],
+      Router: { default: 'long_context' },
+      Models: [
+        {
+          id: 'long_context',
+          api: 'https://api.example.com/v1/messages',
+          key: 'sk-test',
+          interface: 'anthropic',
+          model: 'vendor/long-context',
+          metadata: {
+            context_window_tokens: 200000,
+            safe_input_tokens: 180000,
+          },
+        },
+      ],
+    } as any);
+
+    expect(registry.modelMap.long_context?.capabilities).toEqual(
+      expect.objectContaining({
+        contextWindowTokens: 200000,
+        safeInputTokens: 180000,
+      })
+    );
+  });
+
   it('compiles registration models into priority model pools without changing primary model ids', () => {
     const registry = buildModelRegistry({
       Providers: [],

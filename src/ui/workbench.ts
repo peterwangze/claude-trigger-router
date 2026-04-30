@@ -837,6 +837,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `      '<div><label>Thinking effort</label><select data-field=\"thinking_effort\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"low\"'+(model.thinking?.effort === 'low' ? ' selected' : '')+'>low</option><option value=\"medium\"'+(model.thinking?.effort === 'medium' ? ' selected' : '')+'>medium</option><option value=\"high\"'+(model.thinking?.effort === 'high' ? ' selected' : '')+'>high</option></select></div>' +` +
     `      '<div><label>Thinking budget</label><input data-field=\"thinking_budget_tokens\" data-index=\"'+index+'\" value=\"'+esc(model.thinking?.budget_tokens || '')+'\" placeholder=\"1024\"></div>' +` +
     `      '<div><label>Vendor hint</label><input data-field=\"vendor_hint\" data-index=\"'+index+'\" value=\"'+esc(model.metadata?.vendor_hint || '')+'\" placeholder=\"'+esc(template.vendor_hint || 'openrouter')+'\"></div>' +` +
+    `      '<div><label>Context window</label><input data-field=\"context_window_tokens\" data-index=\"'+index+'\" value=\"'+esc(model.metadata?.context_window_tokens || '')+'\" placeholder=\"200000\"></div>' +` +
+    `      '<div><label>Safe input</label><input data-field=\"safe_input_tokens\" data-index=\"'+index+'\" value=\"'+esc(model.metadata?.safe_input_tokens || '')+'\" placeholder=\"180000\"></div>' +` +
     `      '<div><label>Reasoning support</label><select data-field=\"supports_reasoning\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"true\"'+(model.metadata?.supports_reasoning === true ? ' selected' : '')+'>supported</option><option value=\"false\"'+(model.metadata?.supports_reasoning === false ? ' selected' : '')+'>disabled</option></select></div>' +` +
     `      '<div><label>Tool support</label><select data-field=\"supports_tools\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"true\"'+(model.metadata?.supports_tools === true ? ' selected' : '')+'>supported</option><option value=\"false\"'+(model.metadata?.supports_tools === false ? ' selected' : '')+'>disabled</option></select></div>' +` +
     `      '<div><label>Image support</label><select data-field=\"supports_images\" data-index=\"'+index+'\"><option value=\"\">default</option><option value=\"true\"'+(model.metadata?.supports_images === true ? ' selected' : '')+'>supported</option><option value=\"false\"'+(model.metadata?.supports_images === false ? ' selected' : '')+'>disabled</option></select></div>' +` +
@@ -854,6 +856,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    if(metadataRaw){ metadata=JSON.parse(metadataRaw); } else { metadata={}; }` +
     `    const thinkingProfile=(read('thinking_profile')?.value || '').trim();` +
     `    const vendorHint=(read('vendor_hint')?.value || '').trim();` +
+    `    const contextWindowTokens=(read('context_window_tokens')?.value || '').trim();` +
+    `    const safeInputTokens=(read('safe_input_tokens')?.value || '').trim();` +
     `    const supportsReasoning=(read('supports_reasoning')?.value || '').trim();` +
     `    const supportsTools=(read('supports_tools')?.value || '').trim();` +
     `    const supportsImages=(read('supports_images')?.value || '').trim();` +
@@ -872,6 +876,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `      model:(read('model')?.value || '').trim(),` +
     `    };` +
     `    if(vendorHint){ metadata.vendor_hint=vendorHint; } else if(metadata && Object.prototype.hasOwnProperty.call(metadata,'vendor_hint')){ delete metadata.vendor_hint; }` +
+    `    if(contextWindowTokens){ metadata.context_window_tokens=Number(contextWindowTokens); } else if(metadata && Object.prototype.hasOwnProperty.call(metadata,'context_window_tokens')){ delete metadata.context_window_tokens; }` +
+    `    if(safeInputTokens){ metadata.safe_input_tokens=Number(safeInputTokens); } else if(metadata && Object.prototype.hasOwnProperty.call(metadata,'safe_input_tokens')){ delete metadata.safe_input_tokens; }` +
     `    if(supportsReasoning){ metadata.supports_reasoning=supportsReasoning === 'true'; } else if(metadata && Object.prototype.hasOwnProperty.call(metadata,'supports_reasoning')){ delete metadata.supports_reasoning; }` +
     `    if(supportsTools){ metadata.supports_tools=supportsTools === 'true'; } else if(metadata && Object.prototype.hasOwnProperty.call(metadata,'supports_tools')){ delete metadata.supports_tools; }` +
     `    if(supportsImages){ metadata.supports_images=supportsImages === 'true'; } else if(metadata && Object.prototype.hasOwnProperty.call(metadata,'supports_images')){ delete metadata.supports_images; }` +

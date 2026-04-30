@@ -14,6 +14,7 @@ import { IAppConfig } from '../trigger/types';
 import { sessionUsageCache, Usage } from './cache';
 import { log, logError } from '../utils/log';
 import { getCompiledModelRef, resolveModelReference } from '../models/compile';
+import type { ICompiledModelRef } from '../models/compile';
 import { appendTraceReason } from '../governance';
 
 const enc = get_encoding("cl100k_base");
@@ -191,6 +192,113 @@ const applyModelThinking = (req: any, config: IAppConfig, modelRef?: string): vo
   }
 };
 
+const readPositiveInteger = (value: unknown): number | undefined => {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined;
+};
+
+const getRequestedOutputTokens = (body: any): number => {
+  return readPositiveInteger(body?.max_tokens)
+    ?? readPositiveInteger(body?.max_completion_tokens)
+    ?? 0;
+};
+
+const getThinkingBudgetTokens = (body: any): number => {
+  return readPositiveInteger(body?.thinking?.budget_tokens) ?? 0;
+};
+
+function evaluateContextFit(compiled: ICompiledModelRef | undefined, req: any, tokenCount: number) {
+  const safeInputTokens = compiled?.capabilities?.safeInputTokens;
+  const contextWindowTokens = compiled?.capabilities?.contextWindowTokens;
+  const outputTokens = getRequestedOutputTokens(req.body);
+  const thinkingTokens = getThinkingBudgetTokens(req.body);
+  const estimatedTotalTokens = tokenCount + outputTokens + thinkingTokens;
+
+  if (safeInputTokens && tokenCount > safeInputTokens) {
+    return {
+      fits: false,
+      code: 'safe_input_exceeded',
+      inputTokens: tokenCount,
+      estimatedTotalTokens,
+      limit: safeInputTokens,
+    };
+  }
+
+  if (contextWindowTokens && estimatedTotalTokens > contextWindowTokens) {
+    return {
+      fits: false,
+      code: 'context_window_exceeded',
+      inputTokens: tokenCount,
+      estimatedTotalTokens,
+      limit: contextWindowTokens,
+    };
+  }
+
+  return {
+    fits: true,
+    inputTokens: tokenCount,
+    estimatedTotalTokens,
+  };
+}
+
+function applyContextWindowGuard(
+  req: any,
+  config: IAppConfig,
+  selectedModel: string | undefined,
+  tokenCount: number
+): string | undefined {
+  if (!selectedModel) {
+    return selectedModel;
+  }
+
+  const selectedCompiled = getCompiledModelRef(config, selectedModel);
+  const selectedFit = evaluateContextFit(selectedCompiled, req, tokenCount);
+  if (selectedFit.fits) {
+    return selectedModel;
+  }
+
+  const longContextModel = config.Router.longContext
+    ? resolveModelReference(config, config.Router.longContext)
+    : undefined;
+  if (longContextModel && longContextModel !== selectedModel) {
+    const longContextCompiled = getCompiledModelRef(config, longContextModel);
+    const longContextFit = evaluateContextFit(longContextCompiled, req, tokenCount);
+    if (longContextFit.fits) {
+      log(
+        "Using long context model due to selected model context capacity:",
+        selectedModel,
+        "->",
+        longContextModel,
+        "input tokens:",
+        selectedFit.inputTokens,
+        "estimated total tokens:",
+        selectedFit.estimatedTotalTokens,
+        "limit:",
+        selectedFit.limit
+      );
+      if (req.governanceTrace) {
+        appendTraceReason(
+          req.governanceTrace,
+          `context_window_fallback:${selectedCompiled?.id ?? selectedModel}->${longContextCompiled?.id ?? longContextModel}`
+        );
+      }
+      return longContextModel;
+    }
+  }
+
+  req.contextWindowExceeded = {
+    code: selectedFit.code,
+    model: selectedCompiled?.id ?? selectedModel,
+    inputTokens: selectedFit.inputTokens,
+    estimatedTotalTokens: selectedFit.estimatedTotalTokens,
+    limit: selectedFit.limit,
+    longContextModel: config.Router.longContext,
+  };
+  if (req.governanceTrace) {
+    appendTraceReason(req.governanceTrace, `context_window_exceeded:${selectedCompiled?.id ?? selectedModel}`);
+  }
+  return selectedModel;
+}
+
 /**
  * 路由中间件
  */
@@ -238,6 +346,7 @@ export const router = async (req: any, _res: any, context: any) => {
     // 如果触发路由已命中（模型含逗号），保留其选择
     req.body.model = model ?? req.body.model;
     applyModelThinking(req, config, req.body.model);
+    req.body.model = applyContextWindowGuard(req, config, req.body.model, tokenCount);
     const compiledModel = getCompiledModelRef(config, req.body.model);
     if (compiledModel?.source === 'registration' && compiledModel.modelPool) {
       req.modelPoolSelection = compiledModel.modelPool;

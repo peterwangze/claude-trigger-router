@@ -727,6 +727,40 @@ describe('normalizeAndValidateConfig governance', () => {
     ]);
   });
 
+  it('validates model context window metadata bounds', () => {
+    const result = normalizeAndValidateConfig({
+      Router: { default: 'tiny' },
+      Models: [
+        {
+          id: 'tiny',
+          api: 'https://api.example.com/v1/messages',
+          key: 'sk-test',
+          interface: 'anthropic',
+          model: 'vendor/tiny',
+          metadata: {
+            context_window_tokens: 1000,
+            safe_input_tokens: 2000,
+          },
+        },
+        {
+          id: 'invalid',
+          api: 'https://api.example.com/v1/messages',
+          key: 'sk-test',
+          interface: 'anthropic',
+          model: 'vendor/invalid',
+          metadata: {
+            context_window_tokens: 0,
+            safe_input_tokens: 1.5,
+          },
+        },
+      ],
+    });
+
+    expect(result.errors).toContain('Models[0].metadata.safe_input_tokens must be less than or equal to context_window_tokens');
+    expect(result.errors).toContain('Models[1].metadata.context_window_tokens must be a positive integer');
+    expect(result.errors).toContain('Models[1].metadata.safe_input_tokens must be a positive integer');
+  });
+
   it('normalizes unified Router routes and decision config into runtime-compatible trigger/smart/governance structures', () => {
     const result = normalizeAndValidateConfig({
       Router: {

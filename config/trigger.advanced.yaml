@@ -25,12 +25,18 @@ Models:
     interface: "openai"
     model: "anthropic/claude-sonnet-4"
     thinking: "auto"
+    metadata:
+      context_window_tokens: 200000
+      safe_input_tokens: 180000
 
   - id: opus
     api: "https://openrouter.ai/api/v1/chat/completions"
     key: "sk-xxx"
     interface: "openai"
     model: "anthropic/claude-opus-4"
+    metadata:
+      context_window_tokens: 200000
+      safe_input_tokens: 180000
 
   - id: deepseek_reasoner
     api: "https://api.deepseek.com/chat/completions"
@@ -38,6 +44,9 @@ Models:
     interface: "openai"
     model: "deepseek-reasoner"
     thinking: "high"
+    metadata:
+      context_window_tokens: 64000
+      safe_input_tokens: 56000
 
   - id: ollama_qwen
     api: "http://localhost:11434/v1/chat/completions"

@@ -226,4 +226,108 @@ describe('router model registry integration', () => {
     expect(req.body.model).toBe('model__fast_model,gpt-4o-mini');
     expect(req.body.thinking).toBeUndefined();
   });
+
+  it('falls back to Router.longContext when the selected model cannot fit the request context', async () => {
+    const req = {
+      body: {
+        model: 'claude-3-5-sonnet',
+        messages: [{ role: 'user', content: 'hello hello hello hello hello' }],
+        system: [],
+        tools: [],
+        max_tokens: 8,
+      },
+      governanceTrace: {
+        requestId: 'req-context-1',
+        routeReason: [],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: Date.now(),
+      },
+    };
+
+    await router(req as any, {} as any, {
+      config: {
+        Providers: [],
+        Models: [
+          {
+            id: 'small',
+            api: 'https://api.example.com/v1/messages',
+            key: 'sk-small',
+            interface: 'anthropic',
+            model: 'vendor/small',
+            metadata: {
+              safe_input_tokens: 1,
+              context_window_tokens: 16,
+            },
+          },
+          {
+            id: 'long',
+            api: 'https://api.example.com/v1/messages',
+            key: 'sk-long',
+            interface: 'anthropic',
+            model: 'vendor/long',
+            metadata: {
+              safe_input_tokens: 1000,
+              context_window_tokens: 2000,
+            },
+          },
+        ],
+        Router: {
+          default: 'small',
+          longContext: 'long',
+        },
+      },
+      event: undefined,
+    });
+
+    expect(req.body.model).toBe('model__long,vendor/long');
+    expect(req.contextWindowExceeded).toBeUndefined();
+    expect(req.governanceTrace.routeReason).toContain('context_window_fallback:small->long');
+  });
+
+  it('marks context overflow when no configured model can safely handle the request', async () => {
+    const req = {
+      body: {
+        model: 'claude-3-5-sonnet',
+        messages: [{ role: 'user', content: 'hello hello hello hello hello' }],
+        system: [],
+        tools: [],
+        max_tokens: 8,
+      },
+    };
+
+    await router(req as any, {} as any, {
+      config: {
+        Providers: [],
+        Models: [
+          {
+            id: 'small',
+            api: 'https://api.example.com/v1/messages',
+            key: 'sk-small',
+            interface: 'anthropic',
+            model: 'vendor/small',
+            metadata: {
+              safe_input_tokens: 1,
+              context_window_tokens: 16,
+            },
+          },
+        ],
+        Router: {
+          default: 'small',
+        },
+      },
+      event: undefined,
+    });
+
+    expect(req.body.model).toBe('model__small,vendor/small');
+    expect(req.contextWindowExceeded).toEqual(
+      expect.objectContaining({
+        code: 'safe_input_exceeded',
+        model: 'small',
+        limit: 1,
+      })
+    );
+  });
 });

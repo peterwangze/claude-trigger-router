@@ -283,3 +283,27 @@
   - `src/governance/trace.test.ts`
   - `src/index.ts`
   - `src/index-startup.test.ts`
+
+### PI-014：多模型上下文窗口差异缺少运行时容量契约
+
+- 首次暴露时间：2026-04-30
+- 问题描述：多模型配置下，不同上游模型支持的上下文窗口不同；`ctr code` 启动 Claude Code 时没有按最终路由模型声明上下文预算，服务端也只有全局 `Router.longContextThreshold`，缺少模型级容量判断。设置过小会浪费大上下文模型，设置过大会让小窗口模型在上下文阶段截断、报错或输出质量劣化。
+- 影响范围：
+  - 同一会话在 `Router.default`、`Router.longContext`、SmartRouter 规则和候选模型之间切换
+  - 小窗口快速模型与大窗口高质量模型混用时的上下文完整性
+  - Claude Code 多 agent / 长会话请求的稳定性和可解释失败
+- 修正动作：
+  - `Models[].metadata` 增加 `context_window_tokens` 与 `safe_input_tokens` 能力声明，并纳入配置校验
+  - compiled model capabilities 暴露模型级上下文窗口能力，registration pool endpoint 也继承同一能力
+  - router 在最终定模后按 `input + max_tokens + thinking budget` 评估容量；已选模型放不下时优先切到 `Router.longContext`
+  - 若没有可承载模型，在转发上游前返回 413 `context_window_exceeded`，避免隐性截断或小模型质量劣化
+  - `/ui` Models 表单、README、高级配置和 configuration guide 补充上下文窗口字段与使用说明
+- 当前状态：`closed`
+- 闭环结论：当前阶段已形成“模型级声明 -> 编译能力 -> 路由容量保护 -> 明确错误”的最小闭环。后续若要进一步减少 Claude Code 客户端侧预算浪费，需要继续研究 Claude Code 是否暴露可控上下文窗口启动参数；若暴露，应让 `ctr code` 根据配置选择保守默认或长上下文 profile。
+- 关联文档：
+  - `src/trigger/types.ts`
+  - `src/models/compile.ts`
+  - `src/router/index.ts`
+  - `src/index.ts`
+  - `README.md`
+  - `docs/configuration-guide.md`
