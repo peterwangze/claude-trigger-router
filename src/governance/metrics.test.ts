@@ -132,6 +132,10 @@ describe('summarizeGovernanceMetrics', () => {
       alignmentOnSwitchRate: 0.5,
       cascadeAfterSwitchCount: 1,
       cascadeAfterSwitchRate: 0.5,
+      contextWindowFallbackCount: 0,
+      contextWindowFallbackRate: 0,
+      contextWindowExceededCount: 0,
+      contextWindowExceededRate: 0,
       averageLatencyByRouteReason: {
         cascade_gate: 220,
         smart_router: 120,
@@ -155,6 +159,47 @@ describe('summarizeGovernanceMetrics', () => {
     expect(outcome.bySemanticIntent).toEqual([
       expect.objectContaining({ key: 'coding', totalTraces: 2, modelSwitchRate: 0.5, averageLatencyMs: 150 }),
       expect.objectContaining({ key: 'reasoning', totalTraces: 1, modelSwitchRate: 1, averageLatencyMs: 120 }),
+    ]);
+  });
+
+  it('summarizes context window fallback and exceeded routing outcomes', () => {
+    const outcome = summarizeRoutingOutcomes([
+      {
+        requestId: 'trace-context-fallback',
+        initialModel: 'sonnet',
+        finalModel: 'opus',
+        routeReason: ['request_received', 'context_window_fallback:sonnet->opus'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        latencyMs: 180,
+        startedAt: 1,
+      },
+      {
+        requestId: 'trace-context-exceeded',
+        initialModel: 'sonnet',
+        finalModel: 'sonnet',
+        routeReason: ['request_received', 'context_window_exceeded:sonnet'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        latencyMs: 12,
+        startedAt: 2,
+      },
+    ]);
+
+    expect(outcome).toEqual(expect.objectContaining({
+      totalTraces: 2,
+      contextWindowFallbackCount: 1,
+      contextWindowFallbackRate: 0.5,
+      contextWindowExceededCount: 1,
+      contextWindowExceededRate: 0.5,
+    }));
+    expect(outcome.byRouteReason).toEqual([
+      expect.objectContaining({ key: 'context_window_exceeded:sonnet', totalTraces: 1, modelSwitchRate: 0 }),
+      expect.objectContaining({ key: 'context_window_fallback:sonnet->opus', totalTraces: 1, modelSwitchRate: 1 }),
     ]);
   });
 
@@ -396,6 +441,30 @@ describe('summarizeGovernanceMetrics', () => {
     }));
   });
 
+  it('adds health actions for context window routing outcomes', () => {
+    const traces = [
+      {
+        requestId: 'trace-context-exceeded',
+        routeReason: ['request_received', 'context_window_exceeded:sonnet'],
+        finalModel: 'sonnet',
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: 1,
+      },
+    ];
+
+    const metrics = summarizeGovernanceMetrics(traces);
+    const outcome = summarizeRoutingOutcomes(traces);
+
+    expect(buildGovernanceHealthSummary({
+      metrics,
+      outcome,
+      anomalies: [],
+    }).actions).toContain('Review model context window metadata and Router.longContext coverage.');
+  });
+
   it('exports governance metrics reports as csv', () => {
     const csv = exportGovernanceMetricsReport({
       bucketCount: 1,
@@ -427,6 +496,10 @@ describe('summarizeGovernanceMetrics', () => {
         alignmentOnSwitchRate: 1,
         cascadeAfterSwitchCount: 0,
         cascadeAfterSwitchRate: 0,
+        contextWindowFallbackCount: 1,
+        contextWindowFallbackRate: 0.5,
+        contextWindowExceededCount: 0,
+        contextWindowExceededRate: 0,
         averageLatencyByRouteReason: { sticky: 120 },
         topModelSwitches: [
           { key: 'model-a -> model-b', from: 'model-a', to: 'model-b', count: 1, rate: 1 },
@@ -506,6 +579,8 @@ describe('summarizeGovernanceMetrics', () => {
     expect(csv).toContain('section,key,value');
     expect(csv).toContain('summary,totalTraces,2');
     expect(csv).toContain('outcome,modelSwitchRate,0.5');
+    expect(csv).toContain('outcome,contextWindowFallbackRate,0.5');
+    expect(csv).toContain('outcome,contextWindowExceededRate,0');
     expect(csv).toContain('anomaly,cascade_rate_high,warn:0.5');
     expect(csv).toContain('topFinalModel,model-a,2:1');
     expect(csv).toContain('topModelSwitch,model-a -> model-b,1:1');

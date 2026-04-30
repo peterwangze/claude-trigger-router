@@ -289,6 +289,7 @@
 - `智能路由收益与切换体感治理`
   - 已有规则路由、语义匹配、LLM 选模、sticky correction、context alignment、cascade、shadow、health 和第一层 routing outcome scorecard。
   - 已把 initial/final model、切换、稳定模型、alignment-on-switch、cascade-after-switch、route reason 延迟、Top model switches、route reason / final model / semantic intent 分组收益沉淀为 `/api/governance/metrics` / `/api/governance/health` 可查询指标。
+  - 已将上下文窗口保护纳入 outcome 口径：`contextWindowFallbackRate` 用于观察大上下文模型接管收益，`contextWindowExceededRate` 用于暴露配置缺口或模型池容量不足风险，并在 `/ui` 维护者工作台展示。
   - 仍需继续补 synthetic tasks regression、错误与失败证据，让 UI / API 能回答“多模型组合到底在哪些任务上提升了质量或速度”。
 - `服务端 API key 与鉴权控制面`
   - 已新增 generated keys、scope、过期和撤销的第一层控制面，并让运行时鉴权按当前配置即时识别新 key / 吊销 key。

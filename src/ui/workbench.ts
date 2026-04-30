@@ -1326,6 +1326,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     "    ['Alignment rate', pct(metrics.alignmentUsedRate)]," +
     "    ['Model switch rate', pct(outcome?.modelSwitchRate)]," +
     "    ['Alignment on switch', pct(outcome?.alignmentOnSwitchRate)]," +
+    "    ['Context fallback', pct(outcome?.contextWindowFallbackRate)]," +
+    "    ['Context exceeded', pct(outcome?.contextWindowExceededRate)]," +
     "    ['Avg latency', fmt(metrics.averageLatencyMs)+' ms']" +
     `  ].map(([label,value])=>'<div class=\"stat\"><span class=\"muted\">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
     `}` +

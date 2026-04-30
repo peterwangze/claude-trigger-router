@@ -55,6 +55,8 @@ export interface IGovernanceHealthSummary {
     alignmentUsedRate: number;
     modelSwitchRate: number;
     alignmentOnSwitchRate: number;
+    contextWindowFallbackRate: number;
+    contextWindowExceededRate: number;
     averageLatencyMs: number;
     topRouteReason?: IGovernanceDistributionEntry;
     topFinalModel?: IGovernanceDistributionEntry;
@@ -124,6 +126,10 @@ export interface IGovernanceRoutingOutcomeSummary {
   alignmentOnSwitchRate: number;
   cascadeAfterSwitchCount: number;
   cascadeAfterSwitchRate: number;
+  contextWindowFallbackCount: number;
+  contextWindowFallbackRate: number;
+  contextWindowExceededCount: number;
+  contextWindowExceededRate: number;
   averageLatencyByRouteReason: Record<string, number>;
   topModelSwitches: IGovernanceModelSwitchEntry[];
   byRouteReason: IGovernanceRoutingOutcomeGroupEntry[];
@@ -316,6 +322,10 @@ function isModelSwitch(trace: IGovernanceTrace): boolean {
   return Boolean(trace.initialModel && trace.finalModel && trace.initialModel !== trace.finalModel);
 }
 
+function hasRouteReasonPrefix(trace: IGovernanceTrace, prefix: string): boolean {
+  return trace.routeReason.some((reason) => reason === prefix || reason.startsWith(`${prefix}:`));
+}
+
 export function summarizeRoutingOutcomes(traces: IGovernanceTrace[]): IGovernanceRoutingOutcomeSummary {
   const routedTraces = traces.filter(isRoutedTrace);
   const switchedTraces = traces.filter(isModelSwitch);
@@ -324,6 +334,8 @@ export function summarizeRoutingOutcomes(traces: IGovernanceTrace[]): IGovernanc
   ).length;
   const alignmentOnSwitchCount = switchedTraces.filter((trace) => trace.alignmentUsed).length;
   const cascadeAfterSwitchCount = switchedTraces.filter((trace) => trace.cascadeTriggered).length;
+  const contextWindowFallbackCount = traces.filter((trace) => hasRouteReasonPrefix(trace, 'context_window_fallback')).length;
+  const contextWindowExceededCount = traces.filter((trace) => hasRouteReasonPrefix(trace, 'context_window_exceeded')).length;
   const switchDistribution: Record<string, { from?: string; to?: string; count: number }> = {};
   const routeLatencyValues: Record<string, number[]> = {};
   const routeReasonGroups: Record<string, TOutcomeGroupAccumulator> = {};
@@ -371,6 +383,10 @@ export function summarizeRoutingOutcomes(traces: IGovernanceTrace[]): IGovernanc
     alignmentOnSwitchRate: rate(alignmentOnSwitchCount, switchedTraces.length),
     cascadeAfterSwitchCount,
     cascadeAfterSwitchRate: rate(cascadeAfterSwitchCount, switchedTraces.length),
+    contextWindowFallbackCount,
+    contextWindowFallbackRate: rate(contextWindowFallbackCount, traces.length),
+    contextWindowExceededCount,
+    contextWindowExceededRate: rate(contextWindowExceededCount, traces.length),
     averageLatencyByRouteReason,
     topModelSwitches: buildTopSwitchEntries(switchDistribution, switchedTraces.length),
     byRouteReason: buildOutcomeGroupEntries(routeReasonGroups, traces.length),
@@ -514,6 +530,8 @@ export function buildGovernanceHealthSummary(input: {
         alignmentUsedRate: 0,
         modelSwitchRate: 0,
         alignmentOnSwitchRate: 0,
+        contextWindowFallbackRate: 0,
+        contextWindowExceededRate: 0,
         averageLatencyMs: 0,
         topRouteReason: input.topRouteReasons?.[0],
         topFinalModel: input.topFinalModels?.[0],
@@ -531,6 +549,12 @@ export function buildGovernanceHealthSummary(input: {
   const message = status === 'healthy'
     ? `Healthy over ${metrics.totalTraces} traces.`
     : `${alertCount} governance alert${alertCount === 1 ? '' : 's'} ${alertVerb} attention (${criticalCount} critical / ${warnCount} warning${warnCount === 1 ? '' : 's'}).`;
+  const actions = new Set(buildHealthActions(anomalies));
+  if ((input.outcome?.contextWindowExceededCount ?? 0) > 0) {
+    actions.add('Review model context window metadata and Router.longContext coverage.');
+  } else if ((input.outcome?.contextWindowFallbackCount ?? 0) > 0) {
+    actions.add('Monitor context window fallback rate and long-context model latency.');
+  }
 
   return {
     status,
@@ -546,11 +570,13 @@ export function buildGovernanceHealthSummary(input: {
       alignmentUsedRate: metrics.alignmentUsedRate,
       modelSwitchRate: input.outcome?.modelSwitchRate ?? 0,
       alignmentOnSwitchRate: input.outcome?.alignmentOnSwitchRate ?? 0,
+      contextWindowFallbackRate: input.outcome?.contextWindowFallbackRate ?? 0,
+      contextWindowExceededRate: input.outcome?.contextWindowExceededRate ?? 0,
       averageLatencyMs: metrics.averageLatencyMs,
       topRouteReason: input.topRouteReasons?.[0],
       topFinalModel: input.topFinalModels?.[0],
     },
-    actions: buildHealthActions(anomalies),
+    actions: Array.from(actions),
   };
 }
 
@@ -735,6 +761,8 @@ export function exportGovernanceMetricsReport(
     `outcome,modelSwitchRate,${report.outcome.modelSwitchRate}`,
     `outcome,alignmentOnSwitchRate,${report.outcome.alignmentOnSwitchRate}`,
     `outcome,cascadeAfterSwitchRate,${report.outcome.cascadeAfterSwitchRate}`,
+    `outcome,contextWindowFallbackRate,${report.outcome.contextWindowFallbackRate}`,
+    `outcome,contextWindowExceededRate,${report.outcome.contextWindowExceededRate}`,
   ];
 
   if (report.health) {
