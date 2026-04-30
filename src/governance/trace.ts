@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, rmSync } from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
 import { LRUCache } from 'lru-cache';
 import { dirname, join } from 'path';
@@ -253,6 +253,7 @@ export class GovernanceTraceStore {
       this.persistTimer = undefined;
       this.enqueuePersistToDisk();
     }, this.persistDebounceMs);
+    this.persistTimer.unref?.();
   }
 
   private enqueuePersistToDisk(): void {

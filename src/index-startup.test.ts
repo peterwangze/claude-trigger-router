@@ -221,6 +221,24 @@ describe('run startup wiring', () => {
     expect(mockReadConfigFile).toHaveBeenCalledTimes(1);
   });
 
+  it('refreshes auth config again after the short cache expires', async () => {
+    vi.useFakeTimers();
+    try {
+      const { run } = await import('./index');
+
+      await run({ port: 6789 });
+
+      const configInput = mockApiKeyAuth.mock.calls[0][0] as () => Promise<unknown>;
+      await configInput();
+      await vi.advanceTimersByTimeAsync(1001);
+      await configInput();
+
+      expect(mockReadConfigFile).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps public host when an active managed key secures startup auth', async () => {
     mockInitConfig.mockResolvedValue({
       HOST: '0.0.0.0',
