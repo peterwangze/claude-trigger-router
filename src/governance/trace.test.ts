@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
@@ -73,7 +73,7 @@ describe('governance trace', () => {
     expect(finalized.routeReason).toEqual(['smart_rule:image_generation']);
   });
 
-  it('persists traces to disk and reloads them on restart', () => {
+  it('persists traces to disk and reloads them on restart', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'ctr-governance-trace-'));
     const persistFile = join(dir, 'governance-traces.json');
 
@@ -89,6 +89,7 @@ describe('governance trace', () => {
         startedAt: 100,
         latencyMs: 12,
       }));
+      await store.flushPersistence();
 
       const persisted = JSON.parse(readFileSync(persistFile, 'utf-8'));
       expect(persisted).toHaveLength(1);
@@ -106,7 +107,33 @@ describe('governance trace', () => {
     }
   });
 
-  it('archives overflow traces and retains only the configured number of archive files', () => {
+  it('does not synchronously write traces on the request path', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctr-governance-trace-async-'));
+    const persistFile = join(dir, 'governance-traces.json');
+
+    try {
+      const store = new GovernanceTraceStore({
+        persistFile,
+        persistEnabled: true,
+        persistDebounceMs: 10_000,
+      });
+
+      store.add(createGovernanceTrace({
+        requestId: 'req-async-persist',
+        routeReason: ['smart_router'],
+        startedAt: 100,
+      }));
+
+      expect(existsSync(persistFile)).toBe(false);
+
+      await store.flushPersistence();
+      expect(JSON.parse(readFileSync(persistFile, 'utf-8'))[0].requestId).toBe('req-async-persist');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('archives overflow traces and retains only the configured number of archive files', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'ctr-governance-archive-'));
     const persistFile = join(dir, 'governance-traces.json');
     const archiveDir = join(dir, 'archives');
@@ -127,6 +154,7 @@ describe('governance trace', () => {
           startedAt: 100 + index,
         }));
       }
+      await store.flushPersistence();
 
       const active = JSON.parse(readFileSync(persistFile, 'utf-8'));
       const archives = readdirSync(archiveDir).filter((file) => file.endsWith('.json.gz'));
@@ -142,7 +170,7 @@ describe('governance trace', () => {
     }
   });
 
-  it('lists, reads, filters, and deletes archive files', () => {
+  it('lists, reads, filters, and deletes archive files', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'ctr-governance-archive-list-'));
     const persistFile = join(dir, 'governance-traces.json');
     const archiveDir = join(dir, 'archives');
@@ -163,6 +191,7 @@ describe('governance trace', () => {
           startedAt: new Date(`2026-04-0${index + 1}T08:00:00.000Z`).getTime(),
         }));
       }
+      await store.flushPersistence();
 
       const archives = store.listArchives();
       expect(archives.length).toBeGreaterThan(0);

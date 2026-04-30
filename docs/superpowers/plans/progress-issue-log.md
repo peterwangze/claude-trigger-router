@@ -45,6 +45,7 @@
 | PI-010 | 顶层 PLAN 指向已不存在的状态报告 | 2026-04-25 | closed | 项目目标与用户使用视角复审发现 `PLAN.md` 归档说明仍指向已不存在的 `docs/project-review-2026-03-24.md`；已修正为统一进展基线和本次复审实施计划，当前结论是“顶层归档入口已重新指向当前事实源，但后续仍需避免历史入口继续漂移” | `PLAN.md` ; `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
 | PI-011 | `ctr ui` 第一屏闭环证据与真实启动路径不一致 | 2026-04-26 | closed | P1-2 复审发现 `/ui` 首屏测试使用完整 `initialConfig`，但生产启动只传 providers/HOST/PORT/LOG_FILE，导致真实首屏可能显示 `Models=0` 与 `Router.default=-`；已改为把完整运行配置传入 `createServer.initialConfig`，并补齐生产形状 initialConfig 与 HTML escape 回归测试 | `src/index.ts` ; `src/server.ts` ; `src/server.test.ts` ; `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
 | PI-012 | validation issue contract 在纯 warning 字符串路径丢失 info 级别 | 2026-04-26 | closed | P1-3 复审发现 setup/doctor/server save 只拿到 warning 字符串时，会把 `supports_tools` / `supports_images` 这类非阻断 capability info 误归为 warning；已按 warning 文案恢复 info 级别，并补充 contract 与 server save 回归测试 | `src/utils/validation-contract.ts` ; `src/utils/validation-contract.test.ts` ; `src/server.test.ts` |
+| PI-013 | 并发 agent 场景下中转请求路径存在同步持久化与重复配置读取放大 | 2026-04-30 | closed | 多 agent 并行请求时，复审确认中转侧确实存在可放大的性能风险：治理 trace 每次请求结束同步写盘，鉴权每次请求重新读取配置；已将 trace 持久化改为异步串行队列并补 flush，看护 `add()` 不同步写盘，同时把鉴权配置刷新改为并发合并 + 1 秒短缓存 | `src/governance/trace.ts` ; `src/governance/trace.test.ts` ; `src/index.ts` ; `src/index-startup.test.ts` |
 
 ## 问题详细记录
 
@@ -258,3 +259,27 @@
   - `src/utils/validation-contract.ts`
   - `src/utils/validation-contract.test.ts`
   - `src/server.test.ts`
+
+### PI-013：并发 agent 场景下中转请求路径存在同步持久化与重复配置读取放大
+
+- 首次暴露时间：2026-04-30
+- 问题描述：并行启动多个 agent 时，Claude 端感知 API 响应变慢。复审请求中转路径后确认，中转侧存在会在并发下放大的本地开销：
+  - 非流式治理 trace 每次 `recordGovernanceTrace()` 都会同步 `writeFileSync` 最近 trace 到磁盘，阻塞 Node 事件循环
+  - 鉴权 middleware 每个请求都会调用 `readConfigFile()` 刷新 `APIKEY/Auth`，并发请求会重复读取同一份配置
+- 影响范围：
+  - 多 agent 并行调用 `/v1/messages`
+  - server/cloud 模式下 managed key 鉴权和治理 trace 均开启时的尾延迟
+  - 本地代理在高并发非流式请求下的事件循环抖动
+- 修正动作：
+  - `GovernanceTraceStore.add()` 改为只更新内存 LRU，并通过 debounce + Promise queue 异步串行落盘
+  - 新增 `flushPersistence()`，用于测试和进程退出时显式刷盘
+  - `SIGINT` / `SIGTERM` 退出路径先 flush trace 持久化，再退出；保留 500ms 兜底退出
+  - 启动入口的鉴权配置读取改为并发合并与 1 秒短缓存，减少高并发请求重复读配置
+  - 补充 trace 异步落盘回归测试与 auth config 并发合并 startup wiring 测试
+- 当前状态：`closed`
+- 闭环结论：已确认“并发 agent 感知变慢”不能简单归因于上游 API；中转侧存在请求路径同步写盘和重复配置读取两个可放大点，并已完成首轮止血。后续若仍有慢感，应继续用 trace latency、上游耗时、stream 首包时间和并发压测拆分 CTR overhead 与上游 API latency。
+- 关联文档：
+  - `src/governance/trace.ts`
+  - `src/governance/trace.test.ts`
+  - `src/index.ts`
+  - `src/index-startup.test.ts`

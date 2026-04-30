@@ -12,6 +12,7 @@ const mockTriggerIsEnabled = vi.fn().mockReturnValue(true);
 const mockTriggerRoute = vi.fn();
 const mockTriggerGetSmartRouterConfig = vi.fn();
 const mockSessionStateGet = vi.fn();
+const mockApiKeyAuth = vi.fn().mockReturnValue((_req: unknown, _reply: unknown, done: (err?: Error) => void) => done());
 
 vi.mock('./server', () => ({
   createServer: mockCreateServer,
@@ -55,7 +56,7 @@ vi.mock('./router', () => ({
 }));
 
 vi.mock('./middleware/auth', () => ({
-  apiKeyAuth: vi.fn().mockReturnValue((_req: unknown, _reply: unknown, done: (err?: Error) => void) => done()),
+  apiKeyAuth: mockApiKeyAuth,
 }));
 
 vi.mock('./router/cache', () => ({
@@ -90,6 +91,9 @@ vi.mock('./governance', () => ({
     injectAlignmentContext: vi.fn(),
   },
   createGovernanceTrace: vi.fn().mockReturnValue({}),
+  governanceTraceStore: {
+    flushPersistence: vi.fn().mockResolvedValue(undefined),
+  },
   governStreamingResponse: vi.fn((payload: unknown) => payload),
   sessionStateStore: {
     get: mockSessionStateGet,
@@ -199,6 +203,22 @@ describe('run startup wiring', () => {
 
     expect(generated).toMatch(/^ctr-20260412\d{6}\.log$/);
     expect(generated).not.toContain('logs/');
+  });
+
+  it('coalesces concurrent auth config refreshes behind a short cache', async () => {
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const configInput = mockApiKeyAuth.mock.calls[0][0] as () => Promise<unknown>;
+    await Promise.all([
+      configInput(),
+      configInput(),
+      configInput(),
+    ]);
+    await configInput();
+
+    expect(mockReadConfigFile).toHaveBeenCalledTimes(1);
   });
 
   it('keeps public host when an active managed key secures startup auth', async () => {

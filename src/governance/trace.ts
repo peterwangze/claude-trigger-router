@@ -5,7 +5,8 @@
  */
 
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'fs';
+import { mkdir, writeFile } from 'fs/promises';
 import { LRUCache } from 'lru-cache';
 import { dirname, join } from 'path';
 import { gunzipSync, gzipSync } from 'zlib';
@@ -21,6 +22,7 @@ export interface IGovernanceTraceStoreOptions {
   archiveDir?: string;
   retainArchiveFiles?: number;
   compressArchives?: boolean;
+  persistDebounceMs?: number;
 }
 
 export interface IGovernanceTraceArchiveRecord {
@@ -40,6 +42,9 @@ export class GovernanceTraceStore {
   private archiveDir?: string;
   private retainArchiveFiles: number;
   private compressArchives: boolean;
+  private persistDebounceMs: number;
+  private persistTimer?: ReturnType<typeof setTimeout>;
+  private persistQueue: Promise<void> = Promise.resolve();
 
   constructor(options: IGovernanceTraceStoreOptions = {}) {
     const max = options.max ?? 500;
@@ -54,12 +59,13 @@ export class GovernanceTraceStore {
     this.archiveDir = options.archiveDir ?? GOVERNANCE_TRACE_ARCHIVE_DIR;
     this.retainArchiveFiles = options.retainArchiveFiles ?? 5;
     this.compressArchives = options.compressArchives ?? true;
+    this.persistDebounceMs = options.persistDebounceMs ?? 25;
     this.loadFromDisk();
   }
 
   add(trace: IGovernanceTrace): void {
     this.cache.set(trace.requestId, { ...trace, routeReason: [...trace.routeReason] });
-    this.persistToDisk();
+    this.schedulePersistToDisk();
   }
 
   get(requestId: string): IGovernanceTrace | undefined {
@@ -105,7 +111,7 @@ export class GovernanceTraceStore {
 
   clear(): void {
     this.cache.clear();
-    this.persistToDisk();
+    this.schedulePersistToDisk();
     this.clearArchives();
   }
 
@@ -114,7 +120,16 @@ export class GovernanceTraceStore {
     for (const trace of traces) {
       this.cache.set(trace.requestId, { ...trace, routeReason: [...trace.routeReason] });
     }
-    this.persistToDisk();
+    this.schedulePersistToDisk();
+  }
+
+  async flushPersistence(): Promise<void> {
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = undefined;
+      this.enqueuePersistToDisk();
+    }
+    await this.persistQueue;
   }
 
   listArchives(filters?: {
@@ -225,19 +240,40 @@ export class GovernanceTraceStore {
     }
   }
 
-  private persistToDisk(): void {
+  private schedulePersistToDisk(): void {
+    if (!this.persistEnabled || !this.persistFile) {
+      return;
+    }
+
+    if (this.persistTimer) {
+      return;
+    }
+
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = undefined;
+      this.enqueuePersistToDisk();
+    }, this.persistDebounceMs);
+  }
+
+  private enqueuePersistToDisk(): void {
+    this.persistQueue = this.persistQueue
+      .then(() => this.persistToDisk())
+      .catch(() => undefined);
+  }
+
+  private async persistToDisk(): Promise<void> {
     if (!this.persistEnabled || !this.persistFile) {
       return;
     }
 
     try {
-      mkdirSync(dirname(this.persistFile), { recursive: true });
+      await mkdir(dirname(this.persistFile), { recursive: true });
       const traces = Array.from(this.cache.values()).sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
       const activeTraces = traces.slice(0, this.activePersistLimit);
       const archivedTraces = traces.slice(this.activePersistLimit);
 
       if (archivedTraces.length > 0 && this.archiveDir) {
-        this.writeArchive(archivedTraces);
+        await this.writeArchive(archivedTraces);
         this.pruneArchives();
         this.cache.clear();
         for (const trace of activeTraces) {
@@ -245,28 +281,28 @@ export class GovernanceTraceStore {
         }
       }
 
-      writeFileSync(this.persistFile, JSON.stringify(activeTraces, null, 2), 'utf-8');
+      await writeFile(this.persistFile, JSON.stringify(activeTraces, null, 2), 'utf-8');
     } catch {
       // Keep runtime resilient even if local persistence fails.
     }
   }
 
-  private writeArchive(traces: IGovernanceTrace[]): void {
+  private async writeArchive(traces: IGovernanceTrace[]): Promise<void> {
     if (!this.archiveDir || traces.length === 0) {
       return;
     }
 
-    mkdirSync(this.archiveDir, { recursive: true });
+    await mkdir(this.archiveDir, { recursive: true });
     const filename = this.compressArchives
       ? `governance-traces-${Date.now()}.json.gz`
       : `governance-traces-${Date.now()}.json`;
     const filePath = join(this.archiveDir, filename);
     const content = JSON.stringify(traces, null, 2);
     if (this.compressArchives) {
-      writeFileSync(filePath, gzipSync(Buffer.from(content, 'utf-8')));
+      await writeFile(filePath, gzipSync(Buffer.from(content, 'utf-8')));
       return;
     }
-    writeFileSync(filePath, content, 'utf-8');
+    await writeFile(filePath, content, 'utf-8');
   }
 
   private readArchiveRecord(file: string): IGovernanceTraceArchiveRecord | null {

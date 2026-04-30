@@ -31,7 +31,7 @@ import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
 import { triggerRouter as smartRouterRuntime } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, governStreamingResponse, sessionStateStore } from "./governance";
+import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, governanceTraceStore, governStreamingResponse, sessionStateStore } from "./governance";
 import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
 import { buildProviderDispatchRequest } from "./protocols";
 
@@ -127,16 +127,20 @@ async function run(options: RunOptions = {}) {
   savePid(process.pid, port);
 
   // 处理退出信号
-  process.on("SIGINT", () => {
-    log("Received SIGINT, cleaning up...");
+  const shutdown = (signal: string) => {
+    log(`Received ${signal}, cleaning up...`);
     cleanupPidFile();
-    process.exit(0);
-  });
+    const forceExit = setTimeout(() => process.exit(0), 500);
+    forceExit.unref?.();
+    void governanceTraceStore.flushPersistence().finally(() => {
+      clearTimeout(forceExit);
+      process.exit(0);
+    });
+  };
 
-  process.on("SIGTERM", () => {
-    cleanupPidFile();
-    process.exit(0);
-  });
+  process.on("SIGINT", () => shutdown("SIGINT"));
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
 
   const servicePort = process.env.SERVICE_PORT
     ? parseInt(process.env.SERVICE_PORT)
@@ -183,19 +187,41 @@ async function run(options: RunOptions = {}) {
     logger: loggerConfig,
   });
 
-  const authMiddleware = apiKeyAuth(async () => {
-    try {
-      const currentConfig = await readConfigFile();
-      return {
-        ...config,
-        APIKEY: currentConfig.APIKEY,
-        Auth: currentConfig.Auth,
-      };
-    } catch (error) {
-      logWarn(`[Auth] Failed to refresh auth config, using startup auth config: ${error instanceof Error ? error.message : String(error)}`);
-      return config;
+  const authConfigTtlMs = 1_000;
+  let cachedAuthConfig: any | undefined;
+  let cachedAuthConfigExpiresAt = 0;
+  let pendingAuthConfigRefresh: Promise<any> | undefined;
+  const getAuthConfig = async () => {
+    const now = Date.now();
+    if (cachedAuthConfig && now < cachedAuthConfigExpiresAt) {
+      return cachedAuthConfig;
     }
-  }, {
+    if (pendingAuthConfigRefresh) {
+      return pendingAuthConfigRefresh;
+    }
+    pendingAuthConfigRefresh = readConfigFile()
+      .then((currentConfig) => {
+        cachedAuthConfig = {
+          ...config,
+          APIKEY: currentConfig.APIKEY,
+          Auth: currentConfig.Auth,
+        };
+        cachedAuthConfigExpiresAt = Date.now() + authConfigTtlMs;
+        return cachedAuthConfig;
+      })
+      .catch((error) => {
+        logWarn(`[Auth] Failed to refresh auth config, using startup auth config: ${error instanceof Error ? error.message : String(error)}`);
+        cachedAuthConfig = config;
+        cachedAuthConfigExpiresAt = Date.now() + authConfigTtlMs;
+        return config;
+      })
+      .finally(() => {
+        pendingAuthConfigRefresh = undefined;
+      });
+    return pendingAuthConfigRefresh;
+  };
+
+  const authMiddleware = apiKeyAuth(getAuthConfig, {
     persistQuotaUsage: async (usage) => {
       try {
         await savePersistedAuthQuotaUsage(usage);
