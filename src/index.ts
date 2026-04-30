@@ -31,7 +31,7 @@ import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
 import { triggerRouter as smartRouterRuntime } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, governanceTraceStore, governStreamingResponse, sessionStateStore } from "./governance";
+import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, recordGovernanceTrace, sessionStateStore } from "./governance";
 import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
 import { buildProviderDispatchRequest } from "./protocols";
 
@@ -352,6 +352,14 @@ async function run(options: RunOptions = {}) {
       });
 
       if (req.contextWindowExceeded) {
+        req.responseGovernanceApplied = true;
+        req.localStructuredError = true;
+        if (req.governanceTrace) {
+          req.governanceTrace = finalizeTrace(req.governanceTrace, {
+            finalModel: req.body?.model ?? req.governanceTrace.finalModel,
+          });
+          recordGovernanceTrace(req.governanceTrace);
+        }
         reply.code(413);
         return reply.send({
           error: {
@@ -574,6 +582,9 @@ async function run(options: RunOptions = {}) {
       sessionUsageCache.put(req.sessionId, payload.usage);
     }
     if (typeof payload === "object" && payload.error) {
+      if (req.localStructuredError || payload.error?.type === "context_window_exceeded") {
+        return done(null, payload);
+      }
       if (req.modelPoolSelection) {
         applyResponseGovernance({
           req,

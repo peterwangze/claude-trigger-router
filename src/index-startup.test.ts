@@ -13,6 +13,8 @@ const mockTriggerRoute = vi.fn();
 const mockTriggerGetSmartRouterConfig = vi.fn();
 const mockSessionStateGet = vi.fn();
 const mockApiKeyAuth = vi.fn().mockReturnValue((_req: unknown, _reply: unknown, done: (err?: Error) => void) => done());
+const mockFinalizeTrace = vi.fn((trace: unknown) => trace);
+const mockRecordGovernanceTrace = vi.fn();
 
 vi.mock('./server', () => ({
   createServer: mockCreateServer,
@@ -91,10 +93,12 @@ vi.mock('./governance', () => ({
     injectAlignmentContext: vi.fn(),
   },
   createGovernanceTrace: vi.fn().mockReturnValue({}),
+  finalizeTrace: mockFinalizeTrace,
   governanceTraceStore: {
     flushPersistence: vi.fn().mockResolvedValue(undefined),
   },
   governStreamingResponse: vi.fn((payload: unknown) => payload),
+  recordGovernanceTrace: mockRecordGovernanceTrace,
   sessionStateStore: {
     get: mockSessionStateGet,
   },
@@ -378,12 +382,13 @@ describe('run startup wiring', () => {
 
     const addHook = mockCreateServer.mock.results[0].value.addHook;
     const smartRouterHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler').at(-1)?.[1];
+    const firstOnSendHook = addHook.mock.calls.filter(([name]: [string]) => name === 'onSend')[0]?.[1];
+    const done = vi.fn();
     const reply = {
       code: vi.fn().mockReturnThis(),
       send: vi.fn(),
     };
-
-    await smartRouterHook({
+    const req: any = {
       id: 'req-context',
       url: '/v1/messages',
       headers: {},
@@ -391,7 +396,9 @@ describe('run startup wiring', () => {
         model: 'sonnet',
         messages: [{ role: 'user', content: 'hello' }],
       },
-    }, reply);
+    };
+
+    await smartRouterHook(req, reply);
 
     expect(reply.code).toHaveBeenCalledWith(413);
     expect(reply.send).toHaveBeenCalledWith({
@@ -404,5 +411,15 @@ describe('run startup wiring', () => {
         }),
       },
     });
+    expect(req.responseGovernanceApplied).toBe(true);
+    expect(req.localStructuredError).toBe(true);
+    expect(mockFinalizeTrace).toHaveBeenCalledWith(expect.any(Object), {
+      finalModel: 'sonnet',
+    });
+    expect(mockRecordGovernanceTrace).toHaveBeenCalledWith(expect.any(Object));
+
+    const payload = vi.mocked(reply.send).mock.calls[0][0];
+    firstOnSendHook(req, reply, payload, done);
+    expect(done).toHaveBeenCalledWith(null, payload);
   });
 });
