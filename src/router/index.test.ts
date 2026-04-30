@@ -257,6 +257,10 @@ describe('router model registry integration', () => {
             key: 'sk-small',
             interface: 'anthropic',
             model: 'vendor/small',
+            thinking: {
+              mode: 'on',
+              budget_tokens: 2048,
+            },
             metadata: {
               safe_input_tokens: 1,
               context_window_tokens: 16,
@@ -268,9 +272,12 @@ describe('router model registry integration', () => {
             key: 'sk-long',
             interface: 'anthropic',
             model: 'vendor/long',
+            thinking: {
+              mode: 'off',
+            },
             metadata: {
               safe_input_tokens: 1000,
-              context_window_tokens: 2000,
+              context_window_tokens: 3000,
             },
           },
         ],
@@ -283,8 +290,68 @@ describe('router model registry integration', () => {
     });
 
     expect(req.body.model).toBe('model__long,vendor/long');
+    expect(req.body.thinking).toBeUndefined();
     expect(req.contextWindowExceeded).toBeUndefined();
     expect(req.governanceTrace.routeReason).toContain('context_window_fallback:small->long');
+  });
+
+  it('evaluates Router.longContext capacity with the fallback model thinking budget', async () => {
+    const req = {
+      body: {
+        model: 'claude-3-5-sonnet',
+        messages: [{ role: 'user', content: 'hello hello hello hello hello' }],
+        system: [],
+        tools: [],
+        max_tokens: 8,
+      },
+    };
+
+    await router(req as any, {} as any, {
+      config: {
+        Providers: [],
+        Models: [
+          {
+            id: 'small',
+            api: 'https://api.example.com/v1/messages',
+            key: 'sk-small',
+            interface: 'anthropic',
+            model: 'vendor/small',
+            metadata: {
+              safe_input_tokens: 1,
+              context_window_tokens: 16,
+            },
+          },
+          {
+            id: 'long',
+            api: 'https://api.example.com/v1/messages',
+            key: 'sk-long',
+            interface: 'anthropic',
+            model: 'vendor/long',
+            thinking: {
+              mode: 'on',
+              budget_tokens: 1000,
+            },
+            metadata: {
+              safe_input_tokens: 1000,
+              context_window_tokens: 20,
+            },
+          },
+        ],
+        Router: {
+          default: 'small',
+          longContext: 'long',
+        },
+      },
+      event: undefined,
+    });
+
+    expect(req.body.model).toBe('model__small,vendor/small');
+    expect(req.contextWindowExceeded).toEqual(
+      expect.objectContaining({
+        code: 'safe_input_exceeded',
+        model: 'small',
+      })
+    );
   });
 
   it('marks context overflow when no configured model can safely handle the request', async () => {

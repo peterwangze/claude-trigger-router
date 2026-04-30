@@ -206,11 +206,24 @@ const getThinkingBudgetTokens = (body: any): number => {
   return readPositiveInteger(body?.thinking?.budget_tokens) ?? 0;
 };
 
+const getEffectiveThinkingBudgetTokens = (
+  compiled: ICompiledModelRef | undefined,
+  body: any
+): number => {
+  const modelThinking = compiled?.thinking;
+  if (modelThinking?.mode === 'off') {
+    return 0;
+  }
+
+  return readPositiveInteger(modelThinking?.budget_tokens)
+    ?? getThinkingBudgetTokens(body);
+};
+
 function evaluateContextFit(compiled: ICompiledModelRef | undefined, req: any, tokenCount: number) {
   const safeInputTokens = compiled?.capabilities?.safeInputTokens;
   const contextWindowTokens = compiled?.capabilities?.contextWindowTokens;
   const outputTokens = getRequestedOutputTokens(req.body);
-  const thinkingTokens = getThinkingBudgetTokens(req.body);
+  const thinkingTokens = getEffectiveThinkingBudgetTokens(compiled, req.body);
   const estimatedTotalTokens = tokenCount + outputTokens + thinkingTokens;
 
   if (safeInputTokens && tokenCount > safeInputTokens) {
@@ -344,9 +357,8 @@ export const router = async (req: any, _res: any, context: any) => {
     }
 
     // 如果触发路由已命中（模型含逗号），保留其选择
-    req.body.model = model ?? req.body.model;
+    req.body.model = applyContextWindowGuard(req, config, model ?? req.body.model, tokenCount);
     applyModelThinking(req, config, req.body.model);
-    req.body.model = applyContextWindowGuard(req, config, req.body.model, tokenCount);
     const compiledModel = getCompiledModelRef(config, req.body.model);
     if (compiledModel?.source === 'registration' && compiledModel.modelPool) {
       req.modelPoolSelection = compiledModel.modelPool;
