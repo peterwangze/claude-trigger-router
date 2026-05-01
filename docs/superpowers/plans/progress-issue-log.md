@@ -318,7 +318,7 @@
   - 维护者排查多源池慢请求、熔断和 fallback 时缺少聚合视图
 - 修正动作：
   - `ModelPoolHealthStore` 新增 `hydrate()`、`exportForPersistence()` 和变更监听器，持久化 failure/success/cooldown/circuit/latency samples
-  - 启动入口加载 `model-pool-health.json`，运行中异步串行落盘，退出时与治理 trace 一起 flush
+  - 启动入口加载配置目录下的 `model-pool-health.json`，运行中 debounce 后异步串行落盘，退出时与治理 trace 一起 flush
   - 新增 `GET /api/models/pool-health` 只读 API，返回 pool summary、active endpoint、endpoint status、失败/成功计数、恢复时间和延迟窗口
   - `/ui` 维护者工作台新增 Model pool health 区块，展示 healthy/cooldown/open 摘要和 endpoint 明细
   - 补充 store hydrate/export、变更监听和 server API 回归测试

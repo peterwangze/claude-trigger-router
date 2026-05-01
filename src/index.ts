@@ -34,7 +34,7 @@ import { createStream } from 'rotating-file-stream';
 import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, recordGovernanceTrace, sessionStateStore } from "./governance";
 import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
 import { modelPoolHealthStore } from "./models/pool-health";
-import { loadPersistedModelPoolHealth, savePersistedModelPoolHealth } from "./models/pool-health-persistence";
+import { createModelPoolHealthPersistenceScheduler, loadPersistedModelPoolHealth } from "./models/pool-health-persistence";
 import { buildProviderDispatchRequest } from "./protocols";
 
 const event = new EventEmitter();
@@ -115,11 +115,12 @@ async function run(options: RunOptions = {}) {
   } catch (error) {
     logWarn(`[ModelPoolHealth] Failed to load persisted health state: ${error instanceof Error ? error.message : String(error)}`);
   }
-  modelPoolHealthStore.setChangeListener((payload) => {
-    void savePersistedModelPoolHealth(payload).catch((error) => {
+  const modelPoolHealthPersistence = createModelPoolHealthPersistenceScheduler({
+    onError: (error) => {
       logWarn(`[ModelPoolHealth] Failed to persist health state: ${error instanceof Error ? error.message : String(error)}`);
-    });
+    },
   });
+  modelPoolHealthStore.setChangeListener(modelPoolHealthPersistence.schedule);
 
   // 配置日志
   configureLogging(config);
@@ -146,7 +147,7 @@ async function run(options: RunOptions = {}) {
     forceExit.unref?.();
     void Promise.allSettled([
       governanceTraceStore.flushPersistence(),
-      savePersistedModelPoolHealth(modelPoolHealthStore.exportForPersistence()),
+      modelPoolHealthPersistence.flush(modelPoolHealthStore.exportForPersistence()),
     ]).finally(() => {
       clearTimeout(forceExit);
       process.exit(0);

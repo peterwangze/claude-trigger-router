@@ -332,7 +332,7 @@ P3-3：持续 closed 事项复审
 - P2-4 `同模型多源池化与注册调度`（Chunk 2d）：已在内存 health 上补齐最小熔断阈值。endpoint 连续失败达到阈值后会从短冷却升级为 `open` 熔断状态，logical model active endpoint 与 fallback candidate 会跳过熔断 endpoint；成功响应会清空失败计数、冷却和熔断。当前仍不做延迟窗口、持久化 health 或 least-latency。
 - P2-4 `同模型多源池化与注册调度`（Chunk 2e）：已在 model pool endpoint health 上新增内存延迟窗口。非流式 pool 请求成功后会记录 endpoint 成功次数和总请求延迟，health snapshot 暴露 sample count、last latency、average latency 与窗口起止时间；compiled model pool 和 `/ui` endpoint 行可看到平均延迟。当前仍不做持久化 health 或 least-latency 调度。
 - P2-4 `同模型多源池化与注册调度`（Chunk 2f）：已新增显式 `Registration.strategy: "least-latency"`。默认仍保持 `priority`；当维护者显式启用 least-latency 时，logical model active endpoint 与 fallback candidate 会在健康 endpoint 中优先选择已有成功延迟样本的最低平均延迟 endpoint，没有样本或延迟相同时回退 priority。当前仍不做持久化 health 或独立 pool health 运营视图。
-- P2-4 `同模型多源池化与注册调度`（Chunk 2g）：已新增 model pool endpoint health 持久化和维护者运营视图。启动时会从本地 `model-pool-health.json` 恢复 failure/success/cooldown/circuit/latency samples，运行中健康变化异步落盘，退出时与治理 trace 一起 flush；新增 `GET /api/models/pool-health` 只读 API，`/ui` 维护者工作台展示 pool health 摘要、active endpoint、cooldown、熔断和延迟窗口。当前仍不做主动健康探测、成本/速率元数据或 round-robin / health-aware 等更多策略。
+- P2-4 `同模型多源池化与注册调度`（Chunk 2g）：已新增 model pool endpoint health 持久化和维护者运营视图。启动时会从配置目录下的 `model-pool-health.json` 恢复 failure/success/cooldown/circuit/latency samples，运行中健康变化 debounce 后异步落盘，退出时与治理 trace 一起 flush；新增 `GET /api/models/pool-health` 只读 API，`/ui` 维护者工作台展示 pool health 摘要、active endpoint、cooldown、熔断和延迟窗口。当前仍不做主动健康探测、成本/速率元数据或 round-robin / health-aware 等更多策略。
 
 下一项按优先级继续推进：
 
