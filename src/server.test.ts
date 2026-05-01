@@ -559,7 +559,7 @@ describe('createServer /api/config', () => {
       body: {
         label: 'remote client',
         scopes: ['client'],
-        expiresAt: '2026-05-01T00:00:00.000Z',
+        expiresAt: '2099-05-01T00:00:00.000Z',
       },
     }, reply);
 

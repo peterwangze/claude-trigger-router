@@ -334,6 +334,100 @@ describe('applyResponseGovernance', () => {
     );
   });
 
+  it('uses least-latency pool strategy for model pool fallback candidates', async () => {
+    const executeModelPoolFallbackRetry = vi.fn().mockResolvedValue({
+      content: [{ text: 'fast fallback output' }],
+    });
+    const req: any = {
+      headers: {},
+      body: {
+        model: 'registration__edge-a,claude-sonnet-4-5',
+        metadata: {},
+      },
+      modelPoolSelection: {
+        modelId: 'sonnet',
+        endpointId: 'edge-a',
+        strategy: 'least-latency',
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-pool-least-latency-fallback' }),
+    };
+    const config: any = {
+      APIKEY: 'admin-key',
+      Registration: {
+        enabled: true,
+        strategy: 'least-latency',
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-c.example.com/v1',
+            key: 'sk-edge-c',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-c',
+              pool_priority: 30,
+            },
+          },
+        ],
+      },
+    };
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-b', 10_000, 900);
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-c', 10_000, 200);
+
+    const nextPayload = await applyResponseGovernance({
+      req,
+      payload: {
+        error: {
+          message: 'upstream timeout',
+        },
+      },
+      config,
+      servicePort: 5678,
+      deps: {
+        executeModelPoolFallbackRetry,
+      },
+    });
+
+    expect(nextPayload).toEqual({ content: [{ text: 'fast fallback output' }] });
+    expect(executeModelPoolFallbackRetry).toHaveBeenCalledWith(
+      req.body,
+      'registration__edge-c,claude-sonnet-4-5',
+      5678,
+      'admin-key',
+      undefined
+    );
+    expect(req.body.model).toBe('registration__edge-c,claude-sonnet-4-5');
+    expect(req.modelPoolSelection).toEqual({
+      modelId: 'sonnet',
+      endpointId: 'edge-c',
+      strategy: 'least-latency',
+    });
+    expect(req.governanceTrace.modelPoolFallbackNextEndpoint).toBe('edge-c');
+    expect(req.governanceTrace.routeReason).toContain('model_pool_fallback:sonnet:edge-c');
+  });
+
   it('uses the current request API key for model pool fallback when bootstrap APIKEY is absent', async () => {
     const executeModelPoolFallbackRetry = vi.fn().mockResolvedValue({
       content: [{ text: 'fallback output' }],

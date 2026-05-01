@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { router } from './index';
+import { modelPoolHealthStore } from '../models/pool-health';
 
 describe('router model registry integration', () => {
+  beforeEach(() => {
+    modelPoolHealthStore.clear();
+  });
+
   const baseRequest = () => ({
     body: {
       model: 'claude-3-5-sonnet',
@@ -153,6 +158,69 @@ describe('router model registry integration', () => {
     });
     expect(req.governanceTrace.finalModel).toBe('registration__edge-a,claude-sonnet-4-5');
     expect(req.governanceTrace.routeReason).toContain('model_pool:sonnet:edge-a');
+  });
+
+  it('routes registration logical model ids through least-latency pool strategy', async () => {
+    const req = {
+      ...baseRequest(),
+      governanceTrace: {
+        requestId: 'req-least-latency',
+        routeReason: [],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: Date.now(),
+      },
+    };
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-a', 10_000, 900);
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-b', 10_000, 200);
+
+    await router(req as any, {} as any, {
+      config: {
+        Providers: [],
+        Registration: {
+          enabled: true,
+          strategy: 'least-latency',
+          models: [
+            {
+              id: 'sonnet',
+              api: 'https://edge-a.example.com/v1',
+              key: 'sk-edge-a',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-a',
+                pool_priority: 10,
+              },
+            },
+            {
+              id: 'sonnet',
+              api: 'https://edge-b.example.com/v1',
+              key: 'sk-edge-b',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-b',
+                pool_priority: 20,
+              },
+            },
+          ],
+        },
+        Router: {
+          default: 'sonnet',
+        },
+      },
+      event: undefined,
+    });
+
+    expect(req.body.model).toBe('registration__edge-b,claude-sonnet-4-5');
+    expect(req.modelPoolSelection).toEqual({
+      modelId: 'sonnet',
+      endpointId: 'edge-b',
+      strategy: 'least-latency',
+    });
+    expect(req.governanceTrace.routeReason).toContain('model_pool:sonnet:edge-b');
   });
 
   it('applies model-level thinking config when selected model enables thinking', async () => {
