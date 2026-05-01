@@ -343,6 +343,7 @@
   - 远程客户端的文档、status 和实际请求路径一致性
 - 修正动作：
   - 启动入口新增 local remote-client 请求转发 hook：本地认证通过后，将 `/v1/messages` 与 `/v1/chat/completions` 转发到 `Runtime.remote_service.base_url`
+  - 远端转发保留原请求 query string，避免代理层改写带参数的模型接口请求
   - 转发时使用 `Runtime.remote_service.auth_token` 作为远端 Authorization，并设置 `x-ctr-remote-forward: 1` 避免误循环
   - 远端转发请求标记为 `remoteForwarded`，不再进入本地 SmartRouter、agent、上下文容量治理和 onSend governance，避免“双路由”
   - 转发失败时返回结构化 `502 remote_service_unavailable`

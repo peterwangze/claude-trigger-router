@@ -464,7 +464,7 @@ describe('run startup wiring', () => {
     const req: any = {
       id: 'req-remote',
       method: 'POST',
-      url: '/v1/messages',
+      url: '/v1/messages?anthropic-version=2023-06-01',
       headers: {
         'content-type': 'application/json',
         authorization: 'Bearer local-admin',
@@ -478,7 +478,7 @@ describe('run startup wiring', () => {
     await remoteForwardHook(req, reply);
     await smartRouterHook(req, reply);
 
-    expect(fetchMock).toHaveBeenCalledWith('https://router.example.com/v1/messages', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('https://router.example.com/v1/messages?anthropic-version=2023-06-01', expect.objectContaining({
       method: 'POST',
       headers: expect.objectContaining({
         Authorization: 'Bearer remote-client-token',

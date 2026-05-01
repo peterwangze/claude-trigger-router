@@ -105,6 +105,11 @@ function isModelCallPath(url: string | undefined): boolean {
   return path === "/v1/messages" || path === "/v1/chat/completions";
 }
 
+function getRemoteForwardPath(url: string | undefined): string {
+  const requestUrl = String(url ?? "");
+  return requestUrl.startsWith("/") ? requestUrl : `/${requestUrl}`;
+}
+
 function buildRemoteForwardHeaders(req: any, authToken?: string): Record<string, string> {
   const headers: Record<string, string> = {};
   const passThroughHeaders = [
@@ -137,8 +142,9 @@ async function forwardModelCallToRemote(req: any, reply: any, config: any): Prom
 
   const remoteService = config.Runtime.remote_service;
   const remoteBaseUrl = remoteService.base_url.trim().replace(/\/+$/, "");
-  const path = String(req.url).split("?")[0];
-  const targetUrl = `${remoteBaseUrl}${path}`;
+  const forwardPath = getRemoteForwardPath(req.url);
+  const path = forwardPath.split("?")[0];
+  const targetUrl = `${remoteBaseUrl}${forwardPath}`;
   try {
     const response = await fetch(targetUrl, {
       method: String(req.method ?? "POST").toUpperCase(),
