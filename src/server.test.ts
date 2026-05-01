@@ -438,6 +438,13 @@ describe('createServer /api/config', () => {
         ready: false,
         baseUrl: '',
       },
+      remoteRegistration: {
+        enabled: false,
+        configured: false,
+        reachable: false,
+        available: false,
+        baseUrl: '',
+      },
       compiledModels: {
         providerCount: 1,
         modelCount: 1,
@@ -469,14 +476,34 @@ describe('createServer /api/config', () => {
   });
 
   it('probes enabled remote service from the remote status endpoint', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        service: 'claude-trigger-router',
-        ready: true,
-        runtimeMode: 'server',
-        remoteEnabled: false,
-      }),
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith('/api/registration')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            enabled: true,
+            summary: {
+              models: 2,
+              upstreamServices: 1,
+            },
+            models: [
+              {
+                id: 'sonnet',
+                keyConfigured: true,
+              },
+            ],
+          }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          service: 'claude-trigger-router',
+          ready: true,
+          runtimeMode: 'server',
+          remoteEnabled: false,
+        }),
+      });
     });
     const originalFetch = globalThis.fetch;
     vi.stubGlobal('fetch', fetchMock);
@@ -504,6 +531,11 @@ describe('createServer /api/config', () => {
           Authorization: 'Bearer token-1',
         },
       }));
+      expect(fetchMock).toHaveBeenCalledWith('https://router.example.com/api/registration', expect.objectContaining({
+        headers: {
+          Authorization: 'Bearer token-1',
+        },
+      }));
       expect(result.remote).toEqual({
         enabled: true,
         configured: true,
@@ -514,6 +546,17 @@ describe('createServer /api/config', () => {
         runtimeMode: 'server',
         remoteEnabled: false,
       });
+      expect(result.remoteRegistration).toEqual(expect.objectContaining({
+        enabled: true,
+        configured: true,
+        reachable: true,
+        available: true,
+        baseUrl: 'https://router.example.com',
+        summary: {
+          models: 2,
+          upstreamServices: 1,
+        },
+      }));
       expect(result.compiledModels).toEqual(expect.objectContaining({
         providerCount: 0,
         modelCount: 0,
@@ -2607,6 +2650,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('listenerConnectionSummary');
     expect(html).toContain('clientConnectionSummary');
     expect(html).toContain('remoteStatusSummary');
+    expect(html).toContain('remoteRegistrationStatusSummary');
     expect(html).toContain('registrationStatusSummary');
     expect(html).toContain('https://router.example.com');
     expect(html).toContain('local_agent');

@@ -1,7 +1,16 @@
 import { createServer } from 'http';
 import { describe, expect, it, vi } from 'vitest';
 
-import { isExpectedServiceHealth, isTcpPortOccupied, probeRemoteServiceStatus, SERVICE_HEALTH_PATH, SERVICE_INFO_PATH, SERVICE_NAME } from './service-health';
+import {
+  isExpectedServiceHealth,
+  isTcpPortOccupied,
+  probeRemoteRegistrationStatus,
+  probeRemoteServiceStatus,
+  SERVICE_HEALTH_PATH,
+  SERVICE_INFO_PATH,
+  SERVICE_NAME,
+  SERVICE_REGISTRATION_PATH,
+} from './service-health';
 
 describe('service health helpers', () => {
   it('accepts expected service signature', () => {
@@ -35,6 +44,10 @@ describe('service health helpers', () => {
 
   it('exposes the dedicated service info endpoint path', () => {
     expect(SERVICE_INFO_PATH).toBe('/api/service-info');
+  });
+
+  it('exposes the dedicated registration endpoint path', () => {
+    expect(SERVICE_REGISTRATION_PATH).toBe('/api/registration');
   });
 
   it('summarizes disabled remote service without probing network', async () => {
@@ -81,6 +94,60 @@ describe('service health helpers', () => {
       service: SERVICE_NAME,
       runtimeMode: 'server',
       remoteEnabled: false,
+    });
+  });
+
+  it('probes remote registration summary with bearer token', async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        enabled: true,
+        summary: {
+          models: 2,
+          upstreamServices: 1,
+        },
+        models: [{ id: 'sonnet', keyConfigured: true }],
+        upstreamServices: [{ id: 'edge-a', authTokenConfigured: true }],
+        issueReport: {
+          summary: {
+            total: 0,
+            error: 0,
+            warning: 0,
+            info: 0,
+          },
+        },
+      }),
+    });
+
+    const status = await probeRemoteRegistrationStatus({
+      enabled: true,
+      base_url: 'https://router.example.com/',
+      auth_token: 'token-1',
+    }, 500, fetchFn as any);
+
+    expect(fetchFn).toHaveBeenCalledWith('https://router.example.com/api/registration', expect.objectContaining({
+      headers: {
+        Authorization: 'Bearer token-1',
+      },
+    }));
+    expect(status).toEqual({
+      enabled: true,
+      configured: true,
+      reachable: true,
+      available: true,
+      baseUrl: 'https://router.example.com',
+      summary: {
+        models: 2,
+        upstreamServices: 1,
+      },
+      models: [{ id: 'sonnet', keyConfigured: true }],
+      upstreamServices: [{ id: 'edge-a', authTokenConfigured: true }],
+      issueSummary: {
+        total: 0,
+        error: 0,
+        warning: 0,
+        info: 0,
+      },
     });
   });
 

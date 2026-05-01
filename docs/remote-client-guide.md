@@ -46,7 +46,7 @@ ctr status
 ctr ui
 ```
 
-`doctor` checks the configured remote service and reports whether it is reachable and ready. `status` shows the local role and remote-service connection hint. `ui` shows remote health through `/api/remote-status`.
+`doctor` checks the configured remote service and reports whether it is reachable and ready. `status` shows the local role and remote-service connection hint. `ui` shows remote health through `/api/remote-status`, including the remote server's redacted registration summary when `/api/registration` is reachable.
 
 ## Use with Claude Code through local ctr
 

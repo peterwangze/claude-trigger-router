@@ -7,7 +7,7 @@
 import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig, deriveRuntimeSmartRouterConfig } from "./utils";
 import { log } from "./utils/log";
-import { probeRemoteServiceStatus, SERVICE_NAME } from "./service-health";
+import { probeRemoteRegistrationStatus, probeRemoteServiceStatus, SERVICE_NAME } from "./service-health";
 import {
   governanceTraceStore,
   getGovernanceMetricsReport,
@@ -1043,7 +1043,10 @@ export const createServer = (config: any): Server => {
   server.app.get("/api/remote-status", async (req: any) => {
     const normalizedResult = normalizeAndValidateConfig(config.initialConfig ?? {});
     const normalized = normalizedResult.config;
-    const remote = await probeRemoteServiceStatus(normalized.Runtime?.remote_service);
+    const [remote, remoteRegistration] = await Promise.all([
+      probeRemoteServiceStatus(normalized.Runtime?.remote_service),
+      probeRemoteRegistrationStatus(normalized.Runtime?.remote_service),
+    ]);
     const governanceReport = getGovernanceMetricsReport(readGovernanceMetricsQuery(req.query ?? {}));
 
     return {
@@ -1051,6 +1054,7 @@ export const createServer = (config: any): Server => {
       ready: true,
       runtimeMode: normalized.Runtime?.mode ?? "local",
       remote,
+      remoteRegistration,
       compiledModels: summarizeCompiledModels(normalized),
       governance: summarizeGovernanceAlerts(governanceReport),
       issueReport: buildValidationIssueReport({

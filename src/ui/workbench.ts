@@ -172,6 +172,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="status-tile"><span class="muted">Models</span><strong id="modelCountStatus">${escapedModelsCount}</strong></div>` +
     `<div class="status-tile"><span class="muted">Router.default</span><strong id="routerDefaultStatus">${escapedRouterDefault}</strong></div>` +
     `<div class="status-tile"><span class="muted">Remote service</span><strong id="remoteStatusSummary">${escapedRemoteSummary}</strong></div>` +
+    `<div class="status-tile"><span class="muted">Remote registration</span><strong id="remoteRegistrationStatusSummary">checking</strong></div>` +
     `<div class="status-tile"><span class="muted">Registration</span><strong id="registrationStatusSummary">${escapedRegistrationSummary}</strong></div>` +
     `<div class="status-tile"><span class="muted">Auth</span><strong id="authStatusSummary">${escapedAuthSummary}</strong></div>` +
     `<div class="status-tile"><span class="muted">Security</span><strong id="securityStatusSummary">${escapedSecuritySummary}</strong></div>` +
@@ -1289,6 +1290,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    registrationStatusSummary.textContent=registration.enabled ? ((registration.models ?? 0)+' models / '+(registration.upstreamServices ?? 0)+' upstream') : 'disabled';` +
     `    const remote=remoteData.remote || {};` +
     `    remoteStatusSummary.textContent=remote.enabled ? ((remote.ready ? 'ready' : (remote.reachable ? 'reachable' : 'unreachable'))+' · '+(remote.baseUrl || '-')) : 'disabled';` +
+    `    const remoteRegistration=remoteData.remoteRegistration || {};` +
+    `    const remoteRegistrationSummary=remoteRegistration.summary || {};` +
+    `    remoteRegistrationStatusSummary.textContent=remoteRegistration.enabled ? (remoteRegistration.available ? ((remoteRegistrationSummary.models ?? 0)+' remote models / '+(remoteRegistrationSummary.upstreamServices ?? 0)+' upstream') : ('unavailable · '+(remoteRegistration.error || remoteRegistration.baseUrl || '-'))) : 'disabled';` +
     `    if(remoteData.compiledModels){ modelCountStatus.textContent=remoteData.compiledModels.modelCount ?? modelCountStatus.textContent; }` +
     `    try { await loadModelPoolHealth(); } catch (_poolError) { modelPoolHealthSummary.className='alert warn'; modelPoolHealthSummary.innerHTML='<strong>Pool health unavailable</strong><div class="muted">无法加载模型池健康状态</div>'; }` +
     `  } catch (_error) {` +

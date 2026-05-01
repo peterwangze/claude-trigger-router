@@ -357,3 +357,27 @@
   - `src/server.ts`
   - `docs/remote-client-guide.md`
   - `docs/configuration-guide.md`
+
+### PI-017：远程客户端缺少远端注册摘要同步，无法确认远端模型池边界
+
+- 首次暴露时间：2026-05-02
+- 问题描述：远程客户端路径已经能探测远端 service info 并转发模型调用，但 `/api/remote-status` 没有同步远端 `/api/registration` 摘要；使用者打开本地 `/ui` 只能看到远端 ready，无法确认远端服务端当前注册了多少模型和 upstream 服务。
+- 影响范围：
+  - 远程使用者选择“连接远程服务”后查看本地 `/ui`
+  - 服务维护者向远程客户端发放 managed client + read-only key 后的可见性验证
+  - 后续服务发现和更完整服务模式的只读状态基础
+- 修正动作：
+  - 新增远端 `/api/registration` 只读探测 helper，复用 `Runtime.remote_service.auth_token`
+  - `/api/remote-status` 同时返回 `remoteRegistration`，包含 reachable / available、远端注册模型数、upstream 服务数和脱敏列表
+  - `/ui` 首屏新增 Remote registration 状态，展示远端注册摘要
+  - 更新 configuration guide、remote client guide、统一基线和实施计划，明确当前是只读摘要同步，不写回本地配置
+- 当前状态：`closed`
+- 闭环结论：远程接入已从“ready/status + 模型调用转发”推进到“可确认远端注册边界”的最小只读同步；后续仍需服务发现、节点/集群编排和托管控制面，不在本轮宣称支持。
+- 关联文档：
+  - `src/service-health.ts`
+  - `src/server.ts`
+  - `src/ui/workbench.ts`
+  - `src/service-health.test.ts`
+  - `src/server.test.ts`
+  - `docs/remote-client-guide.md`
+  - `docs/configuration-guide.md`

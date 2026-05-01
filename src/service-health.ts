@@ -4,6 +4,7 @@ import type { IRuntimeConfig } from './trigger/types';
 export const SERVICE_NAME = 'claude-trigger-router';
 export const SERVICE_HEALTH_PATH = '/api/health';
 export const SERVICE_INFO_PATH = '/api/service-info';
+export const SERVICE_REGISTRATION_PATH = '/api/registration';
 
 export interface IRemoteServiceStatusSummary {
   enabled: boolean;
@@ -16,6 +17,22 @@ export interface IRemoteServiceStatusSummary {
   remoteEnabled?: unknown;
   auth?: unknown;
   security?: unknown;
+  error?: string;
+}
+
+export interface IRemoteRegistrationStatusSummary {
+  enabled: boolean;
+  configured: boolean;
+  reachable: boolean;
+  available: boolean;
+  baseUrl: string;
+  summary?: {
+    models: number;
+    upstreamServices: number;
+  };
+  models?: unknown[];
+  upstreamServices?: unknown[];
+  issueSummary?: unknown;
   error?: string;
 }
 
@@ -142,6 +159,93 @@ export async function probeRemoteServiceStatus(
       configured: true,
       reachable: false,
       ready: false,
+      baseUrl: normalizedBaseUrl,
+      error: error?.message || String(error),
+    };
+  }
+}
+
+export async function probeRemoteRegistrationStatus(
+  remoteService: NonNullable<IRuntimeConfig['remote_service']> | undefined,
+  timeoutMs = 800,
+  fetchFn: typeof fetch = fetch
+): Promise<IRemoteRegistrationStatusSummary> {
+  const enabled = Boolean(remoteService?.enabled);
+  const baseUrl = remoteService?.base_url?.trim() ?? '';
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+
+  if (!enabled) {
+    return {
+      enabled: false,
+      configured: false,
+      reachable: false,
+      available: false,
+      baseUrl: normalizedBaseUrl,
+    };
+  }
+
+  if (!baseUrl) {
+    return {
+      enabled: true,
+      configured: false,
+      reachable: false,
+      available: false,
+      baseUrl: normalizedBaseUrl,
+      error: 'Runtime.remote_service.base_url is required when remote_service is enabled',
+    };
+  }
+
+  try {
+    const headers: Record<string, string> = {};
+    if (remoteService?.auth_token) {
+      headers.Authorization = `Bearer ${remoteService.auth_token}`;
+    }
+    const res = await fetchFn(`${normalizedBaseUrl}${SERVICE_REGISTRATION_PATH}`, {
+      headers,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!res.ok) {
+      return {
+        enabled: true,
+        configured: true,
+        reachable: false,
+        available: false,
+        baseUrl: normalizedBaseUrl,
+        error: `HTTP ${res.status}`,
+      };
+    }
+
+    const payload = await res.json();
+    const info = payload && typeof payload === 'object'
+      ? payload as {
+          enabled?: unknown;
+          summary?: { models?: unknown; upstreamServices?: unknown };
+          models?: unknown;
+          upstreamServices?: unknown;
+          issueReport?: { summary?: unknown };
+        }
+      : {};
+    return {
+      enabled: true,
+      configured: true,
+      reachable: true,
+      available: true,
+      baseUrl: normalizedBaseUrl,
+      summary: {
+        models: typeof info.summary?.models === 'number' ? info.summary.models : 0,
+        upstreamServices: typeof info.summary?.upstreamServices === 'number' ? info.summary.upstreamServices : 0,
+      },
+      models: Array.isArray(info.models) ? info.models : [],
+      upstreamServices: Array.isArray(info.upstreamServices) ? info.upstreamServices : [],
+      ...(info.issueReport?.summary !== undefined ? { issueSummary: info.issueReport.summary } : {}),
+    };
+  } catch (error: any) {
+    return {
+      enabled: true,
+      configured: true,
+      reachable: false,
+      available: false,
       baseUrl: normalizedBaseUrl,
       error: error?.message || String(error),
     };

@@ -299,7 +299,7 @@ Governance:
 - 远程服务状态摘要
 - Registration 模型和上游服务摘要
 
-这些信息来自现有 `/api/service-info` 和 `/api/remote-status`，不会引入新的平行运行时。
+这些信息来自现有 `/api/service-info` 和 `/api/remote-status`，不会引入新的平行运行时。启用 `Runtime.remote_service` 时，`/api/remote-status` 还会只读同步远端 `/api/registration` 的脱敏摘要，用于显示远端注册模型数和 upstream 服务数；它不会把远端注册写回本地配置。
 
 维护者工作台还会展示治理 Health 摘要。它来自 `/api/governance/health`，同样也包含在 `/api/governance/metrics` 的 `health` 字段里：
 
@@ -354,7 +354,7 @@ Registration:
         pool_priority: 20
 ```
 
-编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 会把 active endpoint 编译成真实内部 provider；如果没有同名顶层 `Models[]` 覆盖，`Router.default: sonnet` 这类 logical model id 会解析到 active pool endpoint，并在治理 trace 中记录 `model_pool:<modelId>:<endpointId>`。当当前 pool endpoint 返回非流式 upstream error 时，运行时会按当前策略选择下一个 enabled endpoint 做一次本地重试，并记录 `model_pool_fallback:<modelId>:<endpointId>`；失败 endpoint 会进入短冷却，连续失败达到阈值后会进入更长的 `open` 熔断状态，后续 logical model 解析和 fallback candidate 会优先跳过冷却或熔断中的 endpoint。成功响应会写入内存延迟窗口，compiled model pool 和 `/ui` 可看到 endpoint 的平均延迟；当 `Registration.strategy: "least-latency"` 时，这个延迟窗口会参与 active endpoint 和 fallback candidate 选择。更完整的持久化 health 和运营视图仍在后续 P2-4 中推进。
+编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 会把 active endpoint 编译成真实内部 provider；如果没有同名顶层 `Models[]` 覆盖，`Router.default: sonnet` 这类 logical model id 会解析到 active pool endpoint，并在治理 trace 中记录 `model_pool:<modelId>:<endpointId>`。当当前 pool endpoint 返回非流式 upstream error 时，运行时会按当前策略选择下一个 enabled endpoint 做一次本地重试，并记录 `model_pool_fallback:<modelId>:<endpointId>`；失败 endpoint 会进入短冷却，连续失败达到阈值后会进入更长的 `open` 熔断状态，后续 logical model 解析和 fallback candidate 会优先跳过冷却或熔断中的 endpoint。成功响应会写入延迟窗口，compiled model pool、`/api/models/pool-health` 和 `/ui` 可看到 endpoint 的平均延迟；当 `Registration.strategy: "least-latency"` 时，这个延迟窗口会参与 active endpoint 和 fallback candidate 选择。启用远程客户端配置时，本地 `/api/remote-status` 会拉取远端 `/api/registration` 的只读脱敏摘要，帮助使用者确认远端服务端注册了多少模型和 upstream 服务，但不会自动同步或覆盖本地 `Registration`。
 
 当前明确不支持 `nodes`、`node_id`、`cluster` 这类集群/节点编排字段。
 
