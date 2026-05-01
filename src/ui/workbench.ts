@@ -359,7 +359,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="scope-guide">` +
     `<div><strong>admin</strong><span class="muted">维护者使用：/ui、配置保存、重启、auth 管理和治理写操作。</span></div>` +
     `<div><strong>client</strong><span class="muted">客户端模型调用：/v1/messages、/v1/chat/completions；模型调用配额只计入这里。</span></div>` +
-    `<div><strong>read-only</strong><span class="muted">只读观测：health、service-info、compiled models、transformers 和 governance GET。</span></div>` +
+    `<div><strong>read-only</strong><span class="muted">只读观测：health、service-info、compiled models、model pool health、transformers 和 governance GET。</span></div>` +
     `<div><strong>client + read-only</strong><span class="muted">远程 token 同时需要 ready/status 探测与模型调用时使用该组合。</span></div>` +
     `</div>` +
     `<div class="muted" style="margin-top:.75rem">管理入口：用 admin key 调用 <code>GET /api/auth/keys</code> 查看列表，<code>POST /api/auth/keys</code> 生成 key，<code>POST /api/auth/keys/:id/revoke</code> 吊销 key；生成的 secret 只返回一次，请直接交给对应客户端保存。</div>` +
@@ -369,6 +369,14 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<table id="authQuotaTable" class="management-table">` +
     `<thead><tr><th>Key</th><th>Scope</th><th>Status</th><th>Requests</th><th>Tokens</th><th>Window</th></tr></thead>` +
     `<tbody><tr><td colspan="6" class="muted">Waiting for service status...</td></tr></tbody>` +
+    `</table>` +
+    `</div>` +
+    `<div class="subpanel">` +
+    `<div class="row"><strong>Model pool health</strong><span class="muted">查看同模型多源池的 active endpoint、持久化状态、cooldown、熔断与延迟窗口。</span></div>` +
+    `<div id="modelPoolHealthSummary" class="alert info"><strong>Pool health pending</strong><div class="muted">等待模型池健康状态加载</div></div>` +
+    `<table id="modelPoolHealthTable" class="management-table">` +
+    `<thead><tr><th>Pool</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Failures</th><th>Last success</th><th>Recovery</th></tr></thead>` +
+    `<tbody><tr><td colspan="7" class="muted">Waiting for model pool health...</td></tr></tbody>` +
     `</table>` +
     `</div>` +
     `<div class="row"><strong>维护者观测</strong><span class="muted">按 requestId / sessionKey / routeReason 过滤 Governance Trace，并查看近期治理指标。</span></div>` +
@@ -387,7 +395,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<input id="limit" placeholder="limit" value="20">` +
     `<button id="refreshBtn">刷新</button>` +
     `</div>` +
-    `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/models/compiled/preview</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/health</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
+    `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/models/pool-health</code>、<code>/api/models/compiled/preview</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/health</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
     `<div id="metricsGrid" class="stats">` +
     `<div class="stat"><span class="muted">Health</span><strong>-</strong></div>` +
     `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
@@ -590,6 +598,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const healthSummary=document.getElementById('healthSummary');` +
     `const securitySummary=document.getElementById('securitySummary');` +
     `const authQuotaTableBody=document.querySelector('#authQuotaTable tbody');` +
+    `const modelPoolHealthSummary=document.getElementById('modelPoolHealthSummary');` +
+    `const modelPoolHealthTableBody=document.querySelector('#modelPoolHealthTable tbody');` +
     `const anomalyList=document.getElementById('anomalyList');` +
     `const saveThresholdsStatus=document.getElementById('saveThresholdsStatus');` +
     `const snapshotStatus=document.getElementById('snapshotStatus');` +
@@ -626,6 +636,30 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    const windowText=quotaCfg.window_seconds ? (esc(quotaCfg.window_seconds)+'s'+(usage.windowResetAt ? '<div class="muted">reset '+esc(String(usage.windowResetAt).replace('T',' ').replace('.000Z','Z'))+'</div>' : '<div class="muted">not started</div>')) : '-';` +
     `    return '<tr><td>'+keyName+'</td><td>'+esc((item.scopes || []).join(', ') || '-')+'</td><td><span class="pill '+statusClass+'">'+esc(item.status || '-')+'</span></td><td>'+esc(limitText(usage.requestsUsed,usage.requestLimit))+'</td><td>'+esc(limitText(usage.tokensUsed,usage.tokenLimit))+'</td><td>'+windowText+'</td></tr>';` +
     `  }).join('');` +
+    `}` +
+    `function renderModelPoolHealth(data){` +
+    `  const summary=data?.summary || {};` +
+    `  const pools=Array.isArray(data?.pools) ? data.pools : [];` +
+    `  const statusClass=summary.open ? 'critical' : (summary.cooldown ? 'warn' : 'info');` +
+    `  const averageLatency=Number.isFinite(summary.averageLatencyMs) ? (Number(summary.averageLatencyMs).toFixed(0)+' ms avg') : 'no latency samples';` +
+    `  modelPoolHealthSummary.className='alert '+statusClass;` +
+    `  modelPoolHealthSummary.innerHTML='<strong>Pool health: '+esc(summary.healthy || 0)+' healthy / '+esc(summary.cooldown || 0)+' cooldown / '+esc(summary.open || 0)+' open</strong><div class="muted">'+esc(summary.pools || 0)+' pools · '+esc(summary.endpoints || 0)+' endpoints · '+esc(averageLatency)+' · persisted endpoints '+esc(data?.persistedState?.endpoints || 0)+'</div>';` +
+    `  const rows=[];` +
+    `  pools.forEach(pool=>{` +
+    `    (pool.endpoints || []).forEach(endpoint=>{` +
+    `      const recovery=endpoint.circuitOpenUntil ? ('circuit opens until '+new Date(endpoint.circuitOpenUntil).toISOString()) : endpoint.cooldownUntil ? ('cooldown until '+new Date(endpoint.cooldownUntil).toISOString()) : '-';` +
+    `      const latency=endpoint.latency ? (Number(endpoint.latency.averageMs || 0).toFixed(0)+' ms avg / '+esc(endpoint.latency.sampleCount || 0)+' samples') : '-';` +
+    `      const endpointLabel='<code>'+esc(endpoint.id || '-')+'</code>'+(endpoint.active ? ' <span class="pill info">active</span>' : '')+'<div class="muted">'+esc(endpoint.providerName || '-')+' / '+esc(endpoint.upstreamServiceId || endpoint.upstreamBaseUrl || 'local')+'</div>';` +
+    `      const statusCls=endpoint.status === 'open' ? 'critical' : (endpoint.status === 'cooldown' ? 'warn' : 'info');` +
+    `      rows.push('<tr><td><code>'+esc(pool.modelId || '-')+'</code><div class="muted">'+esc(pool.strategy || '-')+'</div></td><td>'+endpointLabel+'</td><td><span class="pill '+statusCls+'">'+esc(endpoint.status || '-')+'</span></td><td>'+esc(latency)+'</td><td>'+esc(endpoint.failureCount || 0)+'<div class="muted">success '+esc(endpoint.successCount || 0)+'</div></td><td>'+esc(endpoint.lastSuccessAt ? new Date(endpoint.lastSuccessAt).toISOString() : '-')+'</td><td>'+esc(recovery)+'</td></tr>');` +
+    `    });` +
+    `  });` +
+    `  modelPoolHealthTableBody.innerHTML=rows.length ? rows.join('') : '<tr><td colspan="7" class="muted">No registration model pools configured</td></tr>';` +
+    `}` +
+    `async function loadModelPoolHealth(){` +
+    `  const res=await fetch('/api/models/pool-health');` +
+    `  const data=await res.json();` +
+    `  renderModelPoolHealth(data);` +
     `}` +
     `function renderRoleConnectionGuide(data){` +
     `  const listener=data.listener || {};` +
@@ -1256,10 +1290,13 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    const remote=remoteData.remote || {};` +
     `    remoteStatusSummary.textContent=remote.enabled ? ((remote.ready ? 'ready' : (remote.reachable ? 'reachable' : 'unreachable'))+' · '+(remote.baseUrl || '-')) : 'disabled';` +
     `    if(remoteData.compiledModels){ modelCountStatus.textContent=remoteData.compiledModels.modelCount ?? modelCountStatus.textContent; }` +
+    `    try { await loadModelPoolHealth(); } catch (_poolError) { modelPoolHealthSummary.className='alert warn'; modelPoolHealthSummary.innerHTML='<strong>Pool health unavailable</strong><div class="muted">无法加载模型池健康状态</div>'; }` +
     `  } catch (_error) {` +
     `    serviceReadyStatus.textContent='unreachable';` +
     `    remoteStatusSummary.textContent='unknown';` +
     `    securityStatusSummary.textContent='unknown';` +
+    `    modelPoolHealthSummary.className='alert warn';` +
+    `    modelPoolHealthSummary.innerHTML='<strong>Pool health unavailable</strong><div class="muted">无法加载模型池健康状态</div>';` +
     `  }` +
     `}` +
     `async function saveConfigDraft(){` +

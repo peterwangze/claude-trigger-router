@@ -49,6 +49,7 @@ import { buildServerInitialConfig } from './index';
 import { governanceMetricsExportStore, governanceTraceStore } from './governance';
 import { normalizeAndValidateConfig } from './utils/config';
 import { authAuditStore, authQuotaUsageStore, createManagedApiKey } from './auth/api-keys';
+import { modelPoolHealthStore } from './models/pool-health';
 
 describe('createServer /api/config', () => {
 
@@ -529,6 +530,7 @@ describe('createServer /api/config', () => {
     governanceMetricsExportStore.clear();
     authAuditStore.clear();
     authQuotaUsageStore.clear();
+    modelPoolHealthStore.clear();
     mockBackupConfigFile.mockResolvedValue(null);
     mockWriteConfigFile.mockResolvedValue(undefined);
     mockReadConfigFile.mockResolvedValue({});
@@ -1003,6 +1005,95 @@ describe('createServer /api/config', () => {
         upstreamAuthConfigured: true,
         priority: 10,
       })
+    );
+  });
+
+  it('exposes model pool health for maintainer operations', async () => {
+    const now = Date.now();
+    modelPoolHealthStore.recordFailure('sonnet', 'edge-primary', now);
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-backup', now + 500, 180);
+    const server = createServer({
+      initialConfig: {
+        Providers: [],
+        Router: {
+          default: 'sonnet',
+        },
+        Registration: {
+          enabled: true,
+          strategy: 'least-latency',
+          upstream_services: [
+            {
+              id: 'edge-router',
+              base_url: 'https://edge.example.com',
+              auth_token: 'edge-token',
+            },
+          ],
+          models: [
+            {
+              id: 'sonnet',
+              api: 'https://edge.example.com/v1',
+              key: 'sk-edge',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-primary',
+                pool_priority: 10,
+                upstream_service_id: 'edge-router',
+              },
+            },
+            {
+              id: 'sonnet',
+              api: 'https://backup.example.com/v1',
+              key: 'sk-backup',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-backup',
+                pool_priority: 20,
+              },
+            },
+          ],
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/models/pool-health');
+
+    const result = await handler({}, {});
+
+    expect(result.summary).toEqual(
+      expect.objectContaining({
+        pools: 1,
+        endpoints: 2,
+        healthy: 1,
+        cooldown: 1,
+        open: 0,
+        averageLatencyMs: 180,
+      })
+    );
+    expect(result.persistedState.endpoints).toBeGreaterThanOrEqual(2);
+    expect(result.pools[0]).toEqual(
+      expect.objectContaining({
+        modelId: 'sonnet',
+        strategy: 'least-latency',
+        activeEndpointId: 'edge-backup',
+      })
+    );
+    expect(result.pools[0].endpoints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'edge-primary',
+          status: 'cooldown',
+          failureCount: 1,
+        }),
+        expect.objectContaining({
+          id: 'edge-backup',
+          active: true,
+          status: 'healthy',
+          latency: expect.objectContaining({
+            averageMs: 180,
+          }),
+        }),
+      ])
     );
   });
 
@@ -2354,6 +2445,11 @@ describe('createServer /api/config', () => {
     expect(html).toContain('compiledProvidersTable');
     expect(html).toContain('compiledModelMapTable');
     expect(html).toContain('compiledModelPoolsTable');
+    expect(html).toContain('Model pool health');
+    expect(html).toContain('modelPoolHealthSummary');
+    expect(html).toContain('modelPoolHealthTable');
+    expect(html).toContain('/api/models/pool-health');
+    expect(html).toContain('loadModelPoolHealth');
     expect(html).toContain('Compatibility profile');
     expect(html).toContain('Dispatch format');
     expect(html).toContain('loadCompiledModels');

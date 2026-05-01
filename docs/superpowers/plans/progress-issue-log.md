@@ -307,3 +307,28 @@
   - `src/index.ts`
   - `README.md`
   - `docs/configuration-guide.md`
+
+### PI-015：模型池健康状态重启丢失且缺少维护者运营视图
+
+- 首次暴露时间：2026-05-01
+- 问题描述：P2-4 同模型多源池化已具备 priority、fallback、cooldown、熔断、延迟窗口和 least-latency，但健康状态仍只在进程内存中，服务重启后会丢失 endpoint 的失败计数、冷却/熔断窗口和延迟样本；维护者也只能从 compiled models 的 endpoint 行间接查看状态，缺少独立的 pool health 运营入口。
+- 影响范围：
+  - server/cloud 模式下重启后短期故障 endpoint 可能重新参与调度
+  - least-latency 策略会在重启后丢失已有延迟窗口，短时间内退回 priority
+  - 维护者排查多源池慢请求、熔断和 fallback 时缺少聚合视图
+- 修正动作：
+  - `ModelPoolHealthStore` 新增 `hydrate()`、`exportForPersistence()` 和变更监听器，持久化 failure/success/cooldown/circuit/latency samples
+  - 启动入口加载 `model-pool-health.json`，运行中异步串行落盘，退出时与治理 trace 一起 flush
+  - 新增 `GET /api/models/pool-health` 只读 API，返回 pool summary、active endpoint、endpoint status、失败/成功计数、恢复时间和延迟窗口
+  - `/ui` 维护者工作台新增 Model pool health 区块，展示 healthy/cooldown/open 摘要和 endpoint 明细
+  - 补充 store hydrate/export、变更监听和 server API 回归测试
+- 当前状态：`closed`
+- 闭环结论：P2-4 已从“可运行但重启丢状态”的内存 health 推进到“可恢复、可观测、可维护”的最小运营闭环；后续继续补主动健康探测、成本/速率元数据和更丰富调度策略。
+- 关联文档：
+  - `src/models/pool-health.ts`
+  - `src/models/pool-health-persistence.ts`
+  - `src/index.ts`
+  - `src/server.ts`
+  - `src/ui/workbench.ts`
+  - `src/models/pool-health.test.ts`
+  - `src/server.test.ts`

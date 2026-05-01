@@ -16,6 +16,7 @@ import {
   buildGovernanceHealthSummary,
 } from "./governance";
 import { buildModelRegistry, collectCapabilityWarnings } from "./models/compile";
+import { IModelPoolEndpointHealthSnapshot, modelPoolHealthStore } from "./models/pool-health";
 import { toExternalModelConfig } from "./models/schema";
 import { buildValidationIssueReport } from "./utils/validation-contract";
 import { renderWorkbenchHtml } from "./ui/workbench";
@@ -278,6 +279,72 @@ function buildRegistrationInfo(rawConfig: any) {
       errors: normalizedResult.errors,
       warnings: normalizedResult.warnings,
     }),
+  };
+}
+
+function buildModelPoolHealthReport(rawConfig: any) {
+  const normalizedResult = normalizeAndValidateConfig(rawConfig ?? {});
+  const normalized = normalizedResult.config;
+  const registry = buildModelRegistry(normalized);
+  const pools = Object.values(registry.modelPools ?? {}).map((pool: any) => {
+    const endpoints = (pool.endpoints ?? []).map((endpoint: any) => {
+      const health: IModelPoolEndpointHealthSnapshot = modelPoolHealthStore.getSnapshot(pool.modelId, endpoint.id);
+      return {
+        id: endpoint.id,
+        modelId: pool.modelId,
+        providerName: endpoint.providerName,
+        modelName: endpoint.modelName,
+        upstreamServiceId: endpoint.upstreamServiceId,
+        upstreamBaseUrl: endpoint.upstreamBaseUrl,
+        priority: endpoint.priority,
+        enabled: endpoint.enabled,
+        active: endpoint.id === pool.activeEndpointId,
+        status: health.status,
+        failureCount: health.failureCount,
+        successCount: health.successCount,
+        lastFailureAt: health.lastFailureAt,
+        lastSuccessAt: health.lastSuccessAt,
+        cooldownUntil: health.cooldownUntil,
+        circuitOpenUntil: health.circuitOpenUntil,
+        latency: health.latency,
+      };
+    });
+    return {
+      modelId: pool.modelId,
+      strategy: pool.strategy,
+      activeEndpointId: pool.activeEndpointId,
+      endpoints,
+      warnings: pool.warnings ?? [],
+    };
+  });
+  const endpoints = pools.flatMap((pool) => pool.endpoints);
+  const statusCounts = endpoints.reduce<Record<string, number>>((counts, endpoint) => {
+    counts[endpoint.status] = (counts[endpoint.status] ?? 0) + 1;
+    return counts;
+  }, {});
+  const latencySamples = endpoints
+    .map((endpoint) => endpoint.latency?.averageMs)
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  const persistence = modelPoolHealthStore.exportForPersistence();
+
+  return {
+    generatedAt: new Date().toISOString(),
+    persistedState: {
+      updatedAt: persistence.updatedAt,
+      endpoints: persistence.endpoints.length,
+    },
+    summary: {
+      pools: pools.length,
+      endpoints: endpoints.length,
+      healthy: statusCounts.healthy ?? 0,
+      cooldown: statusCounts.cooldown ?? 0,
+      open: statusCounts.open ?? 0,
+      averageLatencyMs: latencySamples.length
+        ? latencySamples.reduce((sum, value) => sum + value, 0) / latencySamples.length
+        : undefined,
+    },
+    pools,
+    warnings: normalizedResult.warnings,
   };
 }
 
@@ -747,6 +814,10 @@ export const createServer = (config: any): Server => {
         capabilityWarnings,
       }),
     };
+  });
+
+  server.app.get("/api/models/pool-health", async () => {
+    return buildModelPoolHealthReport(config.initialConfig ?? {});
   });
 
   server.app.post("/api/models/compiled/preview", async (req: any, reply: any) => {

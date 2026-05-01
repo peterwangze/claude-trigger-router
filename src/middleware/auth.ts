@@ -30,6 +30,7 @@ function authRequirementForRequest(req: FastifyRequest): TManagedApiKeyScope {
     '/api/remote-status',
     '/api/registration',
     '/api/models/compiled',
+    '/api/models/pool-health',
     '/api/transformers',
     '/api/governance/health',
     '/api/governance/metrics',

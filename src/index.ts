@@ -33,6 +33,8 @@ import { triggerRouter as smartRouterRuntime } from "./trigger";
 import { createStream } from 'rotating-file-stream';
 import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, recordGovernanceTrace, sessionStateStore } from "./governance";
 import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
+import { modelPoolHealthStore } from "./models/pool-health";
+import { loadPersistedModelPoolHealth, savePersistedModelPoolHealth } from "./models/pool-health-persistence";
 import { buildProviderDispatchRequest } from "./protocols";
 
 const event = new EventEmitter();
@@ -108,6 +110,16 @@ async function run(options: RunOptions = {}) {
   } catch (error) {
     logWarn(`[AuthQuota] Failed to load persisted quota usage: ${error instanceof Error ? error.message : String(error)}`);
   }
+  try {
+    modelPoolHealthStore.hydrate(await loadPersistedModelPoolHealth());
+  } catch (error) {
+    logWarn(`[ModelPoolHealth] Failed to load persisted health state: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  modelPoolHealthStore.setChangeListener((payload) => {
+    void savePersistedModelPoolHealth(payload).catch((error) => {
+      logWarn(`[ModelPoolHealth] Failed to persist health state: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  });
 
   // 配置日志
   configureLogging(config);
@@ -132,7 +144,10 @@ async function run(options: RunOptions = {}) {
     cleanupPidFile();
     const forceExit = setTimeout(() => process.exit(0), 500);
     forceExit.unref?.();
-    void governanceTraceStore.flushPersistence().finally(() => {
+    void Promise.allSettled([
+      governanceTraceStore.flushPersistence(),
+      savePersistedModelPoolHealth(modelPoolHealthStore.exportForPersistence()),
+    ]).finally(() => {
       clearTimeout(forceExit);
       process.exit(0);
     });

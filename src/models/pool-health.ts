@@ -21,7 +21,25 @@ export interface IModelPoolEndpointLatencyWindow {
   windowEndedAt?: number;
 }
 
-interface IModelPoolEndpointLatencySample {
+export interface IModelPoolEndpointHealthPersistenceEntry {
+  modelId: string;
+  endpointId: string;
+  failureCount?: number;
+  successCount?: number;
+  lastFailureAt?: number;
+  lastSuccessAt?: number;
+  cooldownUntil?: number;
+  circuitOpenUntil?: number;
+  latencySamples?: IModelPoolEndpointLatencySample[];
+}
+
+export interface IModelPoolHealthPersistencePayload {
+  version: 1;
+  updatedAt: string;
+  endpoints: IModelPoolEndpointHealthPersistenceEntry[];
+}
+
+export interface IModelPoolEndpointLatencySample {
   latencyMs: number;
   recordedAt: number;
 }
@@ -38,6 +56,7 @@ interface IModelPoolEndpointHealthState {
 
 export class ModelPoolHealthStore {
   private states = new Map<string, IModelPoolEndpointHealthState>();
+  private changeListener?: (payload: IModelPoolHealthPersistencePayload) => void;
 
   constructor(
     private readonly cooldownMs = 60_000,
@@ -48,6 +67,61 @@ export class ModelPoolHealthStore {
 
   clear(): void {
     this.states.clear();
+    this.notifyChange();
+  }
+
+  setChangeListener(listener: ((payload: IModelPoolHealthPersistencePayload) => void) | undefined): void {
+    this.changeListener = listener;
+  }
+
+  hydrate(payload: IModelPoolHealthPersistencePayload | undefined): void {
+    this.states.clear();
+    if (!payload || !Array.isArray(payload.endpoints)) {
+      return;
+    }
+
+    for (const entry of payload.endpoints) {
+      if (!entry || typeof entry.modelId !== 'string' || typeof entry.endpointId !== 'string') {
+        continue;
+      }
+      const modelId = entry.modelId.trim();
+      const endpointId = entry.endpointId.trim();
+      if (!modelId || !endpointId) {
+        continue;
+      }
+      this.states.set(this.key(modelId, endpointId), {
+        failureCount: this.readFiniteNumber(entry.failureCount) ?? 0,
+        successCount: this.readFiniteNumber(entry.successCount) ?? 0,
+        lastFailureAt: this.readFiniteNumber(entry.lastFailureAt),
+        lastSuccessAt: this.readFiniteNumber(entry.lastSuccessAt),
+        cooldownUntil: this.readFiniteNumber(entry.cooldownUntil),
+        circuitOpenUntil: this.readFiniteNumber(entry.circuitOpenUntil),
+        latencySamples: this.normalizeLatencySamples(entry.latencySamples),
+      });
+    }
+  }
+
+  exportForPersistence(now = new Date()): IModelPoolHealthPersistencePayload {
+    const endpoints = Array.from(this.states.entries()).map(([key, state]) => {
+      const [modelId, endpointId] = key.split('\u0000');
+      return {
+        modelId,
+        endpointId,
+        failureCount: state.failureCount,
+        successCount: state.successCount,
+        lastFailureAt: state.lastFailureAt,
+        lastSuccessAt: state.lastSuccessAt,
+        cooldownUntil: state.cooldownUntil,
+        circuitOpenUntil: state.circuitOpenUntil,
+        latencySamples: state.latencySamples,
+      };
+    });
+
+    return {
+      version: 1,
+      updatedAt: now.toISOString(),
+      endpoints,
+    };
   }
 
   recordFailure(modelId: string, endpointId: string, now = Date.now()): IModelPoolEndpointHealthSnapshot {
@@ -66,6 +140,7 @@ export class ModelPoolHealthStore {
       circuitOpenUntil: shouldOpenCircuit ? now + this.circuitBreakerCooldownMs : current.circuitOpenUntil,
     };
     this.states.set(key, next);
+    this.notifyChange();
     return this.toSnapshot(modelId, endpointId, next, now);
   }
 
@@ -91,6 +166,7 @@ export class ModelPoolHealthStore {
       ...(latencySamples ? { latencySamples } : {}),
     };
     this.states.set(key, next);
+    this.notifyChange();
     return this.toSnapshot(modelId, endpointId, next, now);
   }
 
@@ -127,6 +203,32 @@ export class ModelPoolHealthStore {
         recordedAt,
       },
     ].slice(-this.latencyWindowSize);
+  }
+
+  private normalizeLatencySamples(samples: unknown): IModelPoolEndpointLatencySample[] | undefined {
+    if (!Array.isArray(samples)) {
+      return undefined;
+    }
+
+    const normalized = samples
+      .map((sample) => ({
+        latencyMs: this.readFiniteNumber(sample?.latencyMs),
+        recordedAt: this.readFiniteNumber(sample?.recordedAt),
+      }))
+      .filter((sample): sample is IModelPoolEndpointLatencySample =>
+        sample.latencyMs !== undefined && sample.latencyMs >= 0 && sample.recordedAt !== undefined
+      )
+      .slice(-this.latencyWindowSize);
+
+    return normalized.length ? normalized : undefined;
+  }
+
+  private readFiniteNumber(value: unknown): number | undefined {
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  }
+
+  private notifyChange(): void {
+    this.changeListener?.(this.exportForPersistence());
   }
 
   private toLatencyWindow(

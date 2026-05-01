@@ -71,4 +71,51 @@ describe('ModelPoolHealthStore', () => {
       windowEndedAt: 12_000,
     });
   });
+
+  it('exports and hydrates endpoint health for restart continuity', () => {
+    const store = new ModelPoolHealthStore(1_000, 2, 5_000, 3);
+
+    store.recordFailure('sonnet', 'edge-a', 10_000);
+    store.recordFailure('sonnet', 'edge-a', 10_500);
+    store.recordSuccess('sonnet', 'edge-b', 11_000, 240);
+
+    const restarted = new ModelPoolHealthStore(1_000, 2, 5_000, 3);
+    restarted.hydrate(store.exportForPersistence(new Date('2026-05-01T00:00:00.000Z')));
+
+    expect(restarted.getSnapshot('sonnet', 'edge-a', 11_000)).toEqual(
+      expect.objectContaining({
+        status: 'open',
+        failureCount: 2,
+        circuitOpenUntil: 15_500,
+      })
+    );
+    expect(restarted.getSnapshot('sonnet', 'edge-b', 11_001).latency).toEqual(
+      expect.objectContaining({
+        sampleCount: 1,
+        averageMs: 240,
+      })
+    );
+  });
+
+  it('notifies persistence listeners after health changes', () => {
+    const store = new ModelPoolHealthStore();
+    const changes: unknown[] = [];
+
+    store.setChangeListener((payload) => changes.push(payload));
+    store.recordSuccess('sonnet', 'edge-a', 10_000, 120);
+
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toEqual(
+      expect.objectContaining({
+        version: 1,
+        endpoints: [
+          expect.objectContaining({
+            modelId: 'sonnet',
+            endpointId: 'edge-a',
+            successCount: 1,
+          }),
+        ],
+      })
+    );
+  });
 });
