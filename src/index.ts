@@ -91,6 +91,94 @@ function buildServerInitialConfig(config: any, registry: any, host: string, serv
   };
 }
 
+function isRemoteForwardEnabled(config: any): boolean {
+  const runtime = config?.Runtime ?? {};
+  const remoteService = runtime.remote_service ?? {};
+  return (runtime.mode ?? "local") === "local"
+    && Boolean(remoteService.enabled)
+    && typeof remoteService.base_url === "string"
+    && remoteService.base_url.trim().length > 0;
+}
+
+function isModelCallPath(url: string | undefined): boolean {
+  const path = String(url ?? "").split("?")[0];
+  return path === "/v1/messages" || path === "/v1/chat/completions";
+}
+
+function buildRemoteForwardHeaders(req: any, authToken?: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const passThroughHeaders = [
+    "accept",
+    "anthropic-version",
+    "anthropic-beta",
+    "content-type",
+  ];
+
+  for (const header of passThroughHeaders) {
+    const value = req.headers?.[header];
+    if (typeof value === "string" && value.trim()) {
+      headers[header] = value;
+    }
+  }
+  if (!headers["content-type"]) {
+    headers["content-type"] = "application/json";
+  }
+  if (authToken?.trim()) {
+    headers.Authorization = `Bearer ${authToken.trim()}`;
+  }
+  headers["x-ctr-remote-forward"] = "1";
+  return headers;
+}
+
+async function forwardModelCallToRemote(req: any, reply: any, config: any): Promise<boolean> {
+  if (!isModelCallPath(req.url) || !isRemoteForwardEnabled(config) || req.headers?.["x-ctr-remote-forward"] === "1") {
+    return false;
+  }
+
+  const remoteService = config.Runtime.remote_service;
+  const remoteBaseUrl = remoteService.base_url.trim().replace(/\/+$/, "");
+  const path = String(req.url).split("?")[0];
+  const targetUrl = `${remoteBaseUrl}${path}`;
+  try {
+    const response = await fetch(targetUrl, {
+      method: String(req.method ?? "POST").toUpperCase(),
+      headers: buildRemoteForwardHeaders(req, remoteService.auth_token),
+      body: req.body === undefined ? undefined : JSON.stringify(req.body),
+      signal: AbortSignal.timeout(config.API_TIMEOUT_MS ?? 600_000),
+    });
+    reply.code(response.status);
+    const contentType = response.headers.get("content-type");
+    if (contentType) {
+      reply.header?.("content-type", contentType);
+    }
+    const retryAfter = response.headers.get("retry-after");
+    if (retryAfter) {
+      reply.header?.("retry-after", retryAfter);
+    }
+    req.remoteForwarded = true;
+    req.responseGovernanceApplied = true;
+    if (response.body) {
+      reply.send(response.body);
+      return true;
+    }
+    reply.send(response.ok ? {} : { error: `Remote service returned HTTP ${response.status}` });
+    return true;
+  } catch (error) {
+    req.remoteForwarded = true;
+    req.responseGovernanceApplied = true;
+    logWarn(`[RemoteForward] Failed to forward ${path}: ${error instanceof Error ? error.message : String(error)}`);
+    reply.code(502);
+    reply.send({
+      error: {
+        type: "remote_service_unavailable",
+        message: "Remote CTR service is unavailable.",
+        remoteService: remoteBaseUrl,
+      },
+    });
+    return true;
+  }
+}
+
 /**
  * 运行服务
  */
@@ -258,12 +346,21 @@ async function run(options: RunOptions = {}) {
     });
   });
 
+  server.addHook("preHandler", async (req: any, reply: any) => {
+    if (await forwardModelCallToRemote(req, reply, config)) {
+      return reply;
+    }
+  });
+
   // 初始化 SmartRouter 统一路由引擎
   smartRouterRuntime.init(config);
   log(`[SmartRouter] Initialized, enabled: ${smartRouterRuntime.isEnabled()}`);
 
   // SmartRouter 统一路由中间件（在原有路由之前）
   server.addHook("preHandler", async (req: any, reply: any) => {
+    if (req.remoteForwarded) {
+      return;
+    }
     if (req.url.startsWith("/v1/messages")) {
       if (req.body.metadata?.user_id) {
         const parts = req.body.metadata.user_id.split("_session_");
@@ -422,6 +519,10 @@ async function run(options: RunOptions = {}) {
 
   // 响应处理
   server.addHook("onSend", (req: any, reply: any, payload: any, done: any) => {
+    if (req.remoteForwarded) {
+      return done(null, payload);
+    }
+
     if (req.originalRequestBody) {
       req.body = req.originalRequestBody;
     }

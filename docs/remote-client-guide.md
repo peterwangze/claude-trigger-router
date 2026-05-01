@@ -48,21 +48,20 @@ ctr ui
 
 `doctor` checks the configured remote service and reports whether it is reachable and ready. `status` shows the local role and remote-service connection hint. `ui` shows remote health through `/api/remote-status`.
 
-## Use with Claude Code
+## Use with Claude Code through local ctr
 
-When the maintainer gives you the direct server URL, Claude Code can point at it:
+```bash
+ctr setup
+ctr doctor
+ctr code
+```
+
+With `Runtime.remote_service.enabled`, the local `ctr` service acts as a thin client proxy for model calls. Claude Code still talks to local `ctr`, while `ctr` forwards `/v1/messages` and `/v1/chat/completions` to the configured remote service with `Runtime.remote_service.auth_token`.
+
+You can still point Claude Code directly at the remote server when you do not want a local proxy:
 
 ```bash
 export ANTHROPIC_BASE_URL="https://router.example.com"
 export ANTHROPIC_API_KEY="$CTR_REMOTE_AUTH_TOKEN"
 claude
 ```
-
-If you are using the local `ctr` client profile, keep following the local workflow while remote status support evolves:
-
-```bash
-ctr setup
-ctr doctor
-```
-
-The current remote-service profile focuses on connection config, readiness checks and registration summaries. It does not yet claim full automatic remote request forwarding for every local command.

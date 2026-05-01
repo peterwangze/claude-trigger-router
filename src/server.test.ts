@@ -2216,7 +2216,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('listenerStatusSummary');
     expect(html).toContain('roleConnectionGuide');
     expect(html).toContain('Role & connection guide');
-    expect(html).toContain('ANTHROPIC_BASE_URL');
+    expect(html).toContain('本地 ctr 代理把模型请求转发到远程服务');
     expect(html).toContain('client + read-only');
     expect(html).toContain('authQuotaTable');
     expect(html).toContain('authScopeGuide');

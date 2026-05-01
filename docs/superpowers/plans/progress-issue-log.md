@@ -332,3 +332,27 @@
   - `src/ui/workbench.ts`
   - `src/models/pool-health.test.ts`
   - `src/server.test.ts`
+
+### PI-016：远程客户端配置只有状态探测，模型调用仍无法通过本地 ctr 进入远端服务
+
+- 首次暴露时间：2026-05-01
+- 问题描述：`Runtime.remote_service` 已能表达远程服务地址、token、ready/status 和 registration 摘要，但本地 `ctr code` 启动后模型调用仍会进入本地路由链路；对于没有本地 `Models` 的远程客户端 profile，这会导致“状态显示远端 ready，但实际请求没有发往远端服务”的割裂体感。
+- 影响范围：
+  - 远程使用者选择 setup 的“连接远程服务”路径后继续使用 `ctr code`
+  - 本地无模型配置、只依赖远端服务端模型池的客户端
+  - 远程客户端的文档、status 和实际请求路径一致性
+- 修正动作：
+  - 启动入口新增 local remote-client 请求转发 hook：本地认证通过后，将 `/v1/messages` 与 `/v1/chat/completions` 转发到 `Runtime.remote_service.base_url`
+  - 转发时使用 `Runtime.remote_service.auth_token` 作为远端 Authorization，并设置 `x-ctr-remote-forward: 1` 避免误循环
+  - 远端转发请求标记为 `remoteForwarded`，不再进入本地 SmartRouter、agent、上下文容量治理和 onSend governance，避免“双路由”
+  - 转发失败时返回结构化 `502 remote_service_unavailable`
+  - 更新 remote client guide、configuration guide、角色提示和实施计划
+- 当前状态：`closed`
+- 闭环结论：远程客户端路径已从“只会配置和探测远端状态”推进到“本地 ctr 可作为远端 CTR 的薄代理转发模型调用”的最小闭环；后续继续补注册同步、服务发现、节点/集群编排和更完整服务模式。
+- 关联文档：
+  - `src/index.ts`
+  - `src/index-startup.test.ts`
+  - `src/runtime-role-guidance.ts`
+  - `src/server.ts`
+  - `docs/remote-client-guide.md`
+  - `docs/configuration-guide.md`

@@ -333,10 +333,11 @@ P3-3：持续 closed 事项复审
 - P2-4 `同模型多源池化与注册调度`（Chunk 2e）：已在 model pool endpoint health 上新增内存延迟窗口。非流式 pool 请求成功后会记录 endpoint 成功次数和总请求延迟，health snapshot 暴露 sample count、last latency、average latency 与窗口起止时间；compiled model pool 和 `/ui` endpoint 行可看到平均延迟。当前仍不做持久化 health 或 least-latency 调度。
 - P2-4 `同模型多源池化与注册调度`（Chunk 2f）：已新增显式 `Registration.strategy: "least-latency"`。默认仍保持 `priority`；当维护者显式启用 least-latency 时，logical model active endpoint 与 fallback candidate 会在健康 endpoint 中优先选择已有成功延迟样本的最低平均延迟 endpoint，没有样本或延迟相同时回退 priority。当前仍不做持久化 health 或独立 pool health 运营视图。
 - P2-4 `同模型多源池化与注册调度`（Chunk 2g）：已新增 model pool endpoint health 持久化和维护者运营视图。启动时会从配置目录下的 `model-pool-health.json` 恢复 failure/success/cooldown/circuit/latency samples，运行中健康变化 debounce 后异步落盘，退出时与治理 trace 一起 flush；新增 `GET /api/models/pool-health` 只读 API，`/ui` 维护者工作台展示 pool health 摘要、active endpoint、cooldown、熔断和延迟窗口。当前仍不做主动健康探测、成本/速率元数据或 round-robin / health-aware 等更多策略。
+- 部署形态与远程接入收敛（Chunk 3）：已新增 local remote-client 最小请求转发。`Runtime.mode: "local"` 且 `Runtime.remote_service.enabled` 时，本地 CTR 在本地认证后把 `/v1/messages` 和 `/v1/chat/completions` 转发到 `Runtime.remote_service.base_url`，使用 `Runtime.remote_service.auth_token` 作为远端 Authorization，并通过 `x-ctr-remote-forward` 避免循环；远端转发请求不会再进入本地 SmartRouter / agent / governance 重复处理。当前仍不做注册同步、服务发现、节点/集群编排或托管控制面。
 
 下一项按优先级继续推进：
 
-- 部署形态与远程接入收敛：在池化持久化 health 与维护者视图已形成最小闭环后，继续推进远程请求转发、注册同步和更完整服务模式，保持默认本地 `Models` 路径优先。
+- 部署形态与远程接入收敛：在远程请求转发已形成最小闭环后，继续推进注册同步和更完整服务模式，保持默认本地 `Models` 路径优先。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

@@ -128,6 +128,7 @@ describe('run startup wiring', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
 
     mockInitDir.mockResolvedValue(undefined);
     mockInitConfig.mockResolvedValue({
@@ -421,5 +422,131 @@ describe('run startup wiring', () => {
     const payload = vi.mocked(reply.send).mock.calls[0][0];
     firstOnSendHook(req, reply, payload, done);
     expect(done).toHaveBeenCalledWith(null, payload);
+  });
+
+  it('forwards local model calls to the configured remote service before local routing', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'msg_remote' }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    mockInitConfig.mockResolvedValue({
+      HOST: '127.0.0.1',
+      PORT: 5678,
+      LOG: false,
+      APIKEY: 'local-admin',
+      Providers: [],
+      Runtime: {
+        mode: 'local',
+        remote_service: {
+          enabled: true,
+          base_url: 'https://router.example.com/',
+          auth_token: 'remote-client-token',
+        },
+      },
+    });
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const remoteForwardHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler')[1]?.[1];
+    const smartRouterHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler')[2]?.[1];
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+    };
+    const req: any = {
+      id: 'req-remote',
+      method: 'POST',
+      url: '/v1/messages',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer local-admin',
+      },
+      body: {
+        model: 'sonnet',
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+    };
+
+    await remoteForwardHook(req, reply);
+    await smartRouterHook(req, reply);
+
+    expect(fetchMock).toHaveBeenCalledWith('https://router.example.com/v1/messages', expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({
+        Authorization: 'Bearer remote-client-token',
+        'content-type': 'application/json',
+        'x-ctr-remote-forward': '1',
+      }),
+      body: JSON.stringify(req.body),
+    }));
+    expect(reply.code).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith(expect.any(ReadableStream));
+    expect(req.remoteForwarded).toBe(true);
+    expect(req.responseGovernanceApplied).toBe(true);
+    expect(mockTriggerRoute).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('returns a structured 502 when remote forwarding cannot reach the service', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('connect failed')));
+    mockInitConfig.mockResolvedValue({
+      HOST: '127.0.0.1',
+      PORT: 5678,
+      LOG: false,
+      APIKEY: 'local-admin',
+      Providers: [],
+      Runtime: {
+        mode: 'local',
+        remote_service: {
+          enabled: true,
+          base_url: 'https://router.example.com',
+          auth_token: 'remote-client-token',
+        },
+      },
+    });
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const remoteForwardHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler')[1]?.[1];
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+    };
+
+    await remoteForwardHook({
+      id: 'req-remote-fail',
+      method: 'POST',
+      url: '/v1/chat/completions',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: {
+        model: 'sonnet',
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+    }, reply);
+
+    expect(reply.code).toHaveBeenCalledWith(502);
+    expect(reply.send).toHaveBeenCalledWith({
+      error: {
+        type: 'remote_service_unavailable',
+        message: 'Remote CTR service is unavailable.',
+        remoteService: 'https://router.example.com',
+      },
+    });
+
+    vi.unstubAllGlobals();
   });
 });

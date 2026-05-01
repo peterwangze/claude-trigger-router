@@ -207,7 +207,7 @@ function buildServiceInfo(rawConfig: any) {
           baseUrl: remoteService.base_url || "",
           authTokenConfigured: Boolean(remoteService.auth_token),
           recommendedScopes: ["client", "read-only"],
-          guidance: "Use Runtime.remote_service.base_url and a managed client + read-only key from the server maintainer.",
+          guidance: "Local CTR forwards model calls to Runtime.remote_service.base_url with a managed client + read-only key from the server maintainer.",
         }
       : runtimeMode === "local"
         ? {
