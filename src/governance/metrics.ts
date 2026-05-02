@@ -40,6 +40,15 @@ export interface IGovernanceAnomaly {
 }
 
 export type TGovernanceHealthStatus = 'idle' | 'healthy' | 'watch' | 'critical';
+export type TGovernanceRoutingTuningSeverity = 'info' | 'warn' | 'critical';
+
+export interface IGovernanceRoutingTuningRecommendation {
+  code: string;
+  severity: TGovernanceRoutingTuningSeverity;
+  message: string;
+  evidence: string;
+  action: string;
+}
 
 export interface IGovernanceHealthSummary {
   status: TGovernanceHealthStatus;
@@ -62,6 +71,7 @@ export interface IGovernanceHealthSummary {
     topFinalModel?: IGovernanceDistributionEntry;
   };
   actions: string[];
+  routingTuning: IGovernanceRoutingTuningRecommendation[];
 }
 
 export interface IGovernanceAnomalyThresholds {
@@ -502,6 +512,117 @@ function buildHealthActions(anomalies: IGovernanceAnomaly[]): string[] {
   return Array.from(actions);
 }
 
+function percent(value: number): string {
+  return `${Number((value * 100).toFixed(1))}%`;
+}
+
+function topOutcomeGroup(
+  groups: IGovernanceRoutingOutcomeGroupEntry[],
+  predicate: (group: IGovernanceRoutingOutcomeGroupEntry) => boolean
+): IGovernanceRoutingOutcomeGroupEntry | undefined {
+  return groups
+    .filter(predicate)
+    .sort((left, right) => {
+      const leftScore = left.cascadeAfterSwitchRate + left.modelSwitchRate;
+      const rightScore = right.cascadeAfterSwitchRate + right.modelSwitchRate;
+      if (rightScore !== leftScore) {
+        return rightScore - leftScore;
+      }
+      if (right.totalTraces !== left.totalTraces) {
+        return right.totalTraces - left.totalTraces;
+      }
+      return left.key.localeCompare(right.key);
+    })[0];
+}
+
+function buildRoutingTuningRecommendations(
+  metrics: IGovernanceMetrics,
+  outcome?: IGovernanceRoutingOutcomeSummary
+): IGovernanceRoutingTuningRecommendation[] {
+  if (!outcome || metrics.totalTraces === 0) {
+    return [];
+  }
+
+  const recommendations: IGovernanceRoutingTuningRecommendation[] = [];
+
+  if (outcome.routedTraces < DEFAULT_ANOMALY_THRESHOLDS.minSampleSize) {
+    recommendations.push({
+      code: 'collect_routing_samples',
+      severity: 'info',
+      message: 'Routing sample size is still small.',
+      evidence: `routedTraces=${outcome.routedTraces}`,
+      action: 'Collect at least 3 routed traces before changing routing policy.',
+    });
+  }
+
+  if (outcome.contextWindowExceededCount > 0) {
+    recommendations.push({
+      code: 'context_window_exceeded',
+      severity: 'critical',
+      message: 'Some requests exceeded the selected model context window.',
+      evidence: `contextWindowExceededRate=${percent(outcome.contextWindowExceededRate)}`,
+      action: 'Review model context window metadata and Router.longContext coverage.',
+    });
+  } else if (outcome.contextWindowFallbackRate >= 0.3) {
+    recommendations.push({
+      code: 'context_window_fallback_high',
+      severity: outcome.contextWindowFallbackRate >= 0.6 ? 'warn' : 'info',
+      message: 'Long-context fallback is frequent enough to affect latency planning.',
+      evidence: `contextWindowFallbackRate=${percent(outcome.contextWindowFallbackRate)}`,
+      action: 'Monitor context window fallback rate and long-context model latency.',
+    });
+  }
+
+  const switchWithoutAlignment = topOutcomeGroup(outcome.byRouteReason, (group) =>
+    group.modelSwitchCount > 0 &&
+    group.modelSwitchRate >= 0.5 &&
+    group.alignmentOnSwitchRate < 0.5
+  );
+  if (switchWithoutAlignment) {
+    recommendations.push({
+      code: 'switch_without_alignment',
+      severity: 'warn',
+      message: 'A high-switch route is not consistently using alignment.',
+      evidence: `${switchWithoutAlignment.key}:switch=${percent(switchWithoutAlignment.modelSwitchRate)}:alignment=${percent(switchWithoutAlignment.alignmentOnSwitchRate)}`,
+      action: 'Enable or tune SmartRouter sticky alignment for high-switch routes.',
+    });
+  }
+
+  const cascadeAfterSwitch = topOutcomeGroup(outcome.byRouteReason, (group) =>
+    group.cascadeAfterSwitchCount > 0 &&
+    group.cascadeAfterSwitchRate >= DEFAULT_ANOMALY_THRESHOLDS.cascadeWarnRate
+  );
+  if (cascadeAfterSwitch || outcome.cascadeAfterSwitchRate >= DEFAULT_ANOMALY_THRESHOLDS.cascadeWarnRate) {
+    const severity = outcome.cascadeAfterSwitchRate >= DEFAULT_ANOMALY_THRESHOLDS.cascadeCriticalRate
+      ? 'critical'
+      : 'warn';
+    recommendations.push({
+      code: 'switch_cascade_risk',
+      severity,
+      message: 'Model switches are followed by cascade retries often enough to review policy.',
+      evidence: cascadeAfterSwitch
+        ? `${cascadeAfterSwitch.key}:cascadeAfterSwitch=${percent(cascadeAfterSwitch.cascadeAfterSwitchRate)}`
+        : `cascadeAfterSwitchRate=${percent(outcome.cascadeAfterSwitchRate)}`,
+      action: 'Review high-cascade route groups before widening SmartRouter candidates.',
+    });
+  }
+
+  const slowRoute = outcome.byRouteReason.find((group) =>
+    group.averageLatencyMs >= DEFAULT_ANOMALY_THRESHOLDS.latencyWarnMs
+  );
+  if (slowRoute) {
+    recommendations.push({
+      code: 'slow_route_group',
+      severity: slowRoute.averageLatencyMs >= DEFAULT_ANOMALY_THRESHOLDS.latencyCriticalMs ? 'critical' : 'warn',
+      message: 'A route group is slower than the governance latency warning threshold.',
+      evidence: `${slowRoute.key}:averageLatencyMs=${slowRoute.averageLatencyMs}`,
+      action: 'Inspect slow route groups before making them default traffic.',
+    });
+  }
+
+  return recommendations.slice(0, 5);
+}
+
 export function buildGovernanceHealthSummary(input: {
   metrics: IGovernanceMetrics;
   anomalies: IGovernanceAnomaly[];
@@ -514,6 +635,7 @@ export function buildGovernanceHealthSummary(input: {
   const criticalCount = anomalies.filter((item) => item.severity === 'critical').length;
   const warnCount = anomalies.filter((item) => item.severity === 'warn').length;
   const alertCount = anomalies.length;
+  const routingTuning = buildRoutingTuningRecommendations(metrics, input.outcome);
 
   if (metrics.totalTraces === 0) {
     return {
@@ -537,6 +659,7 @@ export function buildGovernanceHealthSummary(input: {
         topFinalModel: input.topFinalModels?.[0],
       },
       actions: ['Send requests through the router to collect governance traces.'],
+      routingTuning: [],
     };
   }
 
@@ -550,10 +673,18 @@ export function buildGovernanceHealthSummary(input: {
     ? `Healthy over ${metrics.totalTraces} traces.`
     : `${alertCount} governance alert${alertCount === 1 ? '' : 's'} ${alertVerb} attention (${criticalCount} critical / ${warnCount} warning${warnCount === 1 ? '' : 's'}).`;
   const actions = new Set(buildHealthActions(anomalies));
+  if (!anomalies.length && routingTuning.some((item) => item.severity !== 'info')) {
+    actions.delete('Continue monitoring route and model distributions.');
+  }
   if ((input.outcome?.contextWindowExceededCount ?? 0) > 0) {
     actions.add('Review model context window metadata and Router.longContext coverage.');
   } else if ((input.outcome?.contextWindowFallbackCount ?? 0) > 0) {
     actions.add('Monitor context window fallback rate and long-context model latency.');
+  }
+  for (const recommendation of routingTuning) {
+    if (recommendation.severity !== 'info') {
+      actions.add(recommendation.action);
+    }
   }
 
   return {
@@ -577,6 +708,7 @@ export function buildGovernanceHealthSummary(input: {
       topFinalModel: input.topFinalModels?.[0],
     },
     actions: Array.from(actions),
+    routingTuning,
   };
 }
 
@@ -768,6 +900,9 @@ export function exportGovernanceMetricsReport(
   if (report.health) {
     lines.push(`summary,healthStatus,${report.health.status}`);
     lines.push(`summary,healthMessage,${report.health.message}`);
+    for (const item of report.health.routingTuning ?? []) {
+      lines.push(`routingTuning,${item.code},${item.severity}:${item.evidence}`);
+    }
   }
 
   for (const anomaly of report.anomalies) {

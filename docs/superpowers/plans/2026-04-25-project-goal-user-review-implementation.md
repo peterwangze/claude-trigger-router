@@ -297,6 +297,7 @@ P3-3：持续 closed 事项复审
 - P1-5 `智能路由收益与切换体感闭环`（Chunk 1）：已在 governance metrics 中新增 routing outcome scorecard，按现有 trace 汇总 routed rate、model switch rate、stable model rate、alignment-on-switch、cascade-after-switch、route reason 平均延迟和 Top model switches；`/api/governance/metrics` 返回 `outcome`，`/api/governance/health` 的 signals 带出切换与切换后 alignment 指标，`/ui` 维护者 metrics 区展示 Model switch rate 与 Alignment on switch。
 - P1-5 `智能路由收益与切换体感闭环`（Chunk 2）：已把 outcome 从全局汇总扩展为 route reason、final model、semantic intent 三类收益分组，每组包含样本数、切换率、切换后 alignment、切换后 cascade 和平均延迟；CSV 导出与 `/ui` 维护者工作台同步展示分组 outcome，维护者可以开始按任务意图和最终模型判断组合路由是否更稳、更快。
 - P1-5 `智能路由收益与切换体感闭环`（Chunk 3）：已新增 synthetic tasks regression，固定覆盖规则命中、semantic、SmartRouter、sticky correction 与真实非流式响应治理中的 cascade gate / retry；测试同时断言 route reason、最终模型、切换率、稳定模型、cascade-after-switch、route reason 平均延迟，以及 route reason / final model / semantic intent 三类 outcome 分组，确保智能路由收益不是只靠随机切换或单点 trace 观察。
+- P1-5 `智能路由收益与切换体感闭环`（Chunk 4）：已新增 routing tuning 建议入口，`/api/governance/health` 会基于 outcome 证据输出调优建议，覆盖高切换但低 alignment、切换后 cascade、上下文窗口超限/降级和慢 route；CSV 导出和 `/ui` 维护者工作台同步展示建议 code、severity、evidence 与 action，维护者不再只能看指标，还能看到下一步该收窄候选、开启/调优 alignment、补上下文窗口元数据或排查慢 route。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 1）：已新增 `Auth.managed_keys` 最小数据结构，managed key 以哈希形式写入配置；`APIKEY` 保留为 bootstrap/admin key；新增 `GET /api/auth/keys`、`POST /api/auth/keys`、`POST /api/auth/keys/:id/revoke`，支持 label、admin/client/read-only scope、过期时间、撤销和脱敏列表；运行时 `apiKeyAuth` 已能接受 active managed client/admin key，同时拒绝 revoked、expired 或 scope 不足的 key；README 已同步远程客户端应优先使用 managed client key 的口径。该 scope 列表已在后续 Chunk 3c-e 扩展为 admin/operator/client/read-only。
 - P1-6 Chunk 1 复审补强：已修正运行时鉴权只读取启动时内存配置的问题，`apiKeyAuth` 现在支持异步配置解析器，启动入口会在鉴权时刷新当前配置中的 `APIKEY/Auth`；因此新生成的 managed key 可即时用于运行时请求，已吊销 key 也会即时失效，不再依赖服务重启。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 2）：已新增轻量 auth audit store，记录鉴权 allowed / denied / skipped、source、keyId、scope、reason、path 与 requestId；新增 admin-only `GET /api/auth/audit` 查看脱敏事件和摘要；`/api/service-info` 返回 `auth` / `security` 摘要，能识别 server/cloud 或公网监听无鉴权、bootstrap-only server 等风险；`ctr doctor` 和 `/ui` 均展示鉴权/安全状态，README 同步 managed client key 与 audit 入口说明。
@@ -340,7 +341,7 @@ P3-3：持续 closed 事项复审
 
 下一项按优先级继续推进：
 
-- 部署形态与远程接入收敛：在远程请求转发和只读注册摘要同步已形成最小闭环后，继续推进服务发现和更完整服务模式，保持默认本地 `Models` 路径优先。
+- 智能路由收益与切换体感治理：在 outcome scorecard、synthetic regression 和 routing tuning 入口已形成后，继续补真实质量/失败样本，让维护者能用稳定样本判断具体任务上的质量、速度和失败率收益。
 
 ## 七、2026-04-27 智能路由与服务化复审
 

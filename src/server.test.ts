@@ -2519,6 +2519,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Outcome by route');
     expect(html).toContain('routeOutcomeRanking');
     expect(html).toContain('renderOutcomeGroups');
+    expect(html).toContain('Routing tuning');
+    expect(html).toContain('routingTuningList');
+    expect(html).toContain('renderRoutingTuning');
     expect(html).toContain('switch ');
     expect(html).toContain('align ');
     expect(html).toContain('cascade ');

@@ -417,6 +417,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `</div>` +
     `<div class="subpanel">` +
+    `<div class="row"><strong>Routing tuning</strong><span class="muted">基于 outcome 证据给出 SmartRouter 调优建议</span></div>` +
+    `<ul id="routingTuningList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="subpanel">` +
     `<div class="row"><strong>Anomaly tuning</strong><span class="muted">来自配置文件，可在此临时覆盖当前页面查询</span></div>` +
     `<div class="control-grid">` +
     `<div><label>Min sample</label><input id="minSampleSize" value="${escapedMinSampleSize}"></div>` +
@@ -598,6 +602,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const modelOutcomeRanking=document.getElementById('modelOutcomeRanking');` +
     `const intentOutcomeRanking=document.getElementById('intentOutcomeRanking');` +
     `const healthSummary=document.getElementById('healthSummary');` +
+    `const routingTuningList=document.getElementById('routingTuningList');` +
     `const securitySummary=document.getElementById('securitySummary');` +
     `const authQuotaTableBody=document.querySelector('#authQuotaTable tbody');` +
     `const modelPoolHealthSummary=document.getElementById('modelPoolHealthSummary');` +
@@ -1422,6 +1427,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(!entries || !entries.length){ target.innerHTML='<li><span class="muted">'+esc(emptyLabel)+'</span><strong>0</strong></li>'; return; }` +
     `  target.innerHTML=entries.map(item=>'<li><span><code>'+esc(item.key)+'</code><span class="muted"> · '+esc(item.totalTraces)+' traces</span></span><strong>switch '+esc(pct(item.modelSwitchRate))+' · align '+esc(pct(item.alignmentOnSwitchRate))+' · cascade '+esc(pct(item.cascadeAfterSwitchRate))+' · '+esc(fmt(item.averageLatencyMs))+' ms</strong></li>').join('');` +
     `}` +
+    `function renderRoutingTuning(items){` +
+    `  if(!items || !items.length){ routingTuningList.innerHTML='<li><span class="muted">No routing tuning recommendations</span><strong>healthy</strong></li>'; return; }` +
+    `  routingTuningList.innerHTML=items.map(item=>'<li><span><span class="pill '+esc(item.severity === 'critical' ? 'critical' : (item.severity === 'warn' ? 'warn' : 'info'))+'">'+esc(item.severity || 'info')+'</span> <strong>'+esc(item.code || '-')+'</strong><div class="muted">'+esc(item.message || '')+'</div><div class="muted">'+esc(item.evidence || '')+'</div></span><strong>'+esc(item.action || '')+'</strong></li>').join('');` +
+    `}` +
     `function renderAnomalies(anomalies,health){` +
     `  const status=health?.status || 'idle';` +
     `  const message=health?.message || 'No governance traces yet.';` +
@@ -1525,6 +1534,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderMetrics(metricsData.metrics || {},health,metricsData.outcome || {});` +
     `  renderBuckets(metricsData || {});` +
     `  renderAnomalies(metricsData.anomalies || [],health);` +
+    `  renderRoutingTuning(health?.routingTuning || []);` +
     `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +
     `  renderRanking(modelRanking,metricsData.topFinalModels || [],'No models');` +
     `  renderRanking(intentRanking,metricsData.topSemanticIntents || [],'No intents');` +

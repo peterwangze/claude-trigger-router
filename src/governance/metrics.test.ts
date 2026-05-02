@@ -465,6 +465,75 @@ describe('summarizeGovernanceMetrics', () => {
     }).actions).toContain('Review model context window metadata and Router.longContext coverage.');
   });
 
+  it('builds routing tuning recommendations from outcome evidence', () => {
+    const traces = [
+      {
+        requestId: 'trace-switch-1',
+        initialModel: 'haiku',
+        finalModel: 'sonnet',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: true,
+        shadowChecked: false,
+        startedAt: 1,
+        latencyMs: 1800,
+      },
+      {
+        requestId: 'trace-switch-2',
+        initialModel: 'haiku',
+        finalModel: 'sonnet',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: true,
+        shadowChecked: false,
+        startedAt: 2,
+        latencyMs: 1600,
+      },
+      {
+        requestId: 'trace-context',
+        initialModel: 'haiku',
+        finalModel: 'haiku',
+        routeReason: ['context_window_exceeded:haiku'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: 3,
+        latencyMs: 120,
+      },
+    ];
+    const metrics = summarizeGovernanceMetrics(traces);
+    const outcome = summarizeRoutingOutcomes(traces);
+    const health = buildGovernanceHealthSummary({
+      metrics,
+      outcome,
+      anomalies: [],
+    });
+
+    expect(health.routingTuning).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: 'context_window_exceeded',
+        severity: 'critical',
+      }),
+      expect.objectContaining({
+        code: 'switch_without_alignment',
+        severity: 'warn',
+      }),
+      expect.objectContaining({
+        code: 'switch_cascade_risk',
+        severity: 'critical',
+      }),
+      expect.objectContaining({
+        code: 'slow_route_group',
+        severity: 'warn',
+      }),
+    ]));
+    expect(health.actions).toContain('Enable or tune SmartRouter sticky alignment for high-switch routes.');
+    expect(health.actions).toContain('Review high-cascade route groups before widening SmartRouter candidates.');
+  });
+
   it('exports governance metrics reports as csv', () => {
     const csv = exportGovernanceMetricsReport({
       bucketCount: 1,
@@ -574,6 +643,35 @@ describe('summarizeGovernanceMetrics', () => {
       topFinalModels: [{ key: 'model-a', count: 2, rate: 1 }],
       topSemanticIntents: [{ key: 'review', count: 1, rate: 0.5 }],
       anomalies: [{ type: 'cascade_rate_high', severity: 'warn', message: 'x', metric: 'cascadeTriggeredRate', value: 0.5 }],
+      health: {
+        status: 'watch',
+        message: '1 governance alert needs attention (0 critical / 1 warning).',
+        sampleSize: 2,
+        alertCount: 1,
+        warnCount: 1,
+        criticalCount: 0,
+        signals: {
+          stickyHitRate: 0.5,
+          cascadeTriggeredRate: 0.5,
+          shadowCheckedRate: 0.5,
+          alignmentUsedRate: 0.5,
+          modelSwitchRate: 0.5,
+          alignmentOnSwitchRate: 1,
+          contextWindowFallbackRate: 0.5,
+          contextWindowExceededRate: 0,
+          averageLatencyMs: 120,
+        },
+        actions: ['Continue monitoring route and model distributions.'],
+        routingTuning: [
+          {
+            code: 'context_window_fallback_high',
+            severity: 'info',
+            message: 'Long-context fallback is frequent enough to affect latency planning.',
+            evidence: 'contextWindowFallbackRate=50%',
+            action: 'Monitor context window fallback rate and long-context model latency.',
+          },
+        ],
+      },
     }, 'csv');
 
     expect(csv).toContain('section,key,value');
@@ -582,6 +680,7 @@ describe('summarizeGovernanceMetrics', () => {
     expect(csv).toContain('outcome,contextWindowFallbackRate,0.5');
     expect(csv).toContain('outcome,contextWindowExceededRate,0');
     expect(csv).toContain('anomaly,cascade_rate_high,warn:0.5');
+    expect(csv).toContain('routingTuning,context_window_fallback_high,info:contextWindowFallbackRate=50%');
     expect(csv).toContain('topFinalModel,model-a,2:1');
     expect(csv).toContain('topModelSwitch,model-a -> model-b,1:1');
     expect(csv).toContain('outcomeByRouteReason,sticky,2:0.5:120');
