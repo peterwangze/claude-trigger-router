@@ -313,6 +313,7 @@ P3-3：持续 closed 事项复审
 - P1-6 Chunk 3c-c 复审补强：已修正底层 `scopeAllows()` 仍允许 `client` 访问 `read-only` 接口的语义漂移；现在纯 `client` key 不能读取 service-info/status，远程 token 如需同时模型调用与 ready/status 探测，需要显式授予 `client + read-only` scope。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-d）：已在 `/ui` 维护者工作台新增 Auth scope guide，明确 admin、client、read-only 与 `client + read-only` 的适用场景；`ctr doctor` 同步输出 scope 指引与远程 token 发放建议，降低服务使用者误用 admin key 或用纯 client key 做状态探测的概率。
 - P1-6 Chunk 3c-d 复审补强：已将 UI/doctor 的 scope 说明补成可操作指引，直接列出 admin key 可调用的 `GET /api/auth/keys`、`POST /api/auth/keys`、`POST /api/auth/keys/:id/revoke`，并提示 generated secret 只返回一次，避免维护者知道 scope 但不知道如何正确发放/吊销 key。
+- P1-6 `服务端 API key 与鉴权控制面`（Chunk 3c-e）：已新增 managed `operator` scope，允许日常运维执行重启、治理指标快照、定时快照、异常阈值和归档删除，并继承 read-only 状态接口；配置读写、`/ui` 和 auth key 管理仍保持 admin-only。README、配置指南、server maintainer guide、UI scope guide 和统一基线已同步 operator / admin 的服务所有者与日常运维边界。
 - P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 1）：已新增 `ctr deploy init --target server`，生成带随机 bootstrap `APIKEY`、`HOST: 0.0.0.0`、`Runtime.mode: server`、日志、可编辑 `Models` 与 `Router.default` 的自托管 server 起步配置；命令默认不覆盖已有配置、不自动启动服务，并提示维护者先跑 `ctr doctor`、再 `ctr start --daemon`，之后通过 managed `client + read-only` key 给远程客户端使用。
 - P1-7 Chunk 1 复审补强：已修正 CLI 帮助中 `--force` 只标注给 `init` 的文案偏差，并补充 deploy init 在已有配置且未显式 `--force` 时不会写文件的回归测试，守住“部署模板不误覆盖现有配置”的安全承诺。
 - P1-7 `server/cloud 一键部署与角色化运维入口`（Chunk 2）：已在 npm 包随附 `config/deploy/docker-compose.server.yaml`、`config/deploy/systemd/claude-trigger-router.service` 与部署模板 README；`release:stage` 现在会准备独立 `.release-server-home` 并用 staged wrapper 执行 `deploy init --target server --force`，让维护者在发布前能验收 server profile，而不会覆盖普通 staged 用户配置。
@@ -378,10 +379,10 @@ P1-5：智能路由收益与切换体感闭环
 P1-6：服务端 API key 与鉴权控制面
 
 - 保留现有单一 `APIKEY` 作为 bootstrap/admin key，但新增服务端 managed keys：生成、列表、吊销、过期时间、用途标签、作用域、可选配额。
-- 区分 admin / client / read-only scopes：管理 UI、配置保存、模型调用、只读 status/health 不再都依赖同一个全能 key。
+- 区分 admin / operator / client / read-only scopes：管理 UI、配置保存、日常运维写操作、模型调用、只读 status/health 不再都依赖同一个全能 key。
 - 将 key 使用写入 trace / audit 摘要，便于定位泄漏风险。
 - 在 setup / doctor / UI 中给出 server/cloud 模式的安全检查：公网监听必须有认证，推荐 HTTPS 反向代理，不允许把 cloud 模式误当无鉴权本地模式。
-- 验收：服务端可以生成客户端 token；泄漏某个客户端 token 时能撤销且不影响 admin key；关键管理 API 需要 admin scope。
+- 验收：服务端可以生成客户端 token 和日常运维 token；泄漏某个客户端 token 时能撤销且不影响 admin key；配置与 auth 管理 API 需要 admin scope，重启和治理维护写操作可用 operator scope。
 
 P1-7：server/cloud 一键部署与角色化运维入口
 

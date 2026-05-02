@@ -401,3 +401,27 @@
   - `src/service-health.test.ts`
   - `src/server.test.ts`
   - `src/ui/workbench.ts`
+
+### PI-019：维护者 API 只有 admin 边界，日常运维需要过度暴露服务所有者 key
+
+- 发现时间：2026-05-02
+- 严重级别：P1
+- 现象：服务端鉴权已具备 admin/client/read-only 和 quota，但重启、治理快照、异常阈值、归档删除等日常运维写操作仍与配置保存、auth key 管理共享 admin 边界。
+- 影响范围：
+  - 服务提供者把日常值守能力交给维护者时需要暴露 bootstrap/admin key
+  - server/cloud 一键部署默认安全策略无法给出最小权限运维路径
+  - `/ui` 和 README 的鉴权指导无法区分服务所有者与日常运维者
+- 修正动作：
+  - 新增 managed `operator` scope
+  - `operator` 允许 read-only 状态接口以及重启、治理指标快照、定时快照、异常阈值和治理归档删除
+  - `operator` 继续禁止 `/ui`、配置读取/保存和 auth key 管理
+  - 更新 README、配置指南、服务维护者指南、UI scope guide 和统一基线
+- 当前状态：`closed`
+- 闭环结论：服务所有者 key 与日常运维 key 已完成最小权限拆分；后续继续补部署默认安全策略、密钥轮换和托管场景维护手册。
+- 关联文档：
+  - `src/auth/api-keys.ts`
+  - `src/middleware/auth.ts`
+  - `src/ui/workbench.ts`
+  - `README.md`
+  - `docs/server-maintainer-guide.md`
+  - `docs/configuration-guide.md`

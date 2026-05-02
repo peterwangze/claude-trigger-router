@@ -41,6 +41,12 @@ function authRequirementForRequest(req: FastifyRequest): TManagedApiKeyScope {
     '/v1/messages',
     '/v1/chat/completions',
   ]);
+  const operatorWritePaths = new Set([
+    '/api/restart',
+    '/api/governance/metrics/snapshots',
+    '/api/governance/metrics/schedules',
+    '/api/governance/observability/anomaly-thresholds',
+  ]);
 
   if (method === 'GET' && (
     readOnlyPaths.has(path) ||
@@ -54,6 +60,13 @@ function authRequirementForRequest(req: FastifyRequest): TManagedApiKeyScope {
 
   if (modelCallPaths.has(path)) {
     return 'client';
+  }
+
+  if (method === 'POST' && (
+    operatorWritePaths.has(path) ||
+    (path.startsWith('/api/governance/archives/') && path.endsWith('/delete'))
+  )) {
+    return 'operator';
   }
 
   return path.startsWith('/api/') || path === '/ui' ? 'admin' : 'client';

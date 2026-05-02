@@ -321,7 +321,7 @@ describe('apiKeyAuth', () => {
     ]);
   });
 
-  it('enforces admin, client, and read-only boundaries for management APIs', async () => {
+  it('enforces admin, operator, client, and read-only boundaries for management APIs', async () => {
     const readOnlyKey = createManagedApiKey({
       label: 'status viewer',
       scopes: ['read-only'],
@@ -330,18 +330,23 @@ describe('apiKeyAuth', () => {
       label: 'model client',
       scopes: ['client'],
     });
+    const operatorKey = createManagedApiKey({
+      label: 'service operator',
+      scopes: ['operator'],
+    });
     const adminKey = createManagedApiKey({
       label: 'service admin',
       scopes: ['admin'],
     });
     const middleware = apiKeyAuth({
       Auth: {
-        managed_keys: [readOnlyKey.record, clientKey.record, adminKey.record],
+        managed_keys: [readOnlyKey.record, clientKey.record, operatorKey.record, adminKey.record],
       },
     });
 
     const readOnlyHeaders = { authorization: `Bearer ${readOnlyKey.secret}` };
     const clientHeaders = { authorization: `Bearer ${clientKey.secret}` };
+    const operatorHeaders = { authorization: `Bearer ${operatorKey.secret}` };
     const adminHeaders = { authorization: `Bearer ${adminKey.secret}` };
 
     await expect(runAuth(middleware, readOnlyHeaders, undefined, {
@@ -369,6 +374,33 @@ describe('apiKeyAuth', () => {
       method: 'POST',
       url: '/api/restart',
     });
+    const operatorHealth = await runAuth(middleware, operatorHeaders, undefined, {
+      method: 'GET',
+      url: '/api/governance/health',
+    });
+    const operatorSnapshot = await runAuth(middleware, operatorHeaders, { format: 'json' }, {
+      method: 'POST',
+      url: '/api/governance/metrics/snapshots',
+    });
+    const operatorArchiveDelete = await runAuth(middleware, operatorHeaders, undefined, {
+      method: 'POST',
+      url: '/api/governance/archives/archive.json/delete',
+    });
+    const operatorConfig = await runAuth(middleware, operatorHeaders, undefined, {
+      method: 'POST',
+      url: '/api/config',
+    });
+    const operatorAuthManagement = await runAuth(middleware, operatorHeaders, {
+      label: 'another',
+      scopes: ['client'],
+    }, {
+      method: 'POST',
+      url: '/api/auth/keys',
+    });
+    const operatorUi = await runAuth(middleware, operatorHeaders, undefined, {
+      method: 'GET',
+      url: '/ui',
+    });
     const adminConfig = await runAuth(middleware, adminHeaders, undefined, {
       method: 'GET',
       url: '/api/config',
@@ -390,11 +422,20 @@ describe('apiKeyAuth', () => {
     expect(clientConfig.reply.code).toHaveBeenCalledWith(403);
     expect(clientRestart.error).toBeInstanceOf(Error);
     expect(clientRestart.reply.code).toHaveBeenCalledWith(403);
+    expect(operatorHealth.error).toBeUndefined();
+    expect(operatorSnapshot.error).toBeUndefined();
+    expect(operatorArchiveDelete.error).toBeUndefined();
+    expect(operatorConfig.error).toBeInstanceOf(Error);
+    expect(operatorConfig.reply.code).toHaveBeenCalledWith(403);
+    expect(operatorAuthManagement.error).toBeInstanceOf(Error);
+    expect(operatorAuthManagement.reply.code).toHaveBeenCalledWith(403);
+    expect(operatorUi.error).toBeInstanceOf(Error);
+    expect(operatorUi.reply.code).toHaveBeenCalledWith(403);
     expect(adminConfig.error).toBeUndefined();
     expect(clientStatus.error).toBeInstanceOf(Error);
     expect(clientStatus.reply.code).toHaveBeenCalledWith(403);
     expect(clientModelCall.error).toBeUndefined();
-    expect(authAuditStore.list(8)).toEqual(expect.arrayContaining([
+    expect(authAuditStore.list(13)).toEqual(expect.arrayContaining([
       expect.objectContaining({
         outcome: 'denied',
         required: 'admin',
@@ -405,6 +446,17 @@ describe('apiKeyAuth', () => {
         outcome: 'allowed',
         required: 'read-only',
         path: '/api/governance/health',
+      }),
+      expect.objectContaining({
+        outcome: 'allowed',
+        required: 'operator',
+        path: '/api/governance/metrics/snapshots',
+      }),
+      expect.objectContaining({
+        outcome: 'denied',
+        required: 'admin',
+        path: '/api/auth/keys',
+        reason: 'insufficient_scope',
       }),
       expect.objectContaining({
         outcome: 'allowed',

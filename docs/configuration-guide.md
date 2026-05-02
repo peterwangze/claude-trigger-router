@@ -16,7 +16,7 @@ ctr setup
 如果你不确定自己属于哪种部署角色，先看 `docs/configuration-roles.md`。当前三条路径是：
 
 - 本地使用者：配置 `Models + Router.default`，运行 `ctr start / ctr status / ctr code`。
-- 服务维护者：用 `ctr deploy init --target server` 生成 server 配置，并用 admin/bootstrap key 管理服务。
+- 服务维护者：用 `ctr deploy init --target server` 生成 server 配置；服务所有者用 admin/bootstrap key 管理配置和 auth，日常值守可使用 managed `operator` key 执行重启和治理维护动作。
 - 远程使用者：拿到服务地址和 managed `client + read-only` key，再配置 `Runtime.remote_service` 或直接设置 Claude Code 的 `ANTHROPIC_BASE_URL`。
 
 ## 1. 推荐配置心智
@@ -96,7 +96,7 @@ Router:
 ctr start --daemon
 ```
 
-如果配置了非本机 `HOST` 但没有配置 `APIKEY` 或 active managed key，运行时会强制回退到 `127.0.0.1`。远程客户端访问该服务时，`Runtime.remote_service.auth_token` 应填写服务端生成的 managed `client + read-only` key；bootstrap `APIKEY` 只建议维护者使用。公网部署建议放在 HTTPS 反向代理后面。启用 `APIKEY` 或 managed key 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
+如果配置了非本机 `HOST` 但没有配置 `APIKEY` 或 active managed key，运行时会强制回退到 `127.0.0.1`。远程客户端访问该服务时，`Runtime.remote_service.auth_token` 应填写服务端生成的 managed `client + read-only` key；bootstrap `APIKEY` 只建议服务所有者使用。日常维护可以发放 managed `operator` key，用于重启、治理快照、定时快照、异常阈值和归档删除，但不能读写配置或管理 auth。公网部署建议放在 HTTPS 反向代理后面。启用 `APIKEY` 或 managed key 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
 
 远程客户端配置是可选路径，不是默认路径。最小写法：
 

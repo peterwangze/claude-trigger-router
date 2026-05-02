@@ -358,7 +358,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="subpanel" id="authScopeGuide">` +
     `<div class="row"><strong>Auth scope guide</strong><span class="muted">按用途发放最小权限 key，远程客户端不要复用 admin key。</span></div>` +
     `<div class="scope-guide">` +
-    `<div><strong>admin</strong><span class="muted">维护者使用：/ui、配置保存、重启、auth 管理和治理写操作。</span></div>` +
+    `<div><strong>admin</strong><span class="muted">服务所有者使用：/ui、配置保存、auth 管理，以及所有运维写操作。</span></div>` +
+    `<div><strong>operator</strong><span class="muted">日常运维使用：重启、治理快照、定时快照、异常阈值和归档删除；不能查看配置或管理 auth。</span></div>` +
     `<div><strong>client</strong><span class="muted">客户端模型调用：/v1/messages、/v1/chat/completions；模型调用配额只计入这里。</span></div>` +
     `<div><strong>read-only</strong><span class="muted">只读观测：health、service-info、compiled models、model pool health、transformers 和 governance GET。</span></div>` +
     `<div><strong>client + read-only</strong><span class="muted">远程 token 同时需要 ready/status 探测与模型调用时使用该组合。</span></div>` +

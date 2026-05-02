@@ -211,7 +211,7 @@ export interface IRegistrationConfig {
   }>;
 }
 
-export type TManagedApiKeyScope = 'admin' | 'client' | 'read-only';
+export type TManagedApiKeyScope = 'admin' | 'operator' | 'client' | 'read-only';
 
 export interface IManagedApiKeyConfig {
   id: string;

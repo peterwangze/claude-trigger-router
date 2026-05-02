@@ -750,7 +750,7 @@ describe('createServer /api/config', () => {
   });
 
   it('rejects non-admin managed keys for auth key management', async () => {
-    const created = createManagedApiKey({ label: 'client', scopes: ['client'] });
+    const created = createManagedApiKey({ label: 'operator', scopes: ['operator'] });
     mockReadConfigFile.mockResolvedValue({
       Auth: {
         managed_keys: [created.record],
@@ -2265,6 +2265,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('authQuotaTable');
     expect(html).toContain('authScopeGuide');
     expect(html).toContain('Auth scope guide');
+    expect(html).toContain('operator');
+    expect(html).toContain('日常运维使用');
     expect(html).toContain('client + read-only');
     expect(html).toContain('远程 token 同时需要 ready/status 探测与模型调用');
     expect(html).toContain('POST /api/auth/keys');

@@ -60,7 +60,7 @@ export interface IAuthAuditEvent {
   quota?: IAuthQuotaUsageSnapshot;
 }
 
-const VALID_SCOPES: TManagedApiKeyScope[] = ['admin', 'client', 'read-only'];
+const VALID_SCOPES: TManagedApiKeyScope[] = ['admin', 'operator', 'client', 'read-only'];
 
 function createSecret(): string {
   const token = randomBytes(24)
@@ -202,7 +202,10 @@ export function scopeAllows(scopes: TManagedApiKeyScope[], required: TApiKeyRequ
     return true;
   }
   if (required === 'read-only') {
-    return scopes.includes('read-only');
+    return scopes.includes('read-only') || scopes.includes('operator');
+  }
+  if (required === 'operator') {
+    return scopes.includes('operator');
   }
   if (required === 'client') {
     return scopes.includes('client');

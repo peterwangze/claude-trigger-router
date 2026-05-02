@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { authAuditStore, authQuotaUsageStore, createManagedApiKey, validateManagedApiKeyQuota, verifyApiKey } from './api-keys';
+import { authAuditStore, authQuotaUsageStore, createManagedApiKey, validateManagedApiKeyQuota, validateManagedApiKeyScopes, verifyApiKey } from './api-keys';
 
 describe('managed API keys', () => {
   beforeEach(() => {
@@ -33,6 +33,34 @@ describe('managed API keys', () => {
       reason: 'insufficient_scope',
     });
     expect(verifyApiKey(config, created.secret, 'read-only')).toMatchObject({
+      ok: false,
+      reason: 'insufficient_scope',
+    });
+  });
+
+  it('allows managed operator keys for operations and read-only status only', () => {
+    const created = createManagedApiKey({ label: 'operator', scopes: ['operator'] });
+    const config = {
+      Auth: {
+        managed_keys: [created.record],
+      },
+    };
+
+    expect(verifyApiKey(config, created.secret, 'operator')).toMatchObject({
+      ok: true,
+      source: 'managed',
+      keyId: created.record.id,
+    });
+    expect(verifyApiKey(config, created.secret, 'read-only')).toMatchObject({
+      ok: true,
+      source: 'managed',
+      keyId: created.record.id,
+    });
+    expect(verifyApiKey(config, created.secret, 'admin')).toMatchObject({
+      ok: false,
+      reason: 'insufficient_scope',
+    });
+    expect(verifyApiKey(config, created.secret, 'client')).toMatchObject({
       ok: false,
       reason: 'insufficient_scope',
     });
@@ -204,6 +232,11 @@ describe('managed API keys', () => {
       'quota.token_limit must be a positive integer',
       'quota.window_seconds must be a positive integer',
     ]);
+  });
+
+  it('validates managed key scopes including operator', () => {
+    expect(validateManagedApiKeyScopes(['operator', 'read-only'])).toEqual([]);
+    expect(validateManagedApiKeyScopes(['operator', 'owner'])).toEqual(['unsupported scope: owner']);
   });
 
   it('summarizes auth audit events without storing secrets', () => {

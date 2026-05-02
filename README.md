@@ -87,8 +87,9 @@ ctr start --daemon
 - 如果配置了 `HOST: "0.0.0.0"` 但没有设置 `APIKEY` 或 active managed key，运行时会为了安全强制只监听 `127.0.0.1`。
 - `APIKEY` 定位为 bootstrap/admin key；服务端启动后用它调用 `POST /api/auth/keys` 生成给远程使用者的 managed key。
 - 远程日常 token 推荐同时授予 `client + read-only`：`client` 用于模型调用，`read-only` 用于 ready/status、compiled models 和 governance 观测接口。
-- `admin` key 才能访问 `/ui`、配置保存、重启、auth 管理和治理写操作。列表接口只返回 key 前后缀，secret 只在创建时返回一次。
-- managed key 支持过期、撤销和 `quota.request_limit` / `quota.token_limit` / `quota.window_seconds`；窗口配额超限时 429 会返回 `quota.windowResetAt` 和 `Retry-After`。
+- `admin` key 才能访问 `/ui`、配置保存和 auth 管理。列表接口只返回 key 前后缀，secret 只在创建时返回一次。
+- `operator` key 用于日常运维写操作，例如重启、治理指标快照/定时快照、异常阈值和归档删除；它不能读取配置、保存配置或管理 auth key。
+- managed key 支持过期、撤销和 `quota.request_limit` / `quota.token_limit` / `quota.window_seconds`；窗口配额会持久化到本地状态文件，超限时 429 会返回 `quota.windowResetAt` 和 `Retry-After`。
 - `GET /api/service-info` 会返回脱敏的 `auth` / `security` 摘要和 quota 用量；`GET /api/auth/audit` 可用 admin key 查看最近鉴权允许/拒绝记录。
 - 公网入口仍建议放在 HTTPS 反向代理之后；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
 

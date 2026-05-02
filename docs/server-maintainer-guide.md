@@ -39,7 +39,7 @@ ctr status
 
 ## 3. Issue client keys
 
-Keep the bootstrap `APIKEY` for maintainers. Use it only to open `/ui`, save config, restart, and manage auth.
+Keep the bootstrap `APIKEY` for service owners. Use it only to open `/ui`, save config, and manage auth.
 
 Create a managed key for remote users:
 
@@ -53,7 +53,7 @@ Recommended remote-user scopes:
 ["client", "read-only"]
 ```
 
-`client` allows model calls. `read-only` allows ready/status checks such as `/api/health`, `/api/service-info`, compiled model summaries and governance GET endpoints. Generated secrets are returned once.
+`client` allows model calls. `read-only` allows ready/status checks such as `/api/health`, `/api/service-info`, compiled model summaries and governance GET endpoints. `operator` is for day-to-day maintenance writes such as restart, governance snapshots, schedules, anomaly thresholds and archive deletion; it cannot read or save config and cannot manage auth keys. Generated secrets are returned once.
 
 ## 4. Expose safely
 
