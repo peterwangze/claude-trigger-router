@@ -503,6 +503,42 @@ describe('summarizeGovernanceMetrics', () => {
         startedAt: 3,
         latencyMs: 120,
       },
+      {
+        requestId: 'trace-switch-3',
+        initialModel: 'haiku',
+        finalModel: 'opus',
+        routeReason: ['semantic_match'],
+        stickyHit: false,
+        alignmentUsed: true,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: 4,
+        latencyMs: 100,
+      },
+      {
+        requestId: 'trace-switch-4',
+        initialModel: 'haiku',
+        finalModel: 'opus',
+        routeReason: ['semantic_match'],
+        stickyHit: false,
+        alignmentUsed: true,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: 5,
+        latencyMs: 100,
+      },
+      {
+        requestId: 'trace-slowest',
+        initialModel: 'opus',
+        finalModel: 'opus',
+        routeReason: ['tool_use'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: 6,
+        latencyMs: 3200,
+      },
     ];
     const metrics = summarizeGovernanceMetrics(traces);
     const outcome = summarizeRoutingOutcomes(traces);
@@ -527,7 +563,8 @@ describe('summarizeGovernanceMetrics', () => {
       }),
       expect.objectContaining({
         code: 'slow_route_group',
-        severity: 'warn',
+        severity: 'critical',
+        evidence: 'tool_use:averageLatencyMs=3200',
       }),
     ]));
     expect(health.actions).toContain('Enable or tune SmartRouter sticky alignment for high-switch routes.');

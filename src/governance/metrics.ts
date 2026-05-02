@@ -535,6 +535,22 @@ function topOutcomeGroup(
     })[0];
 }
 
+function topSlowOutcomeGroup(
+  groups: IGovernanceRoutingOutcomeGroupEntry[]
+): IGovernanceRoutingOutcomeGroupEntry | undefined {
+  return groups
+    .filter((group) => group.averageLatencyMs >= DEFAULT_ANOMALY_THRESHOLDS.latencyWarnMs)
+    .sort((left, right) => {
+      if (right.averageLatencyMs !== left.averageLatencyMs) {
+        return right.averageLatencyMs - left.averageLatencyMs;
+      }
+      if (right.totalTraces !== left.totalTraces) {
+        return right.totalTraces - left.totalTraces;
+      }
+      return left.key.localeCompare(right.key);
+    })[0];
+}
+
 function buildRoutingTuningRecommendations(
   metrics: IGovernanceMetrics,
   outcome?: IGovernanceRoutingOutcomeSummary
@@ -593,7 +609,8 @@ function buildRoutingTuningRecommendations(
     group.cascadeAfterSwitchRate >= DEFAULT_ANOMALY_THRESHOLDS.cascadeWarnRate
   );
   if (cascadeAfterSwitch || outcome.cascadeAfterSwitchRate >= DEFAULT_ANOMALY_THRESHOLDS.cascadeWarnRate) {
-    const severity = outcome.cascadeAfterSwitchRate >= DEFAULT_ANOMALY_THRESHOLDS.cascadeCriticalRate
+    const cascadeRate = cascadeAfterSwitch?.cascadeAfterSwitchRate ?? outcome.cascadeAfterSwitchRate;
+    const severity = cascadeRate >= DEFAULT_ANOMALY_THRESHOLDS.cascadeCriticalRate
       ? 'critical'
       : 'warn';
     recommendations.push({
@@ -607,9 +624,7 @@ function buildRoutingTuningRecommendations(
     });
   }
 
-  const slowRoute = outcome.byRouteReason.find((group) =>
-    group.averageLatencyMs >= DEFAULT_ANOMALY_THRESHOLDS.latencyWarnMs
-  );
+  const slowRoute = topSlowOutcomeGroup(outcome.byRouteReason);
   if (slowRoute) {
     recommendations.push({
       code: 'slow_route_group',
