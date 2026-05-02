@@ -26,6 +26,7 @@ export interface IRemoteRegistrationStatusSummary {
   reachable: boolean;
   available: boolean;
   baseUrl: string;
+  registrationEnabled?: boolean;
   summary?: {
     models: number;
     upstreamServices: number;
@@ -232,6 +233,7 @@ export async function probeRemoteRegistrationStatus(
       reachable: true,
       available: true,
       baseUrl: normalizedBaseUrl,
+      registrationEnabled: info.enabled === true,
       summary: {
         models: typeof info.summary?.models === 'number' ? info.summary.models : 0,
         upstreamServices: typeof info.summary?.upstreamServices === 'number' ? info.summary.upstreamServices : 0,

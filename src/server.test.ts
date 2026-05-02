@@ -552,6 +552,7 @@ describe('createServer /api/config', () => {
         reachable: true,
         available: true,
         baseUrl: 'https://router.example.com',
+        registrationEnabled: true,
         summary: {
           models: 2,
           upstreamServices: 1,

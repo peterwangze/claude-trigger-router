@@ -136,6 +136,7 @@ describe('service health helpers', () => {
       reachable: true,
       available: true,
       baseUrl: 'https://router.example.com',
+      registrationEnabled: true,
       summary: {
         models: 2,
         upstreamServices: 1,
@@ -149,6 +150,39 @@ describe('service health helpers', () => {
         info: 0,
       },
     });
+  });
+
+  it('keeps reachable remote registration distinct from disabled registration config', async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        enabled: false,
+        summary: {
+          models: 0,
+          upstreamServices: 0,
+        },
+        models: [],
+        upstreamServices: [],
+      }),
+    });
+
+    const status = await probeRemoteRegistrationStatus({
+      enabled: true,
+      base_url: 'https://router.example.com',
+      auth_token: 'token-1',
+    }, 500, fetchFn as any);
+
+    expect(status).toEqual(expect.objectContaining({
+      enabled: true,
+      configured: true,
+      reachable: true,
+      available: true,
+      registrationEnabled: false,
+      summary: {
+        models: 0,
+        upstreamServices: 0,
+      },
+    }));
   });
 
   it('detects whether a local tcp port is occupied', async () => {

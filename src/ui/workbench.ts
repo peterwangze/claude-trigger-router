@@ -1292,7 +1292,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    remoteStatusSummary.textContent=remote.enabled ? ((remote.ready ? 'ready' : (remote.reachable ? 'reachable' : 'unreachable'))+' · '+(remote.baseUrl || '-')) : 'disabled';` +
     `    const remoteRegistration=remoteData.remoteRegistration || {};` +
     `    const remoteRegistrationSummary=remoteRegistration.summary || {};` +
-    `    remoteRegistrationStatusSummary.textContent=remoteRegistration.enabled ? (remoteRegistration.available ? ((remoteRegistrationSummary.models ?? 0)+' remote models / '+(remoteRegistrationSummary.upstreamServices ?? 0)+' upstream') : ('unavailable · '+(remoteRegistration.error || remoteRegistration.baseUrl || '-'))) : 'disabled';` +
+    `    remoteRegistrationStatusSummary.textContent=remoteRegistration.enabled ? (remoteRegistration.available ? (remoteRegistration.registrationEnabled ? ((remoteRegistrationSummary.models ?? 0)+' remote models / '+(remoteRegistrationSummary.upstreamServices ?? 0)+' upstream') : 'remote registration disabled') : ('unavailable · '+(remoteRegistration.error || remoteRegistration.baseUrl || '-'))) : 'disabled';` +
     `    if(remoteData.compiledModels){ modelCountStatus.textContent=remoteData.compiledModels.modelCount ?? modelCountStatus.textContent; }` +
     `    try { await loadModelPoolHealth(); } catch (_poolError) { modelPoolHealthSummary.className='alert warn'; modelPoolHealthSummary.innerHTML='<strong>Pool health unavailable</strong><div class="muted">无法加载模型池健康状态</div>'; }` +
     `  } catch (_error) {` +

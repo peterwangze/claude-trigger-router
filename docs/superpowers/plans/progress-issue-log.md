@@ -381,3 +381,23 @@
   - `src/server.test.ts`
   - `docs/remote-client-guide.md`
   - `docs/configuration-guide.md`
+
+### PI-018：远端注册摘要把接口可达和 Registration 启用状态混在一起
+
+- 首次暴露时间：2026-05-02
+- 问题描述：PI-017 首轮实现中，远端 `/api/registration` 可达时会把 `remoteRegistration.enabled` 当作远程服务启用状态使用，没有单独暴露远端 `Registration.enabled`；当远端注册接口可达但注册配置关闭时，本地 `/ui` 会显示 `0 remote models / 0 upstream`，容易让使用者误以为远端注册已启用但为空。
+- 影响范围：
+  - 远程客户端 `/api/remote-status` 的状态解释
+  - `/ui` 首屏 Remote registration 状态
+  - 维护者判断“远端注册关闭”与“远端注册为空”的差异
+- 修正动作：
+  - `probeRemoteRegistrationStatus()` 新增 `registrationEnabled` 字段，保留 remote service enabled、registration endpoint available 和 remote Registration.enabled 三层状态
+  - `/ui` 在远端 registration endpoint 可达但 `registrationEnabled=false` 时显示 `remote registration disabled`
+  - 补充远端注册关闭但接口可达的回归测试
+- 当前状态：`closed`
+- 闭环结论：远端注册摘要现在能区分“远程服务已配置”“注册接口可达”和“远端 Registration 已启用”，避免把关闭状态误呈现为空模型池。
+- 关联文档：
+  - `src/service-health.ts`
+  - `src/service-health.test.ts`
+  - `src/server.test.ts`
+  - `src/ui/workbench.ts`
