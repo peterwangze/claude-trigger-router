@@ -1774,6 +1774,16 @@ describe('createServer /api/config', () => {
       { key: 'smart_router', count: 1, rate: 0.5 },
       { key: 'sticky', count: 1, rate: 0.5 },
     ]);
+    expect(allMetrics.qualityEvidence).toEqual(expect.objectContaining({
+      totalSamples: 1,
+      failureSamples: 1,
+    }));
+    expect(allMetrics.qualityEvidence.samples).toEqual([
+      expect.objectContaining({
+        requestId: 'trace-1',
+        type: 'cascade_failure',
+      }),
+    ]);
     expect(sessionMetrics.metrics.totalTraces).toBe(1);
     expect(sessionMetrics.metrics.alignmentUsedRate).toBe(1);
     expect(sessionMetrics.metrics.semanticIntentDistribution).toEqual({
@@ -2522,6 +2532,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('Routing tuning');
     expect(html).toContain('routingTuningList');
     expect(html).toContain('renderRoutingTuning');
+    expect(html).toContain('Quality evidence');
+    expect(html).toContain('qualityEvidenceList');
+    expect(html).toContain('renderQualityEvidence');
     expect(html).toContain('switch ');
     expect(html).toContain('align ');
     expect(html).toContain('cascade ');

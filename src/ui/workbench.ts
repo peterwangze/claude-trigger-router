@@ -421,6 +421,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<ul id="routingTuningList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
     `<div class="subpanel">` +
+    `<div class="row"><strong>Quality evidence</strong><span class="muted">真实 trace 中的失败、连续性和速度风险样本</span></div>` +
+    `<ul id="qualityEvidenceList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="subpanel">` +
     `<div class="row"><strong>Anomaly tuning</strong><span class="muted">来自配置文件，可在此临时覆盖当前页面查询</span></div>` +
     `<div class="control-grid">` +
     `<div><label>Min sample</label><input id="minSampleSize" value="${escapedMinSampleSize}"></div>` +
@@ -603,6 +607,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const intentOutcomeRanking=document.getElementById('intentOutcomeRanking');` +
     `const healthSummary=document.getElementById('healthSummary');` +
     `const routingTuningList=document.getElementById('routingTuningList');` +
+    `const qualityEvidenceList=document.getElementById('qualityEvidenceList');` +
     `const securitySummary=document.getElementById('securitySummary');` +
     `const authQuotaTableBody=document.querySelector('#authQuotaTable tbody');` +
     `const modelPoolHealthSummary=document.getElementById('modelPoolHealthSummary');` +
@@ -1431,6 +1436,11 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(!items || !items.length){ routingTuningList.innerHTML='<li><span class="muted">No routing tuning recommendations</span><strong>healthy</strong></li>'; return; }` +
     `  routingTuningList.innerHTML=items.map(item=>'<li><span><span class="pill '+esc(item.severity === 'critical' ? 'critical' : (item.severity === 'warn' ? 'warn' : 'info'))+'">'+esc(item.severity || 'info')+'</span> <strong>'+esc(item.code || '-')+'</strong><div class="muted">'+esc(item.message || '')+'</div><div class="muted">'+esc(item.evidence || '')+'</div></span><strong>'+esc(item.action || '')+'</strong></li>').join('');` +
     `}` +
+    `function renderQualityEvidence(summary){` +
+    `  const items=summary?.samples || [];` +
+    `  if(!items.length){ qualityEvidenceList.innerHTML='<li><span class="muted">No quality evidence samples</span><strong>0</strong></li>'; return; }` +
+    `  qualityEvidenceList.innerHTML=items.map(item=>'<li><span><span class="pill '+esc(item.severity === 'critical' ? 'critical' : (item.severity === 'warn' ? 'warn' : 'info'))+'">'+esc(item.severity || 'info')+'</span> <strong>'+esc(item.type || '-')+'</strong><div class="muted">'+esc(item.requestId || '')+' · '+esc((item.routeReason || []).join(' / '))+'</div><div class="muted">'+esc(item.evidence || '')+'</div></span><strong>'+esc(item.action || '')+'</strong></li>').join('');` +
+    `}` +
     `function renderAnomalies(anomalies,health){` +
     `  const status=health?.status || 'idle';` +
     `  const message=health?.message || 'No governance traces yet.';` +
@@ -1535,6 +1545,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderBuckets(metricsData || {});` +
     `  renderAnomalies(metricsData.anomalies || [],health);` +
     `  renderRoutingTuning(health?.routingTuning || []);` +
+    `  renderQualityEvidence(metricsData.qualityEvidence || {});` +
     `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +
     `  renderRanking(modelRanking,metricsData.topFinalModels || [],'No models');` +
     `  renderRanking(intentRanking,metricsData.topSemanticIntents || [],'No intents');` +

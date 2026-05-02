@@ -50,6 +50,37 @@ export interface IGovernanceRoutingTuningRecommendation {
   action: string;
 }
 
+export type TGovernanceQualityEvidenceType =
+  | 'alignment_continuity'
+  | 'cascade_failure'
+  | 'context_window_guard'
+  | 'model_pool_fallback'
+  | 'shadow_verification'
+  | 'slow_request';
+
+export interface IGovernanceQualityEvidenceSample {
+  requestId: string;
+  type: TGovernanceQualityEvidenceType;
+  severity: 'info' | 'warn' | 'critical';
+  evidence: string;
+  action: string;
+  routeReason: string[];
+  initialModel?: string;
+  finalModel?: string;
+  semanticIntent?: string;
+  latencyMs?: number;
+  startedAt: number;
+}
+
+export interface IGovernanceQualityEvidenceSummary {
+  totalSamples: number;
+  failureSamples: number;
+  improvementSamples: number;
+  speedRiskSamples: number;
+  byType: IGovernanceDistributionEntry[];
+  samples: IGovernanceQualityEvidenceSample[];
+}
+
 export interface IGovernanceHealthSummary {
   status: TGovernanceHealthStatus;
   message: string;
@@ -159,6 +190,7 @@ export interface IGovernanceMetricsReport {
   topFinalModels: IGovernanceDistributionEntry[];
   topSemanticIntents: IGovernanceDistributionEntry[];
   anomalies: IGovernanceAnomaly[];
+  qualityEvidence?: IGovernanceQualityEvidenceSummary;
   health?: IGovernanceHealthSummary;
 }
 
@@ -334,6 +366,136 @@ function isModelSwitch(trace: IGovernanceTrace): boolean {
 
 function hasRouteReasonPrefix(trace: IGovernanceTrace, prefix: string): boolean {
   return trace.routeReason.some((reason) => reason === prefix || reason.startsWith(`${prefix}:`));
+}
+
+function compactCsvEvidence(value: string): string {
+  return value.replace(/,/g, ';');
+}
+
+function buildQualityEvidenceSummary(
+  traces: IGovernanceTrace[],
+  thresholds: IGovernanceAnomalyThresholds,
+  limit = 8
+): IGovernanceQualityEvidenceSummary {
+  const samples: IGovernanceQualityEvidenceSample[] = [];
+  const distribution: Record<string, number> = {};
+  const addSample = (
+    trace: IGovernanceTrace,
+    type: TGovernanceQualityEvidenceType,
+    severity: 'info' | 'warn' | 'critical',
+    evidence: string,
+    action: string
+  ) => {
+    distribution[type] = (distribution[type] ?? 0) + 1;
+    samples.push({
+      requestId: trace.requestId,
+      type,
+      severity,
+      evidence,
+      action,
+      routeReason: [...trace.routeReason],
+      initialModel: trace.initialModel,
+      finalModel: trace.finalModel,
+      semanticIntent: trace.semanticIntent,
+      latencyMs: trace.latencyMs,
+      startedAt: trace.startedAt,
+    });
+  };
+
+  for (const trace of traces) {
+    if (trace.cascadeTriggered || (trace.cascadeEvidence?.length ?? 0) > 0) {
+      addSample(
+        trace,
+        'cascade_failure',
+        trace.cascadeTriggered ? 'critical' : 'warn',
+        trace.cascadeEvidence?.length ? trace.cascadeEvidence.join('; ') : 'Cascade retry was triggered.',
+        'Review cascade evidence and compare the retry model output with the original model.'
+      );
+    }
+
+    if (trace.modelPoolFallbackTriggered) {
+      addSample(
+        trace,
+        'model_pool_fallback',
+        'warn',
+        trace.modelPoolFallbackEvidence || `${trace.modelPoolFallbackFromEndpoint ?? '-'} -> ${trace.modelPoolFallbackNextEndpoint ?? '-'}`,
+        'Inspect model pool endpoint health before sending more traffic to this pool.'
+      );
+    }
+
+    if (hasRouteReasonPrefix(trace, 'context_window_exceeded')) {
+      addSample(
+        trace,
+        'context_window_guard',
+        'critical',
+        trace.routeReason.find((reason) => reason.startsWith('context_window_exceeded')) || 'context window exceeded',
+        'Add model context metadata or route this task class to a larger context model.'
+      );
+    } else if (hasRouteReasonPrefix(trace, 'context_window_fallback')) {
+      addSample(
+        trace,
+        'context_window_guard',
+        'info',
+        trace.routeReason.find((reason) => reason.startsWith('context_window_fallback')) || 'long-context fallback used',
+        'Keep this as positive evidence that long-context fallback protected the request.'
+      );
+    }
+
+    if (trace.shadowChecked && trace.verificationResult) {
+      const lower = trace.verificationResult.toLowerCase();
+      const risky = /fail|risk|unsafe|violation|missing|placeholder|error/.test(lower);
+      addSample(
+        trace,
+        'shadow_verification',
+        risky ? 'warn' : 'info',
+        trace.verificationResult,
+        risky ? 'Review verifier findings before widening this route.' : 'Keep verifier pass as quality evidence for this route.'
+      );
+    }
+
+    if (typeof trace.latencyMs === 'number' && trace.latencyMs >= thresholds.latencyWarnMs) {
+      addSample(
+        trace,
+        'slow_request',
+        trace.latencyMs >= thresholds.latencyCriticalMs ? 'critical' : 'warn',
+        `latencyMs=${trace.latencyMs}`,
+        'Compare this route with faster candidates before making it default traffic.'
+      );
+    }
+
+    if (isModelSwitch(trace) && trace.alignmentUsed) {
+      addSample(
+        trace,
+        'alignment_continuity',
+        'info',
+        `${trace.initialModel ?? '-'} -> ${trace.finalModel ?? '-'} with context alignment`,
+        'Keep this as continuity evidence for model switching.'
+      );
+    }
+  }
+
+  const severityRank = { critical: 0, warn: 1, info: 2 };
+  const rankedSamples = samples
+    .sort((left, right) => {
+      if (severityRank[left.severity] !== severityRank[right.severity]) {
+        return severityRank[left.severity] - severityRank[right.severity];
+      }
+      return right.startedAt - left.startedAt;
+    })
+    .slice(0, limit);
+
+  return {
+    totalSamples: samples.length,
+    failureSamples: samples.filter((sample) => sample.severity !== 'info').length,
+    improvementSamples: samples.filter((sample) =>
+      sample.type === 'alignment_continuity' ||
+      (sample.type === 'context_window_guard' && sample.severity === 'info') ||
+      (sample.type === 'shadow_verification' && sample.severity === 'info')
+    ).length,
+    speedRiskSamples: samples.filter((sample) => sample.type === 'slow_request').length,
+    byType: buildTopEntries(distribution, samples.length, 8),
+    samples: rankedSamples,
+  };
 }
 
 export function summarizeRoutingOutcomes(traces: IGovernanceTrace[]): IGovernanceRoutingOutcomeSummary {
@@ -858,6 +1020,7 @@ export function getGovernanceMetricsReport(
   const topFinalModels = buildTopEntries(metrics.finalModelDistribution, limitedTraces.length);
   const topSemanticIntents = buildTopEntries(metrics.semanticIntentDistribution, limitedTraces.length);
   const anomalies = buildAnomalies(metrics, buckets, thresholds);
+  const qualityEvidence = buildQualityEvidenceSummary(limitedTraces, thresholds);
 
   return {
     windowMs: options.windowMs,
@@ -871,6 +1034,7 @@ export function getGovernanceMetricsReport(
     topFinalModels,
     topSemanticIntents,
     anomalies,
+    qualityEvidence,
     health: buildGovernanceHealthSummary({
       metrics,
       anomalies,
@@ -917,6 +1081,16 @@ export function exportGovernanceMetricsReport(
     lines.push(`summary,healthMessage,${report.health.message}`);
     for (const item of report.health.routingTuning ?? []) {
       lines.push(`routingTuning,${item.code},${item.severity}:${item.evidence}`);
+    }
+  }
+
+  if (report.qualityEvidence) {
+    lines.push(`qualityEvidence,totalSamples,${report.qualityEvidence.totalSamples}`);
+    lines.push(`qualityEvidence,failureSamples,${report.qualityEvidence.failureSamples}`);
+    lines.push(`qualityEvidence,improvementSamples,${report.qualityEvidence.improvementSamples}`);
+    lines.push(`qualityEvidence,speedRiskSamples,${report.qualityEvidence.speedRiskSamples}`);
+    for (const item of report.qualityEvidence.samples) {
+      lines.push(`qualityEvidenceSample,${item.type},${item.severity}:${item.requestId}:${compactCsvEvidence(item.evidence)}`);
     }
   }
 

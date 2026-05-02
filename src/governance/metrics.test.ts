@@ -571,6 +571,99 @@ describe('summarizeGovernanceMetrics', () => {
     expect(health.actions).toContain('Review high-cascade route groups before widening SmartRouter candidates.');
   });
 
+  it('summarizes quality evidence samples from real governance traces', () => {
+    governanceTraceStore.clear();
+
+    governanceTraceStore.add({
+      requestId: 'trace-cascade',
+      initialModel: 'haiku',
+      finalModel: 'sonnet',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: ['Detected test failure marker in response'],
+      shadowChecked: false,
+      startedAt: 1,
+      latencyMs: 1200,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-continuity',
+      initialModel: 'haiku',
+      finalModel: 'opus',
+      routeReason: ['semantic_match', 'context_window_fallback:haiku->opus'],
+      stickyHit: false,
+      alignmentUsed: true,
+      cascadeTriggered: false,
+      shadowChecked: true,
+      verificationResult: 'verifier pass: answer includes required implementation steps',
+      startedAt: 2,
+      latencyMs: 900,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-slow',
+      initialModel: 'sonnet',
+      finalModel: 'sonnet',
+      routeReason: ['tool_use'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      shadowChecked: false,
+      startedAt: 3,
+      latencyMs: 3500,
+    });
+    governanceTraceStore.add({
+      requestId: 'trace-pool-fallback',
+      initialModel: 'pool-model',
+      finalModel: 'pool-model',
+      routeReason: ['model_pool:pool-model:endpoint-a'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      shadowChecked: false,
+      modelPoolFallbackTriggered: true,
+      modelPoolFallbackFromEndpoint: 'endpoint-a',
+      modelPoolFallbackNextEndpoint: 'endpoint-b',
+      modelPoolFallbackEvidence: 'upstream 502',
+      startedAt: 4,
+      latencyMs: 500,
+    });
+
+    const report = getGovernanceMetricsReport();
+
+    expect(report.qualityEvidence).toEqual(expect.objectContaining({
+      totalSamples: 6,
+      failureSamples: 3,
+      improvementSamples: 3,
+      speedRiskSamples: 1,
+      byType: expect.arrayContaining([
+        { key: 'alignment_continuity', count: 1, rate: 0.1667 },
+        { key: 'cascade_failure', count: 1, rate: 0.1667 },
+        { key: 'context_window_guard', count: 1, rate: 0.1667 },
+        { key: 'model_pool_fallback', count: 1, rate: 0.1667 },
+        { key: 'shadow_verification', count: 1, rate: 0.1667 },
+        { key: 'slow_request', count: 1, rate: 0.1667 },
+      ]),
+    }));
+    expect(report.qualityEvidence?.samples[0]).toEqual(expect.objectContaining({
+      requestId: 'trace-slow',
+      type: 'slow_request',
+      severity: 'critical',
+    }));
+    expect(report.qualityEvidence?.samples).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        requestId: 'trace-continuity',
+        type: 'alignment_continuity',
+        severity: 'info',
+      }),
+      expect.objectContaining({
+        requestId: 'trace-continuity',
+        type: 'context_window_guard',
+        severity: 'info',
+      }),
+    ]));
+  });
+
   it('exports governance metrics reports as csv', () => {
     const csv = exportGovernanceMetricsReport({
       bucketCount: 1,
@@ -680,6 +773,26 @@ describe('summarizeGovernanceMetrics', () => {
       topFinalModels: [{ key: 'model-a', count: 2, rate: 1 }],
       topSemanticIntents: [{ key: 'review', count: 1, rate: 0.5 }],
       anomalies: [{ type: 'cascade_rate_high', severity: 'warn', message: 'x', metric: 'cascadeTriggeredRate', value: 0.5 }],
+      qualityEvidence: {
+        totalSamples: 1,
+        failureSamples: 1,
+        improvementSamples: 0,
+        speedRiskSamples: 1,
+        byType: [{ key: 'slow_request', count: 1, rate: 1 }],
+        samples: [
+          {
+            requestId: 'trace-slow',
+            type: 'slow_request',
+            severity: 'warn',
+            evidence: 'latencyMs=1700',
+            action: 'Compare this route with faster candidates before making it default traffic.',
+            routeReason: ['smart_router'],
+            finalModel: 'model-a',
+            latencyMs: 1700,
+            startedAt: 1,
+          },
+        ],
+      },
       health: {
         status: 'watch',
         message: '1 governance alert needs attention (0 critical / 1 warning).',
@@ -718,6 +831,8 @@ describe('summarizeGovernanceMetrics', () => {
     expect(csv).toContain('outcome,contextWindowExceededRate,0');
     expect(csv).toContain('anomaly,cascade_rate_high,warn:0.5');
     expect(csv).toContain('routingTuning,context_window_fallback_high,info:contextWindowFallbackRate=50%');
+    expect(csv).toContain('qualityEvidence,totalSamples,1');
+    expect(csv).toContain('qualityEvidenceSample,slow_request,warn:trace-slow:latencyMs=1700');
     expect(csv).toContain('topFinalModel,model-a,2:1');
     expect(csv).toContain('topModelSwitch,model-a -> model-b,1:1');
     expect(csv).toContain('outcomeByRouteReason,sticky,2:0.5:120');
