@@ -62,6 +62,18 @@ export interface IAuthAuditEvent {
 
 const VALID_SCOPES: TManagedApiKeyScope[] = ['admin', 'operator', 'client', 'read-only'];
 
+function normalizeKnownScopes(input: unknown): TManagedApiKeyScope[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  return Array.from(new Set(
+    input
+      .map((item) => String(item).trim())
+      .filter((item): item is TManagedApiKeyScope => VALID_SCOPES.includes(item as TManagedApiKeyScope))
+  ));
+}
+
 function createSecret(): string {
   const token = randomBytes(24)
     .toString('base64')
@@ -93,11 +105,7 @@ export function normalizeManagedApiKeyScopes(input: unknown): TManagedApiKeyScop
     return ['client'];
   }
 
-  const scopes = Array.from(new Set(
-    input
-      .map((item) => String(item).trim())
-      .filter((item): item is TManagedApiKeyScope => VALID_SCOPES.includes(item as TManagedApiKeyScope))
-  ));
+  const scopes = normalizeKnownScopes(input);
 
   return scopes.length ? scopes : ['client'];
 }
@@ -174,7 +182,7 @@ export function sanitizeManagedApiKey(record: IManagedApiKeyConfig, now = new Da
     label: record.label,
     keyPrefix: record.key_prefix,
     keySuffix: record.key_suffix,
-    scopes: record.scopes,
+    scopes: normalizeKnownScopes(record.scopes),
     createdAt: record.created_at,
     expiresAt: record.expires_at,
     revokedAt: record.revoked_at,
@@ -198,17 +206,18 @@ export function managedApiKeySummary(config: Partial<IAppConfig>, now = new Date
 }
 
 export function scopeAllows(scopes: TManagedApiKeyScope[], required: TApiKeyRequirement): boolean {
-  if (scopes.includes('admin')) {
+  const normalizedScopes = normalizeKnownScopes(scopes);
+  if (normalizedScopes.includes('admin')) {
     return true;
   }
   if (required === 'read-only') {
-    return scopes.includes('read-only') || scopes.includes('operator');
+    return normalizedScopes.includes('read-only') || normalizedScopes.includes('operator');
   }
   if (required === 'operator') {
-    return scopes.includes('operator');
+    return normalizedScopes.includes('operator');
   }
   if (required === 'client') {
-    return scopes.includes('client');
+    return normalizedScopes.includes('client');
   }
   return false;
 }
@@ -242,7 +251,8 @@ export function verifyApiKey(
   if (!isManagedApiKeyActive(record, now)) {
     return { ok: false, source: 'managed', keyId: record.id, reason: 'expired' };
   }
-  if (!scopeAllows(record.scopes, required)) {
+  const scopes = normalizeKnownScopes(record.scopes);
+  if (!scopeAllows(scopes, required)) {
     return { ok: false, source: 'managed', keyId: record.id, reason: 'insufficient_scope' };
   }
 
@@ -250,7 +260,7 @@ export function verifyApiKey(
     ok: true,
     source: 'managed',
     keyId: record.id,
-    scopes: record.scopes,
+    scopes,
     quota: record.quota,
   };
 }

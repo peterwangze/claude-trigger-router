@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { authAuditStore, authQuotaUsageStore, createManagedApiKey, validateManagedApiKeyQuota, validateManagedApiKeyScopes, verifyApiKey } from './api-keys';
+import { authAuditStore, authQuotaUsageStore, createManagedApiKey, scopeAllows, validateManagedApiKeyQuota, validateManagedApiKeyScopes, verifyApiKey } from './api-keys';
 
 describe('managed API keys', () => {
   beforeEach(() => {
@@ -64,6 +64,30 @@ describe('managed API keys', () => {
       ok: false,
       reason: 'insufficient_scope',
     });
+  });
+
+  it('normalizes stored scope strings before runtime authorization', () => {
+    const created = createManagedApiKey({ label: 'operator', scopes: ['operator'] });
+    const config = {
+      Auth: {
+        managed_keys: [
+          {
+            ...created.record,
+            scopes: [' operator ', 'read-only ', 'unknown'] as any,
+          },
+        ],
+      },
+    };
+
+    expect(verifyApiKey(config, created.secret, 'operator')).toMatchObject({
+      ok: true,
+      scopes: ['operator', 'read-only'],
+    });
+    expect(verifyApiKey(config, created.secret, 'client')).toMatchObject({
+      ok: false,
+      reason: 'insufficient_scope',
+    });
+    expect(scopeAllows([' owner '] as any, 'client')).toBe(false);
   });
 
   it('rejects revoked managed keys', () => {
@@ -236,6 +260,7 @@ describe('managed API keys', () => {
 
   it('validates managed key scopes including operator', () => {
     expect(validateManagedApiKeyScopes(['operator', 'read-only'])).toEqual([]);
+    expect(validateManagedApiKeyScopes([' operator ', 'read-only '])).toEqual([]);
     expect(validateManagedApiKeyScopes(['operator', 'owner'])).toEqual(['unsupported scope: owner']);
   });
 

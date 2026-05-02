@@ -425,3 +425,24 @@
   - `README.md`
   - `docs/server-maintainer-guide.md`
   - `docs/configuration-guide.md`
+
+### PI-020：managed key scope 校验与运行时授权的 trim 口径不一致
+
+- 发现时间：2026-05-03
+- 严重级别：P1
+- 现象：`validateManagedApiKeyScopes()` 会 trim scope 字符串，因此手写配置中的 `operator ` / `read-only ` 能通过校验；但运行时 `scopeAllows()` 直接对原始数组做 `includes()`，导致同一配置校验通过却无法授权。
+- 影响范围：
+  - 手工编辑 `Auth.managed_keys[].scopes` 的服务维护者
+  - 新增 `operator` scope 的日常运维授权路径
+  - `/api/service-info` 与 `/ui` 中 managed key scope 脱敏展示的一致性
+- 修正动作：
+  - 新增运行时 scope 归一化，授权前统一 trim 并只保留已知 scope
+  - `verifyApiKey()` 返回归一化后的 scopes，审计和 quota 摘要不再带原始空白
+  - `sanitizeManagedApiKey()` 输出归一化 scopes
+  - 补充 `operator ` / `read-only ` 校验通过且运行时授权可用、未知 scope 不会默认提升为 client 的回归测试
+- 当前状态：`closed`
+- 闭环结论：managed key scope 的配置校验、运行时授权、审计输出和 UI/API 脱敏展示已统一到同一归一化口径，operator 最小权限路径不再因手写空白字符失效。
+- 关联文档：
+  - `src/auth/api-keys.ts`
+  - `src/auth/api-keys.test.ts`
+  - `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md`
