@@ -376,7 +376,7 @@ ctr eval --input results.json
 ]
 ```
 
-当前内置任务包括 `quick_status`、`coding_fix`、`architecture_review` 和 `long_context_triage`。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency 与 best run；它是离线 deterministic rubric，不等同于完整人工或 LLM 裁判评测。
+当前内置任务包括 `quick_status`、`coding_fix`、`architecture_review` 和 `long_context_triage`。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency、best run 和失败 findings；它是离线 deterministic rubric，不等同于完整人工或 LLM 裁判评测。
 
 如果服务没有启动，`ctr ui` 会提示先运行：
 

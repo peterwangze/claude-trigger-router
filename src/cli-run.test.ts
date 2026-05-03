@@ -287,6 +287,35 @@ describe('runClaudeCode', () => {
     logSpy.mockRestore();
   });
 
+  it('prints a friendly error for malformed offline evaluation input', async () => {
+    process.argv = ['node', 'cli.ts', 'eval', '--input', 'results.json'];
+    mockReadFileSync.mockImplementation((filePath: string) => {
+      if (String(filePath).endsWith('package.json')) {
+        return JSON.stringify({
+          name: '@peterwangze/claude-trigger-router',
+          version: '1.1.0',
+        });
+      }
+      if (String(filePath) === 'results.json') {
+        return JSON.stringify([{ taskId: 'quick_status', model: 'fast,haiku', latencyMs: -1 }]);
+      }
+      throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
+    });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(mockProcessExit as never);
+
+    const { main } = await import('./cli');
+    await expect(main()).rejects.toThrow('process.exit called');
+
+    const output = errorSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('离线评测失败');
+    expect(output).toContain('latencyMs 必须是非负数字');
+    expect(output).toContain('ctr eval --input results.json');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    errorSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
   it('generates a safe server deployment config from deploy init', async () => {
     process.argv = ['node', 'cli.ts', 'deploy', 'init', '--target', 'server', '--force'];
     mockExistsSync.mockReturnValue(false);

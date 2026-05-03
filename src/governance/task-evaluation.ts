@@ -54,6 +54,52 @@ export interface IOfflineTaskEvaluationReport {
   runs: IOfflineEvaluationRun[];
 }
 
+export function parseOfflineEvaluationInputs(payload: unknown): IOfflineEvaluationInput[] {
+  const rawResults = Array.isArray(payload)
+    ? payload
+    : typeof payload === 'object' && payload !== null && Array.isArray((payload as { results?: unknown }).results)
+      ? (payload as { results: unknown[] }).results
+      : undefined;
+
+  if (!rawResults) {
+    throw new Error('评测输入必须是数组，或包含 results 数组字段的对象。');
+  }
+
+  return rawResults.map((item, index) => {
+    if (typeof item !== 'object' || item === null) {
+      throw new Error(`第 ${index + 1} 条评测结果必须是对象。`);
+    }
+
+    const record = item as Record<string, unknown>;
+    if (typeof record.taskId !== 'string' || !record.taskId.trim()) {
+      throw new Error(`第 ${index + 1} 条评测结果缺少 taskId。`);
+    }
+    if (typeof record.model !== 'string' || !record.model.trim()) {
+      throw new Error(`第 ${index + 1} 条评测结果缺少 model。`);
+    }
+    if (record.output !== undefined && typeof record.output !== 'string') {
+      throw new Error(`第 ${index + 1} 条评测结果的 output 必须是字符串。`);
+    }
+    if (record.error !== undefined && typeof record.error !== 'string') {
+      throw new Error(`第 ${index + 1} 条评测结果的 error 必须是字符串。`);
+    }
+    if (
+      record.latencyMs !== undefined
+      && (typeof record.latencyMs !== 'number' || !Number.isFinite(record.latencyMs) || record.latencyMs < 0)
+    ) {
+      throw new Error(`第 ${index + 1} 条评测结果的 latencyMs 必须是非负数字。`);
+    }
+
+    return {
+      taskId: record.taskId.trim(),
+      model: record.model.trim(),
+      output: record.output,
+      error: record.error,
+      latencyMs: record.latencyMs,
+    };
+  });
+}
+
 export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
   {
     id: 'quick_status',
@@ -281,6 +327,14 @@ export function formatOfflineTaskEvaluationReport(report: IOfflineTaskEvaluation
   lines.push('Best runs by task:');
   for (const run of report.bestRunsByTask) {
     lines.push(`- ${run.taskId} -> ${run.model}: ${run.passed ? 'pass' : 'fail'}, quality ${run.qualityScore.toFixed(2)}, latency ${run.latencyMs ?? '-'} ms`);
+  }
+
+  const failedRuns = report.runs.filter((run) => !run.passed || run.findings.length);
+  if (failedRuns.length) {
+    lines.push('Findings:');
+    for (const run of failedRuns) {
+      lines.push(`- ${run.taskId} -> ${run.model}: ${run.findings.length ? run.findings.join(', ') : 'quality_below_threshold'}`);
+    }
   }
 
   return lines.join('\n');

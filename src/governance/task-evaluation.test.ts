@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_OFFLINE_EVALUATION_TASKS,
   formatOfflineTaskEvaluationReport,
+  parseOfflineEvaluationInputs,
   runOfflineTaskEvaluation,
 } from './task-evaluation';
 
@@ -92,5 +93,45 @@ describe('offline task evaluation', () => {
     expect(formatOfflineTaskEvaluationReport(report)).toContain('Offline routing evaluation');
     expect(formatOfflineTaskEvaluationReport(report)).toContain('fast,haiku');
     expect(formatOfflineTaskEvaluationReport(report)).toContain('quick_status -> fast,haiku');
+  });
+
+  it('validates operator supplied result files before scoring', () => {
+    expect(parseOfflineEvaluationInputs({
+      results: [
+        {
+          taskId: ' quick_status ',
+          model: ' fast,haiku ',
+          output: 'Status is ready. Next action is to continue.',
+          latencyMs: 300,
+        },
+      ],
+    })).toEqual([
+      {
+        taskId: 'quick_status',
+        model: 'fast,haiku',
+        output: 'Status is ready. Next action is to continue.',
+        latencyMs: 300,
+      },
+    ]);
+
+    expect(() => parseOfflineEvaluationInputs([{ taskId: 'quick_status', latencyMs: -1 }])).toThrow('缺少 model');
+    expect(() => parseOfflineEvaluationInputs({ results: [{ taskId: 'quick_status', model: 'fast', latencyMs: -1 }] })).toThrow('latencyMs 必须是非负数字');
+    expect(() => parseOfflineEvaluationInputs({ value: [] })).toThrow('评测输入必须是数组');
+  });
+
+  it('includes failing run findings in the operator report', () => {
+    const report = runOfflineTaskEvaluation([
+      {
+        taskId: 'coding_fix',
+        model: 'fast,haiku',
+        latencyMs: 4000,
+        output: 'TODO placeholder',
+      },
+    ]);
+
+    const output = formatOfflineTaskEvaluationReport(report);
+    expect(output).toContain('Findings:');
+    expect(output).toContain('coding_fix -> fast,haiku');
+    expect(output).toContain('latency_over_budget');
   });
 });

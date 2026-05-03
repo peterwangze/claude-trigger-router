@@ -18,7 +18,12 @@ import { buildServerDeploymentConfig, buildUsableMinimalTemplateConfig } from ".
 import { runDoctorCli } from "./doctor";
 import { managedApiKeySummary } from "./auth/api-keys";
 import { normalizeAndValidateConfig } from "./utils/config";
-import { formatOfflineTaskEvaluationReport, runOfflineTaskEvaluation } from "./governance/task-evaluation";
+import {
+  formatOfflineTaskEvaluationReport,
+  parseOfflineEvaluationInputs,
+  runOfflineTaskEvaluation,
+  type IOfflineEvaluationInput,
+} from "./governance/task-evaluation";
 
 const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
 const PACKAGE_PAGE_URL = "https://www.npmjs.com/package/@peterwangze/claude-trigger-router";
@@ -248,15 +253,9 @@ function printRuntimeStatus(config: any, port: number, liveInfo?: any | null) {
   console.log(`   本地接入：${clientConnection?.baseUrl || `http://127.0.0.1:${listenerPort}`}`);
 }
 
-function readOfflineEvaluationInputs(inputPath: string): any[] {
+function readOfflineEvaluationInputs(inputPath: string): IOfflineEvaluationInput[] {
   const payload = JSON.parse(readFileSync(inputPath, "utf-8"));
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-  if (Array.isArray(payload?.results)) {
-    return payload.results;
-  }
-  throw new Error("评测输入必须是数组，或包含 results 数组字段的对象。");
+  return parseOfflineEvaluationInputs(payload);
 }
 
 function runOfflineEvaluationCli() {
@@ -267,14 +266,20 @@ function runOfflineEvaluationCli() {
     process.exit(1);
   }
 
-  const inputs = readOfflineEvaluationInputs(inputPath);
-  const report = runOfflineTaskEvaluation(inputs);
-  if (hasArg("--json")) {
-    console.log(JSON.stringify(report, null, 2));
-    return;
-  }
+  try {
+    const inputs = readOfflineEvaluationInputs(inputPath);
+    const report = runOfflineTaskEvaluation(inputs);
+    if (hasArg("--json")) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
 
-  console.log(formatOfflineTaskEvaluationReport(report));
+    console.log(formatOfflineTaskEvaluationReport(report));
+  } catch (error: any) {
+    console.error(`❌ 离线评测失败：${error.message}`);
+    console.error("   请检查输入格式：ctr eval --input results.json");
+    process.exit(1);
+  }
 }
 
 function getLatestPackageVersionViaNpm(packageName: string, timeoutMs = 5000): string | null {

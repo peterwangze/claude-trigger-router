@@ -293,7 +293,7 @@
   - 已新增 routing tuning 建议入口：health 会基于高切换低 alignment、切换后 cascade、上下文窗口风险和慢 route 给出证据与 action，并在 `/ui` 和 CSV 导出中展示。
   - 已新增 `qualityEvidence` 样本摘要：真实 trace 中的 cascade failure、model pool fallback、shadow verification、context window guard、slow request 与 alignment continuity 会进入 `/api/governance/metrics`、CSV 和 `/ui`。
   - 已新增 `taskComparison` 任务集对比摘要：基于已有 governance trace 按任务意图对比不同最终模型的失败率、平均延迟、alignment 与 cascade 表现，并进入 `/api/governance/metrics`、CSV 和 `/ui`。
-  - 已新增第一版离线固定任务集执行器：`ctr eval --input results.json` 可用内置固定任务和 deterministic rubric 对多模型输出做可重复评分，输出按模型和任务聚合的 pass rate、quality、speed 与 best run。
+  - 已新增第一版离线固定任务集执行器：`ctr eval --input results.json` 可用内置固定任务和 deterministic rubric 对多模型输出做可重复评分，输出按模型和任务聚合的 pass rate、quality、speed 与 best run；复审已补输入校验、友好错误和失败 findings 输出。
   - 仍需继续补自动模型调用执行、更多任务样本和更严格的质量评分 rubric，让同任务多模型 A/B 从“手工结果文件评测”推进到“端到端可重复跑分评测”。
 - `服务端 API key 与鉴权控制面`
   - 已新增 generated keys、scope、过期和撤销的第一层控制面，并让运行时鉴权按当前配置即时识别新 key / 吊销 key。
