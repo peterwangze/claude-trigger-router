@@ -67,13 +67,21 @@ describe('offline task evaluation', () => {
         taskId: 'coding_fix',
         model: 'fast,haiku',
         passed: false,
+        dimensionScores: expect.arrayContaining([
+          expect.objectContaining({ id: 'semantic_coverage' }),
+          expect.objectContaining({ id: 'deliverable_format' }),
+        ]),
         findings: expect.arrayContaining([
+          expect.stringContaining('dimension_below_threshold'),
           expect.stringContaining('output_too_short'),
           expect.stringContaining('missing_code_block'),
           expect.stringContaining('forbidden_patterns'),
         ]),
       }),
     ]));
+    expect(report.averageDimensionScores).toEqual(expect.objectContaining({
+      semantic_coverage: expect.any(Number),
+    }));
     expect(report.bestRunsByTask).toEqual(expect.arrayContaining([
       expect.objectContaining({
         taskId: 'coding_fix',
@@ -134,8 +142,51 @@ describe('offline task evaluation', () => {
 
     const output = formatOfflineTaskEvaluationReport(report);
     expect(output).toContain('Findings:');
+    expect(output).toContain('Average dimensions:');
     expect(output).toContain('coding_fix -> fast,haiku');
     expect(output).toContain('latency_over_budget');
+  });
+
+  it('supports explicit quality dimensions that are stricter than legacy keywords', () => {
+    const report = runOfflineTaskEvaluation([
+      {
+        taskId: 'strict_review',
+        model: 'fast,haiku',
+        latencyMs: 400,
+        output: 'Risk is documented and the answer is otherwise fluent.',
+      },
+    ], [
+      {
+        id: 'strict_review',
+        intent: 'architecture',
+        prompt: 'Review a risky rollout.',
+        requiredKeywords: ['risk'],
+        minQualityScore: 0.9,
+        qualityDimensions: [
+          {
+            id: 'rollback readiness',
+            label: 'Rollback readiness',
+            minScore: 1,
+            requiredKeywords: ['rollback'],
+          },
+        ],
+      },
+    ]);
+
+    expect(report.runs[0]).toEqual(expect.objectContaining({
+      passed: false,
+      qualityScore: 0.4,
+      dimensionScores: [
+        expect.objectContaining({
+          id: 'rollback_readiness',
+          score: 0.4,
+        }),
+      ],
+      findings: expect.arrayContaining([
+        'dimension_below_threshold:rollback_readiness:0.4/1',
+        'dimension_rollback_readiness:missing_keywords:rollback',
+      ]),
+    }));
   });
 
   it('exports a stable fixed task manifest for repeatable benchmark runners', () => {
@@ -148,6 +199,9 @@ describe('offline task evaluation', () => {
         category: 'server_ops',
         rubric: expect.objectContaining({
           requiredKeywords: expect.arrayContaining(['scope', 'rotation', 'audit', 'rollback']),
+          qualityDimensions: expect.arrayContaining([
+            expect.objectContaining({ id: 'semantic_coverage' }),
+          ]),
         }),
       }),
       expect.objectContaining({
@@ -186,6 +240,7 @@ describe('offline task evaluation', () => {
     expect(output).toContain('Required:');
     expect(output).toContain('Forbidden:');
     expect(output).toContain('Requires code block: true');
+    expect(output).toContain('Dimensions:');
     expect(output).toContain('...rest of code');
   });
 

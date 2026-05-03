@@ -378,7 +378,7 @@ ctr eval --run --models "sonnet;haiku"
 ]
 ```
 
-`ctr eval --tasks` 会列出固定任务的 prompt、expected output、关键词、字符数、延迟预算和 result template；加 `--json` 可导出给后续自动执行器或外部脚本。当前内置任务覆盖 quick reply、coding、architecture、long context、server auth/deployment 和 model pool incident。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency、best run 和失败 findings；它是离线 deterministic rubric，不等同于完整人工或 LLM 裁判评测。
+`ctr eval --tasks` 会列出固定任务的 prompt、expected output、关键词、字符数、延迟预算、质量维度和 result template；加 `--json` 可导出给后续自动执行器或外部脚本。当前内置任务覆盖 quick reply、coding、architecture、long context、server auth/deployment 和 model pool incident。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency、best run、维度均分和失败 findings；它是离线 deterministic rubric，不等同于完整人工或 LLM 裁判评测。
 
 如果本机或远端 CTR 已启动，也可以显式自动跑固定任务集：
 

@@ -10,6 +10,18 @@ export interface IOfflineEvaluationTask {
   requiredKeywords?: string[];
   forbiddenPatterns?: string[];
   requiresCodeBlock?: boolean;
+  qualityDimensions?: IOfflineEvaluationDimension[];
+}
+
+export interface IOfflineEvaluationDimension {
+  id: string;
+  label?: string;
+  weight?: number;
+  minScore?: number;
+  minOutputChars?: number;
+  requiredKeywords?: string[];
+  forbiddenPatterns?: string[];
+  requiresCodeBlock?: boolean;
 }
 
 export interface IOfflineEvaluationInput {
@@ -28,6 +40,15 @@ export interface IOfflineEvaluationRun {
   qualityScore: number;
   speedScore: number;
   latencyMs?: number;
+  dimensionScores: IOfflineEvaluationDimensionScore[];
+  findings: string[];
+}
+
+export interface IOfflineEvaluationDimensionScore {
+  id: string;
+  label: string;
+  score: number;
+  weight: number;
   findings: string[];
 }
 
@@ -39,6 +60,7 @@ export interface IOfflineEvaluationGroup {
   averageQualityScore: number;
   averageSpeedScore: number;
   averageLatencyMs: number;
+  averageDimensionScores: Record<string, number>;
 }
 
 export interface IOfflineTaskEvaluationReport {
@@ -50,6 +72,7 @@ export interface IOfflineTaskEvaluationReport {
   averageQualityScore: number;
   averageSpeedScore: number;
   averageLatencyMs: number;
+  averageDimensionScores: Record<string, number>;
   bestRunsByTask: IOfflineEvaluationRun[];
   byTask: IOfflineEvaluationGroup[];
   byModel: IOfflineEvaluationGroup[];
@@ -216,6 +239,63 @@ function includesCodeBlock(output: string): boolean {
   return /```[\s\S]*```/.test(output);
 }
 
+function normalizeDimensionId(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'quality';
+}
+
+function qualityDimensionsForTask(task: IOfflineEvaluationTask): IOfflineEvaluationDimension[] {
+  if (Array.isArray(task.qualityDimensions) && task.qualityDimensions.length) {
+    return task.qualityDimensions.map((dimension) => ({
+      ...dimension,
+      id: normalizeDimensionId(dimension.id),
+    }));
+  }
+
+  const dimensions: IOfflineEvaluationDimension[] = [];
+  if ((task.requiredKeywords ?? []).length) {
+    dimensions.push({
+      id: 'semantic_coverage',
+      label: 'Semantic coverage',
+      weight: 0.45,
+      minScore: 0.7,
+      requiredKeywords: task.requiredKeywords,
+    });
+  }
+  if ((task.minOutputChars ?? 0) > 0) {
+    dimensions.push({
+      id: 'completeness',
+      label: 'Completeness',
+      weight: 0.25,
+      minScore: 0.7,
+      minOutputChars: task.minOutputChars,
+    });
+  }
+  if (task.requiresCodeBlock) {
+    dimensions.push({
+      id: 'deliverable_format',
+      label: 'Deliverable format',
+      weight: 0.2,
+      minScore: 1,
+      requiresCodeBlock: true,
+    });
+  }
+  if ((task.forbiddenPatterns ?? []).length) {
+    dimensions.push({
+      id: 'safety_hygiene',
+      label: 'Safety and hygiene',
+      weight: 0.1,
+      minScore: 1,
+      forbiddenPatterns: task.forbiddenPatterns,
+    });
+  }
+
+  return dimensions;
+}
+
 function extractResponseText(payload: any): string {
   if (!payload) {
     return '';
@@ -262,6 +342,72 @@ function extractContentText(content: any): string {
     .join('\n');
 }
 
+function evaluateDimension(
+  dimension: IOfflineEvaluationDimension,
+  output: string,
+  normalized: string
+): IOfflineEvaluationDimensionScore {
+  const findings: string[] = [];
+  const weight = Number.isFinite(dimension.weight) && (dimension.weight ?? 0) > 0 ? dimension.weight! : 1;
+  let score = 1;
+
+  if ((dimension.minOutputChars ?? 0) > 0 && output.trim().length < (dimension.minOutputChars ?? 0)) {
+    findings.push(`output_too_short:${output.trim().length}/${dimension.minOutputChars}`);
+    score -= 0.25;
+  }
+
+  const requiredKeywords = dimension.requiredKeywords ?? [];
+  const missingKeywords = requiredKeywords.filter((keyword) => !normalized.includes(keyword.toLowerCase()));
+  if (missingKeywords.length) {
+    findings.push(`missing_keywords:${missingKeywords.join('|')}`);
+    score -= 0.6 * rate(missingKeywords.length, Math.max(requiredKeywords.length, 1));
+  }
+
+  if (dimension.requiresCodeBlock && !includesCodeBlock(output)) {
+    findings.push('missing_code_block');
+    score -= 0.25;
+  }
+
+  const forbiddenMatches = (dimension.forbiddenPatterns ?? []).filter((pattern) => normalized.includes(pattern.toLowerCase()));
+  if (forbiddenMatches.length) {
+    findings.push(`forbidden_patterns:${forbiddenMatches.join('|')}`);
+    score -= 0.5;
+  }
+
+  return {
+    id: normalizeDimensionId(dimension.id),
+    label: dimension.label ?? dimension.id,
+    score: clamp(score),
+    weight,
+    findings,
+  };
+}
+
+function weightedAverageDimensionScore(scores: IOfflineEvaluationDimensionScore[]): number {
+  const totalWeight = scores.reduce((sum, score) => sum + score.weight, 0);
+  if (!scores.length || totalWeight <= 0) {
+    return 1;
+  }
+
+  return clamp(scores.reduce((sum, score) => sum + score.score * score.weight, 0) / totalWeight);
+}
+
+function averageDimensionScores(runs: IOfflineEvaluationRun[]): Record<string, number> {
+  const grouped: Record<string, number[]> = {};
+  for (const run of runs) {
+    for (const dimension of run.dimensionScores) {
+      grouped[dimension.id] ??= [];
+      grouped[dimension.id].push(dimension.score);
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(grouped)
+      .map(([id, values]) => [id, average(values)])
+      .sort(([left], [right]) => left.localeCompare(right))
+  );
+}
+
 function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInput): IOfflineEvaluationRun {
   const findings: string[] = [];
   const output = input.output ?? '';
@@ -272,6 +418,19 @@ function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInpu
   if (input.error) {
     findings.push(`runner_error:${input.error}`);
     qualityScore = 0;
+  }
+
+  const dimensions = qualityDimensionsForTask(task);
+  const dimensionScores = dimensions.map((dimension) => evaluateDimension(dimension, output, normalized));
+  for (const dimension of dimensionScores) {
+    const sourceDimension = dimensions.find((item) => normalizeDimensionId(item.id) === dimension.id);
+    const minScore = sourceDimension?.minScore ?? 0.7;
+    if (dimension.score < minScore) {
+      findings.push(`dimension_below_threshold:${dimension.id}:${dimension.score}/${minScore}`);
+    }
+    for (const finding of dimension.findings) {
+      findings.push(`dimension_${dimension.id}:${finding}`);
+    }
   }
 
   if ((task.minOutputChars ?? 0) > 0 && output.trim().length < (task.minOutputChars ?? 0)) {
@@ -305,7 +464,7 @@ function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInpu
     findings.push(`latency_over_budget:${latencyMs}/${task.maxLatencyMs}`);
   }
 
-  const finalQualityScore = clamp(qualityScore);
+  const finalQualityScore = clamp(Math.min(qualityScore, weightedAverageDimensionScore(dimensionScores)));
   return {
     taskId: task.id,
     intent: task.intent,
@@ -314,6 +473,7 @@ function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInpu
     qualityScore: finalQualityScore,
     speedScore,
     latencyMs,
+    dimensionScores,
     findings,
   };
 }
@@ -328,6 +488,7 @@ function summarizeGroup(key: string, runs: IOfflineEvaluationRun[]): IOfflineEva
     averageQualityScore: average(runs.map((run) => run.qualityScore)),
     averageSpeedScore: average(runs.map((run) => run.speedScore)),
     averageLatencyMs: latencies.length ? Number(average(latencies).toFixed(2)) : 0,
+    averageDimensionScores: averageDimensionScores(runs),
   };
 }
 
@@ -395,6 +556,7 @@ export function runOfflineTaskEvaluation(
     averageQualityScore: average(runs.map((run) => run.qualityScore)),
     averageSpeedScore: average(runs.map((run) => run.speedScore)),
     averageLatencyMs: latencies.length ? Number(average(latencies).toFixed(2)) : 0,
+    averageDimensionScores: averageDimensionScores(runs),
     bestRunsByTask,
     byTask: groupRuns(runs, (run) => run.taskId),
     byModel: groupRuns(runs, (run) => run.model),
@@ -519,6 +681,16 @@ export function buildOfflineTaskManifest(tasks: IOfflineEvaluationTask[] = DEFAU
         requiredKeywords: task.requiredKeywords ?? [],
         forbiddenPatterns: task.forbiddenPatterns ?? [],
         requiresCodeBlock: Boolean(task.requiresCodeBlock),
+        qualityDimensions: qualityDimensionsForTask(task).map((dimension) => ({
+          id: normalizeDimensionId(dimension.id),
+          label: dimension.label ?? dimension.id,
+          weight: dimension.weight ?? 1,
+          minScore: dimension.minScore ?? 0.7,
+          minOutputChars: dimension.minOutputChars,
+          requiredKeywords: dimension.requiredKeywords ?? [],
+          forbiddenPatterns: dimension.forbiddenPatterns ?? [],
+          requiresCodeBlock: Boolean(dimension.requiresCodeBlock),
+        })),
       },
       resultTemplate: {
         taskId: task.id,
@@ -544,6 +716,7 @@ export function formatOfflineTaskManifest(tasks: IOfflineEvaluationTask[] = DEFA
     lines.push(`  Required: ${(task.requiredKeywords ?? []).join('|') || '-'}`);
     lines.push(`  Forbidden: ${(task.forbiddenPatterns ?? []).join('|') || '-'}`);
     lines.push(`  Requires code block: ${Boolean(task.requiresCodeBlock)}`);
+    lines.push(`  Dimensions: ${qualityDimensionsForTask(task).map((dimension) => normalizeDimensionId(dimension.id)).join('|') || '-'}`);
   }
 
   return lines.join('\n');
@@ -555,6 +728,11 @@ export function formatOfflineTaskEvaluationReport(report: IOfflineTaskEvaluation
     `Tasks: ${report.totalTasks}, runs: ${report.evaluatedRuns}/${report.totalRuns}, passRate: ${(report.passRate * 100).toFixed(1)}%`,
     `Average quality: ${report.averageQualityScore.toFixed(2)}, speed: ${report.averageSpeedScore.toFixed(2)}, latency: ${report.averageLatencyMs} ms`,
   ];
+
+  const dimensions = Object.entries(report.averageDimensionScores);
+  if (dimensions.length) {
+    lines.push(`Average dimensions: ${dimensions.map(([id, score]) => `${id}=${score.toFixed(2)}`).join(', ')}`);
+  }
 
   if (report.missingTaskIds.length) {
     lines.push(`Missing task ids: ${report.missingTaskIds.join(', ')}`);

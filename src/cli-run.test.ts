@@ -284,6 +284,7 @@ describe('runClaudeCode', () => {
 
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
     expect(output).toContain('Offline routing evaluation');
+    expect(output).toContain('Average dimensions:');
     expect(output).toContain('fast,haiku');
     expect(output).toContain('quick_status -> fast,haiku');
     logSpy.mockRestore();
@@ -301,6 +302,7 @@ describe('runClaudeCode', () => {
     expect(output).toContain('auth_deployment_plan');
     expect(output).toContain('model_pool_incident');
     expect(output).toContain('Rubric:');
+    expect(output).toContain('Dimensions:');
     logSpy.mockRestore();
   });
 
@@ -318,6 +320,11 @@ describe('runClaudeCode', () => {
         id: 'coding_fix',
         resultTemplate: expect.objectContaining({
           taskId: 'coding_fix',
+        }),
+        rubric: expect.objectContaining({
+          qualityDimensions: expect.arrayContaining([
+            expect.objectContaining({ id: 'semantic_coverage' }),
+          ]),
         }),
       }),
     ]));
