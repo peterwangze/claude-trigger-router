@@ -1784,6 +1784,11 @@ describe('createServer /api/config', () => {
         type: 'cascade_failure',
       }),
     ]);
+    expect(allMetrics.taskComparison).toEqual(expect.objectContaining({
+      totalComparedTasks: 0,
+      totalComparedTraces: 0,
+      comparisons: [],
+    }));
     expect(sessionMetrics.metrics.totalTraces).toBe(1);
     expect(sessionMetrics.metrics.alignmentUsedRate).toBe(1);
     expect(sessionMetrics.metrics.semanticIntentDistribution).toEqual({
@@ -2536,6 +2541,9 @@ describe('createServer /api/config', () => {
     expect(html).toContain('qualityEvidenceSummary');
     expect(html).toContain('qualityEvidenceList');
     expect(html).toContain('renderQualityEvidence');
+    expect(html).toContain('Task comparison');
+    expect(html).toContain('taskComparisonList');
+    expect(html).toContain('renderTaskComparison');
     expect(html).toContain('switch ');
     expect(html).toContain('align ');
     expect(html).toContain('cascade ');

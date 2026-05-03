@@ -426,6 +426,11 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<ul id="qualityEvidenceList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
     `<div class="subpanel">` +
+    `<div class="row"><strong>Task comparison</strong><span class="muted">同类任务下不同最终模型的失败率和速度对比</span></div>` +
+    `<div id="taskComparisonSummary" class="stats"><div class="stat"><span class="muted">Tasks</span><strong>-</strong></div><div class="stat"><span class="muted">Traces</span><strong>-</strong></div></div>` +
+    `<ul id="taskComparisonList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="subpanel">` +
     `<div class="row"><strong>Anomaly tuning</strong><span class="muted">来自配置文件，可在此临时覆盖当前页面查询</span></div>` +
     `<div class="control-grid">` +
     `<div><label>Min sample</label><input id="minSampleSize" value="${escapedMinSampleSize}"></div>` +
@@ -610,6 +615,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const routingTuningList=document.getElementById('routingTuningList');` +
     `const qualityEvidenceSummary=document.getElementById('qualityEvidenceSummary');` +
     `const qualityEvidenceList=document.getElementById('qualityEvidenceList');` +
+    `const taskComparisonSummary=document.getElementById('taskComparisonSummary');` +
+    `const taskComparisonList=document.getElementById('taskComparisonList');` +
     `const securitySummary=document.getElementById('securitySummary');` +
     `const authQuotaTableBody=document.querySelector('#authQuotaTable tbody');` +
     `const modelPoolHealthSummary=document.getElementById('modelPoolHealthSummary');` +
@@ -1444,6 +1451,12 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(!items.length){ qualityEvidenceList.innerHTML='<li><span class="muted">No quality evidence samples</span><strong>0</strong></li>'; return; }` +
     `  qualityEvidenceList.innerHTML=items.map(item=>'<li><span><span class="pill '+esc(item.severity === 'critical' ? 'critical' : (item.severity === 'warn' ? 'warn' : 'info'))+'">'+esc(item.severity || 'info')+'</span> <strong>'+esc(item.type || '-')+'</strong><div class="muted">'+esc(item.requestId || '')+' · '+esc((item.routeReason || []).join(' / '))+'</div><div class="muted">'+esc(item.evidence || '')+'</div></span><strong>'+esc(item.action || '')+'</strong></li>').join('');` +
     `}` +
+    `function renderTaskComparison(summary){` +
+    `  const items=summary?.comparisons || [];` +
+    `  taskComparisonSummary.innerHTML=[['Tasks',summary?.totalComparedTasks || 0],['Traces',summary?.totalComparedTraces || 0]].map(([label,value])=>'<div class="stat"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
+    `  if(!items.length){ taskComparisonList.innerHTML='<li><span class="muted">No comparable task samples</span><strong>0</strong></li>'; return; }` +
+    `  taskComparisonList.innerHTML=items.map(item=>'<li><span><strong>'+esc(item.taskKey || '-')+'</strong><div class="muted">best '+esc(item.bestModel || '-')+' · baseline '+esc(item.baselineModel || '-')+' · fastest '+esc(item.fastestModel || '-')+'</div><div class="muted">failure lift '+esc(pct(item.failureRateDelta || 0))+' · latency lift '+esc(fmt(item.latencyDeltaMs || 0))+' ms · models '+esc(item.modelCount || 0)+'</div></span><strong>'+esc(item.totalTraces || 0)+' traces</strong></li>').join('');` +
+    `}` +
     `function renderAnomalies(anomalies,health){` +
     `  const status=health?.status || 'idle';` +
     `  const message=health?.message || 'No governance traces yet.';` +
@@ -1549,6 +1562,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderAnomalies(metricsData.anomalies || [],health);` +
     `  renderRoutingTuning(health?.routingTuning || []);` +
     `  renderQualityEvidence(metricsData.qualityEvidence || {});` +
+    `  renderTaskComparison(metricsData.taskComparison || {});` +
     `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +
     `  renderRanking(modelRanking,metricsData.topFinalModels || [],'No models');` +
     `  renderRanking(intentRanking,metricsData.topSemanticIntents || [],'No intents');` +

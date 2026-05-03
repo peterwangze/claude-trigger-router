@@ -203,6 +203,135 @@ describe('summarizeGovernanceMetrics', () => {
     ]);
   });
 
+  it('compares same-task model quality and speed from governance traces', () => {
+    governanceTraceStore.clear();
+
+    governanceTraceStore.add({
+      requestId: 'task-coding-sonnet-1',
+      initialModel: 'sonnet',
+      finalModel: 'sonnet',
+      routeReason: ['smart_router'],
+      stickyHit: false,
+      alignmentUsed: true,
+      semanticIntent: 'coding',
+      cascadeTriggered: false,
+      shadowChecked: false,
+      startedAt: 1,
+      latencyMs: 120,
+    });
+    governanceTraceStore.add({
+      requestId: 'task-coding-sonnet-2',
+      initialModel: 'sonnet',
+      finalModel: 'sonnet',
+      routeReason: ['smart_router', 'cascade_gate'],
+      stickyHit: false,
+      alignmentUsed: false,
+      semanticIntent: 'coding',
+      cascadeTriggered: true,
+      cascadeEvidence: ['test_failure'],
+      shadowChecked: false,
+      startedAt: 2,
+      latencyMs: 180,
+    });
+    governanceTraceStore.add({
+      requestId: 'task-coding-opus-1',
+      initialModel: 'sonnet',
+      finalModel: 'opus',
+      routeReason: ['semantic_match:coding'],
+      stickyHit: false,
+      alignmentUsed: true,
+      semanticIntent: 'coding',
+      cascadeTriggered: false,
+      shadowChecked: true,
+      verificationResult: 'no risk found',
+      startedAt: 3,
+      latencyMs: 90,
+    });
+    governanceTraceStore.add({
+      requestId: 'task-docs-sonnet',
+      initialModel: 'sonnet',
+      finalModel: 'sonnet',
+      routeReason: ['semantic_match:docs'],
+      stickyHit: false,
+      alignmentUsed: false,
+      semanticIntent: 'docs',
+      cascadeTriggered: false,
+      shadowChecked: false,
+      startedAt: 4,
+      latencyMs: 100,
+    });
+
+    const report = getGovernanceMetricsReport();
+
+    expect(report.taskComparison).toEqual(expect.objectContaining({
+      totalComparedTasks: 1,
+      totalComparedTraces: 3,
+    }));
+    expect(report.taskComparison?.comparisons).toEqual([
+      expect.objectContaining({
+        taskKey: 'coding',
+        totalTraces: 3,
+        modelCount: 2,
+        baselineModel: 'sonnet',
+        bestModel: 'opus',
+        fastestModel: 'opus',
+        failureRateDelta: 0.5,
+        latencyDeltaMs: 60,
+      }),
+    ]);
+    expect(report.taskComparison?.comparisons[0].models).toEqual([
+      expect.objectContaining({
+        model: 'opus',
+        totalTraces: 1,
+        failureRate: 0,
+        averageLatencyMs: 90,
+      }),
+      expect.objectContaining({
+        model: 'sonnet',
+        totalTraces: 2,
+        failureRate: 0.5,
+        averageLatencyMs: 150,
+      }),
+    ]);
+  });
+
+  it('normalizes legacy semantic intent route reasons for task comparison', () => {
+    governanceTraceStore.clear();
+
+    governanceTraceStore.add({
+      requestId: 'legacy-review-a',
+      initialModel: 'sonnet',
+      finalModel: 'model-a',
+      routeReason: ['semantic:intent:review'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      shadowChecked: false,
+      startedAt: 1,
+      latencyMs: 100,
+    });
+    governanceTraceStore.add({
+      requestId: 'legacy-review-b',
+      initialModel: 'sonnet',
+      finalModel: 'model-b',
+      routeReason: ['semantic:intent:review'],
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      shadowChecked: false,
+      startedAt: 2,
+      latencyMs: 80,
+    });
+
+    expect(getGovernanceMetricsReport().taskComparison?.comparisons[0]).toEqual(expect.objectContaining({
+      taskKey: 'review',
+      baselineModel: 'model-a',
+      bestModel: 'model-b',
+      fastestModel: 'model-b',
+      latencyDeltaMs: 20,
+    }));
+  });
+
   it('builds time-window buckets for recent traces', () => {
     governanceTraceStore.clear();
 
@@ -793,6 +922,36 @@ describe('summarizeGovernanceMetrics', () => {
           },
         ],
       },
+      taskComparison: {
+        totalComparedTasks: 1,
+        totalComparedTraces: 3,
+        bestQualityLiftTask: undefined,
+        bestSpeedLiftTask: undefined,
+        comparisons: [
+          {
+            taskKey: 'coding',
+            totalTraces: 3,
+            modelCount: 2,
+            baselineModel: 'sonnet',
+            bestModel: 'opus',
+            fastestModel: 'opus',
+            failureRateDelta: 0.5,
+            latencyDeltaMs: 60,
+            models: [
+              {
+                model: 'opus',
+                totalTraces: 1,
+                failureCount: 0,
+                failureRate: 0,
+                latencySampleCount: 1,
+                averageLatencyMs: 90,
+                alignmentUsedRate: 1,
+                cascadeTriggeredRate: 0,
+              },
+            ],
+          },
+        ],
+      },
       health: {
         status: 'watch',
         message: '1 governance alert needs attention (0 critical / 1 warning).',
@@ -833,6 +992,8 @@ describe('summarizeGovernanceMetrics', () => {
     expect(csv).toContain('routingTuning,context_window_fallback_high,info:contextWindowFallbackRate=50%');
     expect(csv).toContain('qualityEvidence,totalSamples,1');
     expect(csv).toContain('qualityEvidenceSample,slow_request,warn:trace-slow:latencyMs=1700; provider=slow');
+    expect(csv).toContain('taskComparison,totalComparedTasks,1');
+    expect(csv).toContain('taskComparisonSample,coding,best=opus:baseline=sonnet:failureRateDelta=0.5:latencyDeltaMs=60');
     expect(csv).toContain('topFinalModel,model-a,2:1');
     expect(csv).toContain('topModelSwitch,model-a -> model-b,1:1');
     expect(csv).toContain('outcomeByRouteReason,sticky,2:0.5:120');

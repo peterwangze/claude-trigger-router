@@ -81,6 +81,37 @@ export interface IGovernanceQualityEvidenceSummary {
   samples: IGovernanceQualityEvidenceSample[];
 }
 
+export interface IGovernanceTaskComparisonModelEntry {
+  model: string;
+  totalTraces: number;
+  failureCount: number;
+  failureRate: number;
+  latencySampleCount: number;
+  averageLatencyMs: number;
+  alignmentUsedRate: number;
+  cascadeTriggeredRate: number;
+}
+
+export interface IGovernanceTaskComparisonEntry {
+  taskKey: string;
+  totalTraces: number;
+  modelCount: number;
+  baselineModel: string;
+  bestModel: string;
+  fastestModel: string;
+  failureRateDelta: number;
+  latencyDeltaMs: number;
+  models: IGovernanceTaskComparisonModelEntry[];
+}
+
+export interface IGovernanceTaskComparisonSummary {
+  totalComparedTasks: number;
+  totalComparedTraces: number;
+  bestQualityLiftTask?: IGovernanceTaskComparisonEntry;
+  bestSpeedLiftTask?: IGovernanceTaskComparisonEntry;
+  comparisons: IGovernanceTaskComparisonEntry[];
+}
+
 export interface IGovernanceHealthSummary {
   status: TGovernanceHealthStatus;
   message: string;
@@ -191,6 +222,7 @@ export interface IGovernanceMetricsReport {
   topSemanticIntents: IGovernanceDistributionEntry[];
   anomalies: IGovernanceAnomaly[];
   qualityEvidence?: IGovernanceQualityEvidenceSummary;
+  taskComparison?: IGovernanceTaskComparisonSummary;
   health?: IGovernanceHealthSummary;
 }
 
@@ -379,6 +411,152 @@ function classifyVerificationResult(value: string): 'info' | 'warn' {
   }
 
   return /fail|risk|unsafe|violation|missing|placeholder|error/.test(normalized) ? 'warn' : 'info';
+}
+
+function getTaskComparisonKey(trace: IGovernanceTrace): string | undefined {
+  if (trace.semanticIntent) {
+    return trace.semanticIntent;
+  }
+
+  const semanticReason = trace.routeReason.find((reason) =>
+    reason.startsWith('semantic_match:') || reason.startsWith('semantic:intent:')
+  );
+  if (semanticReason) {
+    if (semanticReason.startsWith('semantic:intent:')) {
+      return semanticReason.slice('semantic:intent:'.length);
+    }
+    return semanticReason.slice('semantic_match:'.length);
+  }
+
+  return undefined;
+}
+
+function isTraceFailure(trace: IGovernanceTrace): boolean {
+  return Boolean(
+    trace.cascadeTriggered ||
+      (trace.cascadeEvidence?.length ?? 0) > 0 ||
+      trace.modelPoolFallbackTriggered ||
+      hasRouteReasonPrefix(trace, 'context_window_exceeded') ||
+      (trace.verificationResult && classifyVerificationResult(trace.verificationResult) === 'warn')
+  );
+}
+
+function buildTaskComparisonSummary(traces: IGovernanceTrace[], limit = 5): IGovernanceTaskComparisonSummary {
+  const tasks: Record<string, Record<string, {
+    model: string;
+    totalTraces: number;
+    failureCount: number;
+    alignmentUsedCount: number;
+    cascadeTriggeredCount: number;
+    latencyValues: number[];
+  }>> = {};
+
+  for (const trace of traces) {
+    const taskKey = getTaskComparisonKey(trace);
+    const model = trace.finalModel;
+    if (!taskKey || !model) {
+      continue;
+    }
+
+    tasks[taskKey] ??= {};
+    tasks[taskKey][model] ??= {
+      model,
+      totalTraces: 0,
+      failureCount: 0,
+      alignmentUsedCount: 0,
+      cascadeTriggeredCount: 0,
+      latencyValues: [],
+    };
+
+    const item = tasks[taskKey][model];
+    item.totalTraces += 1;
+    item.failureCount += isTraceFailure(trace) ? 1 : 0;
+    item.alignmentUsedCount += trace.alignmentUsed ? 1 : 0;
+    item.cascadeTriggeredCount += trace.cascadeTriggered ? 1 : 0;
+    if (typeof trace.latencyMs === 'number') {
+      item.latencyValues.push(trace.latencyMs);
+    }
+  }
+
+  const comparisons = Object.entries(tasks)
+    .map(([taskKey, modelMap]) => {
+      const models = Object.values(modelMap)
+        .map((model) => ({
+          model: model.model,
+          totalTraces: model.totalTraces,
+          failureCount: model.failureCount,
+          failureRate: rate(model.failureCount, model.totalTraces),
+          latencySampleCount: model.latencyValues.length,
+          averageLatencyMs: average(model.latencyValues),
+          alignmentUsedRate: rate(model.alignmentUsedCount, model.totalTraces),
+          cascadeTriggeredRate: rate(model.cascadeTriggeredCount, model.totalTraces),
+        }))
+        .sort((left, right) => {
+          if (left.failureRate !== right.failureRate) {
+            return left.failureRate - right.failureRate;
+          }
+          if (Boolean(right.latencySampleCount) !== Boolean(left.latencySampleCount)) {
+            return right.latencySampleCount - left.latencySampleCount;
+          }
+          if (left.averageLatencyMs !== right.averageLatencyMs) {
+            return left.averageLatencyMs - right.averageLatencyMs;
+          }
+          return right.totalTraces - left.totalTraces;
+        });
+      const modelCount = models.length;
+      const totalTraces = models.reduce((sum, model) => sum + model.totalTraces, 0);
+      if (modelCount < 2 || totalTraces < 2) {
+        return undefined;
+      }
+
+      const baseline = [...models].sort((left, right) => {
+        if (right.totalTraces !== left.totalTraces) {
+          return right.totalTraces - left.totalTraces;
+        }
+        return left.model.localeCompare(right.model);
+      })[0];
+      const best = models[0];
+      const latencyModels = models.filter((model) => model.latencySampleCount > 0);
+      const fastest = [...(latencyModels.length ? latencyModels : models)].sort((left, right) => {
+        if (left.averageLatencyMs !== right.averageLatencyMs) {
+          return left.averageLatencyMs - right.averageLatencyMs;
+        }
+        return left.failureRate - right.failureRate;
+      })[0];
+      const latencyDeltaMs = baseline.latencySampleCount > 0 && fastest.latencySampleCount > 0
+        ? Number((baseline.averageLatencyMs - fastest.averageLatencyMs).toFixed(2))
+        : 0;
+
+      return {
+        taskKey,
+        totalTraces,
+        modelCount,
+        baselineModel: baseline.model,
+        bestModel: best.model,
+        fastestModel: fastest.model,
+        failureRateDelta: Number((baseline.failureRate - best.failureRate).toFixed(4)),
+        latencyDeltaMs,
+        models,
+      };
+    })
+    .filter((item): item is IGovernanceTaskComparisonEntry => Boolean(item))
+    .sort((left, right) => {
+      if (right.failureRateDelta !== left.failureRateDelta) {
+        return right.failureRateDelta - left.failureRateDelta;
+      }
+      if (right.latencyDeltaMs !== left.latencyDeltaMs) {
+        return right.latencyDeltaMs - left.latencyDeltaMs;
+      }
+      return right.totalTraces - left.totalTraces;
+    });
+
+  return {
+    totalComparedTasks: comparisons.length,
+    totalComparedTraces: comparisons.reduce((sum, item) => sum + item.totalTraces, 0),
+    bestQualityLiftTask: comparisons.find((item) => item.failureRateDelta > 0),
+    bestSpeedLiftTask: [...comparisons].sort((left, right) => right.latencyDeltaMs - left.latencyDeltaMs).find((item) => item.latencyDeltaMs > 0),
+    comparisons: comparisons.slice(0, limit),
+  };
 }
 
 function buildQualityEvidenceSummary(
@@ -1031,6 +1209,7 @@ export function getGovernanceMetricsReport(
   const topSemanticIntents = buildTopEntries(metrics.semanticIntentDistribution, limitedTraces.length);
   const anomalies = buildAnomalies(metrics, buckets, thresholds);
   const qualityEvidence = buildQualityEvidenceSummary(limitedTraces, thresholds);
+  const taskComparison = buildTaskComparisonSummary(limitedTraces);
 
   return {
     windowMs: options.windowMs,
@@ -1045,6 +1224,7 @@ export function getGovernanceMetricsReport(
     topSemanticIntents,
     anomalies,
     qualityEvidence,
+    taskComparison,
     health: buildGovernanceHealthSummary({
       metrics,
       anomalies,
@@ -1101,6 +1281,14 @@ export function exportGovernanceMetricsReport(
     lines.push(`qualityEvidence,speedRiskSamples,${report.qualityEvidence.speedRiskSamples}`);
     for (const item of report.qualityEvidence.samples) {
       lines.push(`qualityEvidenceSample,${item.type},${item.severity}:${item.requestId}:${compactCsvEvidence(item.evidence)}`);
+    }
+  }
+
+  if (report.taskComparison) {
+    lines.push(`taskComparison,totalComparedTasks,${report.taskComparison.totalComparedTasks}`);
+    lines.push(`taskComparison,totalComparedTraces,${report.taskComparison.totalComparedTraces}`);
+    for (const item of report.taskComparison.comparisons) {
+      lines.push(`taskComparisonSample,${item.taskKey},best=${item.bestModel}:baseline=${item.baselineModel}:failureRateDelta=${item.failureRateDelta}:latencyDeltaMs=${item.latencyDeltaMs}`);
     }
   }
 
