@@ -362,6 +362,7 @@ Health 摘要下方的 action 可以直接把 trace 表切到对应排查视图�
 ```bash
 ctr eval --tasks
 ctr eval --input results.json
+ctr eval --run --models "sonnet;haiku"
 ```
 
 输入文件可以是数组，也可以是 `{ "results": [...] }`：
@@ -378,6 +379,14 @@ ctr eval --input results.json
 ```
 
 `ctr eval --tasks` 会列出固定任务的 prompt、expected output、关键词、字符数、延迟预算和 result template；加 `--json` 可导出给后续自动执行器或外部脚本。当前内置任务覆盖 quick reply、coding、architecture、long context、server auth/deployment 和 model pool incident。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency、best run 和失败 findings；它是离线 deterministic rubric，不等同于完整人工或 LLM 裁判评测。
+
+如果本机或远端 CTR 已启动，也可以显式自动跑固定任务集：
+
+```bash
+ctr eval --run --models "sonnet;haiku" --base-url http://127.0.0.1:5678 --api-key <client-or-bootstrap-key>
+```
+
+`--run` 会对每个模型逐个调用 `POST /v1/messages`，默认 `--concurrency 2`、`--timeout-ms 30000`、`--max-tokens 768`。多个模型用分号 `;` 分隔，因为 legacy 模型引用本身可能包含逗号。该模式会真实调用模型服务并消耗上游额度。
 
 如果服务没有启动，`ctr ui` 会提示先运行：
 
@@ -465,6 +474,7 @@ GET /api/auth/audit
 | `ctr doctor` | 配置和服务诊断 |
 | `ctr eval --tasks` | 查看固定评测任务、prompt 和 rubric |
 | `ctr eval --input results.json` | 离线固定任务集评测 |
+| `ctr eval --run --models "sonnet;haiku"` | 自动调用 CTR 后评测固定任务集 |
 | `ctr ui` | 打开本地 UI 工作台 |
 | `ctr version` | 查看版本 |
 | `ctr upgrade` | 升级 |

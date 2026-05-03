@@ -56,6 +56,22 @@ export interface IOfflineTaskEvaluationReport {
   runs: IOfflineEvaluationRun[];
 }
 
+export interface IOfflineTaskBenchmarkOptions {
+  models: string[];
+  baseUrl: string;
+  apiKey?: string;
+  timeoutMs?: number;
+  concurrency?: number;
+  maxTokens?: number;
+  tasks?: IOfflineEvaluationTask[];
+  fetchFn?: typeof fetch;
+}
+
+export interface IOfflineTaskBenchmarkResult {
+  inputs: IOfflineEvaluationInput[];
+  report: IOfflineTaskEvaluationReport;
+}
+
 export function parseOfflineEvaluationInputs(payload: unknown): IOfflineEvaluationInput[] {
   const rawResults = Array.isArray(payload)
     ? payload
@@ -200,6 +216,34 @@ function includesCodeBlock(output: string): boolean {
   return /```[\s\S]*```/.test(output);
 }
 
+function extractResponseText(payload: any): string {
+  if (!payload) {
+    return '';
+  }
+  if (typeof payload === 'string') {
+    return payload;
+  }
+  if (typeof payload.output_text === 'string') {
+    return payload.output_text;
+  }
+  if (typeof payload.content === 'string') {
+    return payload.content;
+  }
+  if (Array.isArray(payload.content)) {
+    return payload.content
+      .map((part: any) => typeof part?.text === 'string' ? part.text : '')
+      .filter(Boolean)
+      .join('\n');
+  }
+  if (Array.isArray(payload.choices)) {
+    return payload.choices
+      .map((choice: any) => choice?.message?.content ?? choice?.text ?? '')
+      .filter(Boolean)
+      .join('\n');
+  }
+  return '';
+}
+
 function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInput): IOfflineEvaluationRun {
   const findings: string[] = [];
   const output = input.output ?? '';
@@ -337,6 +381,105 @@ export function runOfflineTaskEvaluation(
     byTask: groupRuns(runs, (run) => run.taskId),
     byModel: groupRuns(runs, (run) => run.model),
     runs,
+  };
+}
+
+async function runBenchmarkJob(
+  task: IOfflineEvaluationTask,
+  model: string,
+  options: Required<Pick<IOfflineTaskBenchmarkOptions, 'baseUrl' | 'timeoutMs' | 'maxTokens'>> & {
+    apiKey?: string;
+    fetchFn: typeof fetch;
+  }
+): Promise<IOfflineEvaluationInput> {
+  const startedAt = Date.now();
+  const url = `${options.baseUrl.replace(/\/+$/, '')}/v1/messages`;
+  try {
+    const response = await options.fetchFn(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.apiKey ? { Authorization: `Bearer ${options.apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: options.maxTokens,
+        stream: false,
+        metadata: {
+          ctr_eval_task_id: task.id,
+          ctr_eval_intent: task.intent,
+        },
+        messages: [
+          {
+            role: 'user',
+            content: task.prompt,
+          },
+        ],
+      }),
+      ...(options.timeoutMs > 0 ? { signal: AbortSignal.timeout(options.timeoutMs) } : {}),
+    });
+    const latencyMs = Date.now() - startedAt;
+    if (!response.ok) {
+      return {
+        taskId: task.id,
+        model,
+        latencyMs,
+        error: `http_${response.status}`,
+      };
+    }
+
+    const payload = await response.json();
+    return {
+      taskId: task.id,
+      model,
+      latencyMs,
+      output: extractResponseText(payload),
+    };
+  } catch (error: any) {
+    return {
+      taskId: task.id,
+      model,
+      latencyMs: Date.now() - startedAt,
+      error: error?.name === 'TimeoutError' ? 'timeout' : (error?.message || 'request_failed'),
+    };
+  }
+}
+
+export async function runOfflineTaskBenchmark(options: IOfflineTaskBenchmarkOptions): Promise<IOfflineTaskBenchmarkResult> {
+  const tasks = options.tasks ?? DEFAULT_OFFLINE_EVALUATION_TASKS;
+  const models = options.models.map((model) => model.trim()).filter(Boolean);
+  if (!models.length) {
+    throw new Error('至少需要提供一个模型用于自动评测。');
+  }
+  if (!options.baseUrl?.trim()) {
+    throw new Error('自动评测需要 baseUrl。');
+  }
+
+  const jobs = tasks.flatMap((task) => models.map((model) => ({ task, model })));
+  const inputs: IOfflineEvaluationInput[] = new Array(jobs.length);
+  let nextIndex = 0;
+  const concurrency = Math.max(1, Math.min(Math.floor(options.concurrency ?? 2), 8));
+  const sharedOptions = {
+    baseUrl: options.baseUrl.trim(),
+    apiKey: options.apiKey?.trim() || undefined,
+    timeoutMs: Math.max(0, Math.floor(options.timeoutMs ?? 30000)),
+    maxTokens: Math.max(1, Math.floor(options.maxTokens ?? 768)),
+    fetchFn: options.fetchFn ?? fetch,
+  };
+
+  async function worker() {
+    while (nextIndex < jobs.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      const job = jobs[currentIndex];
+      inputs[currentIndex] = await runBenchmarkJob(job.task, job.model, sharedOptions);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, () => worker()));
+  return {
+    inputs,
+    report: runOfflineTaskEvaluation(inputs, tasks),
   };
 }
 

@@ -5,6 +5,7 @@ import {
   formatOfflineTaskEvaluationReport,
   formatOfflineTaskManifest,
   parseOfflineEvaluationInputs,
+  runOfflineTaskBenchmark,
   runOfflineTaskEvaluation,
 } from './task-evaluation';
 
@@ -186,5 +187,69 @@ describe('offline task evaluation', () => {
     expect(output).toContain('Forbidden:');
     expect(output).toContain('Requires code block: true');
     expect(output).toContain('...rest of code');
+  });
+
+  it('runs fixed tasks against models and feeds the deterministic evaluator', async () => {
+    const fetchFn = async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [
+            {
+              type: 'text',
+              text: [
+                `Status next for ${body.model}.`,
+                'This fix includes a test plan, risk, tradeoff, rollout, goal, constraint and blocker.',
+                'It covers scope, rotation, audit, rollback, latency, 5xx and fallback.',
+                '```ts',
+                'expect(true).toBe(true);',
+                '```',
+              ].join('\n'),
+            },
+          ],
+        }),
+      } as Response;
+    };
+
+    const result = await runOfflineTaskBenchmark({
+      baseUrl: 'http://127.0.0.1:5678',
+      apiKey: 'client-key',
+      models: ['sonnet', 'haiku'],
+      timeoutMs: 1000,
+      concurrency: 2,
+      maxTokens: 256,
+      fetchFn,
+    });
+
+    expect(result.inputs).toHaveLength(DEFAULT_OFFLINE_EVALUATION_TASKS.length * 2);
+    expect(result.report.byModel).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'sonnet', passedRuns: DEFAULT_OFFLINE_EVALUATION_TASKS.length }),
+      expect.objectContaining({ key: 'haiku', passedRuns: DEFAULT_OFFLINE_EVALUATION_TASKS.length }),
+    ]));
+  });
+
+  it('records failed automatic model calls as evaluation findings', async () => {
+    const result = await runOfflineTaskBenchmark({
+      baseUrl: 'http://127.0.0.1:5678',
+      models: ['broken'],
+      tasks: [DEFAULT_OFFLINE_EVALUATION_TASKS[0]],
+      fetchFn: async () => ({
+        ok: false,
+        status: 503,
+        json: async () => ({}),
+      } as Response),
+    });
+
+    expect(result.inputs[0]).toEqual(expect.objectContaining({
+      taskId: 'quick_status',
+      model: 'broken',
+      error: 'http_503',
+    }));
+    expect(result.report.runs[0]).toEqual(expect.objectContaining({
+      passed: false,
+      findings: expect.arrayContaining(['runner_error:http_503']),
+    }));
   });
 });

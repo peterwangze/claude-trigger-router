@@ -23,6 +23,7 @@ import {
   formatOfflineTaskEvaluationReport,
   formatOfflineTaskManifest,
   parseOfflineEvaluationInputs,
+  runOfflineTaskBenchmark,
   runOfflineTaskEvaluation,
   type IOfflineEvaluationInput,
 } from "./governance/task-evaluation";
@@ -128,7 +129,7 @@ Claude Trigger Router - 智能触发路由器
 命令：
   setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置
   doctor      诊断并修复当前配置，按需探测模型可用性
-  eval        离线评测固定任务集输出（--input results.json / --tasks）
+  eval        离线评测固定任务集输出（--input results.json / --tasks / --run）
   init        初始化最小配置模板
   deploy      生成部署入口配置（当前支持 deploy init --target server）
   start       启动路由服务（默认前台运行）
@@ -151,6 +152,7 @@ Claude Trigger Router - 智能触发路由器
   ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性
   ctr eval --tasks         # 查看固定评测任务、prompt 和 rubric
   ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果
+  ctr eval --run --models "sonnet;haiku"  # 自动调用 CTR /v1/messages 后评测
   ctr init                 # 初始化最小配置模板
   ctr deploy init --target server  # 生成安全默认的 server 部署配置
   ctr version              # 查看当前安装版本
@@ -262,7 +264,30 @@ function readOfflineEvaluationInputs(inputPath: string): IOfflineEvaluationInput
   return parseOfflineEvaluationInputs(payload);
 }
 
-function runOfflineEvaluationCli() {
+function parsePositiveIntegerArg(flag: string, shortFlag: string | undefined, fallback: number, label: string): number {
+  const value = getArgValue(flag, shortFlag);
+  if (!value) {
+    return fallback;
+  }
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`${label} 必须是正整数：${value}`);
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${label} 必须是正整数：${value}`);
+  }
+  return parsed;
+}
+
+function parseEvalModelsArg(): string[] {
+  const modelsValue = getArgValue("--models") || getArgValue("--model");
+  return (modelsValue ?? "")
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+async function runOfflineEvaluationCli() {
   if (hasArg("--tasks")) {
     if (hasArg("--json")) {
       console.log(JSON.stringify(buildOfflineTaskManifest(), null, 2));
@@ -270,6 +295,40 @@ function runOfflineEvaluationCli() {
     }
     console.log(formatOfflineTaskManifest());
     return;
+  }
+
+  if (hasArg("--run")) {
+    const models = parseEvalModelsArg();
+    if (!models.length) {
+      console.log('请提供自动评测模型：ctr eval --run --models "sonnet;haiku"');
+      console.log("提示：模型名中可以包含逗号，因此多个模型用分号 ; 分隔。");
+      process.exit(1);
+    }
+
+    try {
+      const config = readConfigForCliStatus();
+      const baseUrl = getArgValue("--base-url") || `http://127.0.0.1:${getPort()}`;
+      const apiKey = getArgValue("--api-key") || getLocalClaudeProxyToken(config);
+      const result = await runOfflineTaskBenchmark({
+        models,
+        baseUrl,
+        apiKey,
+        timeoutMs: parsePositiveIntegerArg("--timeout-ms", undefined, 30000, "timeout-ms"),
+        concurrency: parsePositiveIntegerArg("--concurrency", undefined, 2, "concurrency"),
+        maxTokens: parsePositiveIntegerArg("--max-tokens", undefined, 768, "max-tokens"),
+      });
+      if (hasArg("--json")) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      console.log(formatOfflineTaskEvaluationReport(result.report));
+      return;
+    } catch (error: any) {
+      console.error(`❌ 自动评测失败：${error.message}`);
+      console.error('   示例：ctr eval --run --models "sonnet;haiku" --base-url http://127.0.0.1:5678');
+      process.exit(1);
+    }
   }
 
   const inputPath = getArgValue("--input", "-i");
@@ -792,7 +851,7 @@ export async function main() {
       break;
 
     case "eval":
-      runOfflineEvaluationCli();
+      await runOfflineEvaluationCli();
       break;
 
     case "init":

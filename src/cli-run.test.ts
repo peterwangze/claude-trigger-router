@@ -132,6 +132,7 @@ describe('runClaudeCode', () => {
     expect(output).toContain('  ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性');
     expect(output).toContain('  ctr eval --tasks         # 查看固定评测任务、prompt 和 rubric');
     expect(output).toContain('  ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果');
+    expect(output).toContain('  ctr eval --run --models "sonnet;haiku"  # 自动调用 CTR /v1/messages 后评测');
     expect(output).toContain('  ctr deploy init --target server  # 生成安全默认的 server 部署配置');
     expect(output).toContain('  ctr version              # 查看当前安装版本');
     expect(output).toContain('  ctr upgrade              # 查看升级到最新版本的命令');
@@ -321,6 +322,85 @@ describe('runClaudeCode', () => {
       }),
     ]));
     logSpy.mockRestore();
+  });
+
+  it('runs automatic offline evaluation through the CTR messages endpoint', async () => {
+    process.argv = [
+      'node',
+      'cli.ts',
+      'eval',
+      '--run',
+      '--models',
+      'sonnet;haiku',
+      '--base-url',
+      'http://127.0.0.1:9999',
+      '--api-key',
+      'client-key',
+      '--timeout-ms',
+      '1000',
+      '--concurrency',
+      '2',
+      '--max-tokens',
+      '256',
+    ];
+    mockFetch.mockImplementation(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [
+            {
+              type: 'text',
+              text: [
+                `Status next for ${body.model}.`,
+                'This fix includes a test plan, risk, tradeoff, rollout, goal, constraint and blocker.',
+                'It covers scope, rotation, audit, rollback, latency, 5xx and fallback.',
+                '```ts',
+                'expect(true).toBe(true);',
+                '```',
+              ].join('\n'),
+            },
+          ],
+        }),
+      };
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('Offline routing evaluation');
+    expect(output).toContain('sonnet');
+    expect(output).toContain('haiku');
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:9999/v1/messages',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer client-key',
+        }),
+      })
+    );
+    logSpy.mockRestore();
+  });
+
+  it('requires explicit models before running automatic offline evaluation', async () => {
+    process.argv = ['node', 'cli.ts', 'eval', '--run'];
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(mockProcessExit as never);
+
+    const { main } = await import('./cli');
+    await expect(main()).rejects.toThrow('process.exit called');
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('请提供自动评测模型');
+    expect(output).toContain('sonnet;haiku');
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    logSpy.mockRestore();
+    exitSpy.mockRestore();
   });
 
   it('prints a friendly error for malformed offline evaluation input', async () => {

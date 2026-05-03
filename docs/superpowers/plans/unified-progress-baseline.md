@@ -295,7 +295,8 @@
   - 已新增 `taskComparison` 任务集对比摘要：基于已有 governance trace 按任务意图对比不同最终模型的失败率、平均延迟、alignment 与 cascade 表现，并进入 `/api/governance/metrics`、CSV 和 `/ui`。
   - 已新增第一版离线固定任务集执行器：`ctr eval --input results.json` 可用内置固定任务和 deterministic rubric 对多模型输出做可重复评分，输出按模型和任务聚合的 pass rate、quality、speed 与 best run；复审已补输入校验、友好错误和失败 findings 输出。
   - 已新增 `ctr eval --tasks` 固定任务 fixture 导出：维护者可查看或用 `--json` 导出 prompt、expected output、rubric 和 result template，任务覆盖 quick/coding/architecture/long-context/server auth/model pool 场景。
-  - 仍需继续补自动模型调用执行、并发/超时控制和更严格的质量评分 rubric，让同任务多模型 A/B 从“手工结果文件评测 + 可导出任务 fixture”推进到“端到端可重复跑分评测”。
+  - 已新增 `ctr eval --run --models "sonnet;haiku"` 最小自动执行器：显式调用 CTR `/v1/messages`，支持 base-url、api-key、timeout、concurrency、max-tokens 和 JSON 输出，并将 HTTP/timeout 失败纳入 runner_error findings。
+  - 仍需继续补更严格的质量评分 rubric、LLM 裁判/人工校准入口，以及 UI/治理面 benchmark 摘要，让同任务多模型 A/B 从“端到端可重复跑分”推进到“可运营的收益评估”。
 - `服务端 API key 与鉴权控制面`
   - 已新增 generated keys、scope、过期和撤销的第一层控制面，并让运行时鉴权按当前配置即时识别新 key / 吊销 key。
   - 已补 key 使用审计、`/api/auth/audit`、`/api/service-info` 安全摘要，以及 doctor/UI 对 server/cloud 或公网监听无鉴权风险的提示。
@@ -387,7 +388,7 @@
 
 | 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
 |---|---|---|---|---|
-| 1 | 智能路由收益与切换体感治理 | P1-主路径易用性 | 在第一版 `ctr eval --input` 离线评测入口和 `ctr eval --tasks` fixture 导出之后，继续补自动模型调用执行、并发/超时控制和更严格 rubric | 这是项目 `1+1>2` 的核心价值主张，当前已能解释、建议调优、沉淀真实样本、做同任务后验对比、执行手工结果文件评测并导出固定任务契约，但仍需要端到端可重复跑分来证明质量与速度收益 |
+| 1 | 智能路由收益与切换体感治理 | P1-主路径易用性 | 在 `ctr eval --run` 最小自动执行器之后，继续补更严格 rubric、LLM 裁判/人工校准入口和 UI/治理面 benchmark 摘要 | 这是项目 `1+1>2` 的核心价值主张，当前已能解释、建议调优、沉淀真实样本、做同任务后验对比、导出固定任务契约并执行端到端跑分，但仍需要更可信的质量评估和可运营呈现来证明质量与速度收益 |
 | 2 | 服务端 API key 与鉴权控制面 | P1-主路径易用性 | 在单一 `APIKEY` 之上补 generated keys、scope、过期、撤销、配额和审计 | server/cloud 推荐路径和池化都会放大资源泄漏风险，安全前置必须先闭环 |
 | 3 | server/cloud 一键部署与角色化运维入口 | P1-主路径易用性 | 提供安全默认的一键部署脚本/命令，并补服务提供者、维护者、远程使用者三类指导 | 一键部署必须建立在鉴权控制面之后，否则会把不安全配置包装成便利入口 |
 | 4 | 配置产品化最终收口 | P1-主路径易用性 | 将收益指标、鉴权字段、部署角色继续收敛进 README / configuration guide / UI / setup | 新增 P1 事项会引入新术语，配置产品化需要继续作为统一心智的收口层 |

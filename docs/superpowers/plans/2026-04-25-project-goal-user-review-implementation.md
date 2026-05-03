@@ -303,6 +303,7 @@ P3-3：持续 closed 事项复审
 - P1-5 `智能路由收益与切换体感闭环`（Chunk 7）：已新增第一版离线固定任务集执行器与 deterministic rubric，维护者可将多模型输出保存为 JSON 后运行 `ctr eval --input results.json`，得到固定任务维度下按模型/任务聚合的 pass rate、quality、speed、latency 和 best run；当前仍不宣称已完成自动调用模型的端到端跑分或严格人工/LLM 质量评分 rubric。
 - P1-5 Chunk 7 复审补强：已补 `ctr eval` 输入校验与友好错误输出，避免手工 JSON 缺字段、负 latency 或错误 shape 时直接暴露堆栈；operator 文本报告也会列出失败 run 的 findings，便于维护者定位是输出太短、缺关键点、缺代码块、包含占位内容还是超出延迟预算。
 - P1-5 `智能路由收益与切换体感闭环`（Chunk 8）：已新增 `ctr eval --tasks` 固定任务清单导出，维护者可查看或用 `--json` 导出 task prompt、expected output、rubric 和 result template；任务集从 quick/coding/architecture/long-context 扩展到 server auth/deployment 与 model pool incident，为下一步自动调用模型执行提供稳定 fixture。当前仍不宣称已完成自动模型调用、并发执行或 LLM 裁判评分。
+- P1-5 `智能路由收益与切换体感闭环`（Chunk 9）：已新增 `ctr eval --run --models "sonnet;haiku"` 最小自动执行器，显式调用 CTR `/v1/messages` 后把输出交给现有 deterministic rubric；支持 `--base-url`、`--api-key`、`--timeout-ms`、`--concurrency`、`--max-tokens` 和 `--json`，并将 HTTP/timeout 失败写入 runner_error findings。当前仍不宣称已完成 LLM 裁判评分或 UI/治理面自动化 benchmark 看板。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 1）：已新增 `Auth.managed_keys` 最小数据结构，managed key 以哈希形式写入配置；`APIKEY` 保留为 bootstrap/admin key；新增 `GET /api/auth/keys`、`POST /api/auth/keys`、`POST /api/auth/keys/:id/revoke`，支持 label、admin/client/read-only scope、过期时间、撤销和脱敏列表；运行时 `apiKeyAuth` 已能接受 active managed client/admin key，同时拒绝 revoked、expired 或 scope 不足的 key；README 已同步远程客户端应优先使用 managed client key 的口径。该 scope 列表已在后续 Chunk 3c-e 扩展为 admin/operator/client/read-only。
 - P1-6 Chunk 1 复审补强：已修正运行时鉴权只读取启动时内存配置的问题，`apiKeyAuth` 现在支持异步配置解析器，启动入口会在鉴权时刷新当前配置中的 `APIKEY/Auth`；因此新生成的 managed key 可即时用于运行时请求，已吊销 key 也会即时失效，不再依赖服务重启。
 - P1-6 `服务端 API key 与鉴权控制面`（Chunk 2）：已新增轻量 auth audit store，记录鉴权 allowed / denied / skipped、source、keyId、scope、reason、path 与 requestId；新增 admin-only `GET /api/auth/audit` 查看脱敏事件和摘要；`/api/service-info` 返回 `auth` / `security` 摘要，能识别 server/cloud 或公网监听无鉴权、bootstrap-only server 等风险；`ctr doctor` 和 `/ui` 均展示鉴权/安全状态，README 同步 managed client key 与 audit 入口说明。
@@ -346,7 +347,7 @@ P3-3：持续 closed 事项复审
 
 下一项按优先级继续推进：
 
-- 智能路由收益与切换体感治理：在 outcome scorecard、synthetic regression、routing tuning、真实 trace quality evidence、`taskComparison` 后验对比、第一版 `ctr eval --input` 离线评测入口和 `ctr eval --tasks` 固定任务 fixture 导出已形成后，继续补自动模型调用执行、并发/超时控制和更严格质量评分 rubric，让维护者能用端到端可重复样本判断不同模型组合下的质量、速度和失败率收益。
+- 智能路由收益与切换体感治理：在 outcome scorecard、synthetic regression、routing tuning、真实 trace quality evidence、`taskComparison` 后验对比、`ctr eval --input` 离线评测、`ctr eval --tasks` fixture 导出和 `ctr eval --run` 最小自动执行器已形成后，继续补更严格质量评分 rubric、LLM 裁判/人工校准入口，以及 UI/治理面 benchmark 摘要，让维护者能用端到端可重复样本判断不同模型组合下的质量、速度和失败率收益。
 
 ## 七、2026-04-27 智能路由与服务化复审
 
