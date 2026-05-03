@@ -422,6 +422,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `<div class="subpanel">` +
     `<div class="row"><strong>Quality evidence</strong><span class="muted">真实 trace 中的失败、连续性和速度风险样本</span></div>` +
+    `<div id="qualityEvidenceSummary" class="stats"><div class="stat"><span class="muted">Samples</span><strong>-</strong></div><div class="stat"><span class="muted">Risk</span><strong>-</strong></div><div class="stat"><span class="muted">Improvement</span><strong>-</strong></div><div class="stat"><span class="muted">Speed risk</span><strong>-</strong></div></div>` +
     `<ul id="qualityEvidenceList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
     `<div class="subpanel">` +
@@ -607,6 +608,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const intentOutcomeRanking=document.getElementById('intentOutcomeRanking');` +
     `const healthSummary=document.getElementById('healthSummary');` +
     `const routingTuningList=document.getElementById('routingTuningList');` +
+    `const qualityEvidenceSummary=document.getElementById('qualityEvidenceSummary');` +
     `const qualityEvidenceList=document.getElementById('qualityEvidenceList');` +
     `const securitySummary=document.getElementById('securitySummary');` +
     `const authQuotaTableBody=document.querySelector('#authQuotaTable tbody');` +
@@ -1438,6 +1440,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `}` +
     `function renderQualityEvidence(summary){` +
     `  const items=summary?.samples || [];` +
+    `  qualityEvidenceSummary.innerHTML=[['Samples',summary?.totalSamples || 0],['Risk',summary?.failureSamples || 0],['Improvement',summary?.improvementSamples || 0],['Speed risk',summary?.speedRiskSamples || 0]].map(([label,value])=>'<div class="stat"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
     `  if(!items.length){ qualityEvidenceList.innerHTML='<li><span class="muted">No quality evidence samples</span><strong>0</strong></li>'; return; }` +
     `  qualityEvidenceList.innerHTML=items.map(item=>'<li><span><span class="pill '+esc(item.severity === 'critical' ? 'critical' : (item.severity === 'warn' ? 'warn' : 'info'))+'">'+esc(item.severity || 'info')+'</span> <strong>'+esc(item.type || '-')+'</strong><div class="muted">'+esc(item.requestId || '')+' · '+esc((item.routeReason || []).join(' / '))+'</div><div class="muted">'+esc(item.evidence || '')+'</div></span><strong>'+esc(item.action || '')+'</strong></li>').join('');` +
     `}` +

@@ -596,7 +596,7 @@ describe('summarizeGovernanceMetrics', () => {
       alignmentUsed: true,
       cascadeTriggered: false,
       shadowChecked: true,
-      verificationResult: 'verifier pass: answer includes required implementation steps',
+      verificationResult: 'no risk found, verifier passed\nall checks',
       startedAt: 2,
       latencyMs: 900,
     });
@@ -784,7 +784,7 @@ describe('summarizeGovernanceMetrics', () => {
             requestId: 'trace-slow',
             type: 'slow_request',
             severity: 'warn',
-            evidence: 'latencyMs=1700',
+            evidence: 'latencyMs=1700,\nprovider=slow',
             action: 'Compare this route with faster candidates before making it default traffic.',
             routeReason: ['smart_router'],
             finalModel: 'model-a',
@@ -832,7 +832,7 @@ describe('summarizeGovernanceMetrics', () => {
     expect(csv).toContain('anomaly,cascade_rate_high,warn:0.5');
     expect(csv).toContain('routingTuning,context_window_fallback_high,info:contextWindowFallbackRate=50%');
     expect(csv).toContain('qualityEvidence,totalSamples,1');
-    expect(csv).toContain('qualityEvidenceSample,slow_request,warn:trace-slow:latencyMs=1700');
+    expect(csv).toContain('qualityEvidenceSample,slow_request,warn:trace-slow:latencyMs=1700; provider=slow');
     expect(csv).toContain('topFinalModel,model-a,2:1');
     expect(csv).toContain('topModelSwitch,model-a -> model-b,1:1');
     expect(csv).toContain('outcomeByRouteReason,sticky,2:0.5:120');

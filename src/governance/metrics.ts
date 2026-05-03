@@ -369,7 +369,16 @@ function hasRouteReasonPrefix(trace: IGovernanceTrace, prefix: string): boolean 
 }
 
 function compactCsvEvidence(value: string): string {
-  return value.replace(/,/g, ';');
+  return value.replace(/[\r\n]+/g, ' ').replace(/,/g, ';');
+}
+
+function classifyVerificationResult(value: string): 'info' | 'warn' {
+  const normalized = value.toLowerCase();
+  if (/\b(pass|passed|ok|clean|approved)\b/.test(normalized) || /no\s+(risk|issue|violation|error|failure|fail)/.test(normalized)) {
+    return 'info';
+  }
+
+  return /fail|risk|unsafe|violation|missing|placeholder|error/.test(normalized) ? 'warn' : 'info';
 }
 
 function buildQualityEvidenceSummary(
@@ -442,14 +451,15 @@ function buildQualityEvidenceSummary(
     }
 
     if (trace.shadowChecked && trace.verificationResult) {
-      const lower = trace.verificationResult.toLowerCase();
-      const risky = /fail|risk|unsafe|violation|missing|placeholder|error/.test(lower);
+      const severity = classifyVerificationResult(trace.verificationResult);
       addSample(
         trace,
         'shadow_verification',
-        risky ? 'warn' : 'info',
+        severity,
         trace.verificationResult,
-        risky ? 'Review verifier findings before widening this route.' : 'Keep verifier pass as quality evidence for this route.'
+        severity === 'warn'
+          ? 'Review verifier findings before widening this route.'
+          : 'Keep verifier pass as quality evidence for this route.'
       );
     }
 

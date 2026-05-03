@@ -2533,6 +2533,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('routingTuningList');
     expect(html).toContain('renderRoutingTuning');
     expect(html).toContain('Quality evidence');
+    expect(html).toContain('qualityEvidenceSummary');
     expect(html).toContain('qualityEvidenceList');
     expect(html).toContain('renderQualityEvidence');
     expect(html).toContain('switch ');
