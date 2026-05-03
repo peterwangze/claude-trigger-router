@@ -230,18 +230,36 @@ function extractResponseText(payload: any): string {
     return payload.content;
   }
   if (Array.isArray(payload.content)) {
-    return payload.content
-      .map((part: any) => typeof part?.text === 'string' ? part.text : '')
-      .filter(Boolean)
-      .join('\n');
+    return extractContentText(payload.content);
   }
   if (Array.isArray(payload.choices)) {
     return payload.choices
-      .map((choice: any) => choice?.message?.content ?? choice?.text ?? '')
+      .map((choice: any) => extractContentText(choice?.message?.content ?? choice?.text ?? ''))
       .filter(Boolean)
       .join('\n');
   }
   return '';
+}
+
+function extractContentText(content: any): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return '';
+  }
+  return content
+    .map((part) => {
+      if (typeof part === 'string') {
+        return part;
+      }
+      if (typeof part?.text === 'string') {
+        return part.text;
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
 }
 
 function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInput): IOfflineEvaluationRun {
@@ -399,7 +417,8 @@ async function runBenchmarkJob(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(options.apiKey ? { Authorization: `Bearer ${options.apiKey}` } : {}),
+        'anthropic-version': '2023-06-01',
+        ...(options.apiKey ? { Authorization: `Bearer ${options.apiKey}`, 'x-api-key': options.apiKey } : {}),
       },
       body: JSON.stringify({
         model,

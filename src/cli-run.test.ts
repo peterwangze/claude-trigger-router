@@ -380,6 +380,8 @@ describe('runClaudeCode', () => {
         method: 'POST',
         headers: expect.objectContaining({
           Authorization: 'Bearer client-key',
+          'x-api-key': 'client-key',
+          'anthropic-version': '2023-06-01',
         }),
       })
     );

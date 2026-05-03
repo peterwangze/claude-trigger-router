@@ -252,4 +252,35 @@ describe('offline task evaluation', () => {
       findings: expect.arrayContaining(['runner_error:http_503']),
     }));
   });
+
+  it('extracts OpenAI-compatible array content during automatic evaluation', async () => {
+    const result = await runOfflineTaskBenchmark({
+      baseUrl: 'http://127.0.0.1:5678',
+      models: ['compatible'],
+      tasks: [DEFAULT_OFFLINE_EVALUATION_TASKS[0]],
+      fetchFn: async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: [
+                  { type: 'text', text: 'Status is ready.' },
+                  { type: 'text', text: 'Next action is to run the benchmark again.' },
+                ],
+              },
+            },
+          ],
+        }),
+      } as Response),
+    });
+
+    expect(result.inputs[0]).toEqual(expect.objectContaining({
+      output: 'Status is ready.\nNext action is to run the benchmark again.',
+    }));
+    expect(result.report.runs[0]).toEqual(expect.objectContaining({
+      passed: true,
+    }));
+  });
 });
