@@ -18,6 +18,7 @@ import { buildServerDeploymentConfig, buildUsableMinimalTemplateConfig } from ".
 import { runDoctorCli } from "./doctor";
 import { managedApiKeySummary } from "./auth/api-keys";
 import { normalizeAndValidateConfig } from "./utils/config";
+import { formatOfflineTaskEvaluationReport, runOfflineTaskEvaluation } from "./governance/task-evaluation";
 
 const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
 const PACKAGE_PAGE_URL = "https://www.npmjs.com/package/@peterwangze/claude-trigger-router";
@@ -119,6 +120,7 @@ Claude Trigger Router - 智能触发路由器
 命令：
   setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置
   doctor      诊断并修复当前配置，按需探测模型可用性
+  eval        离线评测固定任务集输出（--input results.json）
   init        初始化最小配置模板
   deploy      生成部署入口配置（当前支持 deploy init --target server）
   start       启动路由服务（默认前台运行）
@@ -139,6 +141,7 @@ Claude Trigger Router - 智能触发路由器
 使用示例：
   ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置
   ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性
+  ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果
   ctr init                 # 初始化最小配置模板
   ctr deploy init --target server  # 生成安全默认的 server 部署配置
   ctr version              # 查看当前安装版本
@@ -243,6 +246,35 @@ function printRuntimeStatus(config: any, port: number, liveInfo?: any | null) {
   }
 
   console.log(`   本地接入：${clientConnection?.baseUrl || `http://127.0.0.1:${listenerPort}`}`);
+}
+
+function readOfflineEvaluationInputs(inputPath: string): any[] {
+  const payload = JSON.parse(readFileSync(inputPath, "utf-8"));
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (Array.isArray(payload?.results)) {
+    return payload.results;
+  }
+  throw new Error("评测输入必须是数组，或包含 results 数组字段的对象。");
+}
+
+function runOfflineEvaluationCli() {
+  const inputPath = getArgValue("--input", "-i");
+  if (!inputPath) {
+    console.log("请提供评测输入文件：ctr eval --input results.json");
+    console.log("输入格式：[{ \"taskId\": \"coding_fix\", \"model\": \"provider,model\", \"output\": \"...\", \"latencyMs\": 1200 }]");
+    process.exit(1);
+  }
+
+  const inputs = readOfflineEvaluationInputs(inputPath);
+  const report = runOfflineTaskEvaluation(inputs);
+  if (hasArg("--json")) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+
+  console.log(formatOfflineTaskEvaluationReport(report));
 }
 
 function getLatestPackageVersionViaNpm(packageName: string, timeoutMs = 5000): string | null {
@@ -738,6 +770,10 @@ export async function main() {
 
     case "doctor":
       await runDoctorCli();
+      break;
+
+    case "eval":
+      runOfflineEvaluationCli();
       break;
 
     case "init":

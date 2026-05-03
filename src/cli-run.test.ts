@@ -123,12 +123,14 @@ describe('runClaudeCode', () => {
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
     expect(output).toContain('setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置');
     expect(output).toContain('doctor      诊断并修复当前配置，按需探测模型可用性');
+    expect(output).toContain('eval        离线评测固定任务集输出');
     expect(output).toContain('deploy      生成部署入口配置');
     expect(output).toContain('--force       强制覆盖已有配置（配合 init/deploy init 使用）');
     expect(output).toContain('version     查看当前安装版本与包信息');
     expect(output).toContain('upgrade     查看升级到最新 npm 版本的指引');
     expect(output).toContain('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置');
     expect(output).toContain('  ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性');
+    expect(output).toContain('  ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果');
     expect(output).toContain('  ctr deploy init --target server  # 生成安全默认的 server 部署配置');
     expect(output).toContain('  ctr version              # 查看当前安装版本');
     expect(output).toContain('  ctr upgrade              # 查看升级到最新版本的命令');
@@ -249,6 +251,39 @@ describe('runClaudeCode', () => {
     expect(mockWriteFileSync.mock.calls[0]?.[1]).toContain('anthropic/claude-sonnet-4');
     expect(mockWriteFileSync.mock.calls[0]?.[1]).toContain('default: sonnet');
 
+    logSpy.mockRestore();
+  });
+
+  it('runs offline routing evaluation from a result file', async () => {
+    process.argv = ['node', 'cli.ts', 'eval', '--input', 'results.json'];
+    mockReadFileSync.mockImplementation((filePath: string) => {
+      if (String(filePath).endsWith('package.json')) {
+        return JSON.stringify({
+          name: '@peterwangze/claude-trigger-router',
+          version: '1.1.0',
+        });
+      }
+      if (String(filePath) === 'results.json') {
+        return JSON.stringify([
+          {
+            taskId: 'quick_status',
+            model: 'fast,haiku',
+            latencyMs: 300,
+            output: 'Status is ready. Next action is to keep monitoring the route.',
+          },
+        ]);
+      }
+      throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('Offline routing evaluation');
+    expect(output).toContain('fast,haiku');
+    expect(output).toContain('quick_status -> fast,haiku');
     logSpy.mockRestore();
   });
 

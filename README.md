@@ -19,6 +19,7 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - **基础路由**：用 `Router.default`、`Router.think`、`Router.longContext` 等槽位指定不同任务的默认模型。
 - **SmartRouter**：先用显式规则命中高确定性任务，也可以在规则未命中时让路由模型从候选模型中自动选择。
 - **Governance 观测**：记录 trace、metrics、异常摘要和健康状态，帮助你理解路由选择和运行风险。
+- **离线评测**：`ctr eval --input results.json` 用固定任务集和 deterministic rubric 对不同模型输出做可重复评分。
 - **doctor 诊断**：检查配置、服务可启动性、鉴权安全状态、模型兼容策略和可选模型探测。
 - **UI 工作台**：`ctr ui` 打开本地页面，查看服务上下文、远程状态、鉴权安全状态、配置草稿、compiled models、capability warnings、治理 trace、metrics 和 Health 摘要。
 - **远程状态基础**：可配置 `Runtime.remote_service`，通过 `/api/remote-status` 查看远程服务健康、compiled model 摘要和治理告警摘要。默认用户不需要配置远程模式。
@@ -356,6 +357,27 @@ http://127.0.0.1:5678/ui
 
 Health 摘要下方的 action 可以直接把 trace 表切到对应排查视图：cascade action 会筛选 `cascadeTriggered=true`，shadow action 会筛选 `shadowChecked=true`，其他 action 会回到近期 trace。
 
+如果你想比较不同模型组合在固定任务上的质量和速度，可以先把多模型输出整理成 JSON，再运行离线评测：
+
+```bash
+ctr eval --input results.json
+```
+
+输入文件可以是数组，也可以是 `{ "results": [...] }`：
+
+```json
+[
+  {
+    "taskId": "coding_fix",
+    "model": "provider,model",
+    "output": "模型输出文本",
+    "latencyMs": 1200
+  }
+]
+```
+
+当前内置任务包括 `quick_status`、`coding_fix`、`architecture_review` 和 `long_context_triage`。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency 与 best run；它是离线 deterministic rubric，不等同于完整人工或 LLM 裁判评测。
+
 如果服务没有启动，`ctr ui` 会提示先运行：
 
 ```bash
@@ -440,6 +462,7 @@ GET /api/auth/audit
 | `ctr stop` | 停止服务 |
 | `ctr code` | 带 Trigger Router 环境启动 Claude Code |
 | `ctr doctor` | 配置和服务诊断 |
+| `ctr eval --input results.json` | 离线固定任务集评测 |
 | `ctr ui` | 打开本地 UI 工作台 |
 | `ctr version` | 查看版本 |
 | `ctr upgrade` | 升级 |
