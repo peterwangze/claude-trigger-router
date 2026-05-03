@@ -316,6 +316,23 @@ describe('runClaudeCode', () => {
     exitSpy.mockRestore();
   });
 
+  it('does not treat another flag as the offline evaluation input path', async () => {
+    process.argv = ['node', 'cli.ts', 'eval', '--input', '--json'];
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(mockProcessExit as never);
+
+    const { main } = await import('./cli');
+    await expect(main()).rejects.toThrow('process.exit called');
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('请提供评测输入文件');
+    expect(output).toContain('ctr eval --input results.json');
+    expect(mockReadFileSync).not.toHaveBeenCalledWith('--json', 'utf-8');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    logSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
   it('generates a safe server deployment config from deploy init', async () => {
     process.argv = ['node', 'cli.ts', 'deploy', 'init', '--target', 'server', '--force'];
     mockExistsSync.mockReturnValue(false);

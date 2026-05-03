@@ -56,7 +56,8 @@ function hasArg(flag: string, shortFlag?: string): boolean {
 function getArgValue(flag: string, shortFlag?: string): string | undefined {
   const args = getArgs();
   const index = args.indexOf(flag) !== -1 ? args.indexOf(flag) : shortFlag ? args.indexOf(shortFlag) : -1;
-  return index !== -1 ? args[index + 1] : undefined;
+  const value = index !== -1 ? args[index + 1] : undefined;
+  return value && !value.startsWith("-") ? value : undefined;
 }
 
 function parsePortValue(portValue: string, sourceLabel: string): number {
