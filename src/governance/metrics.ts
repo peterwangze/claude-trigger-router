@@ -1288,7 +1288,7 @@ export function exportGovernanceMetricsReport(
     lines.push(`taskComparison,totalComparedTasks,${report.taskComparison.totalComparedTasks}`);
     lines.push(`taskComparison,totalComparedTraces,${report.taskComparison.totalComparedTraces}`);
     for (const item of report.taskComparison.comparisons) {
-      lines.push(`taskComparisonSample,${item.taskKey},best=${item.bestModel}:baseline=${item.baselineModel}:failureRateDelta=${item.failureRateDelta}:latencyDeltaMs=${item.latencyDeltaMs}`);
+      lines.push(`taskComparisonSample,${compactCsvEvidence(item.taskKey)},best=${compactCsvEvidence(item.bestModel)}:baseline=${compactCsvEvidence(item.baselineModel)}:failureRateDelta=${item.failureRateDelta}:latencyDeltaMs=${item.latencyDeltaMs}`);
     }
   }
 

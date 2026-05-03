@@ -929,17 +929,17 @@ describe('summarizeGovernanceMetrics', () => {
         bestSpeedLiftTask: undefined,
         comparisons: [
           {
-            taskKey: 'coding',
+            taskKey: 'code,review',
             totalTraces: 3,
             modelCount: 2,
-            baselineModel: 'sonnet',
-            bestModel: 'opus',
-            fastestModel: 'opus',
+            baselineModel: 'anthropic,sonnet',
+            bestModel: 'openrouter,opus',
+            fastestModel: 'openrouter,opus',
             failureRateDelta: 0.5,
             latencyDeltaMs: 60,
             models: [
               {
-                model: 'opus',
+                model: 'openrouter,opus',
                 totalTraces: 1,
                 failureCount: 0,
                 failureRate: 0,
@@ -993,7 +993,7 @@ describe('summarizeGovernanceMetrics', () => {
     expect(csv).toContain('qualityEvidence,totalSamples,1');
     expect(csv).toContain('qualityEvidenceSample,slow_request,warn:trace-slow:latencyMs=1700; provider=slow');
     expect(csv).toContain('taskComparison,totalComparedTasks,1');
-    expect(csv).toContain('taskComparisonSample,coding,best=opus:baseline=sonnet:failureRateDelta=0.5:latencyDeltaMs=60');
+    expect(csv).toContain('taskComparisonSample,code;review,best=openrouter;opus:baseline=anthropic;sonnet:failureRateDelta=0.5:latencyDeltaMs=60');
     expect(csv).toContain('topFinalModel,model-a,2:1');
     expect(csv).toContain('topModelSwitch,model-a -> model-b,1:1');
     expect(csv).toContain('outcomeByRouteReason,sticky,2:0.5:120');
