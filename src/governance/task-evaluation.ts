@@ -2,6 +2,8 @@ export interface IOfflineEvaluationTask {
   id: string;
   intent: string;
   prompt: string;
+  category?: string;
+  expectedOutput?: string;
   minQualityScore?: number;
   minOutputChars?: number;
   maxLatencyMs?: number;
@@ -104,7 +106,9 @@ export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
   {
     id: 'quick_status',
     intent: 'quick_reply',
+    category: 'speed',
     prompt: 'Summarize the current service status and next action in two concise sentences.',
+    expectedOutput: 'A brief status summary with a concrete next action.',
     maxLatencyMs: 800,
     minOutputChars: 40,
     requiredKeywords: ['status', 'next'],
@@ -113,7 +117,9 @@ export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
   {
     id: 'coding_fix',
     intent: 'coding',
+    category: 'quality',
     prompt: 'Fix a TypeScript regression and explain the changed behavior with a test plan.',
+    expectedOutput: 'A concise fix explanation, a TypeScript code block, and a focused test plan.',
     maxLatencyMs: 1800,
     minOutputChars: 120,
     requiredKeywords: ['fix', 'test'],
@@ -123,7 +129,9 @@ export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
   {
     id: 'architecture_review',
     intent: 'architecture',
+    category: 'quality',
     prompt: 'Review a router architecture change and list risks, tradeoffs, and rollout checks.',
+    expectedOutput: 'A structured architecture review that names risks, tradeoffs, and rollout checks.',
     maxLatencyMs: 2600,
     minOutputChars: 160,
     requiredKeywords: ['risk', 'tradeoff', 'rollout'],
@@ -132,11 +140,35 @@ export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
   {
     id: 'long_context_triage',
     intent: 'long_context',
+    category: 'continuity',
     prompt: 'Triage a long conversation and preserve the user goal, constraints, and open blockers.',
+    expectedOutput: 'A continuity-preserving summary with goal, constraints, and blockers.',
     maxLatencyMs: 3200,
     minOutputChars: 180,
     requiredKeywords: ['goal', 'constraint', 'blocker'],
     forbiddenPatterns: ['lost context', 'cannot access previous'],
+  },
+  {
+    id: 'auth_deployment_plan',
+    intent: 'security',
+    category: 'server_ops',
+    prompt: 'Create a safe remote server deployment checklist for an LLM router with API key scope, rotation, audit, and rollback.',
+    expectedOutput: 'An operator checklist covering scoped keys, rotation, audit, and rollback.',
+    maxLatencyMs: 2600,
+    minOutputChars: 180,
+    requiredKeywords: ['scope', 'rotation', 'audit', 'rollback'],
+    forbiddenPatterns: ['disable auth', 'share the admin key', 'placeholder'],
+  },
+  {
+    id: 'model_pool_incident',
+    intent: 'operations',
+    category: 'pool_health',
+    prompt: 'Diagnose a model pool incident where one endpoint is slow and another returns intermittent 5xx errors; propose routing actions.',
+    expectedOutput: 'A pool health diagnosis with latency, 5xx, fallback or circuit breaker actions.',
+    maxLatencyMs: 2200,
+    minOutputChars: 160,
+    requiredKeywords: ['latency', '5xx', 'fallback'],
+    forbiddenPatterns: ['TODO', 'placeholder'],
   },
 ];
 
@@ -306,6 +338,50 @@ export function runOfflineTaskEvaluation(
     byModel: groupRuns(runs, (run) => run.model),
     runs,
   };
+}
+
+export function buildOfflineTaskManifest(tasks: IOfflineEvaluationTask[] = DEFAULT_OFFLINE_EVALUATION_TASKS) {
+  return {
+    version: 1,
+    description: 'Fixed task set for repeatable Claude Trigger Router model-combination evaluation.',
+    tasks: tasks.map((task) => ({
+      id: task.id,
+      intent: task.intent,
+      category: task.category ?? 'general',
+      prompt: task.prompt,
+      expectedOutput: task.expectedOutput ?? 'A complete answer that satisfies the task prompt.',
+      rubric: {
+        minQualityScore: task.minQualityScore ?? 0.7,
+        minOutputChars: task.minOutputChars ?? 0,
+        maxLatencyMs: task.maxLatencyMs,
+        requiredKeywords: task.requiredKeywords ?? [],
+        forbiddenPatterns: task.forbiddenPatterns ?? [],
+        requiresCodeBlock: Boolean(task.requiresCodeBlock),
+      },
+      resultTemplate: {
+        taskId: task.id,
+        model: '<provider,model>',
+        output: '<model output>',
+        latencyMs: 0,
+      },
+    })),
+  };
+}
+
+export function formatOfflineTaskManifest(tasks: IOfflineEvaluationTask[] = DEFAULT_OFFLINE_EVALUATION_TASKS): string {
+  const lines = [
+    'Offline evaluation tasks',
+    `Total tasks: ${tasks.length}`,
+  ];
+
+  for (const task of tasks) {
+    lines.push(`- ${task.id} [${task.intent}/${task.category ?? 'general'}]`);
+    lines.push(`  Prompt: ${task.prompt}`);
+    lines.push(`  Expected: ${task.expectedOutput ?? 'A complete answer that satisfies the task prompt.'}`);
+    lines.push(`  Rubric: keywords=${(task.requiredKeywords ?? []).join('|') || '-'}, minChars=${task.minOutputChars ?? 0}, maxLatencyMs=${task.maxLatencyMs ?? '-'}`);
+  }
+
+  return lines.join('\n');
 }
 
 export function formatOfflineTaskEvaluationReport(report: IOfflineTaskEvaluationReport): string {

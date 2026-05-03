@@ -130,6 +130,7 @@ describe('runClaudeCode', () => {
     expect(output).toContain('upgrade     查看升级到最新 npm 版本的指引');
     expect(output).toContain('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置');
     expect(output).toContain('  ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性');
+    expect(output).toContain('  ctr eval --tasks         # 查看固定评测任务、prompt 和 rubric');
     expect(output).toContain('  ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果');
     expect(output).toContain('  ctr deploy init --target server  # 生成安全默认的 server 部署配置');
     expect(output).toContain('  ctr version              # 查看当前安装版本');
@@ -287,6 +288,41 @@ describe('runClaudeCode', () => {
     logSpy.mockRestore();
   });
 
+  it('prints offline evaluation task manifest', async () => {
+    process.argv = ['node', 'cli.ts', 'eval', '--tasks'];
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('Offline evaluation tasks');
+    expect(output).toContain('auth_deployment_plan');
+    expect(output).toContain('model_pool_incident');
+    expect(output).toContain('Rubric:');
+    logSpy.mockRestore();
+  });
+
+  it('prints offline evaluation task manifest as json', async () => {
+    process.argv = ['node', 'cli.ts', 'eval', '--tasks', '--json'];
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+    expect(payload.version).toBe(1);
+    expect(payload.tasks).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'coding_fix',
+        resultTemplate: expect.objectContaining({
+          taskId: 'coding_fix',
+        }),
+      }),
+    ]));
+    logSpy.mockRestore();
+  });
+
   it('prints a friendly error for malformed offline evaluation input', async () => {
     process.argv = ['node', 'cli.ts', 'eval', '--input', 'results.json'];
     mockReadFileSync.mockImplementation((filePath: string) => {
@@ -326,6 +362,7 @@ describe('runClaudeCode', () => {
 
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
     expect(output).toContain('请提供评测输入文件');
+    expect(output).toContain('ctr eval --tasks');
     expect(output).toContain('ctr eval --input results.json');
     expect(mockReadFileSync).not.toHaveBeenCalledWith('--json', 'utf-8');
     expect(exitSpy).toHaveBeenCalledWith(1);

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildOfflineTaskManifest,
   DEFAULT_OFFLINE_EVALUATION_TASKS,
   formatOfflineTaskEvaluationReport,
+  formatOfflineTaskManifest,
   parseOfflineEvaluationInputs,
   runOfflineTaskEvaluation,
 } from './task-evaluation';
@@ -133,5 +135,52 @@ describe('offline task evaluation', () => {
     expect(output).toContain('Findings:');
     expect(output).toContain('coding_fix -> fast,haiku');
     expect(output).toContain('latency_over_budget');
+  });
+
+  it('exports a stable fixed task manifest for repeatable benchmark runners', () => {
+    const manifest = buildOfflineTaskManifest();
+    expect(manifest.version).toBe(1);
+    expect(manifest.tasks.length).toBeGreaterThanOrEqual(6);
+    expect(manifest.tasks).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'auth_deployment_plan',
+        category: 'server_ops',
+        rubric: expect.objectContaining({
+          requiredKeywords: expect.arrayContaining(['scope', 'rotation', 'audit', 'rollback']),
+        }),
+      }),
+      expect.objectContaining({
+        id: 'model_pool_incident',
+        category: 'pool_health',
+        resultTemplate: expect.objectContaining({
+          taskId: 'model_pool_incident',
+          model: '<provider,model>',
+        }),
+      }),
+    ]));
+  });
+
+  it('keeps custom task manifests backward compatible when optional metadata is absent', () => {
+    const manifest = buildOfflineTaskManifest([
+      {
+        id: 'custom_task',
+        intent: 'custom',
+        prompt: 'Answer a custom prompt.',
+      },
+    ]);
+
+    expect(manifest.tasks[0]).toEqual(expect.objectContaining({
+      id: 'custom_task',
+      category: 'general',
+      expectedOutput: 'A complete answer that satisfies the task prompt.',
+    }));
+  });
+
+  it('formats task prompts and rubrics for operators', () => {
+    const output = formatOfflineTaskManifest();
+    expect(output).toContain('Offline evaluation tasks');
+    expect(output).toContain('auth_deployment_plan');
+    expect(output).toContain('model_pool_incident');
+    expect(output).toContain('Rubric:');
   });
 });

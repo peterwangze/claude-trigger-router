@@ -360,6 +360,7 @@ Health 摘要下方的 action 可以直接把 trace 表切到对应排查视图�
 如果你想比较不同模型组合在固定任务上的质量和速度，可以先把多模型输出整理成 JSON，再运行离线评测：
 
 ```bash
+ctr eval --tasks
 ctr eval --input results.json
 ```
 
@@ -376,7 +377,7 @@ ctr eval --input results.json
 ]
 ```
 
-当前内置任务包括 `quick_status`、`coding_fix`、`architecture_review` 和 `long_context_triage`。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency、best run 和失败 findings；它是离线 deterministic rubric，不等同于完整人工或 LLM 裁判评测。
+`ctr eval --tasks` 会列出固定任务的 prompt、expected output、关键词、字符数、延迟预算和 result template；加 `--json` 可导出给后续自动执行器或外部脚本。当前内置任务覆盖 quick reply、coding、architecture、long context、server auth/deployment 和 model pool incident。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency、best run 和失败 findings；它是离线 deterministic rubric，不等同于完整人工或 LLM 裁判评测。
 
 如果服务没有启动，`ctr ui` 会提示先运行：
 
@@ -462,6 +463,7 @@ GET /api/auth/audit
 | `ctr stop` | 停止服务 |
 | `ctr code` | 带 Trigger Router 环境启动 Claude Code |
 | `ctr doctor` | 配置和服务诊断 |
+| `ctr eval --tasks` | 查看固定评测任务、prompt 和 rubric |
 | `ctr eval --input results.json` | 离线固定任务集评测 |
 | `ctr ui` | 打开本地 UI 工作台 |
 | `ctr version` | 查看版本 |

@@ -19,7 +19,9 @@ import { runDoctorCli } from "./doctor";
 import { managedApiKeySummary } from "./auth/api-keys";
 import { normalizeAndValidateConfig } from "./utils/config";
 import {
+  buildOfflineTaskManifest,
   formatOfflineTaskEvaluationReport,
+  formatOfflineTaskManifest,
   parseOfflineEvaluationInputs,
   runOfflineTaskEvaluation,
   type IOfflineEvaluationInput,
@@ -126,7 +128,7 @@ Claude Trigger Router - 智能触发路由器
 命令：
   setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置
   doctor      诊断并修复当前配置，按需探测模型可用性
-  eval        离线评测固定任务集输出（--input results.json）
+  eval        离线评测固定任务集输出（--input results.json / --tasks）
   init        初始化最小配置模板
   deploy      生成部署入口配置（当前支持 deploy init --target server）
   start       启动路由服务（默认前台运行）
@@ -147,6 +149,7 @@ Claude Trigger Router - 智能触发路由器
 使用示例：
   ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置
   ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性
+  ctr eval --tasks         # 查看固定评测任务、prompt 和 rubric
   ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果
   ctr init                 # 初始化最小配置模板
   ctr deploy init --target server  # 生成安全默认的 server 部署配置
@@ -260,9 +263,19 @@ function readOfflineEvaluationInputs(inputPath: string): IOfflineEvaluationInput
 }
 
 function runOfflineEvaluationCli() {
+  if (hasArg("--tasks")) {
+    if (hasArg("--json")) {
+      console.log(JSON.stringify(buildOfflineTaskManifest(), null, 2));
+      return;
+    }
+    console.log(formatOfflineTaskManifest());
+    return;
+  }
+
   const inputPath = getArgValue("--input", "-i");
   if (!inputPath) {
     console.log("请提供评测输入文件：ctr eval --input results.json");
+    console.log("可先运行：ctr eval --tasks 查看固定任务、prompt 和 rubric");
     console.log("输入格式：[{ \"taskId\": \"coding_fix\", \"model\": \"provider,model\", \"output\": \"...\", \"latencyMs\": 1200 }]");
     process.exit(1);
   }
