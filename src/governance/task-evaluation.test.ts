@@ -182,5 +182,9 @@ describe('offline task evaluation', () => {
     expect(output).toContain('auth_deployment_plan');
     expect(output).toContain('model_pool_incident');
     expect(output).toContain('Rubric:');
+    expect(output).toContain('Required:');
+    expect(output).toContain('Forbidden:');
+    expect(output).toContain('Requires code block: true');
+    expect(output).toContain('...rest of code');
   });
 });

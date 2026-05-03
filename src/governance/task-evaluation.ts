@@ -378,7 +378,10 @@ export function formatOfflineTaskManifest(tasks: IOfflineEvaluationTask[] = DEFA
     lines.push(`- ${task.id} [${task.intent}/${task.category ?? 'general'}]`);
     lines.push(`  Prompt: ${task.prompt}`);
     lines.push(`  Expected: ${task.expectedOutput ?? 'A complete answer that satisfies the task prompt.'}`);
-    lines.push(`  Rubric: keywords=${(task.requiredKeywords ?? []).join('|') || '-'}, minChars=${task.minOutputChars ?? 0}, maxLatencyMs=${task.maxLatencyMs ?? '-'}`);
+    lines.push(`  Rubric: minQuality=${task.minQualityScore ?? 0.7}, minChars=${task.minOutputChars ?? 0}, maxLatencyMs=${task.maxLatencyMs ?? '-'}`);
+    lines.push(`  Required: ${(task.requiredKeywords ?? []).join('|') || '-'}`);
+    lines.push(`  Forbidden: ${(task.forbiddenPatterns ?? []).join('|') || '-'}`);
+    lines.push(`  Requires code block: ${Boolean(task.requiresCodeBlock)}`);
   }
 
   return lines.join('\n');
