@@ -143,6 +143,8 @@ describe('offline task evaluation', () => {
     const output = formatOfflineTaskEvaluationReport(report);
     expect(output).toContain('Findings:');
     expect(output).toContain('Average dimensions:');
+    expect(output).toContain('- fast,haiku: pass 0.0%');
+    expect(output).toContain('semantic_coverage=0.40');
     expect(output).toContain('coding_fix -> fast,haiku');
     expect(output).toContain('latency_over_budget');
   });
@@ -164,8 +166,16 @@ describe('offline task evaluation', () => {
         minQualityScore: 0.9,
         qualityDimensions: [
           {
+            id: 'risk coverage',
+            label: 'Risk coverage',
+            weight: 10,
+            minScore: 1,
+            requiredKeywords: ['risk'],
+          },
+          {
             id: 'rollback readiness',
             label: 'Rollback readiness',
+            weight: 1,
             minScore: 1,
             requiredKeywords: ['rollback'],
           },
@@ -175,13 +185,17 @@ describe('offline task evaluation', () => {
 
     expect(report.runs[0]).toEqual(expect.objectContaining({
       passed: false,
-      qualityScore: 0.4,
-      dimensionScores: [
+      qualityScore: 0.9455,
+      dimensionScores: expect.arrayContaining([
+        expect.objectContaining({
+          id: 'risk_coverage',
+          score: 1,
+        }),
         expect.objectContaining({
           id: 'rollback_readiness',
           score: 0.4,
         }),
-      ],
+      ]),
       findings: expect.arrayContaining([
         'dimension_below_threshold:rollback_readiness:0.4/1',
         'dimension_rollback_readiness:missing_keywords:rollback',

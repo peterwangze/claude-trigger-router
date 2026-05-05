@@ -414,6 +414,7 @@ function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInpu
   const normalized = normalizeText(output);
   const minQualityScore = task.minQualityScore ?? 0.7;
   let qualityScore = 1;
+  let dimensionsPassed = true;
 
   if (input.error) {
     findings.push(`runner_error:${input.error}`);
@@ -426,6 +427,7 @@ function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInpu
     const sourceDimension = dimensions.find((item) => normalizeDimensionId(item.id) === dimension.id);
     const minScore = sourceDimension?.minScore ?? 0.7;
     if (dimension.score < minScore) {
+      dimensionsPassed = false;
       findings.push(`dimension_below_threshold:${dimension.id}:${dimension.score}/${minScore}`);
     }
     for (const finding of dimension.findings) {
@@ -469,7 +471,7 @@ function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInpu
     taskId: task.id,
     intent: task.intent,
     model: input.model,
-    passed: !input.error && finalQualityScore >= minQualityScore,
+    passed: !input.error && dimensionsPassed && finalQualityScore >= minQualityScore,
     qualityScore: finalQualityScore,
     speedScore,
     latencyMs,
@@ -722,6 +724,15 @@ export function formatOfflineTaskManifest(tasks: IOfflineEvaluationTask[] = DEFA
   return lines.join('\n');
 }
 
+function formatDimensionSummary(scores: Record<string, number>): string {
+  const entries = Object.entries(scores);
+  if (!entries.length) {
+    return '-';
+  }
+
+  return entries.map(([id, score]) => `${id}=${score.toFixed(2)}`).join(', ');
+}
+
 export function formatOfflineTaskEvaluationReport(report: IOfflineTaskEvaluationReport): string {
   const lines = [
     'Offline routing evaluation',
@@ -731,7 +742,7 @@ export function formatOfflineTaskEvaluationReport(report: IOfflineTaskEvaluation
 
   const dimensions = Object.entries(report.averageDimensionScores);
   if (dimensions.length) {
-    lines.push(`Average dimensions: ${dimensions.map(([id, score]) => `${id}=${score.toFixed(2)}`).join(', ')}`);
+    lines.push(`Average dimensions: ${formatDimensionSummary(report.averageDimensionScores)}`);
   }
 
   if (report.missingTaskIds.length) {
@@ -740,7 +751,7 @@ export function formatOfflineTaskEvaluationReport(report: IOfflineTaskEvaluation
 
   lines.push('By model:');
   for (const item of report.byModel) {
-    lines.push(`- ${item.key}: pass ${(item.passRate * 100).toFixed(1)}%, quality ${item.averageQualityScore.toFixed(2)}, latency ${item.averageLatencyMs} ms`);
+    lines.push(`- ${item.key}: pass ${(item.passRate * 100).toFixed(1)}%, quality ${item.averageQualityScore.toFixed(2)}, latency ${item.averageLatencyMs} ms, dimensions ${formatDimensionSummary(item.averageDimensionScores)}`);
   }
 
   lines.push('Best runs by task:');
