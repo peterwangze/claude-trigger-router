@@ -379,12 +379,18 @@ ctr eval --run --models "sonnet;haiku"
     "taskId": "coding_fix",
     "model": "provider,model",
     "output": "模型输出文本",
-    "latencyMs": 1200
+    "latencyMs": 1200,
+    "humanScore": 0.9,
+    "judgeScore": 0.85,
+    "calibrationNotes": "人工或外部 LLM 裁判的可选说明",
+    "judgeFindings": ["可选裁判发现"]
   }
 ]
 ```
 
 `ctr eval --tasks` 会列出固定任务的 prompt、expected output、关键词、字符数、延迟预算、质量维度和 result template；加 `--json` 可导出给后续自动执行器或外部脚本。当前内置任务覆盖 quick reply、coding、architecture、long context、server auth/deployment 和 model pool incident。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency、best run、维度均分和失败 findings；它是离线 deterministic rubric，不等同于完整人工或 LLM 裁判评测。
+
+如果你已经有人工复核或外部 LLM 裁判结果，可以在输入里补 `humanScore` / `judgeScore`，范围是 `0..1`。报告会生成 calibration summary，并标出 deterministic rubric 与人工/裁判结果差异较大的任务，帮助维护者判断某个模型组合是否真的带来质量提升。
 
 如果本机或远端 CTR 已启动，也可以显式自动跑固定任务集：
 

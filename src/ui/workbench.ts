@@ -431,6 +431,11 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<ul id="taskComparisonList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
     `<div class="subpanel">` +
+    `<div class="row"><strong>Benchmark summary</strong><span class="muted">把治理 trace 与固定任务评测入口合并成维护者 A/B 闭环</span></div>` +
+    `<div id="benchmarkSummary" class="stats"><div class="stat"><span class="muted">Comparable tasks</span><strong>-</strong></div><div class="stat"><span class="muted">Evidence samples</span><strong>-</strong></div><div class="stat"><span class="muted">Best quality lift</span><strong>-</strong></div><div class="stat"><span class="muted">Best speed lift</span><strong>-</strong></div></div>` +
+    `<ul id="benchmarkActionList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="subpanel">` +
     `<div class="row"><strong>Anomaly tuning</strong><span class="muted">来自配置文件，可在此临时覆盖当前页面查询</span></div>` +
     `<div class="control-grid">` +
     `<div><label>Min sample</label><input id="minSampleSize" value="${escapedMinSampleSize}"></div>` +
@@ -617,6 +622,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const qualityEvidenceList=document.getElementById('qualityEvidenceList');` +
     `const taskComparisonSummary=document.getElementById('taskComparisonSummary');` +
     `const taskComparisonList=document.getElementById('taskComparisonList');` +
+    `const benchmarkSummary=document.getElementById('benchmarkSummary');` +
+    `const benchmarkActionList=document.getElementById('benchmarkActionList');` +
     `const securitySummary=document.getElementById('securitySummary');` +
     `const authQuotaTableBody=document.querySelector('#authQuotaTable tbody');` +
     `const modelPoolHealthSummary=document.getElementById('modelPoolHealthSummary');` +
@@ -1457,6 +1464,22 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(!items.length){ taskComparisonList.innerHTML='<li><span class="muted">No comparable task samples</span><strong>0</strong></li>'; return; }` +
     `  taskComparisonList.innerHTML=items.map(item=>'<li><span><strong>'+esc(item.taskKey || '-')+'</strong><div class="muted">best '+esc(item.bestModel || '-')+' · baseline '+esc(item.baselineModel || '-')+' · fastest '+esc(item.fastestModel || '-')+'</div><div class="muted">failure lift '+esc(pct(item.failureRateDelta || 0))+' · latency lift '+esc(fmt(item.latencyDeltaMs || 0))+' ms · models '+esc(item.modelCount || 0)+'</div></span><strong>'+esc(item.totalTraces || 0)+' traces</strong></li>').join('');` +
     `}` +
+    `function renderBenchmarkSummary(taskComparison,qualityEvidence){` +
+    `  const bestQuality=taskComparison?.bestQualityLiftTask;` +
+    `  const bestSpeed=taskComparison?.bestSpeedLiftTask;` +
+    `  benchmarkSummary.innerHTML=[` +
+    `    ['Comparable tasks',taskComparison?.totalComparedTasks || 0],` +
+    `    ['Evidence samples',qualityEvidence?.totalSamples || 0],` +
+    `    ['Best quality lift',bestQuality ? pct(bestQuality.failureRateDelta || 0) : '-'],` +
+    `    ['Best speed lift',bestSpeed ? (fmt(bestSpeed.latencyDeltaMs || 0)+' ms') : '-']` +
+    `  ].map(([label,value])=>'<div class="stat"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
+    `  const actions=[];` +
+    `  if((taskComparison?.totalComparedTasks || 0)===0){ actions.push(['Collect comparable traces','Send the same task class through at least two final models, then refresh metrics.']); }` +
+    `  if((qualityEvidence?.totalSamples || 0)===0){ actions.push(['Collect quality evidence','Enable cascade, shadow, context-window or model-pool signals so routing wins and risks become visible.']); }` +
+    `  actions.push(['Run fixed benchmark','ctr eval --tasks && ctr eval --run --models "sonnet;haiku" --json']);` +
+    `  actions.push(['Add calibration','Attach humanScore or judgeScore to ctr eval input results before treating rubric scores as release evidence.']);` +
+    `  benchmarkActionList.innerHTML=actions.map(([title,detail])=>'<li><span><strong>'+esc(title)+'</strong><div class="muted">'+esc(detail)+'</div></span><strong>benchmark</strong></li>').join('');` +
+    `}` +
     `function renderAnomalies(anomalies,health){` +
     `  const status=health?.status || 'idle';` +
     `  const message=health?.message || 'No governance traces yet.';` +
@@ -1563,6 +1586,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderRoutingTuning(health?.routingTuning || []);` +
     `  renderQualityEvidence(metricsData.qualityEvidence || {});` +
     `  renderTaskComparison(metricsData.taskComparison || {});` +
+    `  renderBenchmarkSummary(metricsData.taskComparison || {},metricsData.qualityEvidence || {});` +
     `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +
     `  renderRanking(modelRanking,metricsData.topFinalModels || [],'No models');` +
     `  renderRanking(intentRanking,metricsData.topSemanticIntents || [],'No intents');` +

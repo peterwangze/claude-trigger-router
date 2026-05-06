@@ -30,6 +30,10 @@ export interface IOfflineEvaluationInput {
   output?: string;
   latencyMs?: number;
   error?: string;
+  humanScore?: number;
+  judgeScore?: number;
+  calibrationNotes?: string;
+  judgeFindings?: string[];
 }
 
 export interface IOfflineEvaluationRun {
@@ -41,6 +45,16 @@ export interface IOfflineEvaluationRun {
   speedScore: number;
   latencyMs?: number;
   dimensionScores: IOfflineEvaluationDimensionScore[];
+  calibration?: IOfflineEvaluationCalibration;
+  findings: string[];
+}
+
+export interface IOfflineEvaluationCalibration {
+  humanScore?: number;
+  judgeScore?: number;
+  averageScore?: number;
+  deltaFromQuality?: number;
+  notes?: string;
   findings: string[];
 }
 
@@ -63,6 +77,22 @@ export interface IOfflineEvaluationGroup {
   averageDimensionScores: Record<string, number>;
 }
 
+export interface IOfflineEvaluationCalibrationSummary {
+  calibratedRuns: number;
+  averageHumanScore: number;
+  averageJudgeScore: number;
+  averageCalibrationScore: number;
+  averageRubricDelta: number;
+  highDisagreementRuns: Array<{
+    taskId: string;
+    model: string;
+    qualityScore: number;
+    calibrationScore: number;
+    deltaFromQuality: number;
+    findings: string[];
+  }>;
+}
+
 export interface IOfflineTaskEvaluationReport {
   totalTasks: number;
   totalRuns: number;
@@ -73,6 +103,7 @@ export interface IOfflineTaskEvaluationReport {
   averageSpeedScore: number;
   averageLatencyMs: number;
   averageDimensionScores: Record<string, number>;
+  calibrationSummary: IOfflineEvaluationCalibrationSummary;
   bestRunsByTask: IOfflineEvaluationRun[];
   byTask: IOfflineEvaluationGroup[];
   byModel: IOfflineEvaluationGroup[];
@@ -131,12 +162,28 @@ export function parseOfflineEvaluationInputs(payload: unknown): IOfflineEvaluati
       throw new Error(`第 ${index + 1} 条评测结果的 latencyMs 必须是非负数字。`);
     }
 
+    const humanScore = parseOptionalUnitScore(record.humanScore, `第 ${index + 1} 条评测结果的 humanScore`);
+    const judgeScore = parseOptionalUnitScore(record.judgeScore, `第 ${index + 1} 条评测结果的 judgeScore`);
+    if (record.calibrationNotes !== undefined && typeof record.calibrationNotes !== 'string') {
+      throw new Error(`第 ${index + 1} 条评测结果的 calibrationNotes 必须是字符串。`);
+    }
+    if (
+      record.judgeFindings !== undefined &&
+      (!Array.isArray(record.judgeFindings) || record.judgeFindings.some((item) => typeof item !== 'string'))
+    ) {
+      throw new Error(`第 ${index + 1} 条评测结果的 judgeFindings 必须是字符串数组。`);
+    }
+
     return {
       taskId: record.taskId.trim(),
       model: record.model.trim(),
       output: record.output,
       error: record.error,
       latencyMs: record.latencyMs,
+      humanScore,
+      judgeScore,
+      calibrationNotes: typeof record.calibrationNotes === 'string' ? record.calibrationNotes : undefined,
+      judgeFindings: Array.isArray(record.judgeFindings) ? record.judgeFindings : undefined,
     };
   });
 }
@@ -221,6 +268,16 @@ function average(values: number[]): number {
   }
 
   return Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(4));
+}
+
+function parseOptionalUnitScore(value: unknown, label: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${label} 必须是 0 到 1 之间的数字。`);
+  }
+  return Number(value.toFixed(4));
 }
 
 function rate(count: number, total: number): number {
@@ -408,6 +465,31 @@ function averageDimensionScores(runs: IOfflineEvaluationRun[]): Record<string, n
   );
 }
 
+function buildCalibration(input: IOfflineEvaluationInput, qualityScore: number): IOfflineEvaluationCalibration | undefined {
+  const scores = [input.humanScore, input.judgeScore].filter((value): value is number => typeof value === 'number');
+  const findings = [...(input.judgeFindings ?? [])];
+  if (!scores.length && !input.calibrationNotes && !findings.length) {
+    return undefined;
+  }
+
+  const averageScore = scores.length ? average(scores) : undefined;
+  const deltaFromQuality = averageScore === undefined
+    ? undefined
+    : Number((averageScore - qualityScore).toFixed(4));
+  if (deltaFromQuality !== undefined && Math.abs(deltaFromQuality) >= 0.25) {
+    findings.push(`calibration_disagreement:${deltaFromQuality}`);
+  }
+
+  return {
+    humanScore: input.humanScore,
+    judgeScore: input.judgeScore,
+    averageScore,
+    deltaFromQuality,
+    notes: input.calibrationNotes,
+    findings,
+  };
+}
+
 function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInput): IOfflineEvaluationRun {
   const findings: string[] = [];
   const output = input.output ?? '';
@@ -467,6 +549,12 @@ function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInpu
   }
 
   const finalQualityScore = clamp(Math.min(qualityScore, weightedAverageDimensionScore(dimensionScores)));
+  const calibration = buildCalibration(input, finalQualityScore);
+  if (calibration) {
+    for (const finding of calibration.findings) {
+      findings.push(`calibration:${finding}`);
+    }
+  }
   return {
     taskId: task.id,
     intent: task.intent,
@@ -476,6 +564,7 @@ function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInpu
     speedScore,
     latencyMs,
     dimensionScores,
+    calibration,
     findings,
   };
 }
@@ -532,6 +621,41 @@ function bestRunForTask(taskId: string, runs: IOfflineEvaluationRun[]): IOffline
     })[0];
 }
 
+function summarizeCalibration(runs: IOfflineEvaluationRun[]): IOfflineEvaluationCalibrationSummary {
+  const calibratedRuns = runs.filter((run) => run.calibration);
+  const humanScores = calibratedRuns
+    .map((run) => run.calibration?.humanScore)
+    .filter((value): value is number => typeof value === 'number');
+  const judgeScores = calibratedRuns
+    .map((run) => run.calibration?.judgeScore)
+    .filter((value): value is number => typeof value === 'number');
+  const averageScores = calibratedRuns
+    .map((run) => run.calibration?.averageScore)
+    .filter((value): value is number => typeof value === 'number');
+  const deltas = calibratedRuns
+    .map((run) => run.calibration?.deltaFromQuality)
+    .filter((value): value is number => typeof value === 'number');
+  const highDisagreementRuns = calibratedRuns
+    .filter((run) => Math.abs(run.calibration?.deltaFromQuality ?? 0) >= 0.25)
+    .map((run) => ({
+      taskId: run.taskId,
+      model: run.model,
+      qualityScore: run.qualityScore,
+      calibrationScore: run.calibration?.averageScore ?? 0,
+      deltaFromQuality: run.calibration?.deltaFromQuality ?? 0,
+      findings: run.calibration?.findings ?? [],
+    }));
+
+  return {
+    calibratedRuns: calibratedRuns.length,
+    averageHumanScore: average(humanScores),
+    averageJudgeScore: average(judgeScores),
+    averageCalibrationScore: average(averageScores),
+    averageRubricDelta: average(deltas),
+    highDisagreementRuns,
+  };
+}
+
 export function runOfflineTaskEvaluation(
   inputs: IOfflineEvaluationInput[],
   tasks: IOfflineEvaluationTask[] = DEFAULT_OFFLINE_EVALUATION_TASKS
@@ -559,6 +683,7 @@ export function runOfflineTaskEvaluation(
     averageSpeedScore: average(runs.map((run) => run.speedScore)),
     averageLatencyMs: latencies.length ? Number(average(latencies).toFixed(2)) : 0,
     averageDimensionScores: averageDimensionScores(runs),
+    calibrationSummary: summarizeCalibration(runs),
     bestRunsByTask,
     byTask: groupRuns(runs, (run) => run.taskId),
     byModel: groupRuns(runs, (run) => run.model),
@@ -699,6 +824,10 @@ export function buildOfflineTaskManifest(tasks: IOfflineEvaluationTask[] = DEFAU
         model: '<provider,model>',
         output: '<model output>',
         latencyMs: 0,
+        humanScore: 0,
+        judgeScore: 0,
+        calibrationNotes: '<optional human or LLM judge notes>',
+        judgeFindings: ['<optional judge finding>'],
       },
     })),
   };
@@ -745,6 +874,14 @@ export function formatOfflineTaskEvaluationReport(report: IOfflineTaskEvaluation
     lines.push(`Average dimensions: ${formatDimensionSummary(report.averageDimensionScores)}`);
   }
 
+  if (report.calibrationSummary.calibratedRuns) {
+    lines.push(
+      `Calibration: ${report.calibrationSummary.calibratedRuns} runs, human ${report.calibrationSummary.averageHumanScore.toFixed(2)}, judge ${report.calibrationSummary.averageJudgeScore.toFixed(2)}, delta ${report.calibrationSummary.averageRubricDelta.toFixed(2)}`
+    );
+  } else {
+    lines.push('Calibration: none (add humanScore or judgeScore to compare rubric with human/LLM judge)');
+  }
+
   if (report.missingTaskIds.length) {
     lines.push(`Missing task ids: ${report.missingTaskIds.join(', ')}`);
   }
@@ -764,6 +901,13 @@ export function formatOfflineTaskEvaluationReport(report: IOfflineTaskEvaluation
     lines.push('Findings:');
     for (const run of failedRuns) {
       lines.push(`- ${run.taskId} -> ${run.model}: ${run.findings.length ? run.findings.join(', ') : 'quality_below_threshold'}`);
+    }
+  }
+
+  if (report.calibrationSummary.highDisagreementRuns.length) {
+    lines.push('Calibration disagreements:');
+    for (const run of report.calibrationSummary.highDisagreementRuns) {
+      lines.push(`- ${run.taskId} -> ${run.model}: rubric ${run.qualityScore.toFixed(2)}, calibration ${run.calibrationScore.toFixed(2)}, delta ${run.deltaFromQuality.toFixed(2)}`);
     }
   }
 

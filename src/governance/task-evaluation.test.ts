@@ -114,6 +114,10 @@ describe('offline task evaluation', () => {
           model: ' fast,haiku ',
           output: 'Status is ready. Next action is to continue.',
           latencyMs: 300,
+          humanScore: 0.9,
+          judgeScore: 0.8,
+          calibrationNotes: 'human approved',
+          judgeFindings: ['clear_next_action'],
         },
       ],
     })).toEqual([
@@ -122,11 +126,17 @@ describe('offline task evaluation', () => {
         model: 'fast,haiku',
         output: 'Status is ready. Next action is to continue.',
         latencyMs: 300,
+        humanScore: 0.9,
+        judgeScore: 0.8,
+        calibrationNotes: 'human approved',
+        judgeFindings: ['clear_next_action'],
       },
     ]);
 
     expect(() => parseOfflineEvaluationInputs([{ taskId: 'quick_status', latencyMs: -1 }])).toThrow('缺少 model');
     expect(() => parseOfflineEvaluationInputs({ results: [{ taskId: 'quick_status', model: 'fast', latencyMs: -1 }] })).toThrow('latencyMs 必须是非负数字');
+    expect(() => parseOfflineEvaluationInputs({ results: [{ taskId: 'quick_status', model: 'fast', humanScore: 2 }] })).toThrow('humanScore 必须是 0 到 1');
+    expect(() => parseOfflineEvaluationInputs({ results: [{ taskId: 'quick_status', model: 'fast', judgeFindings: ['ok', 1] }] })).toThrow('judgeFindings 必须是字符串数组');
     expect(() => parseOfflineEvaluationInputs({ value: [] })).toThrow('评测输入必须是数组');
   });
 
@@ -203,6 +213,53 @@ describe('offline task evaluation', () => {
     }));
   });
 
+  it('summarizes human and LLM judge calibration against deterministic rubric scores', () => {
+    const report = runOfflineTaskEvaluation([
+      {
+        taskId: 'quick_status',
+        model: 'fast,haiku',
+        latencyMs: 250,
+        output: 'Status is ready. Next action is to continue monitoring.',
+        humanScore: 0.95,
+        judgeScore: 0.9,
+        calibrationNotes: 'human and judge both approved',
+        judgeFindings: ['concise'],
+      },
+      {
+        taskId: 'coding_fix',
+        model: 'weak,model',
+        latencyMs: 800,
+        output: 'TODO placeholder',
+        humanScore: 0.9,
+        judgeScore: 0.8,
+        judgeFindings: ['judge_accepts_concise_fix'],
+      },
+    ]);
+
+    expect(report.calibrationSummary).toEqual(expect.objectContaining({
+      calibratedRuns: 2,
+      averageHumanScore: 0.925,
+      averageJudgeScore: 0.85,
+      averageCalibrationScore: 0.8875,
+    }));
+    expect(report.runs[0].calibration).toEqual(expect.objectContaining({
+      averageScore: 0.925,
+      notes: 'human and judge both approved',
+      findings: expect.arrayContaining(['concise']),
+    }));
+    expect(report.calibrationSummary.highDisagreementRuns).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        taskId: 'coding_fix',
+        model: 'weak,model',
+      }),
+    ]));
+
+    const output = formatOfflineTaskEvaluationReport(report);
+    expect(output).toContain('Calibration: 2 runs');
+    expect(output).toContain('Calibration disagreements:');
+    expect(output).toContain('coding_fix -> weak,model');
+  });
+
   it('exports a stable fixed task manifest for repeatable benchmark runners', () => {
     const manifest = buildOfflineTaskManifest();
     expect(manifest.version).toBe(1);
@@ -224,6 +281,9 @@ describe('offline task evaluation', () => {
         resultTemplate: expect.objectContaining({
           taskId: 'model_pool_incident',
           model: '<provider,model>',
+          humanScore: 0,
+          judgeScore: 0,
+          calibrationNotes: '<optional human or LLM judge notes>',
         }),
       }),
     ]));
