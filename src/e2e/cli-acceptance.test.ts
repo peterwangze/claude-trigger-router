@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createServer } from 'http';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import packageJson from '../../package.json';
 import {
   assertOnlyExpectedPathsChanged,
   createFakeClaude,
@@ -658,7 +659,7 @@ describe('isolated packaged CLI acceptance', () => {
       expect(versionResult.code).toBe(0);
       expectNoTerminalCorruption(`${versionResult.stdout}\n${versionResult.stderr}`);
       expect(versionResult.stdout).toContain('Package: @peterwangze/claude-trigger-router');
-      expect(versionResult.stdout).toContain('Version: 1.1.2');
+      expect(versionResult.stdout).toContain(`Version: ${packageJson.version}`);
 
       const upgradeResult = await runCommandInShell(toWrapperCommand('upgrade'), env, {
         cwd: repoRoot,

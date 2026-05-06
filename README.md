@@ -11,6 +11,12 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - 想在 Claude Code 外层增加配置校验、健康检查、治理观测和 UI 工作台
 - 想从 `claude-code-router` 迁移到更清晰的 `Models + Router` 配置心智
 
+## v1.2.0 发布定位
+
+`v1.2.0` 是智能路由评测与治理增强版。它重点闭环多模型组合的可验证收益：用 `ctr eval --tasks` 固定任务契约，用 `ctr eval --run --models "sonnet;haiku"` 真实调用 CTR 跑多模型 A/B，再用 deterministic rubric 和质量维度解释不同模型在质量、速度、失败风险上的差异。
+
+这个版本不把 CTR 宣称为完整云端平台或完整自动裁判系统。LLM 裁判、人工校准、UI benchmark 摘要、托管级一键部署、集群编排和更复杂模型池策略仍是后续演进事项。完整发布边界见 [docs/release-notes-v1.2.0.md](docs/release-notes-v1.2.0.md)。
+
 ## 功能概览
 
 - **本地代理服务**：默认监听 `127.0.0.1:5678`，接管 Claude Code 上游请求。
@@ -19,7 +25,7 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - **基础路由**：用 `Router.default`、`Router.think`、`Router.longContext` 等槽位指定不同任务的默认模型。
 - **SmartRouter**：先用显式规则命中高确定性任务，也可以在规则未命中时让路由模型从候选模型中自动选择。
 - **Governance 观测**：记录 trace、metrics、异常摘要和健康状态，帮助你理解路由选择和运行风险。
-- **离线评测**：`ctr eval --input results.json` 用固定任务集和 deterministic rubric 对不同模型输出做可重复评分。
+- **路由评测**：`ctr eval --tasks` 查看固定任务契约，`ctr eval --input results.json` 离线评分，`ctr eval --run --models "sonnet;haiku"` 真实调用 CTR 做多模型 A/B。
 - **doctor 诊断**：检查配置、服务可启动性、鉴权安全状态、模型兼容策略和可选模型探测。
 - **UI 工作台**：`ctr ui` 打开本地页面，查看服务上下文、远程状态、鉴权安全状态、配置草稿、compiled models、capability warnings、治理 trace、metrics 和 Health 摘要。
 - **远程状态基础**：可配置 `Runtime.remote_service`，通过 `/api/remote-status` 查看远程服务健康、compiled model 摘要和治理告警摘要。默认用户不需要配置远程模式。
