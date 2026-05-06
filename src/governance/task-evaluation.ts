@@ -32,6 +32,7 @@ export interface IOfflineEvaluationInput {
   error?: string;
   humanScore?: number;
   judgeScore?: number;
+  judgeError?: string;
   calibrationNotes?: string;
   judgeFindings?: string[];
 }
@@ -117,6 +118,8 @@ export interface IOfflineTaskBenchmarkOptions {
   timeoutMs?: number;
   concurrency?: number;
   maxTokens?: number;
+  judgeModel?: string;
+  judgeMaxTokens?: number;
   tasks?: IOfflineEvaluationTask[];
   fetchFn?: typeof fetch;
 }
@@ -124,6 +127,18 @@ export interface IOfflineTaskBenchmarkOptions {
 export interface IOfflineTaskBenchmarkResult {
   inputs: IOfflineEvaluationInput[];
   report: IOfflineTaskEvaluationReport;
+}
+
+export interface IOfflineTaskJudgeOptions {
+  inputs: IOfflineEvaluationInput[];
+  judgeModel: string;
+  baseUrl: string;
+  apiKey?: string;
+  timeoutMs?: number;
+  concurrency?: number;
+  maxTokens?: number;
+  tasks?: IOfflineEvaluationTask[];
+  fetchFn?: typeof fetch;
 }
 
 export function parseOfflineEvaluationInputs(payload: unknown): IOfflineEvaluationInput[] {
@@ -155,6 +170,9 @@ export function parseOfflineEvaluationInputs(payload: unknown): IOfflineEvaluati
     if (record.error !== undefined && typeof record.error !== 'string') {
       throw new Error(`第 ${index + 1} 条评测结果的 error 必须是字符串。`);
     }
+    if (record.judgeError !== undefined && record.judgeError !== null && typeof record.judgeError !== 'string') {
+      throw new Error(`第 ${index + 1} 条评测结果的 judgeError 必须是字符串。`);
+    }
     if (
       record.latencyMs !== undefined
       && (typeof record.latencyMs !== 'number' || !Number.isFinite(record.latencyMs) || record.latencyMs < 0)
@@ -182,6 +200,7 @@ export function parseOfflineEvaluationInputs(payload: unknown): IOfflineEvaluati
       latencyMs: record.latencyMs,
       humanScore,
       judgeScore,
+      judgeError: typeof record.judgeError === 'string' ? record.judgeError : undefined,
       calibrationNotes: typeof record.calibrationNotes === 'string' ? record.calibrationNotes : undefined,
       judgeFindings: Array.isArray(record.judgeFindings) ? record.judgeFindings : undefined,
     };
@@ -399,6 +418,83 @@ function extractContentText(content: any): string {
     .join('\n');
 }
 
+function extractFirstJsonObject(text: string): Record<string, unknown> | undefined {
+  const start = text.indexOf('{');
+  if (start === -1) {
+    return undefined;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) {
+      continue;
+    }
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          const payload = JSON.parse(text.slice(start, index + 1));
+          return payload && typeof payload === 'object' && !Array.isArray(payload)
+            ? payload as Record<string, unknown>
+            : undefined;
+        } catch {
+          return undefined;
+        }
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function parseJudgeResult(text: string): { judgeScore: number; calibrationNotes?: string; judgeFindings?: string[] } | undefined {
+  const payload = extractFirstJsonObject(text);
+  if (!payload) {
+    return undefined;
+  }
+
+  const rawScore = payload.score ?? payload.judgeScore;
+  const score = typeof rawScore === 'number'
+    ? rawScore
+    : typeof rawScore === 'string' && rawScore.trim()
+      ? Number(rawScore)
+      : Number.NaN;
+  if (!Number.isFinite(score) || score < 0 || score > 1) {
+    return undefined;
+  }
+
+  const rawFindings = payload.findings ?? payload.judgeFindings;
+  const judgeFindings = Array.isArray(rawFindings)
+    ? rawFindings.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).map((item) => item.trim())
+    : typeof rawFindings === 'string' && rawFindings.trim()
+      ? [rawFindings.trim()]
+      : undefined;
+  const rawNotes = payload.notes ?? payload.calibrationNotes;
+
+  return {
+    judgeScore: Number(score.toFixed(4)),
+    calibrationNotes: typeof rawNotes === 'string' && rawNotes.trim() ? rawNotes.trim() : undefined,
+    judgeFindings,
+  };
+}
+
 function evaluateDimension(
   dimension: IOfflineEvaluationDimension,
   output: string,
@@ -501,6 +597,9 @@ function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInpu
   if (input.error) {
     findings.push(`runner_error:${input.error}`);
     qualityScore = 0;
+  }
+  if (input.judgeError) {
+    findings.push(`judge_error:${input.judgeError}`);
   }
 
   const dimensions = qualityDimensionsForTask(task);
@@ -753,6 +852,144 @@ async function runBenchmarkJob(
   }
 }
 
+function buildJudgePrompt(task: IOfflineEvaluationTask, input: IOfflineEvaluationInput): string {
+  return [
+    'You are judging a Claude Trigger Router fixed-task benchmark result.',
+    'Return only compact JSON with this exact shape:',
+    '{"score":0.0,"findings":["short finding"],"notes":"short rationale"}',
+    'Score must be a number from 0 to 1. Do not include markdown.',
+    '',
+    `Task id: ${task.id}`,
+    `Intent: ${task.intent}`,
+    `Expected output: ${task.expectedOutput ?? 'A complete answer that satisfies the task prompt.'}`,
+    `Prompt: ${task.prompt}`,
+    `Candidate model: ${input.model}`,
+    '',
+    'Candidate output:',
+    input.output ?? '',
+  ].join('\n');
+}
+
+async function runJudgeJob(
+  task: IOfflineEvaluationTask | undefined,
+  input: IOfflineEvaluationInput,
+  options: Required<Pick<IOfflineTaskJudgeOptions, 'baseUrl' | 'timeoutMs' | 'maxTokens' | 'judgeModel'>> & {
+    apiKey?: string;
+    fetchFn: typeof fetch;
+  }
+): Promise<IOfflineEvaluationInput> {
+  if (input.error) {
+    return input;
+  }
+  if (!task) {
+    return {
+      ...input,
+      judgeError: 'unknown_task',
+    };
+  }
+  if (!input.output?.trim()) {
+    return {
+      ...input,
+      judgeError: 'missing_output',
+    };
+  }
+
+  const url = `${options.baseUrl.replace(/\/+$/, '')}/v1/messages`;
+  try {
+    const response = await options.fetchFn(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        ...(options.apiKey ? { Authorization: `Bearer ${options.apiKey}`, 'x-api-key': options.apiKey } : {}),
+      },
+      body: JSON.stringify({
+        model: options.judgeModel,
+        max_tokens: options.maxTokens,
+        stream: false,
+        metadata: {
+          ctr_eval_judge_task_id: task.id,
+          ctr_eval_judge_model: options.judgeModel,
+          ctr_eval_judge_target_model: input.model,
+        },
+        messages: [
+          {
+            role: 'user',
+            content: buildJudgePrompt(task, input),
+          },
+        ],
+      }),
+      ...(options.timeoutMs > 0 ? { signal: AbortSignal.timeout(options.timeoutMs) } : {}),
+    });
+    if (!response.ok) {
+      return {
+        ...input,
+        judgeError: `http_${response.status}`,
+      };
+    }
+
+    const payload = await response.json();
+    const parsed = parseJudgeResult(extractResponseText(payload));
+    if (!parsed) {
+      return {
+        ...input,
+        judgeError: 'invalid_response',
+      };
+    }
+
+    return {
+      ...input,
+      judgeScore: parsed.judgeScore,
+      calibrationNotes: parsed.calibrationNotes ?? input.calibrationNotes,
+      judgeFindings: parsed.judgeFindings ?? input.judgeFindings,
+    };
+  } catch (error: any) {
+    return {
+      ...input,
+      judgeError: error?.name === 'TimeoutError' ? 'timeout' : (error?.message || 'request_failed'),
+    };
+  }
+}
+
+export async function runOfflineTaskJudge(options: IOfflineTaskJudgeOptions): Promise<IOfflineTaskBenchmarkResult> {
+  const tasks = options.tasks ?? DEFAULT_OFFLINE_EVALUATION_TASKS;
+  const taskMap = new Map(tasks.map((task) => [task.id, task]));
+  const judgeModel = options.judgeModel.trim();
+  if (!judgeModel) {
+    throw new Error('LLM 裁判需要 judgeModel。');
+  }
+  if (!options.baseUrl?.trim()) {
+    throw new Error('LLM 裁判需要 baseUrl。');
+  }
+
+  const inputs: IOfflineEvaluationInput[] = new Array(options.inputs.length);
+  let nextIndex = 0;
+  const concurrency = Math.max(1, Math.min(Math.floor(options.concurrency ?? 2), 8));
+  const sharedOptions = {
+    judgeModel,
+    baseUrl: options.baseUrl.trim(),
+    apiKey: options.apiKey?.trim() || undefined,
+    timeoutMs: Math.max(0, Math.floor(options.timeoutMs ?? 30000)),
+    maxTokens: Math.max(1, Math.floor(options.maxTokens ?? 256)),
+    fetchFn: options.fetchFn ?? fetch,
+  };
+
+  async function worker() {
+    while (nextIndex < options.inputs.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      const input = options.inputs[currentIndex];
+      inputs[currentIndex] = await runJudgeJob(taskMap.get(input.taskId), input, sharedOptions);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, options.inputs.length) }, () => worker()));
+  return {
+    inputs,
+    report: runOfflineTaskEvaluation(inputs, tasks),
+  };
+}
+
 export async function runOfflineTaskBenchmark(options: IOfflineTaskBenchmarkOptions): Promise<IOfflineTaskBenchmarkResult> {
   const tasks = options.tasks ?? DEFAULT_OFFLINE_EVALUATION_TASKS;
   const models = options.models.map((model) => model.trim()).filter(Boolean);
@@ -785,6 +1022,20 @@ export async function runOfflineTaskBenchmark(options: IOfflineTaskBenchmarkOpti
   }
 
   await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, () => worker()));
+  if (options.judgeModel?.trim()) {
+    return runOfflineTaskJudge({
+      inputs,
+      tasks,
+      judgeModel: options.judgeModel,
+      baseUrl: sharedOptions.baseUrl,
+      apiKey: sharedOptions.apiKey,
+      timeoutMs: sharedOptions.timeoutMs,
+      concurrency,
+      maxTokens: options.judgeMaxTokens ?? 256,
+      fetchFn: sharedOptions.fetchFn,
+    });
+  }
+
   return {
     inputs,
     report: runOfflineTaskEvaluation(inputs, tasks),

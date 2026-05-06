@@ -133,6 +133,7 @@ describe('runClaudeCode', () => {
     expect(output).toContain('  ctr eval --tasks         # 查看固定评测任务、prompt 和 rubric');
     expect(output).toContain('  ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果');
     expect(output).toContain('  ctr eval --run --models "sonnet;haiku"  # 自动调用 CTR /v1/messages 后评测');
+    expect(output).toContain('  ctr eval --run --models "sonnet;haiku" --judge-model sonnet  # 自动追加 LLM 裁判分');
     expect(output).toContain('  ctr deploy init --target server  # 生成安全默认的 server 部署配置');
     expect(output).toContain('  ctr version              # 查看当前安装版本');
     expect(output).toContain('  ctr upgrade              # 查看升级到最新版本的命令');
@@ -390,6 +391,73 @@ describe('runClaudeCode', () => {
           'x-api-key': 'client-key',
           'anthropic-version': '2023-06-01',
         }),
+      })
+    );
+    logSpy.mockRestore();
+  });
+
+  it('runs automatic offline evaluation with an LLM judge model', async () => {
+    process.argv = [
+      'node',
+      'cli.ts',
+      'eval',
+      '--run',
+      '--models',
+      'sonnet',
+      '--judge-model',
+      'judge',
+      '--base-url',
+      'http://127.0.0.1:9999',
+      '--api-key',
+      'client-key',
+      '--json',
+    ];
+    mockFetch.mockImplementation(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      if (body.metadata?.ctr_eval_judge_task_id) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            content: [{ type: 'text', text: '{"score":0.91,"findings":["clear"],"notes":"judge accepted"}' }],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: [
+            {
+              type: 'text',
+              text: [
+                `Status next for ${body.model}.`,
+                'This fix includes a test plan, risk, tradeoff, rollout, goal, constraint and blocker.',
+                'It covers scope, rotation, audit, rollback, latency, 5xx and fallback.',
+                '```ts',
+                'expect(true).toBe(true);',
+                '```',
+              ].join('\n'),
+            },
+          ],
+        }),
+      };
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+    expect(payload.inputs[0]).toEqual(expect.objectContaining({
+      model: 'sonnet',
+      judgeScore: 0.91,
+    }));
+    expect(payload.report.calibrationSummary.averageJudgeScore).toBe(0.91);
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:9999/v1/messages',
+      expect.objectContaining({
+        method: 'POST',
       })
     );
     logSpy.mockRestore();

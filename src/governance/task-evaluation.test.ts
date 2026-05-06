@@ -7,6 +7,7 @@ import {
   parseOfflineEvaluationInputs,
   runOfflineTaskBenchmark,
   runOfflineTaskEvaluation,
+  runOfflineTaskJudge,
 } from './task-evaluation';
 
 describe('offline task evaluation', () => {
@@ -116,6 +117,7 @@ describe('offline task evaluation', () => {
           latencyMs: 300,
           humanScore: 0.9,
           judgeScore: 0.8,
+          judgeError: null,
           calibrationNotes: 'human approved',
           judgeFindings: ['clear_next_action'],
         },
@@ -136,6 +138,7 @@ describe('offline task evaluation', () => {
     expect(() => parseOfflineEvaluationInputs([{ taskId: 'quick_status', latencyMs: -1 }])).toThrow('缺少 model');
     expect(() => parseOfflineEvaluationInputs({ results: [{ taskId: 'quick_status', model: 'fast', latencyMs: -1 }] })).toThrow('latencyMs 必须是非负数字');
     expect(() => parseOfflineEvaluationInputs({ results: [{ taskId: 'quick_status', model: 'fast', humanScore: 2 }] })).toThrow('humanScore 必须是 0 到 1');
+    expect(() => parseOfflineEvaluationInputs({ results: [{ taskId: 'quick_status', model: 'fast', judgeError: 1 }] })).toThrow('judgeError 必须是字符串');
     expect(() => parseOfflineEvaluationInputs({ results: [{ taskId: 'quick_status', model: 'fast', judgeFindings: ['ok', 1] }] })).toThrow('judgeFindings 必须是字符串数组');
     expect(() => parseOfflineEvaluationInputs({ value: [] })).toThrow('评测输入必须是数组');
   });
@@ -439,5 +442,113 @@ describe('offline task evaluation', () => {
     expect(result.report.runs[0]).toEqual(expect.objectContaining({
       passed: true,
     }));
+  });
+
+  it('runs an LLM judge over existing fixed task outputs and feeds calibration summary', async () => {
+    const result = await runOfflineTaskJudge({
+      baseUrl: 'http://127.0.0.1:5678',
+      apiKey: 'client-key',
+      judgeModel: 'judge,sonnet',
+      inputs: [
+        {
+          taskId: 'quick_status',
+          model: 'fast,haiku',
+          latencyMs: 300,
+          output: 'Status is ready. Next action is to keep monitoring.',
+        },
+      ],
+      fetchFn: async (_url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body));
+        expect(body.model).toBe('judge,sonnet');
+        expect(body.metadata).toEqual(expect.objectContaining({
+          ctr_eval_judge_task_id: 'quick_status',
+          ctr_eval_judge_target_model: 'fast,haiku',
+        }));
+        expect(body.messages[0].content).toContain('Candidate output:');
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            content: [{
+              type: 'text',
+              text: '{"score":"0.92","findings":["clear_next_action"],"notes":"good operational answer"}',
+            }],
+          }),
+        } as Response;
+      },
+    });
+
+    expect(result.inputs[0]).toEqual(expect.objectContaining({
+      judgeScore: 0.92,
+      calibrationNotes: 'good operational answer',
+      judgeFindings: ['clear_next_action'],
+    }));
+    expect(result.report.calibrationSummary).toEqual(expect.objectContaining({
+      calibratedRuns: 1,
+      averageJudgeScore: 0.92,
+    }));
+  });
+
+  it('records LLM judge failures without treating them as calibration scores', async () => {
+    const result = await runOfflineTaskJudge({
+      baseUrl: 'http://127.0.0.1:5678',
+      judgeModel: 'judge,sonnet',
+      inputs: [
+        {
+          taskId: 'quick_status',
+          model: 'fast,haiku',
+          latencyMs: 300,
+          output: 'Status is ready. Next action is to keep monitoring.',
+        },
+      ],
+      fetchFn: async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ content: [{ type: 'text', text: 'not json' }] }),
+      } as Response),
+    });
+
+    expect(result.inputs[0]).toEqual(expect.objectContaining({
+      judgeError: 'invalid_response',
+    }));
+    expect(result.report.calibrationSummary.calibratedRuns).toBe(0);
+    expect(result.report.runs[0].findings).toEqual(expect.arrayContaining(['judge_error:invalid_response']));
+  });
+
+  it('can append LLM judge scores during automatic benchmark runs', async () => {
+    const result = await runOfflineTaskBenchmark({
+      baseUrl: 'http://127.0.0.1:5678',
+      models: ['candidate'],
+      judgeModel: 'judge',
+      tasks: [DEFAULT_OFFLINE_EVALUATION_TASKS[0]],
+      fetchFn: async (_url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body));
+        if (body.metadata?.ctr_eval_judge_task_id) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ content: [{ type: 'text', text: '{"score":0.88,"findings":["solid"],"notes":"judge ok"}' }] }),
+          } as Response;
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            content: [
+              {
+                type: 'text',
+                text: 'Status is ready. Next action is to run the benchmark again.',
+              },
+            ],
+          }),
+        } as Response;
+      },
+    });
+
+    expect(result.inputs[0]).toEqual(expect.objectContaining({
+      model: 'candidate',
+      judgeScore: 0.88,
+    }));
+    expect(result.report.calibrationSummary.averageJudgeScore).toBe(0.88);
   });
 });

@@ -25,6 +25,7 @@ import {
   parseOfflineEvaluationInputs,
   runOfflineTaskBenchmark,
   runOfflineTaskEvaluation,
+  runOfflineTaskJudge,
   type IOfflineEvaluationInput,
 } from "./governance/task-evaluation";
 
@@ -129,7 +130,7 @@ Claude Trigger Router - 智能触发路由器
 命令：
   setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置
   doctor      诊断并修复当前配置，按需探测模型可用性
-  eval        离线评测固定任务集输出（--input results.json / --tasks / --run）
+  eval        离线评测固定任务集输出（--input / --tasks / --run / --judge-model）
   init        初始化最小配置模板
   deploy      生成部署入口配置（当前支持 deploy init --target server）
   start       启动路由服务（默认前台运行）
@@ -153,6 +154,7 @@ Claude Trigger Router - 智能触发路由器
   ctr eval --tasks         # 查看固定评测任务、prompt 和 rubric
   ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果
   ctr eval --run --models "sonnet;haiku"  # 自动调用 CTR /v1/messages 后评测
+  ctr eval --run --models "sonnet;haiku" --judge-model sonnet  # 自动追加 LLM 裁判分
   ctr init                 # 初始化最小配置模板
   ctr deploy init --target server  # 生成安全默认的 server 部署配置
   ctr version              # 查看当前安装版本
@@ -309,6 +311,7 @@ async function runOfflineEvaluationCli() {
       const config = readConfigForCliStatus();
       const baseUrl = getArgValue("--base-url") || `http://127.0.0.1:${getPort()}`;
       const apiKey = getArgValue("--api-key") || getLocalClaudeProxyToken(config);
+      const judgeModel = getArgValue("--judge-model");
       const result = await runOfflineTaskBenchmark({
         models,
         baseUrl,
@@ -316,6 +319,8 @@ async function runOfflineEvaluationCli() {
         timeoutMs: parsePositiveIntegerArg("--timeout-ms", undefined, 30000, "timeout-ms"),
         concurrency: parsePositiveIntegerArg("--concurrency", undefined, 2, "concurrency"),
         maxTokens: parsePositiveIntegerArg("--max-tokens", undefined, 768, "max-tokens"),
+        judgeModel,
+        judgeMaxTokens: parsePositiveIntegerArg("--judge-max-tokens", undefined, 256, "judge-max-tokens"),
       });
       if (hasArg("--json")) {
         console.log(JSON.stringify(result, null, 2));
@@ -341,6 +346,27 @@ async function runOfflineEvaluationCli() {
 
   try {
     const inputs = readOfflineEvaluationInputs(inputPath);
+    const judgeModel = getArgValue("--judge-model");
+    if (judgeModel) {
+      const config = readConfigForCliStatus();
+      const result = await runOfflineTaskJudge({
+        inputs,
+        judgeModel,
+        baseUrl: getArgValue("--base-url") || `http://127.0.0.1:${getPort()}`,
+        apiKey: getArgValue("--api-key") || getLocalClaudeProxyToken(config),
+        timeoutMs: parsePositiveIntegerArg("--timeout-ms", undefined, 30000, "timeout-ms"),
+        concurrency: parsePositiveIntegerArg("--concurrency", undefined, 2, "concurrency"),
+        maxTokens: parsePositiveIntegerArg("--judge-max-tokens", undefined, 256, "judge-max-tokens"),
+      });
+      if (hasArg("--json")) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      console.log(formatOfflineTaskEvaluationReport(result.report));
+      return;
+    }
+
     const report = runOfflineTaskEvaluation(inputs);
     if (hasArg("--json")) {
       console.log(JSON.stringify(report, null, 2));

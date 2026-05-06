@@ -15,7 +15,7 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 
 `v1.2.0` 是智能路由评测与治理增强版。它重点闭环多模型组合的可验证收益：用 `ctr eval --tasks` 固定任务契约，用 `ctr eval --run --models "sonnet;haiku"` 真实调用 CTR 跑多模型 A/B，再用 deterministic rubric 和质量维度解释不同模型在质量、速度、失败风险上的差异。
 
-这个版本不把 CTR 宣称为完整云端平台或完整自动裁判系统。LLM 裁判、人工校准、UI benchmark 摘要、托管级一键部署、集群编排和更复杂模型池策略仍是后续演进事项。完整发布边界见 [docs/release-notes-v1.2.0.md](docs/release-notes-v1.2.0.md)。
+这个版本不把 CTR 宣称为完整云端平台。`ctr eval` 已提供可选 LLM 裁判执行器和 UI benchmark 摘要，但人工校准表单、benchmark 历史看板、托管级一键部署、集群编排和更复杂模型池策略仍是后续演进事项。完整发布边界见 [docs/release-notes-v1.2.0.md](docs/release-notes-v1.2.0.md)。
 
 ## 功能概览
 
@@ -25,7 +25,7 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - **基础路由**：用 `Router.default`、`Router.think`、`Router.longContext` 等槽位指定不同任务的默认模型。
 - **SmartRouter**：先用显式规则命中高确定性任务，也可以在规则未命中时让路由模型从候选模型中自动选择。
 - **Governance 观测**：记录 trace、metrics、异常摘要和健康状态，帮助你理解路由选择和运行风险。
-- **路由评测**：`ctr eval --tasks` 查看固定任务契约，`ctr eval --input results.json` 离线评分，`ctr eval --run --models "sonnet;haiku"` 真实调用 CTR 做多模型 A/B。
+- **路由评测**：`ctr eval --tasks` 查看固定任务契约，`ctr eval --input results.json` 离线评分，`ctr eval --run --models "sonnet;haiku"` 真实调用 CTR 做多模型 A/B；追加 `--judge-model` 后可调用一个 LLM 裁判模型给结果打分。
 - **doctor 诊断**：检查配置、服务可启动性、鉴权安全状态、模型兼容策略和可选模型探测。
 - **UI 工作台**：`ctr ui` 打开本地页面，查看服务上下文、远程状态、鉴权安全状态、配置草稿、compiled models、capability warnings、治理 trace、metrics 和 Health 摘要。
 - **远程状态基础**：可配置 `Runtime.remote_service`，通过 `/api/remote-status` 查看远程服务健康、compiled model 摘要和治理告警摘要。默认用户不需要配置远程模式。
@@ -369,6 +369,7 @@ Health 摘要下方的 action 可以直接把 trace 表切到对应排查视图�
 ctr eval --tasks
 ctr eval --input results.json
 ctr eval --run --models "sonnet;haiku"
+ctr eval --run --models "sonnet;haiku" --judge-model sonnet
 ```
 
 输入文件可以是数组，也可以是 `{ "results": [...] }`：
@@ -388,9 +389,18 @@ ctr eval --run --models "sonnet;haiku"
 ]
 ```
 
-`ctr eval --tasks` 会列出固定任务的 prompt、expected output、关键词、字符数、延迟预算、质量维度和 result template；加 `--json` 可导出给后续自动执行器或外部脚本。当前内置任务覆盖 quick reply、coding、architecture、long context、server auth/deployment 和 model pool incident。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency、best run、维度均分和失败 findings；它是离线 deterministic rubric，不等同于完整人工或 LLM 裁判评测。
+`ctr eval --tasks` 会列出固定任务的 prompt、expected output、关键词、字符数、延迟预算、质量维度和 result template；加 `--json` 可导出给后续自动执行器或外部脚本。当前内置任务覆盖 quick reply、coding、architecture、long context、server auth/deployment 和 model pool incident。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency、best run、维度均分和失败 findings；默认是离线 deterministic rubric，不等同于人工复核。
 
 如果你已经有人工复核或外部 LLM 裁判结果，可以在输入里补 `humanScore` / `judgeScore`，范围是 `0..1`。报告会生成 calibration summary，并标出 deterministic rubric 与人工/裁判结果差异较大的任务，帮助维护者判断某个模型组合是否真的带来质量提升。
+
+也可以让 CTR 自动调用一个裁判模型：
+
+```bash
+ctr eval --input results.json --judge-model sonnet --base-url http://127.0.0.1:5678 --api-key <client-or-bootstrap-key>
+ctr eval --run --models "sonnet;haiku" --judge-model sonnet --base-url http://127.0.0.1:5678 --api-key <client-or-bootstrap-key>
+```
+
+裁判模型会通过同一个 CTR `/v1/messages` 入口收到固定 JSON rubric 提示，并返回 `judgeScore`、`judgeFindings` 和 `calibrationNotes`。如果裁判响应不可解析、超时或返回 HTTP 错误，报告会记录 `judge_error`，但不会把失败裁判误算进 calibration score。
 
 如果本机或远端 CTR 已启动，也可以显式自动跑固定任务集：
 
@@ -398,7 +408,7 @@ ctr eval --run --models "sonnet;haiku"
 ctr eval --run --models "sonnet;haiku" --base-url http://127.0.0.1:5678 --api-key <client-or-bootstrap-key>
 ```
 
-`--run` 会对每个模型逐个调用 `POST /v1/messages`，默认 `--concurrency 2`、`--timeout-ms 30000`、`--max-tokens 768`。多个模型用分号 `;` 分隔，因为 legacy 模型引用本身可能包含逗号。该模式会真实调用模型服务并消耗上游额度。
+`--run` 会对每个模型逐个调用 `POST /v1/messages`，默认 `--concurrency 2`、`--timeout-ms 30000`、`--max-tokens 768`。多个模型用分号 `;` 分隔，因为 legacy 模型引用本身可能包含逗号。追加 `--judge-max-tokens 256` 可调整裁判输出长度。该模式会真实调用模型服务并消耗上游额度；启用 `--judge-model` 时会额外消耗裁判模型额度。
 
 如果服务没有启动，`ctr ui` 会提示先运行：
 
@@ -487,6 +497,7 @@ GET /api/auth/audit
 | `ctr eval --tasks` | 查看固定评测任务、prompt 和 rubric |
 | `ctr eval --input results.json` | 离线固定任务集评测 |
 | `ctr eval --run --models "sonnet;haiku"` | 自动调用 CTR 后评测固定任务集 |
+| `ctr eval --run --models "sonnet;haiku" --judge-model sonnet` | 自动执行并追加 LLM 裁判校准 |
 | `ctr ui` | 打开本地 UI 工作台 |
 | `ctr version` | 查看版本 |
 | `ctr upgrade` | 升级 |
