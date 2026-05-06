@@ -140,6 +140,33 @@ describe('offline task evaluation', () => {
     expect(() => parseOfflineEvaluationInputs({ value: [] })).toThrow('评测输入必须是数组');
   });
 
+  it('keeps null calibration template fields optional when copied into result inputs', () => {
+    const inputs = parseOfflineEvaluationInputs({
+      results: [
+        {
+          taskId: 'quick_status',
+          model: 'fast,haiku',
+          output: 'Status is ready. Next action is to continue monitoring.',
+          latencyMs: 300,
+          humanScore: null,
+          judgeScore: null,
+          calibrationNotes: null,
+          judgeFindings: [],
+        },
+      ],
+    });
+    const report = runOfflineTaskEvaluation(inputs);
+
+    expect(inputs[0]).toEqual(expect.objectContaining({
+      humanScore: undefined,
+      judgeScore: undefined,
+      calibrationNotes: undefined,
+      judgeFindings: [],
+    }));
+    expect(report.calibrationSummary.calibratedRuns).toBe(0);
+    expect(report.runs[0].calibration).toBeUndefined();
+  });
+
   it('includes failing run findings in the operator report', () => {
     const report = runOfflineTaskEvaluation([
       {
@@ -281,9 +308,10 @@ describe('offline task evaluation', () => {
         resultTemplate: expect.objectContaining({
           taskId: 'model_pool_incident',
           model: '<provider,model>',
-          humanScore: 0,
-          judgeScore: 0,
-          calibrationNotes: '<optional human or LLM judge notes>',
+          humanScore: null,
+          judgeScore: null,
+          calibrationNotes: null,
+          judgeFindings: [],
         }),
       }),
     ]));

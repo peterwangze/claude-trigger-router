@@ -164,11 +164,11 @@ export function parseOfflineEvaluationInputs(payload: unknown): IOfflineEvaluati
 
     const humanScore = parseOptionalUnitScore(record.humanScore, `第 ${index + 1} 条评测结果的 humanScore`);
     const judgeScore = parseOptionalUnitScore(record.judgeScore, `第 ${index + 1} 条评测结果的 judgeScore`);
-    if (record.calibrationNotes !== undefined && typeof record.calibrationNotes !== 'string') {
+    if (record.calibrationNotes !== undefined && record.calibrationNotes !== null && typeof record.calibrationNotes !== 'string') {
       throw new Error(`第 ${index + 1} 条评测结果的 calibrationNotes 必须是字符串。`);
     }
     if (
-      record.judgeFindings !== undefined &&
+      record.judgeFindings !== undefined && record.judgeFindings !== null &&
       (!Array.isArray(record.judgeFindings) || record.judgeFindings.some((item) => typeof item !== 'string'))
     ) {
       throw new Error(`第 ${index + 1} 条评测结果的 judgeFindings 必须是字符串数组。`);
@@ -271,7 +271,7 @@ function average(values: number[]): number {
 }
 
 function parseOptionalUnitScore(value: unknown, label: string): number | undefined {
-  if (value === undefined) {
+  if (value === undefined || value === null) {
     return undefined;
   }
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) {
@@ -824,10 +824,10 @@ export function buildOfflineTaskManifest(tasks: IOfflineEvaluationTask[] = DEFAU
         model: '<provider,model>',
         output: '<model output>',
         latencyMs: 0,
-        humanScore: 0,
-        judgeScore: 0,
-        calibrationNotes: '<optional human or LLM judge notes>',
-        judgeFindings: ['<optional judge finding>'],
+        humanScore: null,
+        judgeScore: null,
+        calibrationNotes: null,
+        judgeFindings: [],
       },
     })),
   };
