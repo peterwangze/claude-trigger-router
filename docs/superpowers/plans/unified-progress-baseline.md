@@ -291,7 +291,7 @@
 - `基础路由与 SmartRouter 常用体验收口`
   - 本轮从用户使用频率复审后新增为后续版本最高优先主线：普通用户每天最常用的是基础路由和 SmartRouter，而不是离线评测、benchmark 看板、远程部署或 agent/tool 扩展。
   - 已确认运行时基础能力具备：`Router.default/think/longContext/background/webSearch`、SmartRouter 规则/语义/候选、sticky/alignment/cascade/context guard 均已落地。
-  - v1.3.0 需要优先补基础路由体验：路由槽位配置向导、UI 路由配置解释、context window UI 可操作提示、基础路由打包后 smoke；`ctr doctor` 槽位体检已先闭环，会输出 default/think/longContext/background/webSearch 解析结果、thinking 能力提示和上下文窗口元数据缺口。
+  - v1.3.0 需要继续补基础路由体验：UI 路由配置解释、context window UI 可操作提示、基础路由打包后 smoke；基础路由五槽位配置向导与 `config/trigger.routing.yaml` 可复制模板已闭环，`ctr doctor` 槽位体检也已闭环，会输出 default/think/longContext/background/webSearch 解析结果、thinking 能力提示和上下文窗口元数据缺口。
   - v1.4.0 需要继续补 SmartRouter 体验：规则模板、候选模型配置向导、路由决策解释、sticky/alignment 切换体感和慢路由/错路由调优建议。
 - `智能路由收益与切换体感治理`
   - 已有规则路由、语义匹配、LLM 选模、sticky correction、context alignment、cascade、shadow、health 和第一层 routing outcome scorecard。
@@ -399,7 +399,7 @@
 
 | 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
 |---|---|---|---|---|
-| 1 | 基础路由与 SmartRouter 常用体验收口 | P1-主路径易用性 | v1.3.0 已先补 `ctr doctor` 基础路由槽位体检；下一步继续补基础路由槽位配置向导、UI 路由解释、context window UI 提示和基础路由 smoke | 这是用户每天实际使用的最高频路径；不先把 `Router.default/think/longContext/background/webSearch` 与 SmartRouter 配置解释收口，后续评测和服务化都会缺少稳定用户入口 |
+| 1 | 基础路由与 SmartRouter 常用体验收口 | P1-主路径易用性 | v1.3.0 已补基础路由五槽位模板和 `ctr doctor` 槽位体检；下一步继续补 UI 路由解释、context window UI 提示和基础路由 smoke | 这是用户每天实际使用的最高频路径；不先把 `Router.default/think/longContext/background/webSearch` 与 SmartRouter 配置解释收口，后续评测和服务化都会缺少稳定用户入口 |
 | 2 | 智能路由收益与切换体感治理 | P1-主路径易用性 | v1.4.0 继续围绕 SmartRouter 规则模板、候选模型配置、路由决策解释、切换体感和调优建议推进；benchmark 历史看板和人工校准表单后移到 v1.5.0 | 它仍是 `1+1>2` 的价值证明，但 `ctr eval` 是验证工具，不应再压过基础路由与 SmartRouter 常用体验 |
 | 3 | 配置产品化最终收口 | P1-主路径易用性 | 优先服务基础路由和 SmartRouter：把 `id/api/key/interface/model/thinking/metadata`、路由槽位和 capability warning 继续收敛进 README / configuration guide / UI / setup | 核心路由体验需要统一配置心智支撑，配置产品化应贴着 v1.3.0/v1.4.0 做 |
 | 4 | CLI / setup UX 重设计 | P1-主路径易用性 | 让 setup 的本地使用主路径优先引导默认模型、复杂任务模型、长上下文模型和 SmartRouter 起步模板 | setup 是用户进入基础路由与 SmartRouter 的入口，优先级高于服务端和 benchmark 运营化 |

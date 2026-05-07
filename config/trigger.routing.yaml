@@ -1,0 +1,67 @@
+# Claude Trigger Router 基础路由配置示例
+# 用于理解 Router.default / think / longContext / background / webSearch 五个常用槽位。
+# 复制到 ~/.claude-trigger-router/config.yaml 后，先替换 API Key 和上游模型名。
+
+HOST: "127.0.0.1"
+PORT: 5678
+
+LOG: true
+LOG_LEVEL: "debug"
+
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+    thinking: "auto"
+    metadata:
+      context_window_tokens: 200000
+      safe_input_tokens: 180000
+
+  - id: reasoner
+    api: "https://api.deepseek.com/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "deepseek-reasoner"
+    thinking: "high"
+    metadata:
+      context_window_tokens: 64000
+      safe_input_tokens: 56000
+
+  - id: long_context
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "google/gemini-2.5-pro"
+    thinking: "auto"
+    metadata:
+      context_window_tokens: 1000000
+      safe_input_tokens: 900000
+
+  - id: fast_background
+    api: "http://localhost:11434/v1/chat/completions"
+    key: "ollama"
+    interface: "openai"
+    model: "qwen2.5-coder:latest"
+    thinking: "off"
+    metadata:
+      context_window_tokens: 32768
+      safe_input_tokens: 24000
+
+Router:
+  # 默认槽位：普通对话、代码生成、规则未命中时使用。
+  default: "sonnet"
+
+  # 思考槽位：请求包含 thinking 时优先使用。
+  think: "reasoner"
+
+  # 长上下文槽位：输入超过阈值，或当前模型 safe_input_tokens 不够时使用。
+  longContext: "long_context"
+  longContextThreshold: 60000
+
+  # 后台槽位：Claude Code 轻量后台模型请求时使用。
+  background: "fast_background"
+
+  # 联网搜索槽位：请求包含 web_search 工具时使用。
+  webSearch: "sonnet"

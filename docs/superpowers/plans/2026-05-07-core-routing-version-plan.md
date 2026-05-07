@@ -53,7 +53,7 @@
 
 优先级：最高。
 
-1. 基础路由配置向导与文档收口：围绕 `default/think/longContext/background/webSearch` 给出最小示例、进阶示例和常见误区。
+1. `[closed 2026-05-08]` 基础路由配置向导与文档收口：README 已围绕 `default/think/longContext/background/webSearch` 补齐触发条件、推荐模型、常见误区，并新增 `config/trigger.routing.yaml` 作为五槽位可复制模板。
 2. `[closed 2026-05-08]` `ctr doctor` 增加路由槽位体检摘要：已检查默认模型是否存在、thinking/background/longContext/webSearch 槽位是否能解析、thinking 能力是否匹配，以及上下文窗口元数据是否缺失。
 3. `/ui` 使用者工作台增加“当前路由配置解释”：展示每个槽位引用的 `Models[].id`、上游模型、能力提示和潜在 warning。
 4. context window 用户体验增强：doctor 侧已提示 `context_window_tokens` / `safe_input_tokens` / `Router.longContext` 的缺失和容量倒挂风险；后续继续把同一提示接入 UI 可操作入口。

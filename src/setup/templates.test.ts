@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import yaml from 'js-yaml';
 import { describe, it, expect } from 'vitest';
+import { buildModelRegistry } from '../models/compile';
 import { normalizeAndValidateConfig } from '../utils/config';
 import { getProviderPreset, buildMinimalConfig, buildRemoteServiceConfig, buildServerDeploymentConfig, buildUsableMinimalTemplateConfig } from './templates';
 
@@ -370,6 +371,31 @@ describe('setup templates', () => {
       const exampleConfig = yaml.load(readFileSync(examplePath, 'utf-8')) as Record<string, unknown>;
 
       expect(exampleConfig).toEqual(buildUsableMinimalTemplateConfig());
+    });
+
+    it('keeps config/trigger.routing.yaml usable for all basic router slots', () => {
+      const routingPath = join(process.cwd(), 'config', 'trigger.routing.yaml');
+      const routingConfig = yaml.load(readFileSync(routingPath, 'utf-8')) as any;
+      const normalized = normalizeAndValidateConfig(routingConfig);
+
+      expect(normalized.errors).toEqual([]);
+      expect(normalized.warnings).toEqual([]);
+      expect(normalized.config.Router).toEqual(expect.objectContaining({
+        default: 'sonnet',
+        think: 'reasoner',
+        longContext: 'long_context',
+        background: 'fast_background',
+        webSearch: 'sonnet',
+      }));
+
+      const registry = buildModelRegistry(normalized.config);
+      for (const slot of ['default', 'think', 'longContext', 'background', 'webSearch'] as const) {
+        const modelId = normalized.config.Router[slot];
+        expect(registry.modelMap[modelId]).toBeDefined();
+      }
+      expect(registry.modelMap.long_context.capabilities.contextWindowTokens).toBeGreaterThan(
+        registry.modelMap.sonnet.capabilities.contextWindowTokens ?? 0
+      );
     });
   });
 });

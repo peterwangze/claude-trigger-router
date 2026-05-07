@@ -254,6 +254,27 @@ Router:
 
 推荐所有路由字段都引用 `Models[].id`，比如上面的 `sonnet`、`reasoner`。
 
+## 基础路由五个槽位
+
+日常使用优先理解这五个槽位。最小可用配置只需要 `default`；当你开始接入多个模型时，再逐步补 `think`、`longContext`、`background` 和 `webSearch`。
+
+| 槽位 | 何时触发 | 推荐放什么模型 |
+|---|---|---|
+| `Router.default` | 普通请求、规则未命中、其他槽位未配置时 | 稳定通用模型 |
+| `Router.think` | 请求包含 `thinking` 时 | 推理能力更强的模型 |
+| `Router.longContext` | 输入超过 `longContextThreshold`，或当前模型 `safe_input_tokens` 不够时 | 上下文窗口更大的模型 |
+| `Router.background` | Claude Code 轻量后台模型请求时 | 便宜、快、可本地化的模型 |
+| `Router.webSearch` | 请求包含 `web_search` 工具时 | 支持搜索工具或搜索结果处理稳定的模型 |
+
+可复制模板见 `config/trigger.routing.yaml`。它把五个槽位都写完整，并给模型补了 `metadata.context_window_tokens` / `metadata.safe_input_tokens`，方便 `ctr doctor` 和运行时提前识别大上下文请求。
+
+常见误区：
+
+- 不要把 `Router.longContext` 指向比默认模型窗口更小的模型。
+- 不确定某个模型是否支持 reasoning 时，先不要放进 `Router.think`；运行 `ctr doctor` 会提示能力不匹配。
+- `background` 可以先不配，未配置时会回到 `default`。
+- `webSearch` 不是“联网开关”，它只是 web search 请求出现时的模型槽位。
+
 ## 显式规则路由
 
 适合能用关键词稳定识别的任务，例如架构设计、代码审查、长文档评审。
@@ -537,6 +558,7 @@ setup 会自动探测旧配置，并优先提供迁移选项。迁移后的配�
 ## 更多示例和文档
 
 - 最小示例：`config/trigger.example.yaml`
+- 基础路由五槽位示例：`config/trigger.routing.yaml`
 - 高级示例：`config/trigger.advanced.yaml`
 - 配置细节：`docs/configuration-guide.md`
 - Models 迁移：`docs/models-migration-guide.md`
