@@ -17,6 +17,16 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 
 这个版本不把 CTR 宣称为完整云端平台。`ctr eval` 已提供可选 LLM 裁判执行器和 UI benchmark 摘要，但人工校准表单、benchmark 历史看板、托管级一键部署、集群编排和更复杂模型池策略仍是后续演进事项。完整发布边界见 [docs/release-notes-v1.2.0.md](docs/release-notes-v1.2.0.md)。
 
+## 后续路线
+
+从用户使用频率看，后续演进会优先回到最常用的基础路由和 SmartRouter 体验：
+
+- `v1.3.0`：基础路由常用体验，重点收口 `Router.default` / `think` / `longContext` / `background` / `webSearch` 的配置、诊断、UI 解释和 smoke 验收。
+- `v1.4.0`：SmartRouter 常用体验，重点收口规则模板、候选模型配置、路由决策解释、sticky/alignment 切换体感和调优建议。
+- `v1.5.0`：多模型收益运营化，继续补 benchmark 历史看板、人工校准表单和评测/真实 trace 的统一解释。
+
+完整版本计划见 [docs/superpowers/plans/2026-05-07-core-routing-version-plan.md](docs/superpowers/plans/2026-05-07-core-routing-version-plan.md)。
+
 ## 功能概览
 
 - **本地代理服务**：默认监听 `127.0.0.1:5678`，接管 Claude Code 上游请求。
