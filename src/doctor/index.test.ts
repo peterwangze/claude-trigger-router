@@ -266,6 +266,133 @@ describe('runDoctorCli', () => {
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('运行时建议：如需保留工具调用'));
   });
 
+  it('reports router slot summary and context window guidance', async () => {
+    const io = createIo({
+      confirm: vi.fn().mockResolvedValue(false),
+    });
+
+    vi.doMock('fs', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('fs')>();
+      return {
+        ...actual,
+        existsSync: vi.fn((filePath: string) => String(filePath).endsWith('config.yaml')),
+        readFileSync: vi.fn((filePath: string) => {
+          if (String(filePath).endsWith('config.yaml')) {
+            return [
+              'HOST: "127.0.0.1"',
+              'PORT: 5678',
+              'Models:',
+              '  - id: sonnet',
+              '    api: "https://api.example.com/v1/messages"',
+              '    key: "sk-test"',
+              '    interface: "anthropic"',
+              '    model: "claude-sonnet-4-5"',
+              '    metadata:',
+              '      context_window_tokens: 200000',
+              '      safe_input_tokens: 180000',
+              '  - id: reasoner',
+              '    api: "https://api.example.com/v1/chat/completions"',
+              '    key: "sk-test"',
+              '    interface: "openai"',
+              '    model: "reasoner-small"',
+              '    metadata:',
+              '      supports_reasoning: false',
+              '      context_window_tokens: 64000',
+              '      safe_input_tokens: 48000',
+              '  - id: long',
+              '    api: "https://api.example.com/v1/messages"',
+              '    key: "sk-test"',
+              '    interface: "anthropic"',
+              '    model: "claude-long-context"',
+              '  - id: haiku',
+              '    api: "https://api.example.com/v1/messages"',
+              '    key: "sk-test"',
+              '    interface: "anthropic"',
+              '    model: "claude-haiku"',
+              'Router:',
+              '  default: "sonnet"',
+              '  think: "reasoner"',
+              '  longContext: "long"',
+              '  background: "haiku"',
+              '  webSearch: "sonnet"',
+            ].join('\n');
+          }
+          return '';
+        }),
+      };
+    });
+
+    const { runDoctorCli } = await import('./index');
+    await runDoctorCli({
+      io: io as any,
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig: vi.fn().mockResolvedValue(undefined),
+      isServiceRunning: vi.fn().mockReturnValue(true),
+      readServiceInfo: vi.fn().mockReturnValue({ pid: 123, port: 5678, startTime: '' }),
+      killProcess: vi.fn(),
+      probeServiceHealth: vi.fn().mockResolvedValue(true),
+      isTcpPortOccupied: vi.fn().mockResolvedValue(true),
+      waitForService: vi.fn().mockResolvedValue(true),
+      startDaemon: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('基础路由体检'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('路由槽位：Router.default（默认）-> sonnet'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('路由槽位：Router.think（思考）-> reasoner'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('思考路由提示：Router.think 指向 reasoner'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('上下文窗口提示：Router.longContext -> long 未声明 metadata.context_window_tokens'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('上下文保护提示：Router.longContext -> long 未声明 metadata.safe_input_tokens'));
+  });
+
+  it('reports unresolved router slot references', async () => {
+    const io = createIo({
+      confirm: vi.fn().mockResolvedValue(false),
+    });
+
+    vi.doMock('fs', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('fs')>();
+      return {
+        ...actual,
+        existsSync: vi.fn((filePath: string) => String(filePath).endsWith('config.yaml')),
+        readFileSync: vi.fn((filePath: string) => {
+          if (String(filePath).endsWith('config.yaml')) {
+            return [
+              'Models:',
+              '  - id: sonnet',
+              '    api: "https://api.example.com/v1/messages"',
+              '    key: "sk-test"',
+              '    interface: "anthropic"',
+              '    model: "claude-sonnet-4-5"',
+              'Router:',
+              '  default: "sonnet"',
+              '  think: "missing_reasoner"',
+            ].join('\n');
+          }
+          return '';
+        }),
+      };
+    });
+
+    const { runDoctorCli } = await import('./index');
+    await runDoctorCli({
+      io: io as any,
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig: vi.fn().mockResolvedValue(undefined),
+      isServiceRunning: vi.fn().mockReturnValue(true),
+      readServiceInfo: vi.fn().mockReturnValue({ pid: 123, port: 5678, startTime: '' }),
+      killProcess: vi.fn(),
+      probeServiceHealth: vi.fn().mockResolvedValue(true),
+      isTcpPortOccupied: vi.fn().mockResolvedValue(true),
+      waitForService: vi.fn().mockResolvedValue(true),
+      startDaemon: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(io.error).toHaveBeenCalledWith(expect.stringContaining('路由槽位异常：Router.think 引用 "missing_reasoner"'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('路由槽位：Router.longContext 未配置'));
+  });
+
   it('infers anthropic interface from a bare anthropic host when repairing config', async () => {
     const io = createIo({
       confirm: vi.fn().mockResolvedValue(false),

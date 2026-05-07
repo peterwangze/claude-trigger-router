@@ -14,7 +14,13 @@ import { migrateLegacyConfig } from '../setup/migrate';
 import { readLegacyConfig } from '../setup';
 import { IAppConfig, IModelEndpointConfig } from '../trigger/types';
 import { getModelApi, getModelInterface, getModelKey, inferInterfaceFromApiEndpoint } from '../models/schema';
-import { buildModelRegistry, describeCompatibilityProfile, describeDispatchFormat } from '../models/compile';
+import {
+  buildModelRegistry,
+  describeCompatibilityProfile,
+  describeDispatchFormat,
+  ICompiledModelRef,
+  ICompiledModelRegistry,
+} from '../models/compile';
 import { buildProviderDispatchRequest, describeProtocolDiagnostic, TProtocolDiagnosticCode } from '../protocols';
 import { isServiceRunning, killProcess, readServiceInfo } from '../utils/processCheck';
 import { isTcpPortOccupied, probeRemoteServiceStatus, probeServiceHealth, waitForService } from '../service-health';
@@ -61,6 +67,54 @@ interface IProbeFailureExplanation {
   summary: string;
   action: string;
 }
+
+type TRouterSlotKey = 'default' | 'think' | 'longContext' | 'background' | 'webSearch';
+
+interface IRouterSlotDiagnostic {
+  key: TRouterSlotKey;
+  label: string;
+  required: boolean;
+  fallback: string;
+  trigger: string;
+}
+
+const ROUTER_SLOT_DIAGNOSTICS: IRouterSlotDiagnostic[] = [
+  {
+    key: 'default',
+    label: '默认',
+    required: true,
+    fallback: '无默认模型时本地服务无法稳定承接请求',
+    trigger: '普通请求和其他槽位未命中时使用',
+  },
+  {
+    key: 'think',
+    label: '思考',
+    required: false,
+    fallback: '未配置时 thinking 请求回到 Router.default',
+    trigger: '请求包含 thinking 时使用',
+  },
+  {
+    key: 'longContext',
+    label: '长上下文',
+    required: false,
+    fallback: '未配置时大上下文请求继续使用已选模型',
+    trigger: '请求 token 超过 longContextThreshold 或当前模型安全输入窗口时使用',
+  },
+  {
+    key: 'background',
+    label: '后台',
+    required: false,
+    fallback: '未配置时后台/轻量请求回到 Router.default',
+    trigger: 'Claude Code 轻量后台模型请求时使用',
+  },
+  {
+    key: 'webSearch',
+    label: '联网搜索',
+    required: false,
+    fallback: '未配置时 web_search 请求回到 Router.default',
+    trigger: '请求包含 web_search 工具时使用',
+  },
+];
 
 function collectCompatibilityPreviewDiagnostics(model: IModelEndpointConfig) {
   const registry = buildModelRegistry({
@@ -683,6 +737,109 @@ async function reportRuntimeServiceContext(config: IAppConfig, deps: IDoctorDeps
   }
 }
 
+function getRouterSlotRef(config: IAppConfig, key: TRouterSlotKey): string | undefined {
+  const value = config.Router?.[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function getCompiledModelFromRegistry(registry: ICompiledModelRegistry, ref?: string): ICompiledModelRef | undefined {
+  if (!ref) {
+    return undefined;
+  }
+
+  const direct = registry.modelMap[ref];
+  if (direct) {
+    return direct;
+  }
+
+  if (!ref.includes(',')) {
+    return undefined;
+  }
+
+  const [providerName, modelName] = ref.split(',').map((item) => item.trim());
+  return Object.values(registry.modelMap).find(
+    (item) => item.providerName === providerName && item.modelName === modelName
+  );
+}
+
+function formatRouterSlotTarget(compiled: ICompiledModelRef): string {
+  const upstream = `${compiled.providerName},${compiled.modelName}`;
+  return compiled.id === upstream ? compiled.id : `${compiled.id}（${upstream}）`;
+}
+
+function reportRouterSlotSummary(config: IAppConfig, registry: ICompiledModelRegistry, deps: IDoctorDeps): void {
+  const modelRefCount = Object.keys(registry.modelMap).length;
+  const resolvedSlots = new Map<TRouterSlotKey, ICompiledModelRef>();
+
+  deps.io.info('基础路由体检：检查 Router 槽位是否能解析为可用模型。');
+
+  for (const slot of ROUTER_SLOT_DIAGNOSTICS) {
+    const ref = getRouterSlotRef(config, slot.key);
+    if (!ref) {
+      const message = `路由槽位：Router.${slot.key} 未配置（${slot.fallback}）。`;
+      if (slot.required && modelRefCount > 0) {
+        deps.io.error(message);
+      } else {
+        deps.io.info(message);
+      }
+      continue;
+    }
+
+    const compiled = getCompiledModelFromRegistry(registry, ref);
+    if (!compiled) {
+      deps.io.error(`路由槽位异常：Router.${slot.key} 引用 "${ref}"，但未在 Models/Providers/Registration 中解析到可用模型。`);
+      continue;
+    }
+
+    resolvedSlots.set(slot.key, compiled);
+    deps.io.info(`路由槽位：Router.${slot.key}（${slot.label}）-> ${formatRouterSlotTarget(compiled)}；触发：${slot.trigger}。`);
+  }
+
+  const thinkingSlot = resolvedSlots.get('think');
+  if (thinkingSlot && thinkingSlot.capabilities.thinking.supported === false) {
+    deps.io.info(
+      `思考路由提示：Router.think 指向 ${thinkingSlot.id}，但该模型声明不支持 reasoning；thinking 请求会被兼容层降级。`
+    );
+  }
+
+  for (const [slotKey, compiled] of resolvedSlots.entries()) {
+    const contextWindowTokens = compiled.capabilities.contextWindowTokens;
+    const safeInputTokens = compiled.capabilities.safeInputTokens;
+    if (!contextWindowTokens) {
+      deps.io.info(
+        `上下文窗口提示：Router.${slotKey} -> ${compiled.id} 未声明 metadata.context_window_tokens；无法确认该槽位的上下文容量。`
+      );
+    }
+    if (!safeInputTokens) {
+      deps.io.info(
+        `上下文保护提示：Router.${slotKey} -> ${compiled.id} 未声明 metadata.safe_input_tokens；无法提前把超大请求切到长上下文模型。`
+      );
+    }
+  }
+
+  const defaultSlot = resolvedSlots.get('default');
+  const longContextSlot = resolvedSlots.get('longContext');
+  if (!longContextSlot && modelRefCount > 1) {
+    deps.io.info('长上下文提示：未配置 Router.longContext；多模型配置下，大上下文请求不会自动切到更大窗口模型。');
+    return;
+  }
+
+  if (!longContextSlot) {
+    return;
+  }
+
+  if (!longContextSlot.capabilities.contextWindowTokens) {
+    deps.io.info('长上下文提示：Router.longContext 未声明 metadata.context_window_tokens；doctor 无法确认它能承接大上下文 fallback。');
+  }
+  if (
+    defaultSlot?.capabilities.contextWindowTokens &&
+    longContextSlot.capabilities.contextWindowTokens &&
+    longContextSlot.capabilities.contextWindowTokens <= defaultSlot.capabilities.contextWindowTokens
+  ) {
+    deps.io.info('长上下文提示：Router.longContext 的 context_window_tokens 不高于 Router.default；请确认它确实是长上下文模型。');
+  }
+}
+
 function createDefaultDeps(io = createConsoleIO()): IDoctorDeps {
   return {
     readLegacyConfig,
@@ -750,6 +907,7 @@ export async function runDoctorCli(customDeps?: Partial<IDoctorDeps>): Promise<v
     await reportRuntimeServiceContext(normalized.config, deps);
 
     const registry = buildModelRegistry(normalized.config);
+    reportRouterSlotSummary(normalized.config, registry, deps);
     for (const model of normalized.config.Models ?? []) {
       const compiledModel = registry.modelMap[model.id];
       if (!compiledModel) {

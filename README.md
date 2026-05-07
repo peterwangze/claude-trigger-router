@@ -36,7 +36,7 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - **SmartRouter**：先用显式规则命中高确定性任务，也可以在规则未命中时让路由模型从候选模型中自动选择。
 - **Governance 观测**：记录 trace、metrics、异常摘要和健康状态，帮助你理解路由选择和运行风险。
 - **路由评测**：`ctr eval --tasks` 查看固定任务契约，`ctr eval --input results.json` 离线评分，`ctr eval --run --models "sonnet;haiku"` 真实调用 CTR 做多模型 A/B；追加 `--judge-model` 后可调用一个 LLM 裁判模型给结果打分。
-- **doctor 诊断**：检查配置、服务可启动性、鉴权安全状态、模型兼容策略和可选模型探测。
+- **doctor 诊断**：检查配置、服务可启动性、基础路由槽位、上下文窗口提示、鉴权安全状态、模型兼容策略和可选模型探测。
 - **UI 工作台**：`ctr ui` 打开本地页面，查看服务上下文、远程状态、鉴权安全状态、配置草稿、compiled models、capability warnings、治理 trace、metrics 和 Health 摘要。
 - **远程状态基础**：可配置 `Runtime.remote_service`，通过 `/api/remote-status` 查看远程服务健康、compiled model 摘要和治理告警摘要。默认用户不需要配置远程模式。
 
@@ -450,6 +450,8 @@ ctr doctor
 - 当前监听地址；server/cloud 会提示远程客户端应设置的 `ANTHROPIC_BASE_URL`
 - 当前鉴权状态；如果 server/cloud 或公网监听没有配置 `APIKEY` / managed key，会提示安全风险
 - 如果启用了 `Runtime.remote_service`，会单独检查远程服务可达和 ready 状态
+- 基础路由槽位：`Router.default` / `think` / `longContext` / `background` / `webSearch` 是否能解析到模型
+- 上下文窗口提示：槽位模型是否缺少 `metadata.context_window_tokens` / `metadata.safe_input_tokens`，以及 `Router.longContext` 是否真的比默认模型更适合大上下文
 - 模型兼容策略和请求编译方式
 - capability hint 可能触发的运行时降级
 - 在你确认后，对模型发送最小探测请求
