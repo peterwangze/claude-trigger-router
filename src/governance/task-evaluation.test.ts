@@ -455,6 +455,7 @@ describe('offline task evaluation', () => {
           model: 'fast,haiku',
           latencyMs: 300,
           output: 'Status is ready. Next action is to keep monitoring.',
+          judgeError: 'invalid_response',
         },
       ],
       fetchFn: async (_url: string, init?: RequestInit) => {
@@ -480,6 +481,7 @@ describe('offline task evaluation', () => {
 
     expect(result.inputs[0]).toEqual(expect.objectContaining({
       judgeScore: 0.92,
+      judgeError: undefined,
       calibrationNotes: 'good operational answer',
       judgeFindings: ['clear_next_action'],
     }));

@@ -480,6 +480,23 @@ describe('runClaudeCode', () => {
     exitSpy.mockRestore();
   });
 
+  it('fails clearly when an eval judge model flag has no value', async () => {
+    process.argv = ['node', 'cli.ts', 'eval', '--run', '--models', 'sonnet', '--judge-model'];
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(mockProcessExit as never);
+
+    const { main } = await import('./cli');
+    await expect(main()).rejects.toThrow('process.exit called');
+
+    const output = errorSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('自动评测失败');
+    expect(output).toContain('judge-model 需要提供值');
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    errorSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
   it('prints a friendly error for malformed offline evaluation input', async () => {
     process.argv = ['node', 'cli.ts', 'eval', '--input', 'results.json'];
     mockReadFileSync.mockImplementation((filePath: string) => {

@@ -64,6 +64,19 @@ function getArgValue(flag: string, shortFlag?: string): string | undefined {
   return value && !value.startsWith("-") ? value : undefined;
 }
 
+function getOptionalArgValue(flag: string, label: string): string | undefined {
+  if (!hasArg(flag)) {
+    return undefined;
+  }
+
+  const value = getArgValue(flag);
+  if (!value) {
+    throw new Error(`${label} 需要提供值：${flag} <value>`);
+  }
+
+  return value;
+}
+
 function parsePortValue(portValue: string, sourceLabel: string): number {
   const trimmed = portValue.trim();
   if (!/^\d+$/.test(trimmed)) {
@@ -311,7 +324,7 @@ async function runOfflineEvaluationCli() {
       const config = readConfigForCliStatus();
       const baseUrl = getArgValue("--base-url") || `http://127.0.0.1:${getPort()}`;
       const apiKey = getArgValue("--api-key") || getLocalClaudeProxyToken(config);
-      const judgeModel = getArgValue("--judge-model");
+      const judgeModel = getOptionalArgValue("--judge-model", "judge-model");
       const result = await runOfflineTaskBenchmark({
         models,
         baseUrl,
@@ -346,7 +359,7 @@ async function runOfflineEvaluationCli() {
 
   try {
     const inputs = readOfflineEvaluationInputs(inputPath);
-    const judgeModel = getArgValue("--judge-model");
+    const judgeModel = getOptionalArgValue("--judge-model", "judge-model");
     if (judgeModel) {
       const config = readConfigForCliStatus();
       const result = await runOfflineTaskJudge({

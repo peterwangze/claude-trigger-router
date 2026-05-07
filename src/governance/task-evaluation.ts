@@ -939,6 +939,7 @@ async function runJudgeJob(
 
     return {
       ...input,
+      judgeError: undefined,
       judgeScore: parsed.judgeScore,
       calibrationNotes: parsed.calibrationNotes ?? input.calibrationNotes,
       judgeFindings: parsed.judgeFindings ?? input.judgeFindings,
