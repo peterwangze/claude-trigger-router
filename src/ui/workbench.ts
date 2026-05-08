@@ -1310,7 +1310,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const modelMap=data?.modelMap || {};` +
     `  const draftModels=Array.isArray(config?.Models) ? config.Models : [];` +
     `  if(draftModels.length){` +
-    `    return draftModels.map(model=>{ const id=String(model?.id || '').trim(); const compiled=id ? modelMap[id] : null; const caps=compiled?.capabilities || {}; return { id, modelName:compiled?.modelName || model?.model || '-', contextWindowTokens:caps.contextWindowTokens || readModelMetadataNumber(model,'context_window_tokens'), safeInputTokens:caps.safeInputTokens || readModelMetadataNumber(model,'safe_input_tokens') }; }).filter(item=>item.id);` +
+    `    return draftModels.map(model=>{ const id=String(model?.id || '').trim(); const compiled=id ? modelMap[id] : null; const caps=compiled?.capabilities || {}; return { id, modelName:model?.model || compiled?.modelName || '-', contextWindowTokens:readModelMetadataNumber(model,'context_window_tokens') || caps.contextWindowTokens, safeInputTokens:readModelMetadataNumber(model,'safe_input_tokens') || caps.safeInputTokens }; }).filter(item=>item.id);` +
     `  }` +
     `  return Object.entries(modelMap).map(([id,model])=>({ id, modelName:model?.modelName || '-', contextWindowTokens:model?.capabilities?.contextWindowTokens, safeInputTokens:model?.capabilities?.safeInputTokens }));` +
     `}` +

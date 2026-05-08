@@ -2370,6 +2370,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('renderContextWindowGuide');
     expect(html).toContain('applyContextWindowAction');
     expect(html).toContain('data-context-action');
+    expect(html).toContain("readModelMetadataNumber(model,'context_window_tokens') || caps.contextWindowTokens");
+    expect(html).toContain("modelName:model?.model || compiled?.modelName || '-'");
     expect(html).toContain('getCapabilityWarningActionLabel');
     expect(html).toContain('applyCapabilityWarningSuggestion');
     expect(html).toContain('data-apply-warning-path');
