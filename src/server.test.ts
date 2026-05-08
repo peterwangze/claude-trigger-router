@@ -984,6 +984,7 @@ describe('createServer /api/config', () => {
       warn: 0,
       info: 0,
     });
+    expect(result.router).toEqual({ default: '' });
     expect(result.warnings).toEqual([]);
   });
 
@@ -2321,6 +2322,12 @@ describe('createServer /api/config', () => {
     expect(html).toContain('capabilityWarningsList');
     expect(html).toContain('No capability warnings');
     expect(html).toContain('renderCapabilityWarnings');
+    expect(html).toContain('Current Router slots');
+    expect(html).toContain('routerSlotSummary');
+    expect(html).toContain('routerSlotTable');
+    expect(html).toContain('renderRouterSlotExplanation');
+    expect(html).toContain('longContext');
+    expect(html).toContain('缺少上下文窗口元数据');
     expect(html).toContain('getCapabilityWarningActionLabel');
     expect(html).toContain('applyCapabilityWarningSuggestion');
     expect(html).toContain('data-apply-warning-path');

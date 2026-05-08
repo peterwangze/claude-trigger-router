@@ -232,6 +232,18 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="alert info"><strong>No capability warnings</strong><div class="muted">预览或加载 compiled models 后会在这里显示能力降级提示</div></div>` +
     `</div>` +
     `</div>` +
+    `<div class="subpanel">` +
+    `<div class="row"><strong>Current Router slots</strong><span class="muted">解释基础路由槽位引用的 modelId、上游模型、能力和潜在配置风险</span></div>` +
+    `<div id="routerSlotSummary" class="diff-summary">` +
+    `<div class="diff-chip"><span class="muted">Configured slots</span><strong>0</strong></div>` +
+    `<div class="diff-chip"><span class="muted">Resolved slots</span><strong>0</strong></div>` +
+    `<div class="diff-chip"><span class="muted">Warnings</span><strong>0</strong></div>` +
+    `</div>` +
+    `<table id="routerSlotTable" class="management-table">` +
+    `<thead><tr><th>Slot</th><th>When used</th><th>Model ref</th><th>Resolved target</th><th>Capabilities</th><th>Warning</th></tr></thead>` +
+    `<tbody><tr><td colspan="6" class="muted">Loading router slot explanation...</td></tr></tbody>` +
+    `</table>` +
+    `</div>` +
     `<div class="control-grid">` +
     `<div><label>Router default (modelId)</label><input id="draftRouterDefault" placeholder="例如 sonnet"></div>` +
     `<div><label>Models count</label><input id="draftModelsCount" value="0" readonly></div>` +
@@ -556,6 +568,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const draftPreviewMeta=document.getElementById('draftPreviewMeta');` +
     `const draftValidationList=document.getElementById('draftValidationList');` +
     `const capabilityWarningsList=document.getElementById('capabilityWarningsList');` +
+    `const routerSlotSummary=document.getElementById('routerSlotSummary');` +
+    `const routerSlotTableBody=document.querySelector('#routerSlotTable tbody');` +
     `const configDraftEditor=document.getElementById('configDraftEditor');` +
     `const draftSummaryGrid=document.getElementById('draftSummaryGrid');` +
     `const modelsFormGrid=document.getElementById('modelsFormGrid');` +
@@ -640,6 +654,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const surfacePanels=Array.from(document.querySelectorAll('[data-surface]'));` +
     `let currentDraftConfig={};` +
     `let knownModelIds=[];` +
+    `let lastCompiledModelsData=null;` +
     `let activeValidationHighlight=null;` +
     `const draftPresets={` +
     `  balanced:{ label:'平衡预设', description:'启用 SmartRouter，并填充平衡/快速候选模型组合。', affects:['Router.default','SmartRouter.enabled','SmartRouter.candidates'], routerDefault:'sonnet', smartEnabled:true, smartCandidates:[{ model:'sonnet', description:'balanced default' },{ model:'haiku', description:'fast lightweight' }] },` +
@@ -1158,6 +1173,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderDraftSummary(payload);` +
     `  renderDraftValidation([],[]);` +
     `  renderCapabilityWarnings();` +
+    `  renderRouterSlotExplanation(lastCompiledModelsData);` +
     `  renderDraftPreviewMeta();` +
     `  draftPreviewStatus.textContent='已应用 warning 修正：'+code+'，可重新预览验证';` +
     `}` +
@@ -1202,7 +1218,66 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    '<td>'+((item.suggestions || []).length ? item.suggestions.map(s=>'<div><code>'+esc(s.modelId)+'</code><div class="muted">'+esc(s.modelName || '-')+'</div><button type="button" data-apply-reference-path=\"'+esc(item.path)+'\" data-apply-reference-model=\"'+esc(s.modelId)+'\">应用建议</button></div>').join('') : '<span class="muted">-</span>')+'</td>' +` +
     `  '</tr>').join('') : '<tr><td colspan="6" class="muted">No model references found</td></tr>';` +
     `}` +
+    `function getRouterSlotDefinitions(){` +
+    `  return [` +
+    `    { key:'default', label:'Default', when:'普通请求、规则未命中或其他槽位未配置时使用', required:true },` +
+    `    { key:'think', label:'Thinking', when:'请求包含 thinking 时优先使用', required:false },` +
+    `    { key:'longContext', label:'Long context', when:'输入超过阈值，或当前模型 safe_input_tokens 不够时使用', required:false },` +
+    `    { key:'background', label:'Background', when:'Claude Code 轻量后台模型请求时使用', required:false },` +
+    `    { key:'webSearch', label:'Web search', when:'请求包含 web_search 工具时使用', required:false },` +
+    `  ];` +
+    `}` +
+    `function renderRouterSlotExplanation(data){` +
+    `  const config=data?.normalizedConfig || { Router:(currentDraftConfig.Router && Object.keys(currentDraftConfig.Router).length ? currentDraftConfig.Router : (data?.router || {})) };` +
+    `  const router=config.Router || {};` +
+    `  const modelMap=data?.modelMap || {};` +
+    `  const slots=getRouterSlotDefinitions();` +
+    `  let configured=0;` +
+    `  let resolved=0;` +
+    `  let warnings=0;` +
+    `  const defaultRef=String(router.default || '').trim();` +
+    `  const defaultModel=defaultRef ? modelMap[defaultRef] : null;` +
+    `  const rows=slots.map(slot=>{` +
+    `    const ref=String(router[slot.key] || '').trim();` +
+    `    const model=ref ? modelMap[ref] : null;` +
+    `    const caps=model?.capabilities || {};` +
+    `    const slotWarnings=[];` +
+    `    if(ref){ configured+=1; }` +
+    `    if(ref && model){ resolved+=1; }` +
+    `    if(slot.required && !ref){ slotWarnings.push('必填槽位未配置'); }` +
+    `    if(ref && !model){ slotWarnings.push('引用未解析到 Models[].id'); }` +
+    `    if(slot.key==='think' && model && caps.thinking?.supported === false){ slotWarnings.push('目标模型声明不支持 reasoning'); }` +
+    `    if(slot.key==='longContext' && model){` +
+    `      if(!caps.contextWindowTokens){ slotWarnings.push('缺少 context_window_tokens'); }` +
+    `      if(!caps.safeInputTokens){ slotWarnings.push('缺少 safe_input_tokens'); }` +
+    `      if(defaultModel?.capabilities?.contextWindowTokens && caps.contextWindowTokens && caps.contextWindowTokens <= defaultModel.capabilities.contextWindowTokens){ slotWarnings.push('窗口不高于 default'); }` +
+    `    }` +
+    `    if(model && slot.key!=='longContext' && (!caps.contextWindowTokens || !caps.safeInputTokens)){ slotWarnings.push('缺少上下文窗口元数据'); }` +
+    `    warnings+=slotWarnings.length;` +
+    `    const target=model ? ('<code>'+esc(model.providerName || '-')+'</code><div class="muted">'+esc(model.modelName || '-')+'</div>') : '<span class="muted">-</span>';` +
+    `    const capabilityParts=model ? [` +
+    `      'thinking '+(caps.thinking?.supported === false ? 'off' : 'on'),` +
+    `      'tools '+(caps.tools === false ? 'off' : 'on'),` +
+    `      'images '+(caps.images === false ? 'off' : 'on'),` +
+    `      caps.contextWindowTokens ? ('ctx '+caps.contextWindowTokens) : 'ctx ?',` +
+    `      caps.safeInputTokens ? ('safe '+caps.safeInputTokens) : 'safe ?',` +
+    `    ] : [];` +
+    `    const warningText=slotWarnings.length ? slotWarnings.join('；') : (ref ? 'ok' : '未配置时回到 default');` +
+    `    const warningClass=slotWarnings.length ? 'warn' : 'info';` +
+    `    return '<tr>' +` +
+    `      '<td><strong>'+esc(slot.label)+'</strong><div class="muted">Router.'+esc(slot.key)+'</div></td>' +` +
+    `      '<td>'+esc(slot.when)+'</td>' +` +
+    `      '<td>'+(ref ? '<code>'+esc(ref)+'</code>' : '<span class="muted">not configured</span>')+'</td>' +` +
+    `      '<td>'+target+'</td>' +` +
+    `      '<td>'+(capabilityParts.length ? capabilityParts.map(item=>'<span class="pill">'+esc(item)+'</span>').join(' ') : '<span class="muted">-</span>')+'</td>' +` +
+    `      '<td><span class="pill '+warningClass+'">'+esc(warningText)+'</span></td>' +` +
+    `    '</tr>';` +
+    `  });` +
+    `  routerSlotSummary.innerHTML=[['Configured slots',configured],['Resolved slots',resolved],['Warnings',warnings]].map(([label,value])=>'<div class="diff-chip"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
+    `  routerSlotTableBody.innerHTML=rows.join('');` +
+    `}` +
     `function renderCompiledModels(data){` +
+    `  lastCompiledModelsData=data || null;` +
     `  const providers=Array.isArray(data.providers) ? data.providers : [];` +
     `  const modelMapEntries=Object.entries(data.modelMap || {});` +
     `  const modelPoolEntries=Object.entries(data.modelPools || {});` +
@@ -1210,6 +1285,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  knownModelIds=modelMapEntries.map(([modelId])=>modelId).sort();` +
     `  updateTopLevelModelSuggestionLists();` +
     `  renderCapabilityWarnings(data.capabilityWarnings);` +
+    `  renderRouterSlotExplanation(data);` +
     `  compiledModelsStatus.textContent='已加载 '+providers.length+' 个 compiled provider / '+modelMapEntries.length+' 个 modelId 映射 / '+modelPoolEntries.length+' 个 model pool / '+modelPoolEndpointCount+' 个 pool endpoint';` +
     `  compiledProvidersTableBody.innerHTML=providers.length ? providers.map(provider=>'<tr>' +` +
     `    '<td><code>'+esc(provider.name)+'</code><div class="muted">'+esc(provider.api_base_url || '-')+'</div></td>' +` +
@@ -1255,6 +1331,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  updateStatusSummary(currentDraftConfig);` +
     `  renderDraftValidation([],[]);` +
     `  renderCapabilityWarnings();` +
+    `  renderRouterSlotExplanation(lastCompiledModelsData);` +
     `  renderDraftPreviewMeta();` +
     `  draftPreviewStatus.textContent='已载入当前配置，可通过 Models 表单或 JSON 草稿编辑';` +
     `}` +

@@ -806,6 +806,7 @@ export const createServer = (config: any): Server => {
     const capabilityWarnings = collectCapabilityWarnings(normalized);
     return {
       ...compiled,
+      router: normalized.Router ?? {},
       capabilityWarnings,
       warnings: normalizedResult.warnings,
       issueReport: buildValidationIssueReport({
