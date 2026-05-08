@@ -988,6 +988,43 @@ describe('createServer /api/config', () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it('uses the current saved config for compiled Models after startup', async () => {
+    mockReadConfigFile.mockResolvedValue({
+      Router: { default: 'haiku' },
+      Models: [
+        {
+          id: 'haiku',
+          api: 'https://current.example.com/v1',
+          key: 'sk-current',
+          interface: 'openai',
+          model: 'anthropic/claude-haiku-3-5',
+        },
+      ],
+    });
+    const server = createServer({
+      initialConfig: {
+        Router: { default: 'sonnet' },
+        Models: [
+          {
+            id: 'sonnet',
+            api: 'https://startup.example.com/v1',
+            key: 'sk-startup',
+            interface: 'openai',
+            model: 'anthropic/claude-sonnet-4',
+          },
+        ],
+      },
+    });
+    const handler = server.app.routes.get('GET /api/models/compiled');
+
+    const result = await handler({}, {});
+
+    expect(result.router).toEqual({ default: 'haiku' });
+    expect(Object.keys(result.modelMap)).toEqual(['haiku']);
+    expect(result.modelMap.haiku.providerName).toBe('model__haiku');
+    expect(result.modelMap.sonnet).toBeUndefined();
+  });
+
   it('exposes registration model pools from compiled Models endpoint', async () => {
     const server = createServer({
       initialConfig: {

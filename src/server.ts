@@ -757,6 +757,21 @@ function diffCompiledRegistry(base: CompiledRegistryView, next: CompiledRegistry
 export const createServer = (config: any): Server => {
   const server = new Server(config);
   const configuredThresholds = config.initialConfig?.Governance?.observability?.anomaly_thresholds ?? {};
+  const readActiveConfig = async () => {
+    try {
+      const currentConfig = await readConfigFile();
+      if (
+        currentConfig &&
+        typeof currentConfig === "object" &&
+        Object.keys(currentConfig).length > 0
+      ) {
+        return currentConfig;
+      }
+    } catch {
+      // Fall back to the startup snapshot when no persisted config is readable yet.
+    }
+    return config.initialConfig ?? {};
+  };
 
   const readGovernanceMetricsQuery = (query: any) => {
     const limit = query?.limit ? Number(query.limit) : undefined;
@@ -800,7 +815,7 @@ export const createServer = (config: any): Server => {
   });
 
   server.app.get("/api/models/compiled", async () => {
-    const normalizedResult = normalizeAndValidateConfig(config.initialConfig ?? {});
+    const normalizedResult = normalizeAndValidateConfig(await readActiveConfig());
     const normalized = normalizedResult.config;
     const compiled = toCompiledRegistryView(normalized);
     const capabilityWarnings = collectCapabilityWarnings(normalized);
@@ -818,7 +833,7 @@ export const createServer = (config: any): Server => {
   });
 
   server.app.get("/api/models/pool-health", async () => {
-    return buildModelPoolHealthReport(config.initialConfig ?? {});
+    return buildModelPoolHealthReport(await readActiveConfig());
   });
 
   server.app.post("/api/models/compiled/preview", async (req: any, reply: any) => {
@@ -849,7 +864,7 @@ export const createServer = (config: any): Server => {
       };
     }
 
-    const currentCompiled = toCompiledRegistryView(config.initialConfig ?? {});
+    const currentCompiled = toCompiledRegistryView(await readActiveConfig());
     const previewCompiled = toCompiledRegistryView(result.config);
     const previewCapabilityWarnings = collectCapabilityWarnings(result.config);
     return {
