@@ -243,6 +243,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<thead><tr><th>Slot</th><th>When used</th><th>Model ref</th><th>Resolved target</th><th>Capabilities</th><th>Warning</th></tr></thead>` +
     `<tbody><tr><td colspan="6" class="muted">Loading router slot explanation...</td></tr></tbody>` +
     `</table>` +
+    `<div id="contextWindowGuide" class="alert-list" style="margin-top:.75rem">` +
+    `<div class="alert info"><strong>Context window guide</strong><div class="muted">加载 compiled models 后会在这里显示上下文窗口与 Router.longContext 建议</div></div>` +
+    `</div>` +
     `</div>` +
     `<div class="control-grid">` +
     `<div><label>Router default (modelId)</label><input id="draftRouterDefault" placeholder="例如 sonnet"></div>` +
@@ -570,6 +573,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const capabilityWarningsList=document.getElementById('capabilityWarningsList');` +
     `const routerSlotSummary=document.getElementById('routerSlotSummary');` +
     `const routerSlotTableBody=document.querySelector('#routerSlotTable tbody');` +
+    `const contextWindowGuide=document.getElementById('contextWindowGuide');` +
     `const configDraftEditor=document.getElementById('configDraftEditor');` +
     `const draftSummaryGrid=document.getElementById('draftSummaryGrid');` +
     `const modelsFormGrid=document.getElementById('modelsFormGrid');` +
@@ -656,6 +660,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `let knownModelIds=[];` +
     `let lastCompiledModelsData=null;` +
     `let activeValidationHighlight=null;` +
+    `function withDraftCompiledData(payload){ return { ...(lastCompiledModelsData || {}), normalizedConfig: payload || currentDraftConfig || {} }; }` +
     `const draftPresets={` +
     `  balanced:{ label:'平衡预设', description:'启用 SmartRouter，并填充平衡/快速候选模型组合。', affects:['Router.default','SmartRouter.enabled','SmartRouter.candidates'], routerDefault:'sonnet', smartEnabled:true, smartCandidates:[{ model:'sonnet', description:'balanced default' },{ model:'haiku', description:'fast lightweight' }] },` +
     `  fast:{ label:'快速预设', description:'默认走轻量模型，并添加一条快速响应路由规则。', affects:['Router.default','SmartRouter.enabled','SmartRouter.rules'], routerDefault:'haiku', triggerEnabled:true, triggerRules:[{ name:'quick-response', enabled:true, priority:20, model:'haiku', patterns:[{ type:'exact', keywords:['快速处理','快速回答'] }] }] },` +
@@ -1111,6 +1116,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    renderDraftSummary(payload);` +
     `    renderDraftValidation([],[]);` +
     `    renderCapabilityWarnings();` +
+    `    renderRouterSlotExplanation(withDraftCompiledData(payload));` +
+    `    renderContextWindowGuide(withDraftCompiledData(payload));` +
     `    renderDraftPreviewMeta();` +
     `    draftPreviewStatus.textContent='已同步 Models 表单到 JSON 草稿';` +
     `  } catch (error) {` +
@@ -1138,8 +1145,26 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
     `  renderDraftSummary(payload);` +
     `  renderDraftValidation([],[]);` +
+    `  renderRouterSlotExplanation(withDraftCompiledData(payload));` +
+    `  renderContextWindowGuide(withDraftCompiledData(payload));` +
     `  renderDraftPreviewMeta();` +
     `  draftPreviewStatus.textContent='已将建议模型应用到 '+path+'，可重新预览验证';` +
+    `}` +
+    `function applyContextWindowAction(action,modelId){` +
+    `  if(action!=='set-long-context' || !modelId){ draftPreviewStatus.textContent='暂不支持该上下文窗口操作'; return; }` +
+    `  const payload=buildDraftPayloadFromForm();` +
+    `  payload.Router={ ...(payload.Router || {}), longContext:modelId };` +
+    `  currentDraftConfig=payload;` +
+    `  renderConfigControlForms(payload);` +
+    `  draftRouterDefault.value=payload.Router?.default || '';` +
+    `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
+    `  renderDraftSummary(payload);` +
+    `  renderDraftValidation([],[]);` +
+    `  renderCapabilityWarnings();` +
+    `  renderRouterSlotExplanation(withDraftCompiledData(payload));` +
+    `  renderContextWindowGuide(withDraftCompiledData(payload));` +
+    `  renderDraftPreviewMeta();` +
+    `  draftPreviewStatus.textContent='已将 Router.longContext 设置为 '+modelId+'，可重新预览验证';` +
     `}` +
     `function applyCapabilityWarningSuggestion(path,code){` +
     `  const payload=JSON.parse(JSON.stringify(currentDraftConfig || {}));` +
@@ -1173,7 +1198,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderDraftSummary(payload);` +
     `  renderDraftValidation([],[]);` +
     `  renderCapabilityWarnings();` +
-    `  renderRouterSlotExplanation(lastCompiledModelsData);` +
+    `  renderRouterSlotExplanation(withDraftCompiledData(payload));` +
+    `  renderContextWindowGuide(withDraftCompiledData(payload));` +
     `  renderDraftPreviewMeta();` +
     `  draftPreviewStatus.textContent='已应用 warning 修正：'+code+'，可重新预览验证';` +
     `}` +
@@ -1276,6 +1302,42 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  routerSlotSummary.innerHTML=[['Configured slots',configured],['Resolved slots',resolved],['Warnings',warnings]].map(([label,value])=>'<div class="diff-chip"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
     `  routerSlotTableBody.innerHTML=rows.join('');` +
     `}` +
+    `function readModelMetadataNumber(model,key){` +
+    `  const value=model?.metadata?.[key];` +
+    `  return Number.isFinite(Number(value)) && Number(value)>0 ? Number(value) : undefined;` +
+    `}` +
+    `function getContextWindowEntries(data,config){` +
+    `  const modelMap=data?.modelMap || {};` +
+    `  const draftModels=Array.isArray(config?.Models) ? config.Models : [];` +
+    `  if(draftModels.length){` +
+    `    return draftModels.map(model=>{ const id=String(model?.id || '').trim(); const compiled=id ? modelMap[id] : null; const caps=compiled?.capabilities || {}; return { id, modelName:compiled?.modelName || model?.model || '-', contextWindowTokens:caps.contextWindowTokens || readModelMetadataNumber(model,'context_window_tokens'), safeInputTokens:caps.safeInputTokens || readModelMetadataNumber(model,'safe_input_tokens') }; }).filter(item=>item.id);` +
+    `  }` +
+    `  return Object.entries(modelMap).map(([id,model])=>({ id, modelName:model?.modelName || '-', contextWindowTokens:model?.capabilities?.contextWindowTokens, safeInputTokens:model?.capabilities?.safeInputTokens }));` +
+    `}` +
+    `function renderContextWindowGuide(data){` +
+    `  const config=data?.normalizedConfig || currentDraftConfig || {};` +
+    `  const router=config.Router || {};` +
+    `  const entries=getContextWindowEntries(data,config);` +
+    `  if(!entries.length){ contextWindowGuide.innerHTML='<div class="alert info"><strong>Context window guide</strong><div class="muted">当前草稿还没有可解析的 Models。</div></div>'; return; }` +
+    `  const defaultRef=String(router.default || '').trim();` +
+    `  const longRef=String(router.longContext || '').trim();` +
+    `  const defaultEntry=entries.find(item=>item.id===defaultRef);` +
+    `  const longEntry=entries.find(item=>item.id===longRef);` +
+    `  const ranked=entries.filter(item=>item.contextWindowTokens).sort((a,b)=>(b.contextWindowTokens || 0)-(a.contextWindowTokens || 0));` +
+    `  const best=ranked[0];` +
+    `  const missingCount=entries.filter(item=>!item.contextWindowTokens || !item.safeInputTokens).length;` +
+    `  const messages=[];` +
+    `  let level='info';` +
+    `  if(missingCount){ level='warn'; messages.push('有 '+missingCount+' 个模型缺少 context_window_tokens 或 safe_input_tokens，超大请求可能无法提前降级/切换。'); }` +
+    `  if(entries.length>1 && !longRef){ level='warn'; messages.push('多模型配置未设置 Router.longContext，大上下文请求会继续使用已选模型。'); }` +
+    `  if(longRef && !longEntry){ level='warn'; messages.push('Router.longContext 引用未解析到 Models[].id。'); }` +
+    `  if(longEntry && (!longEntry.contextWindowTokens || !longEntry.safeInputTokens)){ level='warn'; messages.push('Router.longContext 缺少上下文窗口或安全输入元数据。'); }` +
+    `  if(defaultEntry?.contextWindowTokens && longEntry?.contextWindowTokens && longEntry.contextWindowTokens <= defaultEntry.contextWindowTokens){ level='warn'; messages.push('Router.longContext 的窗口不高于 Router.default，可能无法提升大上下文体验。'); }` +
+    `  if(!messages.length){ messages.push('当前上下文窗口元数据和 Router.longContext 配置可用于大上下文 fallback。'); }` +
+    `  const canApplyBest=best?.id && best.id!==longRef && (!defaultEntry?.contextWindowTokens || (best.contextWindowTokens || 0)>defaultEntry.contextWindowTokens);` +
+    `  const summaryRows=[['Default', defaultRef || '-'],['Default ctx', defaultEntry?.contextWindowTokens || '?'],['Long context', longRef || '-'],['Long ctx', longEntry?.contextWindowTokens || '?'],['Largest ctx', best ? (best.id+' / '+best.contextWindowTokens) : '-'],['Missing metadata', missingCount]];` +
+    `  contextWindowGuide.innerHTML='<div class="alert '+level+'"><div class="row"><strong>Context window guide</strong>'+(best ? '<span class="pill">largest '+esc(best.id)+'</span>' : '')+'</div><div class="diff-summary">'+summaryRows.map(([label,value])=>'<div class="diff-chip"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('')+'</div><ul>'+messages.map(message=>'<li>'+esc(message)+'</li>').join('')+'</ul>'+(canApplyBest ? '<div class="row" style="margin-top:.5rem"><button type="button" data-context-action="set-long-context" data-model-id="'+esc(best.id)+'">设为 Router.longContext</button><span class="muted">'+esc(best.modelName || '')+'</span></div>' : '')+'</div>';` +
+    `}` +
     `function renderCompiledModels(data){` +
     `  lastCompiledModelsData=data || null;` +
     `  const providers=Array.isArray(data.providers) ? data.providers : [];` +
@@ -1286,6 +1348,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  updateTopLevelModelSuggestionLists();` +
     `  renderCapabilityWarnings(data.capabilityWarnings);` +
     `  renderRouterSlotExplanation(data);` +
+    `  renderContextWindowGuide(data);` +
     `  compiledModelsStatus.textContent='已加载 '+providers.length+' 个 compiled provider / '+modelMapEntries.length+' 个 modelId 映射 / '+modelPoolEntries.length+' 个 model pool / '+modelPoolEndpointCount+' 个 pool endpoint';` +
     `  compiledProvidersTableBody.innerHTML=providers.length ? providers.map(provider=>'<tr>' +` +
     `    '<td><code>'+esc(provider.name)+'</code><div class="muted">'+esc(provider.api_base_url || '-')+'</div></td>' +` +
@@ -1331,7 +1394,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  updateStatusSummary(currentDraftConfig);` +
     `  renderDraftValidation([],[]);` +
     `  renderCapabilityWarnings();` +
-    `  renderRouterSlotExplanation(lastCompiledModelsData);` +
+    `  renderRouterSlotExplanation(withDraftCompiledData(currentDraftConfig));` +
+    `  renderContextWindowGuide(withDraftCompiledData(currentDraftConfig));` +
     `  renderDraftPreviewMeta();` +
     `  draftPreviewStatus.textContent='已载入当前配置，可通过 Models 表单或 JSON 草稿编辑';` +
     `}` +
@@ -1343,6 +1407,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  } catch (error) {` +
     `    renderDraftValidation(['JSON parse error: '+error.message],[]);` +
     `    renderCapabilityWarnings();` +
+    `    renderContextWindowGuide(lastCompiledModelsData);` +
     `    renderDraftPreviewMeta();` +
     `    draftPreviewStatus.textContent='草稿解析失败：'+error.message;` +
     `    return;` +
@@ -1358,6 +1423,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    draftPreviewStatus.textContent='预览失败：'+((data.errors || []).join('; ') || data.message || 'unknown error');` +
     `    renderDraftValidation(data.errors || [data.message || 'unknown error'], data.warnings || [], data.issueReport);` +
     `    renderCapabilityWarnings(data.capabilityWarnings);` +
+    `    renderContextWindowGuide(withDraftCompiledData(payload));` +
     `    renderCompiledDiff();` +
     `    renderReferenceImpact(data.referenceImpact);` +
     `    renderDraftPreviewMeta();` +
@@ -1415,6 +1481,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  } catch (error) {` +
     `    renderDraftValidation(['JSON parse error: '+error.message],[]);` +
     `    renderCapabilityWarnings();` +
+    `    renderContextWindowGuide(lastCompiledModelsData);` +
     `    draftPreviewStatus.textContent='保存失败：'+error.message;` +
     `    return;` +
     `  }` +
@@ -1456,6 +1523,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `referenceImpactTableBody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-apply-reference-path]'); if(!btn){ return; } applyReferenceSuggestion(btn.dataset.applyReferencePath, btn.dataset.applyReferenceModel); });` +
     `draftValidationList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-validation-path]'); if(!btn){ return; } jumpToValidationPath(btn.dataset.validationPath); });` +
     `capabilityWarningsList.addEventListener('click',(e)=>{ const applyBtn=e.target.closest('button[data-apply-warning-path]'); if(applyBtn){ applyCapabilityWarningSuggestion(applyBtn.dataset.applyWarningPath, applyBtn.dataset.applyWarningCode); return; } const btn=e.target.closest('button[data-validation-path]'); if(!btn){ return; } jumpToValidationPath(btn.dataset.validationPath); });` +
+    `contextWindowGuide.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-context-action]'); if(!btn){ return; } applyContextWindowAction(btn.dataset.contextAction, btn.dataset.modelId); });` +
     `healthSummary.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-health-action]'); if(btn){ applyHealthAction(btn.dataset.healthAction); } });` +
     `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
     `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
@@ -1499,6 +1567,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderDraftSummary(payload);` +
     `  renderDraftValidation([],[]);` +
     `  renderCapabilityWarnings();` +
+    `  renderRouterSlotExplanation(withDraftCompiledData(payload));` +
+    `  renderContextWindowGuide(withDraftCompiledData(payload));` +
     `  renderDraftPreviewMeta();` +
     `  draftPreviewStatus.textContent='已应用预设：'+presetName+'（'+(draftPresetMode.value === 'replace' ? 'overwrite' : 'append / merge')+'）';` +
     `}` +

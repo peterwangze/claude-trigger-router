@@ -56,7 +56,7 @@
 1. `[closed 2026-05-08]` 基础路由配置向导与文档收口：README 已围绕 `default/think/longContext/background/webSearch` 补齐触发条件、推荐模型、常见误区，并新增 `config/trigger.routing.yaml` 作为五槽位可复制模板。
 2. `[closed 2026-05-08]` `ctr doctor` 增加路由槽位体检摘要：已检查默认模型是否存在、thinking/background/longContext/webSearch 槽位是否能解析、thinking 能力是否匹配，以及上下文窗口元数据是否缺失。
 3. `[closed 2026-05-08]` `/ui` 使用者工作台增加“当前路由配置解释”：已展示 `default/think/longContext/background/webSearch` 每个槽位引用的 `Models[].id`、上游 provider/model、能力提示和潜在 warning，并复用 compiled modelMap 做解析。
-4. context window 用户体验增强：doctor 侧已提示 `context_window_tokens` / `safe_input_tokens` / `Router.longContext` 的缺失和容量倒挂风险；后续继续把同一提示接入 UI 可操作入口。
+4. `[closed 2026-05-08]` context window 用户体验增强：doctor 侧已提示 `context_window_tokens` / `safe_input_tokens` / `Router.longContext` 的缺失和容量倒挂风险；`/ui` 已新增 `Context window guide`，基于当前草稿/compiled models 展示 default 与 longContext 容量、最大上下文候选、缺失元数据计数，并支持一键把推荐模型设为 `Router.longContext`。
 5. 增加基础路由打包后 smoke：覆盖 fresh setup 配置、`ctr status`、`ctr code` 环境、slot 解析和 longContext fallback。
 
 ### v1.4.0 SmartRouter 常用体验

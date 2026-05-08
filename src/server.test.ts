@@ -2365,6 +2365,11 @@ describe('createServer /api/config', () => {
     expect(html).toContain('renderRouterSlotExplanation');
     expect(html).toContain('longContext');
     expect(html).toContain('缺少上下文窗口元数据');
+    expect(html).toContain('Context window guide');
+    expect(html).toContain('contextWindowGuide');
+    expect(html).toContain('renderContextWindowGuide');
+    expect(html).toContain('applyContextWindowAction');
+    expect(html).toContain('data-context-action');
     expect(html).toContain('getCapabilityWarningActionLabel');
     expect(html).toContain('applyCapabilityWarningSuggestion');
     expect(html).toContain('data-apply-warning-path');
