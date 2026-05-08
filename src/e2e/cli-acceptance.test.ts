@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createServer } from 'http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import packageJson from '../../package.json';
@@ -27,6 +27,11 @@ let sharedEnv: ITestEnvironment;
 let cliPath: string;
 let tarballPath: string;
 let prefixDir: string;
+
+interface IFakeUpstreamRequest {
+  url: string;
+  body: any;
+}
 
 function getAcceptanceMutationWhitelist(): string[] {
   return [
@@ -86,6 +91,102 @@ async function fetchTextWithRetry(url: string, attempts = 20): Promise<{ status:
   }
 
   throw lastError instanceof Error ? lastError : new Error(`Failed to fetch ${url}`);
+}
+
+async function startFakeOpenAiUpstream(): Promise<{
+  port: number;
+  requests: IFakeUpstreamRequest[];
+  close: () => Promise<void>;
+}> {
+  const requests: IFakeUpstreamRequest[] = [];
+  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    if (req.method !== 'POST') {
+      res.statusCode = 405;
+      res.end('method not allowed');
+      return;
+    }
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(Buffer.from(chunk));
+    }
+
+    const body = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+    requests.push({
+      url: req.url || '/',
+      body,
+    });
+
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({
+      id: 'chatcmpl_acceptance_fake',
+      object: 'chat.completion',
+      created: 0,
+      model: body.model,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: 'ok from packaged acceptance upstream',
+          },
+          finish_reason: 'stop',
+        },
+      ],
+      usage: {
+        prompt_tokens: 1,
+        completion_tokens: 1,
+        total_tokens: 2,
+      },
+    }));
+  });
+
+  const port = await new Promise<number>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        reject(new Error('Failed to resolve OpenAI upstream port'));
+        return;
+      }
+      resolve(address.port);
+    });
+  });
+
+  return {
+    port,
+    requests,
+    close: async () => {
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    },
+  };
+}
+
+async function postAnthropicPayload(port: number, payload: any): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    try {
+      return await fetch(`http://127.0.0.1:${port}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (error: any) {
+      lastError = error;
+      const isConnectionRefused =
+        error?.cause?.code === 'ECONNREFUSED' ||
+        error?.code === 'ECONNREFUSED' ||
+        String(error?.message || '').includes('ECONNREFUSED');
+      if (!isConnectionRefused || attempt === 24) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 describe('isolated packaged CLI acceptance', () => {
@@ -190,9 +291,10 @@ describe('isolated packaged CLI acceptance', () => {
     }
   }, 300000);
 
-  it('fresh setup can start a usable service and ctr code works in a brand-new packaged user environment', async () => {
+  it('fresh setup -> status -> code smoke covers packaged slot parsing and longContext fallback', async () => {
     const env = await createTestEnvironment('ctr-acceptance-fresh-shell-');
     const markerPath = join(env.homeDir, 'claude-invoked.txt');
+    let upstream: { port: number; requests: IFakeUpstreamRequest[]; close: () => Promise<void> } | undefined;
 
     try {
       await createFakeClaude(env.binDir, markerPath);
@@ -252,8 +354,136 @@ describe('isolated packaged CLI acceptance', () => {
 
       const markerText = await readText(markerPath);
       expect(markerText).toContain('invoked');
+      expect(markerText).toContain('ANTHROPIC_BASE_URL=http://127.0.0.1:');
       expect(markerText).toContain('ANTHROPIC_AUTH_TOKEN=ctr-local-proxy');
       expect(markerText).toContain('ANTHROPIC_API_KEY=');
+
+      const stopFreshResult = await runCtrThroughUserShell(cliPath, ['stop'], env, {
+        timeoutMs: 30000,
+      });
+      expect(stopFreshResult.code).toBe(0);
+      expect(stopFreshResult.stdout).toContain('服务已停止');
+
+      const routingPort = await getFreePort();
+      upstream = await startFakeOpenAiUpstream();
+      await writeFileUnder(
+        env.homeDir,
+        '.claude-trigger-router/config.yaml',
+        [
+          'HOST: "127.0.0.1"',
+          `PORT: ${routingPort}`,
+          'LOG: false',
+          'Models:',
+          '  - id: sonnet',
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-sonnet"',
+          '    interface: "openai"',
+          '    model: "vendor/sonnet-small-window"',
+          '    metadata:',
+          '      context_window_tokens: 32',
+          '      safe_input_tokens: 1',
+          '  - id: reasoner',
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-reasoner"',
+          '    interface: "openai"',
+          '    model: "vendor/reasoner"',
+          '    thinking:',
+          '      enabled: true',
+          '      effort: "high"',
+          '    metadata:',
+          '      supports_reasoning: true',
+          '      context_window_tokens: 128',
+          '      safe_input_tokens: 64',
+          '  - id: long_context',
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-long"',
+          '    interface: "openai"',
+          '    model: "vendor/long-context"',
+          '    metadata:',
+          '      context_window_tokens: 4096',
+          '      safe_input_tokens: 2048',
+          '  - id: haiku',
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-haiku"',
+          '    interface: "openai"',
+          '    model: "vendor/haiku"',
+          '    metadata:',
+          '      context_window_tokens: 64',
+          '      safe_input_tokens: 32',
+          '  - id: web_search',
+          `    api: "http://127.0.0.1:${upstream.port}/v1/chat/completions"`,
+          '    key: "sk-web"',
+          '    interface: "openai"',
+          '    model: "vendor/web-search"',
+          '    metadata:',
+          '      supports_tools: true',
+          '      context_window_tokens: 256',
+          '      safe_input_tokens: 128',
+          'Router:',
+          '  default: "sonnet"',
+          '  think: "reasoner"',
+          '  longContext: "long_context"',
+          '  longContextThreshold: 999999',
+          '  background: "haiku"',
+          '  webSearch: "web_search"',
+        ].join('\n')
+      );
+
+      const startRoutingResult = await runCtrThroughUserShell(cliPath, ['start', '--daemon', '--port', String(routingPort)], env, {
+        timeoutMs: 30000,
+      });
+      expect(startRoutingResult.code).toBe(0);
+
+      const routingStatusResult = await runCtrThroughUserShell(cliPath, ['status'], env, {
+        timeoutMs: 30000,
+      });
+      expect(routingStatusResult.code).toBe(0);
+      expect(routingStatusResult.stdout).toContain('服务运行中');
+      expect(routingStatusResult.stdout).toContain(String(routingPort));
+
+      const compiledResponse = await fetchTextWithRetry(`http://127.0.0.1:${routingPort}/api/models/compiled`);
+      expect(compiledResponse.contentType).toContain('application/json');
+      const compiledPayload = JSON.parse(compiledResponse.text);
+      expect(compiledPayload.router).toEqual(expect.objectContaining({
+        default: 'sonnet',
+        think: 'reasoner',
+        longContext: 'long_context',
+        background: 'haiku',
+        webSearch: 'web_search',
+      }));
+      expect(compiledPayload.modelMap.long_context.capabilities).toEqual(expect.objectContaining({
+        contextWindowTokens: 4096,
+        safeInputTokens: 2048,
+      }));
+
+      const fallbackResponse = await postAnthropicPayload(routingPort, {
+        model: 'sonnet',
+        max_tokens: 16,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'packaged acceptance verifies long context fallback',
+              },
+            ],
+          },
+        ],
+      });
+      const fallbackText = await fallbackResponse.text();
+      expect(fallbackResponse.status, fallbackText).toBe(200);
+      expect(upstream.requests.length).toBeGreaterThan(0);
+      expect(upstream.requests.at(-1)?.url).toBe('/v1/chat/completions');
+      expect(upstream.requests.at(-1)?.body?.model).toBe('vendor/long-context');
+
+      const routedCodeResult = await runCtrThroughUserShell(cliPath, ['code'], env, {
+        timeoutMs: 30000,
+      });
+      expect(routedCodeResult.code).toBe(0);
+      const routedMarkerText = await readText(markerPath);
+      expect(routedMarkerText).toContain(`ANTHROPIC_BASE_URL=http://127.0.0.1:${routingPort}`);
+      expect(routedMarkerText).toContain('ANTHROPIC_AUTH_TOKEN=ctr-local-proxy');
 
       const afterCode = await snapshotTree(env.homeDir);
       assertOnlyExpectedPathsChanged(diffSnapshots(before, afterCode), getAcceptanceMutationWhitelist());
@@ -262,6 +492,9 @@ describe('isolated packaged CLI acceptance', () => {
         await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
       } catch {
         // Ignore cleanup stop failures.
+      }
+      if (upstream) {
+        await upstream.close();
       }
       await removePath(env.rootDir);
     }
