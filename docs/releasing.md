@@ -23,8 +23,8 @@
 推荐主流程：
 
 1. 更新版本号
-   - `v1.2.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.2.0` 的发布边界以 `docs/release-notes-v1.2.0.md` 为准：主打智能路由评测与治理增强，不宣称完整云端平台或完整自动裁判系统。
+   - `v1.3.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
+   - 本次 `v1.3.0` 的发布边界以 `docs/release-notes-v1.3.0.md` 为准：主打基础路由常用体验，不宣称完整 SmartRouter 产品化版本或完整云端平台。
 2. 本地先执行发布包验证：
 
 ```bash
