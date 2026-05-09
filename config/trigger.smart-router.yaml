@@ -1,0 +1,213 @@
+# Claude Trigger Router SmartRouter rule template
+# 复制到 ~/.claude-trigger-router/config.yaml 后，先替换 API Key、模型名和本地模型地址。
+# 这个模板面向 v1.4.0 的高频智能路由场景：
+# coding / review / architecture / long context / fast reply。
+
+HOST: "127.0.0.1"
+PORT: 5678
+
+LOG: true
+LOG_LEVEL: "debug"
+
+Models:
+  - id: sonnet
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+    thinking: "auto"
+    metadata:
+      context_window_tokens: 200000
+      safe_input_tokens: 180000
+
+  - id: reviewer
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-sonnet-4"
+    thinking: "auto"
+    metadata:
+      context_window_tokens: 200000
+      safe_input_tokens: 180000
+
+  - id: architect
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "anthropic/claude-opus-4"
+    thinking: "high"
+    metadata:
+      context_window_tokens: 200000
+      safe_input_tokens: 180000
+
+  - id: long_context
+    api: "https://openrouter.ai/api/v1/chat/completions"
+    key: "sk-xxx"
+    interface: "openai"
+    model: "google/gemini-2.5-pro"
+    thinking: "auto"
+    metadata:
+      context_window_tokens: 1000000
+      safe_input_tokens: 900000
+
+  - id: fast_background
+    api: "http://localhost:11434/v1/chat/completions"
+    key: "ollama"
+    interface: "openai"
+    model: "qwen2.5-coder:latest"
+    thinking: "off"
+    metadata:
+      context_window_tokens: 32000
+      safe_input_tokens: 24000
+
+Router:
+  default: "sonnet"
+  think: "architect"
+  longContext: "long_context"
+  longContextThreshold: 60000
+  background: "fast_background"
+  webSearch: "sonnet"
+
+SmartRouter:
+  enabled: true
+  analysis_scope: "last_message"
+  rules:
+    - name: "long_context"
+      priority: 95
+      enabled: true
+      description: "长文档、长上下文、全文总结或需要大窗口承载的请求"
+      patterns:
+        - type: exact
+          keywords:
+            - "长上下文"
+            - "长文档"
+            - "全文总结"
+            - "large context"
+            - "long context"
+        - type: regex
+          pattern: "(长上下文|长文档|全文总结|long context|large context)"
+      model: "long_context"
+      semantic_profile:
+        prototype: "长文档 长上下文 全文 总结 大窗口 large context long document"
+
+    - name: "architecture"
+      priority: 90
+      enabled: true
+      description: "架构设计、系统设计、技术方案和模块拆分"
+      patterns:
+        - type: exact
+          keywords:
+            - "架构设计"
+            - "系统设计"
+            - "技术方案"
+            - "模块拆分"
+            - "architecture"
+            - "system design"
+        - type: regex
+          pattern: "(架构|系统设计|技术方案|模块拆分|architecture|system design)"
+      model: "architect"
+      semantic_profile:
+        prototype: "架构 系统设计 技术方案 模块边界 演进路线 architecture system design"
+
+    - name: "review"
+      priority: 80
+      enabled: true
+      description: "代码审查、风险检查、安全检查和回归风险评估"
+      patterns:
+        - type: exact
+          keywords:
+            - "代码审查"
+            - "code review"
+            - "review code"
+            - "检查代码"
+            - "安全风险"
+            - "回归风险"
+        - type: regex
+          pattern: "(代码|code).{0,8}(审查|review|检查|审核)"
+      model: "reviewer"
+      semantic_profile:
+        prototype: "代码审查 风险 安全 回归 regression review bug finding"
+
+    - name: "coding"
+      priority: 70
+      enabled: true
+      description: "实现功能、修复 bug、重构代码和补测试"
+      patterns:
+        - type: exact
+          keywords:
+            - "实现"
+            - "写代码"
+            - "修复 bug"
+            - "补测试"
+            - "implement"
+            - "refactor"
+            - "feature"
+        - type: regex
+          pattern: "(实现|编写|修复|重构|补测试|implement|refactor|feature|bug)"
+      model: "sonnet"
+      semantic_profile:
+        prototype: "实现 功能 修复 bug 重构 单元测试 编程 coding implementation"
+
+    - name: "fast_reply"
+      priority: 10
+      enabled: true
+      description: "简单问题、快速答复、短答案和低成本后台任务"
+      patterns:
+        - type: exact
+          keywords:
+            - "快速回答"
+            - "简单回答"
+            - "不用详细"
+            - "quick"
+            - "short answer"
+            - "simple"
+        - type: regex
+          pattern: "(快速回答|简单回答|不用详细|quick|short answer|simple)"
+      model: "fast_background"
+      semantic_profile:
+        prototype: "快速 简单 短答案 低成本 fast quick short answer simple"
+
+  router_model: "sonnet"
+  candidates:
+    - model: "sonnet"
+      description: "通用 coding、日常调试、多轮任务和默认 Claude Code 体验"
+    - model: "reviewer"
+      description: "代码审查、风险识别、安全检查和回归影响判断"
+    - model: "architect"
+      description: "架构设计、系统方案、复杂权衡和高质量长推理"
+    - model: "long_context"
+      description: "长文档、超长上下文、全文总结和大规格输入"
+    - model: "fast_background"
+      description: "快速短答、低成本后台任务和简单重复问题"
+  cache_ttl: 600000
+  max_tokens: 256
+  fallback: "default"
+  router_hint:
+    include_task_summary: true
+    include_top_route_candidates: true
+
+  sticky:
+    enabled: true
+    session_ttl_ms: 3600000
+    fingerprint_similarity_threshold: 0.82
+    break_on_explicit_route: true
+    # Claude Code 的请求本身会携带会话上下文。
+    # 只有明确需要跨模型交接摘要，并接受额外 summarizer 调用时，再开启 alignment。
+    alignment:
+      enabled: false
+      summarizer_model: "sonnet"
+      max_summary_tokens: 256
+
+  semantic:
+    enabled: true
+    mode: "embedding"
+    threshold: 0.2
+    prototypes:
+      coding: "实现 功能 修复 bug 重构 单元测试 编程 coding implementation"
+      review: "代码审查 风险 安全 回归 regression review bug finding"
+      architecture: "架构 系统设计 技术方案 模块边界 演进路线 architecture system design"
+      long_context: "长文档 长上下文 全文 总结 大窗口 large context long document"
+      fast_reply: "快速 简单 短答案 低成本 fast quick short answer simple"
+
+Governance:
+  enabled: true

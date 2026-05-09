@@ -298,6 +298,8 @@ SmartRouter:
 
 规则命中时优先使用规则指定模型；没命中时回到 `Router.default`。
 
+可复制的 SmartRouter 常用模板见 `config/trigger.smart-router.yaml`。它已经把 `coding`、`review`、`architecture`、`long_context` 和 `fast_reply` 五类高频任务写成规则，并保留 `router_model + candidates` 作为规则未命中时的智能兜底起点。
+
 ## 智能模型选择
 
 如果任务边界比较模糊，可以让 SmartRouter 用一个路由模型从候选模型中选择：
@@ -559,6 +561,7 @@ setup 会自动探测旧配置，并优先提供迁移选项。迁移后的配�
 
 - 最小示例：`config/trigger.example.yaml`
 - 基础路由五槽位示例：`config/trigger.routing.yaml`
+- SmartRouter 常用规则示例：`config/trigger.smart-router.yaml`
 - 高级示例：`config/trigger.advanced.yaml`
 - 配置细节：`docs/configuration-guide.md`
 - Models 迁移：`docs/models-migration-guide.md`

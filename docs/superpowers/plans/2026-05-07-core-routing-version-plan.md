@@ -63,7 +63,7 @@
 
 优先级：高。
 
-1. SmartRouter 规则模板：为 coding、review、architecture、long context、fast reply 提供可复制配置。
+1. `[closed 2026-05-09]` SmartRouter 规则模板：已新增 `config/trigger.smart-router.yaml`，为 coding、review、architecture、long context、fast reply 提供可复制配置，并用模板解析、模型引用和规则命中测试看护。
 2. SmartRouter 配置解释：UI 展示规则命中顺序、候选模型、router_model、semantic/sticky 开关和 fallback。
 3. 路由决策可解释性：把最近请求的 route source、rule、semantic intent、confidence、fallback reason 做成使用者可读摘要。
 4. 切换体感治理：继续优化 sticky/alignment/cascade 的用户可见状态，聚焦“为什么切换、切换后是否补上下文、是否触发重试”。

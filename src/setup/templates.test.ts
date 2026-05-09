@@ -3,6 +3,7 @@ import { join } from 'path';
 import yaml from 'js-yaml';
 import { describe, it, expect } from 'vitest';
 import { buildModelRegistry } from '../models/compile';
+import { TriggerRouter } from '../trigger';
 import { normalizeAndValidateConfig } from '../utils/config';
 import { getProviderPreset, buildMinimalConfig, buildRemoteServiceConfig, buildServerDeploymentConfig, buildUsableMinimalTemplateConfig } from './templates';
 
@@ -396,6 +397,50 @@ describe('setup templates', () => {
       expect(registry.modelMap.long_context.capabilities.contextWindowTokens).toBeGreaterThan(
         registry.modelMap.sonnet.capabilities.contextWindowTokens ?? 0
       );
+    });
+
+    it('keeps config/trigger.smart-router.yaml usable for common SmartRouter rules', () => {
+      const smartRouterPath = join(process.cwd(), 'config', 'trigger.smart-router.yaml');
+      const smartRouterConfig = yaml.load(readFileSync(smartRouterPath, 'utf-8')) as any;
+      const normalized = normalizeAndValidateConfig(smartRouterConfig);
+
+      expect(normalized.errors).toEqual([]);
+      expect(normalized.warnings).toEqual([]);
+      expect(normalized.config.SmartRouter).toEqual(expect.objectContaining({
+        enabled: true,
+        analysis_scope: 'last_message',
+        router_model: 'sonnet',
+      }));
+
+      const ruleNames = normalized.config.SmartRouter?.rules?.map((rule) => rule.name) ?? [];
+      expect(ruleNames).toEqual(['long_context', 'architecture', 'review', 'coding', 'fast_reply']);
+
+      const registry = buildModelRegistry(normalized.config);
+      for (const rule of normalized.config.SmartRouter?.rules ?? []) {
+        expect(registry.modelMap[rule.model]).toBeDefined();
+      }
+      for (const candidate of normalized.config.SmartRouter?.candidates ?? []) {
+        expect(registry.modelMap[candidate.model]).toBeDefined();
+      }
+
+      const router = new TriggerRouter();
+      router.init(normalized.config);
+      const legacyRef = (modelId: string) => {
+        const compiled = registry.modelMap[modelId];
+        return `${compiled.providerName},${compiled.modelName}`;
+      };
+
+      const route = (content: string) => router.routeSync({
+        body: {
+          messages: [{ role: 'user', content }],
+        },
+      } as any);
+
+      expect(route('请实现一个 TypeScript 函数').model).toBe(legacyRef('sonnet'));
+      expect(route('请做 code review 并指出回归风险').model).toBe(legacyRef('reviewer'));
+      expect(route('请做系统设计和架构设计').model).toBe(legacyRef('architect'));
+      expect(route('请总结这个长文档并保留关键细节').model).toBe(legacyRef('long_context'));
+      expect(route('请快速回答这个简单问题，不用详细').model).toBe(legacyRef('fast_background'));
     });
   });
 });

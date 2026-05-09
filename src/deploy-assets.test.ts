@@ -40,6 +40,14 @@ describe('deployment assets', () => {
     const configurationGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-guide.md'), 'utf-8');
     expect(configurationGuide).toContain('配置指南');
 
+    const smartRouterTemplate = readFileSync(join(process.cwd(), 'config', 'trigger.smart-router.yaml'), 'utf-8');
+    expect(smartRouterTemplate).toContain('SmartRouter:');
+    expect(smartRouterTemplate).toContain('coding');
+    expect(smartRouterTemplate).toContain('review');
+    expect(smartRouterTemplate).toContain('architecture');
+    expect(smartRouterTemplate).toContain('long_context');
+    expect(smartRouterTemplate).toContain('fast_reply');
+
     const migrationGuide = readFileSync(join(process.cwd(), 'docs', 'models-migration-guide.md'), 'utf-8');
     expect(migrationGuide).toContain('Models');
 
