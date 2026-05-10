@@ -119,6 +119,15 @@ export class TriggerRouter {
     );
 
     if (req.governanceTrace) {
+      req.governanceTrace.routeDecision = {
+        source: result.routeSource ?? (result.matched ? 'smart_router' : 'no_match'),
+        ruleName: result.rule?.name,
+        confidence: result.confidence,
+        model: result.model,
+        fallbackReason: result.matched
+          ? undefined
+          : 'SmartRouter did not match; request continued to the basic Router fallback path.',
+      };
       if (result.routeSource === 'smart_rule' && result.rule?.name) {
         appendTraceReason(req.governanceTrace, `smart_rule:${result.rule.name}`);
       } else if (result.routeSource === 'semantic_match' && result.rule?.name) {

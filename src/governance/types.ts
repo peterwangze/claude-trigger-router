@@ -137,6 +137,13 @@ export interface IGovernanceTrace {
   initialModel?: string;
   finalModel?: string;
   routeReason: string[];
+  routeDecision?: {
+    source?: string;
+    ruleName?: string;
+    confidence?: number;
+    model?: string;
+    fallbackReason?: string;
+  };
   stickyHit: boolean;
   alignmentUsed: boolean;
   semanticIntent?: string;

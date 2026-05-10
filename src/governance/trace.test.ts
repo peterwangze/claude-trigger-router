@@ -9,6 +9,7 @@ import {
   GovernanceTraceStore,
   governanceTraceStore,
   recordGovernanceTrace,
+  summarizeRouteDecisionTrace,
 } from './trace';
 
 describe('governance trace', () => {
@@ -71,6 +72,81 @@ describe('governance trace', () => {
     expect(finalized.completedAt).toBe(180);
     expect(finalized.latencyMs).toBe(80);
     expect(finalized.routeReason).toEqual(['smart_rule:image_generation']);
+  });
+
+  it('summarizes route decisions with source, rule, confidence and fallback context', () => {
+    const trace = createGovernanceTrace({
+      requestId: 'req-decision',
+      sessionKey: 'session-a',
+      initialModel: 'sonnet',
+      finalModel: 'opus',
+      routeReason: ['request_received', 'smart_rule:architecture', 'context_window_fallback:sonnet->opus'],
+      routeDecision: {
+        source: 'smart_rule',
+        ruleName: 'architecture',
+        confidence: 1,
+        model: 'opus',
+      },
+      semanticIntent: 'architecture',
+      startedAt: 100,
+      completedAt: 140,
+      latencyMs: 40,
+    });
+
+    expect(summarizeRouteDecisionTrace(trace)).toEqual(expect.objectContaining({
+      requestId: 'req-decision',
+      sessionKey: 'session-a',
+      source: 'smart_rule',
+      sourceLabel: 'SmartRouter rule "architecture"',
+      ruleName: 'architecture',
+      semanticIntent: 'architecture',
+      confidence: 1,
+      confidenceLabel: '100%',
+      initialModel: 'sonnet',
+      finalModel: 'opus',
+      fallbackReason: 'Context window guard switched sonnet->opus.',
+      headline: 'SmartRouter rule "architecture" selected opus with 100% confidence.',
+      latencyMs: 40,
+    }));
+  });
+
+  it('summarizes legacy traces from route reasons when decision metadata is absent', () => {
+    const trace = createGovernanceTrace({
+      requestId: 'req-legacy-decision',
+      initialModel: 'sonnet',
+      finalModel: 'sonnet',
+      routeReason: ['request_received', 'smart_router:no_match'],
+      startedAt: 100,
+    });
+
+    expect(summarizeRouteDecisionTrace(trace)).toEqual(expect.objectContaining({
+      source: 'smart_router',
+      sourceLabel: 'SmartRouter candidate selection',
+      fallbackReason: 'SmartRouter did not match; request continued to the basic Router fallback path.',
+      headline: 'SmartRouter candidate selection selected sonnet.',
+    }));
+  });
+
+  it('keeps SmartRouter no-match decision summaries readable', () => {
+    const trace = createGovernanceTrace({
+      requestId: 'req-no-match',
+      finalModel: 'sonnet',
+      routeReason: ['request_received', 'smart_router:no_match'],
+      routeDecision: {
+        source: 'no_match',
+        confidence: 0,
+        fallbackReason: 'SmartRouter did not match; request continued to the basic Router fallback path.',
+      },
+      startedAt: 100,
+    });
+
+    expect(summarizeRouteDecisionTrace(trace)).toEqual(expect.objectContaining({
+      source: 'no_match',
+      sourceLabel: 'SmartRouter no match',
+      confidenceLabel: '0%',
+      fallbackReason: 'SmartRouter did not match; request continued to the basic Router fallback path.',
+      headline: 'SmartRouter no match selected sonnet with 0% confidence.',
+    }));
   });
 
   it('persists traces to disk and reloads them on restart', async () => {

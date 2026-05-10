@@ -14,6 +14,7 @@ import {
   exportGovernanceMetricsReport,
   governanceMetricsExportStore,
   buildGovernanceHealthSummary,
+  summarizeRouteDecisionTrace,
 } from "./governance";
 import { buildModelRegistry, collectCapabilityWarnings } from "./models/compile";
 import { IModelPoolEndpointHealthSnapshot, modelPoolHealthStore } from "./models/pool-health";
@@ -1241,15 +1242,17 @@ export const createServer = (config: any): Server => {
     const shadowChecked = req.query?.shadowChecked === undefined
       ? undefined
       : String(req.query.shadowChecked).toLowerCase() === 'true';
+    const traces = governanceTraceStore.list({
+      requestId: req.query?.requestId,
+      sessionKey: req.query?.sessionKey,
+      routeReason: req.query?.routeReason,
+      cascadeTriggered,
+      shadowChecked,
+      limit: Number.isFinite(limit) ? limit : undefined,
+    });
     return {
-      traces: governanceTraceStore.list({
-        requestId: req.query?.requestId,
-        sessionKey: req.query?.sessionKey,
-        routeReason: req.query?.routeReason,
-        cascadeTriggered,
-        shadowChecked,
-        limit: Number.isFinite(limit) ? limit : undefined,
-      }),
+      traces,
+      routeDecisions: traces.map((trace) => summarizeRouteDecisionTrace(trace)),
     };
   });
 
@@ -1390,7 +1393,10 @@ export const createServer = (config: any): Server => {
       };
     }
 
-    return trace;
+    return {
+      ...trace,
+      decisionSummary: summarizeRouteDecisionTrace(trace),
+    };
   });
 
   server.app.get("/api/governance/archives", async (req: any) => {

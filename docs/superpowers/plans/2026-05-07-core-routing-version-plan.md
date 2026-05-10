@@ -65,7 +65,7 @@
 
 1. `[closed 2026-05-09]` SmartRouter 规则模板：已新增 `config/trigger.smart-router.yaml`，为 coding、review、architecture、long context、fast reply 提供可复制配置，并用模板解析、模型引用和规则命中测试看护。
 2. `[closed 2026-05-10]` SmartRouter 配置解释：`/api/models/compiled` 与草稿 preview 已返回归一化后的 SmartRouter explanation，`/ui` 已展示规则命中顺序、候选模型、router_model、semantic/sticky 开关和 fallback，并用 server/UI 回归测试看护。
-3. 路由决策可解释性：把最近请求的 route source、rule、semantic intent、confidence、fallback reason 做成使用者可读摘要。
+3. `[closed 2026-05-10]` 路由决策可解释性：已在 governance trace 中记录 SmartRouter route source、rule、confidence 和选中模型；`/api/governance/traces` / detail 会返回 route decision summary，`/ui` 维护者 trace 区域展示最近请求的可读摘要，并能从旧 trace 的 routeReason 推断 rule、semantic intent、context window fallback、model pool fallback 与 cascade 原因。
 4. 切换体感治理：继续优化 sticky/alignment/cascade 的用户可见状态，聚焦“为什么切换、切换后是否补上下文、是否触发重试”。
 5. 慢路由与错路由调优建议：把当前 health tuning 进一步落到 SmartRouter 配置建议，而不仅是维护者指标。
 

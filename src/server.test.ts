@@ -876,7 +876,15 @@ describe('createServer /api/config', () => {
     governanceTraceStore.add({
       requestId: 'trace-2',
       sessionKey: 'session-b',
+      initialModel: 'sonnet',
+      finalModel: 'opus',
       routeReason: ['smart_router'],
+      routeDecision: {
+        source: 'smart_router',
+        confidence: 0.91,
+        model: 'opus',
+      },
+      semanticIntent: 'architecture',
       stickyHit: false,
       alignmentUsed: false,
       cascadeTriggered: false,
@@ -906,6 +914,13 @@ describe('createServer /api/config', () => {
 
     expect(listResult.traces).toHaveLength(2);
     expect(listResult.traces[0].requestId).toBe('trace-2');
+    expect(listResult.routeDecisions[0]).toEqual(expect.objectContaining({
+      requestId: 'trace-2',
+      source: 'smart_router',
+      confidenceLabel: '91%',
+      semanticIntent: 'architecture',
+      headline: 'SmartRouter candidate selection selected opus with 91% confidence.',
+    }));
     expect(filteredBySession.traces).toHaveLength(1);
     expect(filteredBySession.traces[0].requestId).toBe('trace-1');
     expect(limited.traces).toHaveLength(1);
@@ -919,6 +934,10 @@ describe('createServer /api/config', () => {
     expect(filteredByShadow.traces).toHaveLength(1);
     expect(filteredByShadow.traces[0].requestId).toBe('trace-1');
     expect(detailResult.requestId).toBe('trace-1');
+    expect(detailResult.decisionSummary).toEqual(expect.objectContaining({
+      requestId: 'trace-1',
+      source: 'cascade',
+    }));
     expect(reply.code).toHaveBeenCalledWith(404);
     expect(missingResult).toEqual({
       success: false,
@@ -2569,6 +2588,10 @@ describe('createServer /api/config', () => {
     expect(html).toContain('smartRouterRulesTable');
     expect(html).toContain('smartRouterCandidatesTable');
     expect(html).toContain('renderSmartRouterExplanation');
+    expect(html).toContain('Recent route decisions');
+    expect(html).toContain('routeDecisionSummaryList');
+    expect(html).toContain('renderRouteDecisionSummaries');
+    expect(html).toContain('routeDecisionSummaryList.addEventListener');
     expect(html).toContain("readModelMetadataNumber(model,'context_window_tokens') || caps.contextWindowTokens");
     expect(html).toContain("modelName:model?.model || compiled?.modelName || '-'");
     expect(html).toContain('getCapabilityWarningActionLabel');

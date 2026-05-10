@@ -64,7 +64,11 @@ export class GovernanceTraceStore {
   }
 
   add(trace: IGovernanceTrace): void {
-    this.cache.set(trace.requestId, { ...trace, routeReason: [...trace.routeReason] });
+    this.cache.set(trace.requestId, {
+      ...trace,
+      routeReason: [...trace.routeReason],
+      routeDecision: trace.routeDecision ? { ...trace.routeDecision } : undefined,
+    });
     this.schedulePersistToDisk();
   }
 
@@ -373,6 +377,7 @@ export function createGovernanceTrace(
     initialModel: input.initialModel,
     finalModel: input.finalModel,
     routeReason: input.routeReason ? [...input.routeReason] : [],
+    routeDecision: input.routeDecision ? { ...input.routeDecision } : undefined,
     stickyHit: input.stickyHit ?? false,
     alignmentUsed: input.alignmentUsed ?? false,
     semanticIntent: input.semanticIntent,
@@ -412,4 +417,147 @@ export function finalizeTrace(
 export function recordGovernanceTrace(trace: IGovernanceTrace): IGovernanceTrace {
   governanceTraceStore.add(trace);
   return trace;
+}
+
+function formatPercent(value?: number): string | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+  return `${Math.round(value * 100)}%`;
+}
+
+function firstReason(trace: IGovernanceTrace, prefix: string): string | undefined {
+  return trace.routeReason.find((reason) => reason === prefix || reason.startsWith(`${prefix}:`));
+}
+
+function inferRouteSource(trace: IGovernanceTrace): string {
+  if (trace.routeDecision?.source) {
+    return trace.routeDecision.source;
+  }
+  if (firstReason(trace, 'smart_rule')) {
+    return 'smart_rule';
+  }
+  if (firstReason(trace, 'semantic_match') || firstReason(trace, 'semantic:intent')) {
+    return 'semantic_match';
+  }
+  if (trace.stickyHit || firstReason(trace, 'sticky_correction') || firstReason(trace, 'sticky')) {
+    return 'sticky_correction';
+  }
+  if (firstReason(trace, 'smart_router')) {
+    return 'smart_router';
+  }
+  if (firstReason(trace, 'context_window_fallback') || firstReason(trace, 'context_window_exceeded')) {
+    return 'context_window_guard';
+  }
+  if (firstReason(trace, 'model_pool_fallback') || trace.modelPoolFallbackTriggered) {
+    return 'model_pool_fallback';
+  }
+  if (trace.cascadeTriggered || firstReason(trace, 'cascade_gate')) {
+    return 'cascade';
+  }
+  return 'basic_router';
+}
+
+function inferRuleName(trace: IGovernanceTrace): string | undefined {
+  if (trace.routeDecision?.ruleName) {
+    return trace.routeDecision.ruleName;
+  }
+  const ruleReason = firstReason(trace, 'smart_rule') ?? firstReason(trace, 'semantic_match');
+  return ruleReason?.split(':').slice(1).join(':') || undefined;
+}
+
+function inferFallbackReason(trace: IGovernanceTrace): string | undefined {
+  if (trace.routeDecision?.fallbackReason) {
+    return trace.routeDecision.fallbackReason;
+  }
+
+  const contextFallback = firstReason(trace, 'context_window_fallback');
+  if (contextFallback) {
+    const transition = contextFallback.split(':').slice(1).join(':');
+    return transition
+      ? `Context window guard switched ${transition}.`
+      : 'Context window guard switched to the long-context route.';
+  }
+
+  const contextExceeded = firstReason(trace, 'context_window_exceeded');
+  if (contextExceeded) {
+    const model = contextExceeded.split(':').slice(1).join(':');
+    return model
+      ? `Selected model "${model}" exceeded context limits and no long-context fallback fit.`
+      : 'Selected model exceeded context limits and no long-context fallback fit.';
+  }
+
+  if (trace.modelPoolFallbackTriggered) {
+    const from = trace.modelPoolFallbackFromEndpoint ?? 'current endpoint';
+    const to = trace.modelPoolFallbackNextEndpoint ?? 'next endpoint';
+    return `Model pool fallback moved from ${from} to ${to}${trace.modelPoolFallbackEvidence ? ` (${trace.modelPoolFallbackEvidence})` : ''}.`;
+  }
+
+  const poolFallback = firstReason(trace, 'model_pool_fallback');
+  if (poolFallback) {
+    const [, modelId, endpointId] = poolFallback.split(':');
+    return modelId && endpointId
+      ? `Model pool fallback tried endpoint "${endpointId}" for "${modelId}".`
+      : 'Model pool fallback was attempted.';
+  }
+
+  if (trace.cascadeTriggered) {
+    const evidence = trace.cascadeEvidence?.length ? `: ${trace.cascadeEvidence.join(', ')}` : '';
+    return `Cascade retry was triggered${evidence}.`;
+  }
+
+  if (trace.routeReason.includes('smart_router:no_match')) {
+    return 'SmartRouter did not match; request continued to the basic Router fallback path.';
+  }
+
+  return undefined;
+}
+
+export function summarizeRouteDecisionTrace(trace: IGovernanceTrace) {
+  const source = inferRouteSource(trace);
+  const ruleName = inferRuleName(trace);
+  const confidence = trace.routeDecision?.confidence;
+  const confidenceLabel = formatPercent(confidence);
+  const finalModel = trace.finalModel ?? trace.routeDecision?.model;
+  const fallbackReason = inferFallbackReason(trace);
+  const sourceLabels: Record<string, string> = {
+    smart_rule: ruleName ? `SmartRouter rule "${ruleName}"` : 'SmartRouter rule',
+    semantic_match: ruleName ? `Semantic match "${ruleName}"` : 'Semantic match',
+    smart_router: 'SmartRouter candidate selection',
+    no_match: 'SmartRouter no match',
+    sticky_correction: 'Sticky routing',
+    context_window_guard: 'Context window guard',
+    model_pool_fallback: 'Model pool fallback',
+    cascade: 'Cascade retry',
+    basic_router: 'Basic Router',
+  };
+  const sourceLabel = sourceLabels[source] ?? source;
+  const selectedText = finalModel ? ` selected ${finalModel}` : ' handled the request';
+  const confidenceText = confidenceLabel ? ` with ${confidenceLabel} confidence` : '';
+  const headline = `${sourceLabel}${selectedText}${confidenceText}.`;
+
+  return {
+    requestId: trace.requestId,
+    sessionKey: trace.sessionKey,
+    source,
+    sourceLabel,
+    ruleName,
+    semanticIntent: trace.semanticIntent,
+    confidence,
+    confidenceLabel,
+    initialModel: trace.initialModel,
+    finalModel,
+    fallbackReason,
+    routeReasons: [...trace.routeReason],
+    headline,
+    continuity: {
+      stickyHit: trace.stickyHit,
+      alignmentUsed: trace.alignmentUsed,
+      cascadeTriggered: trace.cascadeTriggered,
+      shadowChecked: trace.shadowChecked,
+    },
+    latencyMs: trace.latencyMs,
+    startedAt: trace.startedAt,
+    completedAt: trace.completedAt,
+  };
 }

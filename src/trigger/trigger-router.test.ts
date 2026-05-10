@@ -193,6 +193,12 @@ describe('TriggerRouter', () => {
 
       expect(result.matched).toBe(true);
       expect(req.governanceTrace.routeReason).toContain('smart_rule:image_generation');
+      expect(req.governanceTrace.routeDecision).toEqual(expect.objectContaining({
+        source: 'smart_rule',
+        ruleName: 'image_generation',
+        confidence: 1,
+        model: 'openrouter,dall-e-3',
+      }));
     });
 
     it('should keep route source for sticky results', async () => {

@@ -522,6 +522,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</table>` +
     `</div>` +
     `</div>` +
+    `<div class="subpanel">` +
+    `<div class="row"><strong>Recent route decisions</strong><span class="muted">把最近请求的 route source、规则、语义意图、置信度和 fallback 原因翻译成可读摘要。</span></div>` +
+    `<ul id="routeDecisionSummaryList" class="mini-list"><li><span class="muted">Loading route decisions</span><strong>-</strong></li></ul>` +
+    `</div>` +
     `<table id="traceTable">` +
     `<thead><tr><th>Request</th><th>Session</th><th>Final Model</th><th>Reasons</th><th>Latency</th><th>Inspect</th></tr></thead>` +
     `<tbody><tr><td colspan="6" class="muted">加载中...</td></tr></tbody>` +
@@ -1678,6 +1682,15 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  actions.push(['Add calibration','Attach humanScore or judgeScore to ctr eval input results before treating rubric scores as release evidence.']);` +
     `  benchmarkActionList.innerHTML=actions.map(([title,detail])=>'<li><span><strong>'+esc(title)+'</strong><div class="muted">'+esc(detail)+'</div></span><strong>benchmark</strong></li>').join('');` +
     `}` +
+    `function renderRouteDecisionSummaries(items){` +
+    `  const decisions=Array.isArray(items) ? items.slice(0,5) : [];` +
+    `  if(!decisions.length){ routeDecisionSummaryList.innerHTML='<li><span class="muted">No recent route decisions</span><strong>0</strong></li>'; return; }` +
+    `  routeDecisionSummaryList.innerHTML=decisions.map(item=>{` +
+    `    const meta=[item.sourceLabel || item.source || '-', item.ruleName ? ('rule '+item.ruleName) : '', item.semanticIntent ? ('intent '+item.semanticIntent) : '', item.confidenceLabel || '', item.latencyMs !== undefined ? (fmt(item.latencyMs)+' ms') : ''].filter(Boolean).join(' · ');` +
+    `    const fallback=item.fallbackReason ? '<div class="muted">fallback: '+esc(item.fallbackReason)+'</div>' : '';` +
+    `    return '<li><span><strong>'+esc(item.headline || item.requestId || '-')+'</strong><div class="muted">'+esc(meta)+'</div>'+fallback+'</span><button type="button" data-request="'+esc(item.requestId || '')+'">View</button></li>';` +
+    `  }).join('');` +
+    `}` +
     `function renderAnomalies(anomalies,health){` +
     `  const status=health?.status || 'idle';` +
     `  const message=health?.message || 'No governance traces yet.';` +
@@ -1793,6 +1806,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderOutcomeGroups(intentOutcomeRanking,metricsData.outcome?.bySemanticIntent || [],'No intent outcomes');` +
     `  renderTrendTable(metricsData || {});` +
     `  const traces=data.traces || [];` +
+    `  renderRouteDecisionSummaries(data.routeDecisions || traces.map(t=>t.decisionSummary).filter(Boolean));` +
     `  if(!traces.length){ tbody.innerHTML='<tr><td colspan="6" class="muted">暂无 trace</td></tr>'; return; }` +
     `  tbody.innerHTML=traces.map(t=>` +
     "    `<tr>`+" +
@@ -1879,6 +1893,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `document.getElementById('createSnapshotBtn').addEventListener('click',createSnapshot);` +
     `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +
     `document.getElementById('saveThresholdsBtn').addEventListener('click',saveThresholds);` +
+    `routeDecisionSummaryList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn && btn.dataset.request){ loadDetail(btn.dataset.request); } });` +
     `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
     `renderDraftPresetGuide();` +
     `renderDraftPresetModeHint();` +
