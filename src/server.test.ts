@@ -1025,6 +1025,107 @@ describe('createServer /api/config', () => {
     expect(result.modelMap.sonnet).toBeUndefined();
   });
 
+  it('explains SmartRouter runtime configuration from compiled Models endpoint', async () => {
+    const server = createServer({
+      initialConfig: {
+        Router: { default: 'sonnet' },
+        Models: [
+          {
+            id: 'sonnet',
+            api: 'https://api.example.com/v1',
+            key: 'sk-sonnet',
+            interface: 'openai',
+            model: 'anthropic/claude-sonnet-4',
+          },
+          {
+            id: 'opus',
+            api: 'https://api.example.com/v1',
+            key: 'sk-opus',
+            interface: 'openai',
+            model: 'anthropic/claude-opus-4',
+          },
+        ],
+        SmartRouter: {
+          enabled: true,
+          analysis_scope: 'last_message',
+          router_model: 'sonnet',
+          fallback: 'default',
+          rules: [
+            {
+              name: 'coding',
+              priority: 50,
+              enabled: true,
+              patterns: [{ type: 'exact', keywords: ['实现'] }],
+              model: 'sonnet',
+            },
+            {
+              name: 'architecture',
+              priority: 90,
+              enabled: true,
+              patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+              model: 'opus',
+            },
+          ],
+          candidates: [
+            { model: 'sonnet', description: 'daily coding' },
+            { model: 'opus', description: 'architecture' },
+          ],
+          semantic: {
+            enabled: true,
+            mode: 'embedding',
+            threshold: 0.2,
+          },
+          sticky: {
+            enabled: true,
+            session_ttl_ms: 3600000,
+            alignment: {
+              enabled: false,
+              summarizer_model: 'sonnet',
+            },
+          },
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/models/compiled');
+
+    const result = await handler({}, {});
+
+    expect(result.smartRouterExplanation).toEqual(
+      expect.objectContaining({
+        enabled: true,
+        analysisScope: 'last_message',
+        fallback: 'default',
+        routerModel: expect.objectContaining({
+          ref: 'sonnet',
+          status: 'resolved',
+          target: expect.objectContaining({
+            providerName: 'model__sonnet',
+          }),
+        }),
+        semantic: expect.objectContaining({
+          enabled: true,
+          mode: 'embedding',
+        }),
+        sticky: expect.objectContaining({
+          enabled: true,
+          alignment: expect.objectContaining({
+            enabled: false,
+          }),
+        }),
+        warnings: [],
+      })
+    );
+    expect(result.smartRouterExplanation.rules.map((rule: any) => rule.name)).toEqual([
+      'architecture',
+      'coding',
+    ]);
+    expect(result.smartRouterExplanation.candidates.map((candidate: any) => candidate.model.ref)).toEqual([
+      'sonnet',
+      'opus',
+    ]);
+    expect(result.smartRouterExplanation.routeOrder).toContain('1. explicit rules by priority');
+  });
+
   it('exposes registration model pools from compiled Models endpoint', async () => {
     const server = createServer({
       initialConfig: {
@@ -2370,6 +2471,12 @@ describe('createServer /api/config', () => {
     expect(html).toContain('renderContextWindowGuide');
     expect(html).toContain('applyContextWindowAction');
     expect(html).toContain('data-context-action');
+    expect(html).toContain('SmartRouter explanation');
+    expect(html).toContain('smartRouterExplanationSummary');
+    expect(html).toContain('smartRouterRouteOrder');
+    expect(html).toContain('smartRouterRulesTable');
+    expect(html).toContain('smartRouterCandidatesTable');
+    expect(html).toContain('renderSmartRouterExplanation');
     expect(html).toContain("readModelMetadataNumber(model,'context_window_tokens') || caps.contextWindowTokens");
     expect(html).toContain("modelName:model?.model || compiled?.modelName || '-'");
     expect(html).toContain('getCapabilityWarningActionLabel');

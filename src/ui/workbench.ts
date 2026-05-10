@@ -247,6 +247,26 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="alert info"><strong>Context window guide</strong><div class="muted">加载 compiled models 后会在这里显示上下文窗口与 Router.longContext 建议</div></div>` +
     `</div>` +
     `</div>` +
+    `<div class="subpanel">` +
+    `<div class="row"><strong>SmartRouter explanation</strong><span class="muted">展示规则命中顺序、候选模型、router_model、semantic/sticky 开关与 fallback</span></div>` +
+    `<div id="smartRouterExplanationSummary" class="diff-summary">` +
+    `<div class="diff-chip"><span class="muted">Enabled</span><strong>-</strong></div>` +
+    `<div class="diff-chip"><span class="muted">Rules</span><strong>0</strong></div>` +
+    `<div class="diff-chip"><span class="muted">Candidates</span><strong>0</strong></div>` +
+    `<div class="diff-chip"><span class="muted">Warnings</span><strong>0</strong></div>` +
+    `</div>` +
+    `<div id="smartRouterRouteOrder" class="alert-list" style="margin-top:.75rem">` +
+    `<div class="alert info"><strong>Route order</strong><div class="muted">加载 compiled models 后会在这里显示 SmartRouter 决策顺序。</div></div>` +
+    `</div>` +
+    `<table id="smartRouterRulesTable" class="management-table">` +
+    `<thead><tr><th>Order</th><th>Rule</th><th>Model</th><th>Patterns</th><th>Semantic</th></tr></thead>` +
+    `<tbody><tr><td colspan="5" class="muted">Loading SmartRouter rules...</td></tr></tbody>` +
+    `</table>` +
+    `<table id="smartRouterCandidatesTable" class="management-table">` +
+    `<thead><tr><th>Order</th><th>Candidate</th><th>Description</th><th>Status</th></tr></thead>` +
+    `<tbody><tr><td colspan="4" class="muted">Loading SmartRouter candidates...</td></tr></tbody>` +
+    `</table>` +
+    `</div>` +
     `<div class="control-grid">` +
     `<div><label>Router default (modelId)</label><input id="draftRouterDefault" placeholder="例如 sonnet"></div>` +
     `<div><label>Models count</label><input id="draftModelsCount" value="0" readonly></div>` +
@@ -574,6 +594,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const routerSlotSummary=document.getElementById('routerSlotSummary');` +
     `const routerSlotTableBody=document.querySelector('#routerSlotTable tbody');` +
     `const contextWindowGuide=document.getElementById('contextWindowGuide');` +
+    `const smartRouterExplanationSummary=document.getElementById('smartRouterExplanationSummary');` +
+    `const smartRouterRouteOrder=document.getElementById('smartRouterRouteOrder');` +
+    `const smartRouterRulesTableBody=document.querySelector('#smartRouterRulesTable tbody');` +
+    `const smartRouterCandidatesTableBody=document.querySelector('#smartRouterCandidatesTable tbody');` +
     `const configDraftEditor=document.getElementById('configDraftEditor');` +
     `const draftSummaryGrid=document.getElementById('draftSummaryGrid');` +
     `const modelsFormGrid=document.getElementById('modelsFormGrid');` +
@@ -1338,6 +1362,32 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const summaryRows=[['Default', defaultRef || '-'],['Default ctx', defaultEntry?.contextWindowTokens || '?'],['Long context', longRef || '-'],['Long ctx', longEntry?.contextWindowTokens || '?'],['Largest ctx', best ? (best.id+' / '+best.contextWindowTokens) : '-'],['Missing metadata', missingCount]];` +
     `  contextWindowGuide.innerHTML='<div class="alert '+level+'"><div class="row"><strong>Context window guide</strong>'+(best ? '<span class="pill">largest '+esc(best.id)+'</span>' : '')+'</div><div class="diff-summary">'+summaryRows.map(([label,value])=>'<div class="diff-chip"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('')+'</div><ul>'+messages.map(message=>'<li>'+esc(message)+'</li>').join('')+'</ul>'+(canApplyBest ? '<div class="row" style="margin-top:.5rem"><button type="button" data-context-action="set-long-context" data-model-id="'+esc(best.id)+'">设为 Router.longContext</button><span class="muted">'+esc(best.modelName || '')+'</span></div>' : '')+'</div>';` +
     `}` +
+    `function renderSmartRouterExplanation(data){` +
+    `  const summary=data?.smartRouterExplanation || {};` +
+    `  const rules=Array.isArray(summary.rules) ? summary.rules : [];` +
+    `  const candidates=Array.isArray(summary.candidates) ? summary.candidates : [];` +
+    `  const warnings=Array.isArray(summary.warnings) ? summary.warnings : [];` +
+    `  const refLabel=(model)=>model?.ref ? ('<code>'+esc(model.ref)+'</code><div class="muted">'+esc(model.target?.providerName || model.status || '-')+' / '+esc(model.target?.modelName || '-')+'</div>') : '<span class="muted">-</span>';` +
+    `  const switchRows=[['Enabled', summary.enabled ? 'true' : 'false'],['Rules', rules.length],['Candidates', candidates.length],['Router model', summary.routerModel?.ref || '-'],['Semantic', (summary.semantic?.enabled ? 'on' : 'off')+' / '+(summary.semantic?.mode || '-')],['Sticky', summary.sticky?.enabled ? 'on' : 'off'],['Alignment', summary.sticky?.alignment?.enabled ? 'on' : 'off'],['Fallback', summary.fallback || 'default'],['Warnings', warnings.length]];` +
+    `  smartRouterExplanationSummary.innerHTML=switchRows.map(([label,value])=>'<div class="diff-chip"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
+    `  const order=Array.isArray(summary.routeOrder) ? summary.routeOrder : [];` +
+    `  smartRouterRouteOrder.innerHTML='<div class="alert '+(warnings.length ? 'warn' : 'info')+'"><strong>Route order</strong><ol>'+order.map(item=>'<li>'+esc(item)+'</li>').join('')+'</ol>'+(warnings.length ? '<ul>'+warnings.map(item=>'<li>'+esc(item)+'</li>').join('')+'</ul>' : '<div class="muted">SmartRouter 配置引用已解析。</div>')+'</div>';` +
+    `  smartRouterRulesTableBody.innerHTML=rules.length ? rules.map(rule=>{` +
+    `    const patternText=(rule.patterns || []).map(pattern=>pattern.type==='exact' ? ('exact: '+(pattern.keywords || []).join(', ')) : ('regex: '+(pattern.pattern || '-'))).join('; ');` +
+    `    const statusClass=rule.model?.status === 'resolved' ? 'info' : (rule.model?.status === 'legacy' ? 'warn' : 'critical');` +
+    `    return '<tr>' +` +
+    `      '<td>'+esc(rule.order || '-')+'<div class="muted">priority '+esc(rule.priority ?? 0)+'</div></td>' +` +
+    `      '<td><strong>'+esc(rule.name || '-')+'</strong><div class="muted">'+esc(rule.description || '-')+'</div><span class="pill '+(rule.enabled ? 'info' : 'warn')+'">'+esc(rule.enabled ? 'enabled' : 'disabled')+'</span></td>' +` +
+    `      '<td>'+refLabel(rule.model)+'<span class="pill '+statusClass+'">'+esc(rule.model?.status || '-')+'</span></td>' +` +
+    `      '<td>'+esc(patternText || '-')+'</td>' +` +
+    `      '<td>'+esc(rule.semantic?.enabled ? 'on' : 'off')+'<div class="muted">'+esc(rule.semantic?.prototype || '-')+'</div></td>' +` +
+    `    '</tr>';` +
+    `  }).join('') : '<tr><td colspan="5" class="muted">No SmartRouter rules configured</td></tr>';` +
+    `  smartRouterCandidatesTableBody.innerHTML=candidates.length ? candidates.map(candidate=>{` +
+    `    const statusClass=candidate.model?.status === 'resolved' ? 'info' : (candidate.model?.status === 'legacy' ? 'warn' : 'critical');` +
+    `    return '<tr><td>'+esc(candidate.order || '-')+'</td><td>'+refLabel(candidate.model)+'</td><td>'+esc(candidate.description || '-')+'</td><td><span class="pill '+statusClass+'">'+esc(candidate.model?.status || '-')+'</span></td></tr>';` +
+    `  }).join('') : '<tr><td colspan="4" class="muted">No SmartRouter candidates configured</td></tr>';` +
+    `}` +
     `function renderCompiledModels(data){` +
     `  lastCompiledModelsData=data || null;` +
     `  const providers=Array.isArray(data.providers) ? data.providers : [];` +
@@ -1349,6 +1399,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderCapabilityWarnings(data.capabilityWarnings);` +
     `  renderRouterSlotExplanation(data);` +
     `  renderContextWindowGuide(data);` +
+    `  renderSmartRouterExplanation(data);` +
     `  compiledModelsStatus.textContent='已加载 '+providers.length+' 个 compiled provider / '+modelMapEntries.length+' 个 modelId 映射 / '+modelPoolEntries.length+' 个 model pool / '+modelPoolEndpointCount+' 个 pool endpoint';` +
     `  compiledProvidersTableBody.innerHTML=providers.length ? providers.map(provider=>'<tr>' +` +
     `    '<td><code>'+esc(provider.name)+'</code><div class="muted">'+esc(provider.api_base_url || '-')+'</div></td>' +` +

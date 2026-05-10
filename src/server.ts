@@ -453,6 +453,122 @@ function analyzeModelReferenceImpact(config: any, nextCompiled: CompiledRegistry
   };
 }
 
+function summarizeSmartRouterExplanation(normalized: any, compiled: CompiledRegistryView) {
+  const smartRouter = deriveRuntimeSmartRouterConfig(normalized, normalized) ?? {};
+  const modelMap = compiled.modelMap ?? {};
+  const resolveRef = (ref: any) => {
+    const value = typeof ref === "string" ? ref.trim() : "";
+    const resolved = value ? modelMap[value] : undefined;
+    return {
+      ref: value,
+      status: !value ? "empty" : (resolved ? "resolved" : (value.includes(",") ? "legacy" : "missing")),
+      target: resolved
+        ? {
+            providerName: resolved.providerName,
+            modelName: resolved.modelName,
+            protocol: resolved.protocol,
+          }
+        : null,
+    };
+  };
+  const rules = [...(smartRouter.rules ?? [])]
+    .sort((a: any, b: any) => (b.priority ?? 0) - (a.priority ?? 0))
+    .map((rule: any, index: number) => {
+      const patterns = Array.isArray(rule.patterns) ? rule.patterns : [];
+      return {
+        order: index + 1,
+        name: rule.name ?? "",
+        enabled: rule.enabled !== false,
+        priority: rule.priority ?? 0,
+        description: rule.description ?? "",
+        model: resolveRef(rule.model),
+        patternCount: patterns.length,
+        patterns: patterns.map((pattern: any) => ({
+          type: pattern.type ?? "",
+          keywords: Array.isArray(pattern.keywords) ? pattern.keywords : [],
+          pattern: pattern.pattern ?? "",
+        })),
+        semantic: {
+          enabled: rule.semantic_profile?.enabled !== false,
+          prototype: rule.semantic_profile?.prototype ?? rule.description ?? "",
+          threshold: rule.semantic_profile?.threshold,
+        },
+      };
+    });
+  const candidates = (smartRouter.candidates ?? []).map((candidate: any, index: number) => ({
+    order: index + 1,
+    model: resolveRef(candidate.model),
+    description: candidate.description ?? "",
+  }));
+  const routerModel = resolveRef(smartRouter.router_model);
+  const alignmentSummarizer = resolveRef(smartRouter.sticky?.alignment?.summarizer_model);
+  const classifierModel = resolveRef(smartRouter.semantic?.classifier_model);
+  const warnings: string[] = [];
+
+  if (smartRouter.enabled && rules.length === 0) {
+    warnings.push("SmartRouter enabled but no explicit rules are configured.");
+  }
+  if (smartRouter.enabled && smartRouter.router_model && candidates.length < 2) {
+    warnings.push("router_model is configured but fewer than 2 candidates are available.");
+  }
+  if (routerModel.status === "missing") {
+    warnings.push(`SmartRouter.router_model "${routerModel.ref}" does not resolve to Models[].id.`);
+  }
+  rules.forEach((rule: any) => {
+    if (rule.model.status === "missing") {
+      warnings.push(`SmartRouter rule "${rule.name}" model "${rule.model.ref}" does not resolve to Models[].id.`);
+    }
+  });
+  candidates.forEach((candidate: any) => {
+    if (candidate.model.status === "missing") {
+      warnings.push(`SmartRouter candidate "${candidate.model.ref}" does not resolve to Models[].id.`);
+    }
+  });
+  if (smartRouter.semantic?.enabled && smartRouter.semantic?.mode === "classifier" && classifierModel.status === "empty") {
+    warnings.push("Semantic classifier mode is enabled but classifier_model is empty.");
+  }
+  if (smartRouter.sticky?.alignment?.enabled && alignmentSummarizer.status === "empty") {
+    warnings.push("Sticky alignment is enabled but summarizer_model is empty.");
+  }
+
+  return {
+    enabled: Boolean(smartRouter.enabled),
+    analysisScope: smartRouter.analysis_scope ?? "last_message",
+    routeOrder: [
+      "1. explicit rules by priority",
+      "2. semantic match when enabled",
+      "3. router_model candidates when configured",
+      "4. sticky correction for session continuity",
+      `5. fallback ${smartRouter.fallback ?? "default"}`,
+    ],
+    rules,
+    routerModel,
+    candidates,
+    fallback: smartRouter.fallback ?? "default",
+    cacheTtl: smartRouter.cache_ttl,
+    maxTokens: smartRouter.max_tokens,
+    semantic: {
+      enabled: Boolean(smartRouter.semantic?.enabled),
+      mode: smartRouter.semantic?.mode ?? "embedding",
+      threshold: smartRouter.semantic?.threshold,
+      classifierModel,
+      prototypeCount: Object.keys(smartRouter.semantic?.prototypes ?? {}).length,
+    },
+    sticky: {
+      enabled: Boolean(smartRouter.sticky?.enabled),
+      sessionTtlMs: smartRouter.sticky?.session_ttl_ms,
+      fingerprintSimilarityThreshold: smartRouter.sticky?.fingerprint_similarity_threshold,
+      breakOnExplicitRoute: Boolean(smartRouter.sticky?.break_on_explicit_route),
+      alignment: {
+        enabled: Boolean(smartRouter.sticky?.alignment?.enabled),
+        summarizerModel: alignmentSummarizer,
+        maxSummaryTokens: smartRouter.sticky?.alignment?.max_summary_tokens,
+      },
+    },
+    warnings,
+  };
+}
+
 function projectConfiguredBranch(raw: any, normalized: any): any {
   if (raw === undefined) {
     return undefined;
@@ -822,6 +938,7 @@ export const createServer = (config: any): Server => {
     return {
       ...compiled,
       router: normalized.Router ?? {},
+      smartRouterExplanation: summarizeSmartRouterExplanation(normalized, compiled),
       capabilityWarnings,
       warnings: normalizedResult.warnings,
       issueReport: buildValidationIssueReport({
@@ -872,6 +989,7 @@ export const createServer = (config: any): Server => {
       providers: previewCompiled.providers,
       modelMap: previewCompiled.modelMap,
       modelPools: previewCompiled.modelPools,
+      smartRouterExplanation: summarizeSmartRouterExplanation(result.config, previewCompiled),
       normalizedConfig: buildDraftConfigView(result.config),
       diff: diffCompiledRegistry(currentCompiled, previewCompiled),
       referenceImpact: analyzeModelReferenceImpact(result.config, previewCompiled),
