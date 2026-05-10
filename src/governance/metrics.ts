@@ -48,6 +48,13 @@ export interface IGovernanceRoutingTuningRecommendation {
   message: string;
   evidence: string;
   action: string;
+  configSuggestions?: IGovernanceRoutingConfigSuggestion[];
+}
+
+export interface IGovernanceRoutingConfigSuggestion {
+  path: string;
+  suggestedValue?: string | number | boolean;
+  reason: string;
 }
 
 export type TGovernanceQualityEvidenceType =
@@ -901,6 +908,28 @@ function topSlowOutcomeGroup(
     })[0];
 }
 
+function smartRouterTargetPath(routeKey?: string): string {
+  if (!routeKey) {
+    return 'SmartRouter';
+  }
+  if (routeKey.startsWith('smart_rule:')) {
+    const ruleName = routeKey.slice('smart_rule:'.length);
+    return ruleName ? `SmartRouter.rules[name="${ruleName}"]` : 'SmartRouter.rules';
+  }
+  if (routeKey.startsWith('semantic_match:')) {
+    const intent = routeKey.slice('semantic_match:'.length);
+    return intent ? `SmartRouter.semantic.prototypes.${intent}` : 'SmartRouter.semantic';
+  }
+  if (routeKey.startsWith('semantic:intent:')) {
+    const intent = routeKey.slice('semantic:intent:'.length);
+    return intent ? `SmartRouter.semantic.prototypes.${intent}` : 'SmartRouter.semantic';
+  }
+  if (routeKey === 'smart_router') {
+    return 'SmartRouter.candidates';
+  }
+  return 'SmartRouter.rules';
+}
+
 function buildRoutingTuningRecommendations(
   metrics: IGovernanceMetrics,
   outcome?: IGovernanceRoutingOutcomeSummary
@@ -928,6 +957,16 @@ function buildRoutingTuningRecommendations(
       message: 'Some requests exceeded the selected model context window.',
       evidence: `contextWindowExceededRate=${percent(outcome.contextWindowExceededRate)}`,
       action: 'Review model context window metadata and Router.longContext coverage.',
+      configSuggestions: [
+        {
+          path: 'Models[].metadata.context_window_tokens',
+          reason: 'Fill context window metadata so CTR can detect oversize requests before sending them upstream.',
+        },
+        {
+          path: 'Router.longContext',
+          reason: 'Point long-context traffic to the largest safe model instead of letting small models receive oversized prompts.',
+        },
+      ],
     });
   } else if (outcome.contextWindowFallbackRate >= 0.3) {
     recommendations.push({
@@ -936,6 +975,16 @@ function buildRoutingTuningRecommendations(
       message: 'Long-context fallback is frequent enough to affect latency planning.',
       evidence: `contextWindowFallbackRate=${percent(outcome.contextWindowFallbackRate)}`,
       action: 'Monitor context window fallback rate and long-context model latency.',
+      configSuggestions: [
+        {
+          path: 'SmartRouter.rules',
+          reason: 'Add or raise an explicit long-context rule when the same task class repeatedly falls back after initial selection.',
+        },
+        {
+          path: 'Router.longContext',
+          reason: 'Keep the long-context route on a model with enough context and acceptable latency.',
+        },
+      ],
     });
   }
 
@@ -951,6 +1000,18 @@ function buildRoutingTuningRecommendations(
       message: 'A high-switch route is not consistently using alignment.',
       evidence: `${switchWithoutAlignment.key}:switch=${percent(switchWithoutAlignment.modelSwitchRate)}:alignment=${percent(switchWithoutAlignment.alignmentOnSwitchRate)}`,
       action: 'Enable or tune SmartRouter sticky alignment for high-switch routes.',
+      configSuggestions: [
+        {
+          path: 'SmartRouter.sticky.enabled',
+          suggestedValue: true,
+          reason: 'Keep related requests on a stable model unless an explicit route needs to break stickiness.',
+        },
+        {
+          path: 'SmartRouter.sticky.alignment.enabled',
+          suggestedValue: true,
+          reason: 'Inject a compact handoff summary when a model switch is unavoidable.',
+        },
+      ],
     });
   }
 
@@ -971,6 +1032,16 @@ function buildRoutingTuningRecommendations(
         ? `${cascadeAfterSwitch.key}:cascadeAfterSwitch=${percent(cascadeAfterSwitch.cascadeAfterSwitchRate)}`
         : `cascadeAfterSwitchRate=${percent(outcome.cascadeAfterSwitchRate)}`,
       action: 'Review high-cascade route groups before widening SmartRouter candidates.',
+      configSuggestions: [
+        {
+          path: smartRouterTargetPath(cascadeAfterSwitch?.key),
+          reason: 'Narrow this route or move its model directly to the retry target when cascade evidence repeatedly follows selection.',
+        },
+        {
+          path: 'SmartRouter.candidates',
+          reason: 'Remove or demote candidates that often need cascade retry for this route class.',
+        },
+      ],
     });
   }
 
@@ -982,6 +1053,16 @@ function buildRoutingTuningRecommendations(
       message: 'A route group is slower than the governance latency warning threshold.',
       evidence: `${slowRoute.key}:averageLatencyMs=${slowRoute.averageLatencyMs}`,
       action: 'Inspect slow route groups before making them default traffic.',
+      configSuggestions: [
+        {
+          path: smartRouterTargetPath(slowRoute.key),
+          reason: 'Route this slow task class to a faster model, lower the rule priority, or split the rule into fast and deep variants.',
+        },
+        {
+          path: 'SmartRouter.candidates',
+          reason: 'Prefer candidates with proven lower latency for frequent tasks, and reserve slower models for explicit deep-work rules.',
+        },
+      ],
     });
   }
 

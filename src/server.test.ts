@@ -2599,6 +2599,11 @@ describe('createServer /api/config', () => {
     expect(html).toContain('smartRouterRulesTable');
     expect(html).toContain('smartRouterCandidatesTable');
     expect(html).toContain('renderSmartRouterExplanation');
+    expect(html).toContain('Candidate guide');
+    expect(html).toContain('smartCandidateGuide');
+    expect(html).toContain('renderSmartCandidateGuide');
+    expect(html).toContain('data-add-smart-candidate-suggestion');
+    expect(html).toContain('addSmartCandidateSuggestion');
     expect(html).toContain('Recent route decisions');
     expect(html).toContain('routeDecisionSummaryList');
     expect(html).toContain('renderRouteDecisionSummaries');
@@ -2607,6 +2612,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('switchContinuitySummaryList');
     expect(html).toContain('renderSwitchContinuitySummaries');
     expect(html).toContain('switchContinuitySummaryList.addEventListener');
+    expect(html).toContain('configSuggestions');
+    expect(html).toContain('suggestedValue');
     expect(html).toContain("readModelMetadataNumber(model,'context_window_tokens') || caps.contextWindowTokens");
     expect(html).toContain("modelName:model?.model || compiled?.modelName || '-'");
     expect(html).toContain('getCapabilityWarningActionLabel');

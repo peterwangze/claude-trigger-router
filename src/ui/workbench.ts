@@ -266,6 +266,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<thead><tr><th>Order</th><th>Candidate</th><th>Description</th><th>Status</th></tr></thead>` +
     `<tbody><tr><td colspan="4" class="muted">Loading SmartRouter candidates...</td></tr></tbody>` +
     `</table>` +
+    `<div id="smartCandidateGuide" class="alert-list" style="margin-top:.75rem">` +
+    `<div class="alert info"><strong>Candidate guide</strong><div class="muted">加载 compiled models 后会在这里提示 fast / balanced / deep / long-context 候选覆盖。</div></div>` +
+    `</div>` +
     `</div>` +
     `<div class="control-grid">` +
     `<div><label>Router default (modelId)</label><input id="draftRouterDefault" placeholder="例如 sonnet"></div>` +
@@ -606,6 +609,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const smartRouterRouteOrder=document.getElementById('smartRouterRouteOrder');` +
     `const smartRouterRulesTableBody=document.querySelector('#smartRouterRulesTable tbody');` +
     `const smartRouterCandidatesTableBody=document.querySelector('#smartRouterCandidatesTable tbody');` +
+    `const smartCandidateGuide=document.getElementById('smartCandidateGuide');` +
     `const configDraftEditor=document.getElementById('configDraftEditor');` +
     `const draftSummaryGrid=document.getElementById('draftSummaryGrid');` +
     `const modelsFormGrid=document.getElementById('modelsFormGrid');` +
@@ -1370,6 +1374,32 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const summaryRows=[['Default', defaultRef || '-'],['Default ctx', defaultEntry?.contextWindowTokens || '?'],['Long context', longRef || '-'],['Long ctx', longEntry?.contextWindowTokens || '?'],['Largest ctx', best ? (best.id+' / '+best.contextWindowTokens) : '-'],['Missing metadata', missingCount]];` +
     `  contextWindowGuide.innerHTML='<div class="alert '+level+'"><div class="row"><strong>Context window guide</strong>'+(best ? '<span class="pill">largest '+esc(best.id)+'</span>' : '')+'</div><div class="diff-summary">'+summaryRows.map(([label,value])=>'<div class="diff-chip"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('')+'</div><ul>'+messages.map(message=>'<li>'+esc(message)+'</li>').join('')+'</ul>'+(canApplyBest ? '<div class="row" style="margin-top:.5rem"><button type="button" data-context-action="set-long-context" data-model-id="'+esc(best.id)+'">设为 Router.longContext</button><span class="muted">'+esc(best.modelName || '')+'</span></div>' : '')+'</div>';` +
     `}` +
+    `function getSmartCandidateGuideEntries(data,config){` +
+    `  const modelMap=data?.modelMap || {};` +
+    `  const draftModels=Array.isArray(config?.Models) ? config.Models : [];` +
+    `  if(draftModels.length){ return draftModels.map(model=>{ const id=String(model?.id || '').trim(); const compiled=id ? modelMap[id] : null; const caps=compiled?.capabilities || {}; return { id, modelName:model?.model || compiled?.modelName || '-', contextWindowTokens:readModelMetadataNumber(model,'context_window_tokens') || caps.contextWindowTokens || 0, thinkingSupported:caps.thinking?.supported !== false }; }).filter(item=>item.id); }` +
+    `  return Object.entries(modelMap).map(([id,model])=>({ id, modelName:model?.modelName || '-', contextWindowTokens:model?.capabilities?.contextWindowTokens || 0, thinkingSupported:model?.capabilities?.thinking?.supported !== false }));` +
+    `}` +
+    `function pickSmartCandidate(entries,role){` +
+    `  const list=[...entries];` +
+    `  const score=(item)=>{ const text=(item.id+' '+item.modelName).toLowerCase(); let value=0; if(role==='fast'){ if(/haiku|mini|flash|fast|lite|small/.test(text)){ value+=80; } value+=Math.max(0,50-Math.log10((item.contextWindowTokens || 1))*10); } else if(role==='deep'){ if(/opus|reasoner|thinking|o1|o3|gpt-5|sonnet/.test(text)){ value+=80; } if(item.thinkingSupported){ value+=20; } value+=Math.log10((item.contextWindowTokens || 1))*5; } else if(role==='long_context'){ value+=item.contextWindowTokens || 0; } else { if(/sonnet|gpt-4|gpt-5|default|balanced/.test(text)){ value+=80; } value+=Math.log10((item.contextWindowTokens || 1))*8; } return value; };` +
+    `  return list.sort((a,b)=>score(b)-score(a) || a.id.localeCompare(b.id))[0];` +
+    `}` +
+    `function renderSmartCandidateGuide(data,summary){` +
+    `  const config=data?.normalizedConfig || currentDraftConfig || {};` +
+    `  const entries=getSmartCandidateGuideEntries(data,config);` +
+    `  const candidates=Array.isArray(summary?.candidates) ? summary.candidates : [];` +
+    `  const configured=new Set(candidates.map(candidate=>candidate.model?.ref).filter(Boolean));` +
+    `  if(!entries.length){ smartCandidateGuide.innerHTML='<div class="alert info"><strong>Candidate guide</strong><div class="muted">当前草稿还没有可解析的 Models，先添加模型后再配置候选。</div></div>'; return; }` +
+    `  const roles=[` +
+    `    { key:'fast', label:'Fast', description:'高频轻量任务、后台请求和低延迟候选' },` +
+    `    { key:'balanced', label:'Balanced', description:'默认日常编码、解释和中等复杂度任务' },` +
+    `    { key:'deep', label:'Deep', description:'复杂推理、架构设计和需要更强模型的任务' },` +
+    `    { key:'long_context', label:'Long context', description:'大上下文、长文件和超长会话兜底候选' },` +
+    `  ];` +
+    `  const rows=roles.map(role=>{ const picked=pickSmartCandidate(entries,role.key); const configuredRole=picked && configured.has(picked.id); const cls=configuredRole ? 'info' : 'warn'; const button=(!configuredRole && picked) ? '<button type="button" data-add-smart-candidate-suggestion="'+esc(picked.id)+'" data-description="'+esc(role.key+' candidate')+'">Add candidate</button>' : ''; return '<div class="alert '+cls+'"><div class="row"><strong>'+esc(role.label)+'</strong><span class="pill '+cls+'">'+esc(configuredRole ? 'configured' : 'suggested')+'</span></div><div>'+esc(role.description)+'</div><div class="muted">'+(picked ? ('<code>'+esc(picked.id)+'</code> · '+esc(picked.modelName || '-')+' · ctx '+esc(picked.contextWindowTokens || '?')) : 'no model suggestion')+'</div>'+(button ? '<div class="row" style="margin-top:.5rem">'+button+'</div>' : '')+'</div>'; });` +
+    `  smartCandidateGuide.innerHTML='<div class="alert info"><strong>Candidate guide</strong><div class="muted">建议至少覆盖 fast / balanced / deep，需要大上下文时再加入 long-context 候选。</div></div>'+rows.join('');` +
+    `}` +
     `function renderSmartRouterExplanation(data){` +
     `  const summary=data?.smartRouterExplanation || {};` +
     `  const rules=Array.isArray(summary.rules) ? summary.rules : [];` +
@@ -1395,6 +1425,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    const statusClass=candidate.model?.status === 'resolved' ? 'info' : (candidate.model?.status === 'legacy' ? 'warn' : 'critical');` +
     `    return '<tr><td>'+esc(candidate.order || '-')+'</td><td>'+refLabel(candidate.model)+'</td><td>'+esc(candidate.description || '-')+'</td><td><span class="pill '+statusClass+'">'+esc(candidate.model?.status || '-')+'</span></td></tr>';` +
     `  }).join('') : '<tr><td colspan="4" class="muted">No SmartRouter candidates configured</td></tr>';` +
+    `  renderSmartCandidateGuide(data,summary);` +
     `}` +
     `function renderCompiledModels(data){` +
     `  lastCompiledModelsData=data || null;` +
@@ -1566,6 +1597,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `function addTriggerPattern(ruleIndex){ const next=extractTriggerRulesFromForm(); if(!next[ruleIndex]){ return; } next[ruleIndex].patterns = Array.isArray(next[ruleIndex].patterns) ? next[ruleIndex].patterns : []; next[ruleIndex].patterns.push({ type:'exact', keywords:[] }); renderTriggerRulesList(next); syncDraftEditorFromForm(); }` +
     `function addTriggerKeyword(ruleIndex,patternIndex){ const next=extractTriggerRulesFromForm(); if(!next[ruleIndex] || !next[ruleIndex].patterns || !next[ruleIndex].patterns[patternIndex]){ return; } const pattern=next[ruleIndex].patterns[patternIndex]; pattern.keywords=Array.isArray(pattern.keywords) ? pattern.keywords : []; pattern.keywords.push(''); renderTriggerRulesList(next); syncDraftEditorFromForm(); }` +
     `function addSmartCandidate(){ const next=extractSmartCandidatesFromForm(); next.push({ model:'', description:'' }); renderSmartCandidatesList(next); syncDraftEditorFromForm(); }` +
+    `function addSmartCandidateSuggestion(modelId,description){ const id=String(modelId || '').trim(); if(!id){ return; } const next=extractSmartCandidatesFromForm(); if(!next.some(item=>item.model===id)){ next.push({ model:id, description:description || 'guided candidate' }); } renderSmartCandidatesList(next); syncDraftEditorFromForm(); renderSmartCandidateGuide(withDraftCompiledData(currentDraftConfig), { candidates: next.map((item,index)=>({ order:index+1, description:item.description, model:{ ref:item.model, status:'resolved' } })) }); }` +
     `function addCascadeLevel(){ const next=extractCascadeLevelsFromForm(); next.push({ from:'', to:'' }); renderCascadeLevelsList(next); syncDraftEditorFromForm(); }` +
     `modelsFormGrid.addEventListener('input',()=>syncDraftEditorFromForm());` +
     `modelsFormGrid.addEventListener('change',()=>syncDraftEditorFromForm());` +
@@ -1576,6 +1608,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `smartCandidatesList.addEventListener('input',()=>syncDraftEditorFromForm());` +
     `smartCandidatesList.addEventListener('change',()=>syncDraftEditorFromForm());` +
     `smartCandidatesList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-smart-candidate]'); if(!btn){ return; } const next=extractSmartCandidatesFromForm().filter((_,index)=>index!==Number(btn.dataset.removeSmartCandidate)); renderSmartCandidatesList(next); syncDraftEditorFromForm(); });` +
+    `smartCandidateGuide.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-add-smart-candidate-suggestion]'); if(!btn){ return; } addSmartCandidateSuggestion(btn.dataset.addSmartCandidateSuggestion, btn.dataset.description); });` +
     `governanceCascadeLevelsList.addEventListener('input',()=>syncDraftEditorFromForm());` +
     `governanceCascadeLevelsList.addEventListener('change',()=>syncDraftEditorFromForm());` +
     `governanceCascadeLevelsList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-remove-cascade-level]'); if(!btn){ return; } const next=extractCascadeLevelsFromForm().filter((_,index)=>index!==Number(btn.dataset.removeCascadeLevel)); renderCascadeLevelsList(next); syncDraftEditorFromForm(); });` +
@@ -1656,7 +1689,11 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `}` +
     `function renderRoutingTuning(items){` +
     `  if(!items || !items.length){ routingTuningList.innerHTML='<li><span class="muted">No routing tuning recommendations</span><strong>healthy</strong></li>'; return; }` +
-    `  routingTuningList.innerHTML=items.map(item=>'<li><span><span class="pill '+esc(item.severity === 'critical' ? 'critical' : (item.severity === 'warn' ? 'warn' : 'info'))+'">'+esc(item.severity || 'info')+'</span> <strong>'+esc(item.code || '-')+'</strong><div class="muted">'+esc(item.message || '')+'</div><div class="muted">'+esc(item.evidence || '')+'</div></span><strong>'+esc(item.action || '')+'</strong></li>').join('');` +
+    `  routingTuningList.innerHTML=items.map(item=>{` +
+    `    const suggestions=Array.isArray(item.configSuggestions) ? item.configSuggestions : [];` +
+    `    const suggestionHtml=suggestions.length ? '<div class="muted">config: '+suggestions.map(s=>'<code>'+esc(s.path || '-')+'</code>'+(s.suggestedValue !== undefined ? ' = '+esc(s.suggestedValue) : '')+' — '+esc(s.reason || '')).join('<br>')+'</div>' : '';` +
+    `    return '<li><span><span class="pill '+esc(item.severity === 'critical' ? 'critical' : (item.severity === 'warn' ? 'warn' : 'info'))+'">'+esc(item.severity || 'info')+'</span> <strong>'+esc(item.code || '-')+'</strong><div class="muted">'+esc(item.message || '')+'</div><div class="muted">'+esc(item.evidence || '')+'</div>'+suggestionHtml+'</span><strong>'+esc(item.action || '')+'</strong></li>';` +
+    `  }).join('');` +
     `}` +
     `function renderQualityEvidence(summary){` +
     `  const items=summary?.samples || [];` +

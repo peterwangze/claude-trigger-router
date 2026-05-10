@@ -681,19 +681,34 @@ describe('summarizeGovernanceMetrics', () => {
       expect.objectContaining({
         code: 'context_window_exceeded',
         severity: 'critical',
+        configSuggestions: expect.arrayContaining([
+          expect.objectContaining({ path: 'Models[].metadata.context_window_tokens' }),
+          expect.objectContaining({ path: 'Router.longContext' }),
+        ]),
       }),
       expect.objectContaining({
         code: 'switch_without_alignment',
         severity: 'warn',
+        configSuggestions: expect.arrayContaining([
+          expect.objectContaining({ path: 'SmartRouter.sticky.enabled', suggestedValue: true }),
+          expect.objectContaining({ path: 'SmartRouter.sticky.alignment.enabled', suggestedValue: true }),
+        ]),
       }),
       expect.objectContaining({
         code: 'switch_cascade_risk',
         severity: 'critical',
+        configSuggestions: expect.arrayContaining([
+          expect.objectContaining({ path: 'SmartRouter.candidates' }),
+        ]),
       }),
       expect.objectContaining({
         code: 'slow_route_group',
         severity: 'critical',
         evidence: 'tool_use:averageLatencyMs=3200',
+        configSuggestions: expect.arrayContaining([
+          expect.objectContaining({ path: 'SmartRouter.rules' }),
+          expect.objectContaining({ path: 'SmartRouter.candidates' }),
+        ]),
       }),
     ]));
     expect(health.actions).toContain('Enable or tune SmartRouter sticky alignment for high-switch routes.');
