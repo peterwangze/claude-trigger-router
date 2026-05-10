@@ -83,4 +83,15 @@ describe('deployment assets', () => {
     expect(releaseScript).toContain('& $serverWrapperSh deploy init --target server --force | Out-Host');
     expect(releaseScript).toContain('Server profile HOME: $($releaseServerProfile.Home)');
   });
+
+  it('allows a published package version when the current commit has the matching release tag', () => {
+    const releaseCheckWorkflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release-check.yml'), 'utf-8');
+    const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
+
+    expect(releaseCheckWorkflow).toContain('MATCHING_RELEASE_TAG');
+    expect(releaseCheckWorkflow).toContain('refs/tags/v${CURRENT_VERSION}');
+    expect(releaseCheckWorkflow).toContain('TAG_COMMIT="$(git rev-list -n 1 "v${CURRENT_VERSION}")"');
+    expect(releaseCheckWorkflow).toContain('this commit is tagged v${CURRENT_VERSION}');
+    expect(releasingGuide).toContain('master` push 和 `vX.Y.Z` tag push 几乎同时发生');
+  });
 });

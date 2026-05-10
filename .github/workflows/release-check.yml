@@ -53,6 +53,7 @@ jobs:
 
           PACKAGE_JSON_CHANGED="false"
           PREVIOUS_VERSION=""
+          MATCHING_RELEASE_TAG="false"
 
           if [[ -n "${BASE_SHA}" ]] && [[ "${BASE_SHA}" != "0000000000000000000000000000000000000000" ]]; then
             if git diff --name-only "${BASE_SHA}" "${GITHUB_SHA}" | grep -qx "package.json"; then
@@ -61,6 +62,14 @@ jobs:
 
             if git cat-file -e "${BASE_SHA}:package.json" 2>/dev/null; then
               PREVIOUS_VERSION="$(git show "${BASE_SHA}:package.json" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")"
+            fi
+          fi
+
+          git fetch --force --quiet origin "refs/tags/v${CURRENT_VERSION}:refs/tags/v${CURRENT_VERSION}" 2>/dev/null || true
+          if git rev-parse -q --verify "refs/tags/v${CURRENT_VERSION}" >/dev/null; then
+            TAG_COMMIT="$(git rev-list -n 1 "v${CURRENT_VERSION}")"
+            if [[ "${TAG_COMMIT}" == "${GITHUB_SHA}" ]]; then
+              MATCHING_RELEASE_TAG="true"
             fi
           fi
 
@@ -76,6 +85,7 @@ jobs:
             echo "- current version: \`${CURRENT_VERSION}\`"
             echo "- previous version: \`${PREVIOUS_VERSION:-unknown}\`"
             echo "- package.json changed: \`${PACKAGE_JSON_CHANGED}\`"
+            echo "- matching release tag: \`${MATCHING_RELEASE_TAG}\`"
             echo "- version already on npm: \`${VERSION_EXISTS}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -84,12 +94,14 @@ jobs:
             exit 1
           fi
 
-          if [[ "${PACKAGE_JSON_CHANGED}" == "true" ]] && [[ "${VERSION_EXISTS}" == "true" ]]; then
+          if [[ "${PACKAGE_JSON_CHANGED}" == "true" ]] && [[ "${VERSION_EXISTS}" == "true" ]] && [[ "${MATCHING_RELEASE_TAG}" != "true" ]]; then
             echo "Version ${CURRENT_VERSION} is already published on npm. Choose a new version before release." >&2
             exit 1
           fi
 
-          if [[ "${VERSION_EXISTS}" == "true" ]]; then
+          if [[ "${VERSION_EXISTS}" == "true" ]] && [[ "${MATCHING_RELEASE_TAG}" == "true" ]]; then
+            echo "Version ${CURRENT_VERSION} already exists on npm and this commit is tagged v${CURRENT_VERSION}; treating it as a completed release commit."
+          elif [[ "${VERSION_EXISTS}" == "true" ]]; then
             echo "Version ${CURRENT_VERSION} already exists on npm, but no package.json version change was detected in this range."
           else
             echo "Version ${CURRENT_VERSION} is available for a future release."

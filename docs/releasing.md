@@ -261,13 +261,16 @@ docs/cli-test-matrix.md
 - `npm run test:e2e:cli`
 - 当前 `package.json.version` 是否已经发布到 npm
 - 如果 `package.json` 已改动，版本号是否真的发生变化
+- 当前提交是否已经带有匹配的 `vX.Y.Z` release tag
 
 它会在这些情况下直接失败：
 
 - `package.json` 改了，但版本号没有变化
-- `package.json` 改了，而且目标版本已经存在于 npm
+- `package.json` 改了，而且目标版本已经存在于 npm，但当前提交没有匹配的 `vX.Y.Z` tag
 
 这样可以把常见发布问题提前暴露在 PR 或合入 `master` 之前。
+
+如果 `master` push 和 `vX.Y.Z` tag push 几乎同时发生，tag 触发的 `Publish Package` 可能先把版本发布到 npm。`Release Check` 会识别当前提交是否正好带有匹配 tag；如果是，它会把“npm 已存在”视为已完成发布提交，而不是误判为版本冲突。
 
 ## 本地兜底发布
 
