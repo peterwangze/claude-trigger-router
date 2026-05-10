@@ -456,18 +456,44 @@ function analyzeModelReferenceImpact(config: any, nextCompiled: CompiledRegistry
 function summarizeSmartRouterExplanation(normalized: any, compiled: CompiledRegistryView) {
   const smartRouter = deriveRuntimeSmartRouterConfig(normalized, normalized) ?? {};
   const modelMap = compiled.modelMap ?? {};
+  const resolveLegacyRef = (value: string) => {
+    const separatorIndex = value.indexOf(",");
+    if (separatorIndex < 0) {
+      return null;
+    }
+    const providerName = value.slice(0, separatorIndex).trim();
+    const modelName = value.slice(separatorIndex + 1).trim();
+    const provider = compiled.providers.find((item) => item.name === providerName);
+    if (!provider || !provider.models.includes(modelName)) {
+      return null;
+    }
+    return {
+      providerName,
+      modelName,
+      protocol: provider.transformer?.use?.[0],
+    };
+  };
   const resolveRef = (ref: any) => {
     const value = typeof ref === "string" ? ref.trim() : "";
     const resolved = value ? modelMap[value] : undefined;
+    const legacyTarget = !resolved && value ? resolveLegacyRef(value) : null;
     return {
       ref: value,
-      status: !value ? "empty" : (resolved ? "resolved" : (value.includes(",") ? "legacy" : "missing")),
+      status: !value
+        ? "empty"
+        : (resolved || legacyTarget ? "resolved" : (value.includes(",") ? "legacy" : "missing")),
       target: resolved
         ? {
             providerName: resolved.providerName,
             modelName: resolved.modelName,
             protocol: resolved.protocol,
           }
+        : legacyTarget
+          ? {
+              providerName: legacyTarget.providerName,
+              modelName: legacyTarget.modelName,
+              protocol: legacyTarget.protocol,
+            }
         : null,
     };
   };
@@ -504,6 +530,9 @@ function summarizeSmartRouterExplanation(normalized: any, compiled: CompiledRegi
   const alignmentSummarizer = resolveRef(smartRouter.sticky?.alignment?.summarizer_model);
   const classifierModel = resolveRef(smartRouter.semantic?.classifier_model);
   const warnings: string[] = [];
+  const isUnresolvedRef = (modelRef: any) => modelRef.status === "missing" || modelRef.status === "legacy";
+  const unresolvedRefWarning = (label: string, modelRef: any) =>
+    `${label} "${modelRef.ref}" does not resolve to a compiled Models[].id or provider,model reference.`;
 
   if (smartRouter.enabled && rules.length === 0) {
     warnings.push("SmartRouter enabled but no explicit rules are configured.");
@@ -511,24 +540,30 @@ function summarizeSmartRouterExplanation(normalized: any, compiled: CompiledRegi
   if (smartRouter.enabled && smartRouter.router_model && candidates.length < 2) {
     warnings.push("router_model is configured but fewer than 2 candidates are available.");
   }
-  if (routerModel.status === "missing") {
-    warnings.push(`SmartRouter.router_model "${routerModel.ref}" does not resolve to Models[].id.`);
+  if (isUnresolvedRef(routerModel)) {
+    warnings.push(unresolvedRefWarning("SmartRouter.router_model", routerModel));
   }
   rules.forEach((rule: any) => {
-    if (rule.model.status === "missing") {
-      warnings.push(`SmartRouter rule "${rule.name}" model "${rule.model.ref}" does not resolve to Models[].id.`);
+    if (isUnresolvedRef(rule.model)) {
+      warnings.push(unresolvedRefWarning(`SmartRouter rule "${rule.name}" model`, rule.model));
     }
   });
   candidates.forEach((candidate: any) => {
-    if (candidate.model.status === "missing") {
-      warnings.push(`SmartRouter candidate "${candidate.model.ref}" does not resolve to Models[].id.`);
+    if (isUnresolvedRef(candidate.model)) {
+      warnings.push(unresolvedRefWarning("SmartRouter candidate", candidate.model));
     }
   });
   if (smartRouter.semantic?.enabled && smartRouter.semantic?.mode === "classifier" && classifierModel.status === "empty") {
     warnings.push("Semantic classifier mode is enabled but classifier_model is empty.");
   }
+  if (smartRouter.semantic?.enabled && smartRouter.semantic?.mode === "classifier" && isUnresolvedRef(classifierModel)) {
+    warnings.push(unresolvedRefWarning("SmartRouter.semantic.classifier_model", classifierModel));
+  }
   if (smartRouter.sticky?.alignment?.enabled && alignmentSummarizer.status === "empty") {
     warnings.push("Sticky alignment is enabled but summarizer_model is empty.");
+  }
+  if (smartRouter.sticky?.alignment?.enabled && isUnresolvedRef(alignmentSummarizer)) {
+    warnings.push(unresolvedRefWarning("SmartRouter.sticky.alignment.summarizer_model", alignmentSummarizer));
   }
 
   return {

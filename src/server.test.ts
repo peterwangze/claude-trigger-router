@@ -1126,6 +1126,98 @@ describe('createServer /api/config', () => {
     expect(result.smartRouterExplanation.routeOrder).toContain('1. explicit rules by priority');
   });
 
+  it('explains SmartRouter draft preview with legacy provider refs', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/models/compiled/preview');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      body: {
+        Providers: [
+          {
+            name: 'openrouter',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-preview',
+            models: [
+              'anthropic/claude-sonnet-4',
+              'anthropic/claude-opus-4',
+            ],
+            transformer: {
+              use: ['openrouter'],
+            },
+          },
+        ],
+        Router: {
+          default: 'openrouter,anthropic/claude-sonnet-4',
+        },
+        SmartRouter: {
+          enabled: true,
+          analysis_scope: 'last_message',
+          router_model: 'openrouter,anthropic/claude-sonnet-4',
+          fallback: 'default',
+          rules: [
+            {
+              name: 'architecture',
+              priority: 90,
+              enabled: true,
+              patterns: [{ type: 'exact', keywords: ['架构设计'] }],
+              model: 'openrouter,anthropic/claude-opus-4',
+            },
+          ],
+          candidates: [
+            { model: 'openrouter,anthropic/claude-sonnet-4', description: 'daily coding' },
+            { model: 'openrouter,anthropic/claude-opus-4', description: 'architecture' },
+          ],
+          sticky: {
+            enabled: true,
+            alignment: {
+              enabled: true,
+              summarizer_model: 'openrouter,anthropic/claude-sonnet-4',
+            },
+          },
+        },
+      },
+    }, reply);
+
+    expect(reply.code).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    expect(result.smartRouterExplanation.routerModel).toEqual(
+      expect.objectContaining({
+        ref: 'openrouter,anthropic/claude-sonnet-4',
+        status: 'resolved',
+        target: expect.objectContaining({
+          providerName: 'openrouter',
+          modelName: 'anthropic/claude-sonnet-4',
+        }),
+      })
+    );
+    expect(result.smartRouterExplanation.rules[0].model).toEqual(
+      expect.objectContaining({
+        status: 'resolved',
+        target: expect.objectContaining({
+          providerName: 'openrouter',
+          modelName: 'anthropic/claude-opus-4',
+        }),
+      })
+    );
+    expect(result.smartRouterExplanation.candidates.map((candidate: any) => candidate.model.status)).toEqual([
+      'resolved',
+      'resolved',
+    ]);
+    expect(result.smartRouterExplanation.sticky.alignment.summarizerModel).toEqual(
+      expect.objectContaining({
+        status: 'resolved',
+        target: expect.objectContaining({
+          providerName: 'openrouter',
+          modelName: 'anthropic/claude-sonnet-4',
+        }),
+      })
+    );
+    expect(result.smartRouterExplanation.warnings).toEqual([]);
+  });
+
   it('exposes registration model pools from compiled Models endpoint', async () => {
     const server = createServer({
       initialConfig: {
