@@ -15,6 +15,7 @@ import {
   governanceMetricsExportStore,
   buildGovernanceHealthSummary,
   summarizeRouteDecisionTrace,
+  summarizeSwitchContinuityTrace,
 } from "./governance";
 import { buildModelRegistry, collectCapabilityWarnings } from "./models/compile";
 import { IModelPoolEndpointHealthSnapshot, modelPoolHealthStore } from "./models/pool-health";
@@ -1253,6 +1254,7 @@ export const createServer = (config: any): Server => {
     return {
       traces,
       routeDecisions: traces.map((trace) => summarizeRouteDecisionTrace(trace)),
+      switchContinuity: traces.map((trace) => summarizeSwitchContinuityTrace(trace)),
     };
   });
 
@@ -1396,6 +1398,7 @@ export const createServer = (config: any): Server => {
     return {
       ...trace,
       decisionSummary: summarizeRouteDecisionTrace(trace),
+      switchSummary: summarizeSwitchContinuityTrace(trace),
     };
   });
 

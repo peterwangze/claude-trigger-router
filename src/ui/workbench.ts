@@ -526,6 +526,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="row"><strong>Recent route decisions</strong><span class="muted">把最近请求的 route source、规则、语义意图、置信度和 fallback 原因翻译成可读摘要。</span></div>` +
     `<ul id="routeDecisionSummaryList" class="mini-list"><li><span class="muted">Loading route decisions</span><strong>-</strong></li></ul>` +
     `</div>` +
+    `<div class="subpanel">` +
+    `<div class="row"><strong>Recent switch continuity</strong><span class="muted">解释最近请求是否切换模型、是否补上下文，以及切换后是否触发 cascade。</span></div>` +
+    `<ul id="switchContinuitySummaryList" class="mini-list"><li><span class="muted">Loading switch continuity</span><strong>-</strong></li></ul>` +
+    `</div>` +
     `<table id="traceTable">` +
     `<thead><tr><th>Request</th><th>Session</th><th>Final Model</th><th>Reasons</th><th>Latency</th><th>Inspect</th></tr></thead>` +
     `<tbody><tr><td colspan="6" class="muted">加载中...</td></tr></tbody>` +
@@ -1691,6 +1695,16 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    return '<li><span><strong>'+esc(item.headline || item.requestId || '-')+'</strong><div class="muted">'+esc(meta)+'</div>'+fallback+'</span><button type="button" data-request="'+esc(item.requestId || '')+'">View</button></li>';` +
     `  }).join('');` +
     `}` +
+    `function renderSwitchContinuitySummaries(items){` +
+    `  const summaries=Array.isArray(items) ? items.slice(0,5) : [];` +
+    `  if(!summaries.length){ switchContinuitySummaryList.innerHTML='<li><span class="muted">No recent switch continuity</span><strong>0</strong></li>'; return; }` +
+    `  switchContinuitySummaryList.innerHTML=summaries.map(item=>{` +
+    `    const cls=item.status === 'critical' ? 'critical' : (item.status === 'watch' ? 'warn' : 'info');` +
+    `    const meta=[item.transition || (item.finalModel || '-'), item.sourceLabel || item.source || '-', item.alignmentUsed ? 'aligned' : '', item.cascadeTriggered ? 'cascade' : '', item.latencyMs !== undefined ? (fmt(item.latencyMs)+' ms') : ''].filter(Boolean).join(' · ');` +
+    `    const action=item.action ? '<div class="muted">'+esc(item.action)+'</div>' : '';` +
+    `    return '<li><span><span class="pill '+esc(cls)+'">'+esc(item.status || 'unknown')+'</span> <strong>'+esc(item.headline || item.requestId || '-')+'</strong><div class="muted">'+esc(meta)+'</div>'+action+'</span><button type="button" data-request="'+esc(item.requestId || '')+'">View</button></li>';` +
+    `  }).join('');` +
+    `}` +
     `function renderAnomalies(anomalies,health){` +
     `  const status=health?.status || 'idle';` +
     `  const message=health?.message || 'No governance traces yet.';` +
@@ -1807,6 +1821,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderTrendTable(metricsData || {});` +
     `  const traces=data.traces || [];` +
     `  renderRouteDecisionSummaries(data.routeDecisions || traces.map(t=>t.decisionSummary).filter(Boolean));` +
+    `  renderSwitchContinuitySummaries(data.switchContinuity || traces.map(t=>t.switchSummary).filter(Boolean));` +
     `  if(!traces.length){ tbody.innerHTML='<tr><td colspan="6" class="muted">暂无 trace</td></tr>'; return; }` +
     `  tbody.innerHTML=traces.map(t=>` +
     "    `<tr>`+" +
@@ -1894,6 +1909,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +
     `document.getElementById('saveThresholdsBtn').addEventListener('click',saveThresholds);` +
     `routeDecisionSummaryList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn && btn.dataset.request){ loadDetail(btn.dataset.request); } });` +
+    `switchContinuitySummaryList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn && btn.dataset.request){ loadDetail(btn.dataset.request); } });` +
     `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
     `renderDraftPresetGuide();` +
     `renderDraftPresetModeHint();` +

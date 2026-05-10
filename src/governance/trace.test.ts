@@ -10,6 +10,7 @@ import {
   governanceTraceStore,
   recordGovernanceTrace,
   summarizeRouteDecisionTrace,
+  summarizeSwitchContinuityTrace,
 } from './trace';
 
 describe('governance trace', () => {
@@ -146,6 +147,63 @@ describe('governance trace', () => {
       confidenceLabel: '0%',
       fallbackReason: 'SmartRouter did not match; request continued to the basic Router fallback path.',
       headline: 'SmartRouter no match selected sonnet with 0% confidence.',
+    }));
+  });
+
+  it('summarizes model switch continuity with alignment and cascade risk', () => {
+    const trace = createGovernanceTrace({
+      requestId: 'req-switch-risk',
+      sessionKey: 'session-risk',
+      initialModel: 'sonnet',
+      finalModel: 'opus',
+      routeReason: ['request_received', 'smart_router'],
+      routeDecision: {
+        source: 'smart_router',
+        confidence: 0.8,
+        model: 'opus',
+      },
+      semanticIntent: 'architecture',
+      stickyHit: false,
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      cascadeEvidence: ['compile failure'],
+      startedAt: 100,
+      latencyMs: 300,
+    });
+
+    expect(summarizeSwitchContinuityTrace(trace)).toEqual(expect.objectContaining({
+      requestId: 'req-switch-risk',
+      sessionKey: 'session-risk',
+      status: 'critical',
+      switched: true,
+      transition: 'sonnet -> opus',
+      source: 'smart_router',
+      sourceLabel: 'SmartRouter candidate selection',
+      semanticIntent: 'architecture',
+      alignmentUsed: false,
+      cascadeTriggered: true,
+      headline: 'Model switched sonnet -> opus without alignment and then triggered cascade retry.',
+      action: 'Enable or tune Governance.sticky.alignment before sending more traffic through this switching path.',
+    }));
+  });
+
+  it('summarizes stable model continuity as no handoff needed', () => {
+    const trace = createGovernanceTrace({
+      requestId: 'req-stable',
+      initialModel: 'sonnet',
+      finalModel: 'sonnet',
+      routeReason: ['request_received', 'sticky_correction'],
+      stickyHit: true,
+      alignmentUsed: false,
+      cascadeTriggered: false,
+      startedAt: 100,
+    });
+
+    expect(summarizeSwitchContinuityTrace(trace)).toEqual(expect.objectContaining({
+      status: 'stable',
+      switched: false,
+      finalModel: 'sonnet',
+      headline: 'Sticky routing kept the request on sonnet.',
     }));
   });
 

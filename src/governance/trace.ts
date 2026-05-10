@@ -561,3 +561,72 @@ export function summarizeRouteDecisionTrace(trace: IGovernanceTrace) {
     completedAt: trace.completedAt,
   };
 }
+
+export function summarizeSwitchContinuityTrace(trace: IGovernanceTrace) {
+  const decision = summarizeRouteDecisionTrace(trace);
+  const initialModel = trace.initialModel;
+  const finalModel = trace.finalModel ?? trace.routeDecision?.model;
+  const switched = Boolean(initialModel && finalModel && initialModel !== finalModel);
+  const transition = initialModel && finalModel ? `${initialModel} -> ${finalModel}` : undefined;
+  const hasModelPair = Boolean(initialModel && finalModel);
+  let status: 'unknown' | 'stable' | 'aligned' | 'watch' | 'critical' = 'unknown';
+  let headline = 'Model continuity is not available for this request.';
+  let action = 'Record both initialModel and finalModel so users can tell whether model switching affected the response.';
+
+  if (hasModelPair && !switched) {
+    status = 'stable';
+    headline = trace.stickyHit
+      ? `Sticky routing kept the request on ${finalModel}.`
+      : `Model stayed on ${finalModel}; no continuity handoff was needed.`;
+    action = 'No action needed unless this route should intentionally explore stronger or faster candidates.';
+  } else if (switched && trace.alignmentUsed && !trace.cascadeTriggered) {
+    status = 'aligned';
+    headline = `Model switched ${transition} with context alignment.`;
+    action = 'Keep this as positive switching evidence; compare latency and output quality before widening the route.';
+  } else if (switched && trace.alignmentUsed && trace.cascadeTriggered) {
+    status = 'watch';
+    headline = `Model switched ${transition} with alignment, but cascade retry still triggered.`;
+    action = 'Review cascade evidence and consider narrowing this route or moving the task to the retry model directly.';
+  } else if (switched && !trace.alignmentUsed && trace.cascadeTriggered) {
+    status = 'critical';
+    headline = `Model switched ${transition} without alignment and then triggered cascade retry.`;
+    action = 'Enable or tune Governance.sticky.alignment before sending more traffic through this switching path.';
+  } else if (switched) {
+    status = 'watch';
+    headline = `Model switched ${transition} without context alignment.`;
+    action = 'Enable or tune Governance.sticky.alignment if this route can carry multi-turn or long-running work.';
+  }
+
+  const fallbackReason = decision.fallbackReason;
+  const detail = [
+    decision.sourceLabel,
+    decision.ruleName ? `rule ${decision.ruleName}` : undefined,
+    trace.semanticIntent ? `intent ${trace.semanticIntent}` : undefined,
+    fallbackReason,
+  ].filter((item): item is string => Boolean(item));
+
+  return {
+    requestId: trace.requestId,
+    sessionKey: trace.sessionKey,
+    status,
+    switched,
+    initialModel,
+    finalModel,
+    transition,
+    source: decision.source,
+    sourceLabel: decision.sourceLabel,
+    ruleName: decision.ruleName,
+    semanticIntent: trace.semanticIntent,
+    stickyHit: trace.stickyHit,
+    alignmentUsed: trace.alignmentUsed,
+    cascadeTriggered: trace.cascadeTriggered,
+    cascadeEvidence: trace.cascadeEvidence ? [...trace.cascadeEvidence] : undefined,
+    fallbackReason,
+    detail,
+    headline,
+    action,
+    latencyMs: trace.latencyMs,
+    startedAt: trace.startedAt,
+    completedAt: trace.completedAt,
+  };
+}

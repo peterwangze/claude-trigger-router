@@ -921,6 +921,13 @@ describe('createServer /api/config', () => {
       semanticIntent: 'architecture',
       headline: 'SmartRouter candidate selection selected opus with 91% confidence.',
     }));
+    expect(listResult.switchContinuity[0]).toEqual(expect.objectContaining({
+      requestId: 'trace-2',
+      status: 'watch',
+      switched: true,
+      transition: 'sonnet -> opus',
+      headline: 'Model switched sonnet -> opus without context alignment.',
+    }));
     expect(filteredBySession.traces).toHaveLength(1);
     expect(filteredBySession.traces[0].requestId).toBe('trace-1');
     expect(limited.traces).toHaveLength(1);
@@ -937,6 +944,10 @@ describe('createServer /api/config', () => {
     expect(detailResult.decisionSummary).toEqual(expect.objectContaining({
       requestId: 'trace-1',
       source: 'cascade',
+    }));
+    expect(detailResult.switchSummary).toEqual(expect.objectContaining({
+      requestId: 'trace-1',
+      status: 'unknown',
     }));
     expect(reply.code).toHaveBeenCalledWith(404);
     expect(missingResult).toEqual({
@@ -2592,6 +2603,10 @@ describe('createServer /api/config', () => {
     expect(html).toContain('routeDecisionSummaryList');
     expect(html).toContain('renderRouteDecisionSummaries');
     expect(html).toContain('routeDecisionSummaryList.addEventListener');
+    expect(html).toContain('Recent switch continuity');
+    expect(html).toContain('switchContinuitySummaryList');
+    expect(html).toContain('renderSwitchContinuitySummaries');
+    expect(html).toContain('switchContinuitySummaryList.addEventListener');
     expect(html).toContain("readModelMetadataNumber(model,'context_window_tokens') || caps.contextWindowTokens");
     expect(html).toContain("modelName:model?.model || compiled?.modelName || '-'");
     expect(html).toContain('getCapabilityWarningActionLabel');
