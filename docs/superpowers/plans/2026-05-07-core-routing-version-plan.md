@@ -68,6 +68,7 @@
 3. `[closed 2026-05-10]` 路由决策可解释性：已在 governance trace 中记录 SmartRouter route source、rule、confidence 和选中模型；`/api/governance/traces` / detail 会返回 route decision summary，`/ui` 维护者 trace 区域展示最近请求的可读摘要，并能从旧 trace 的 routeReason 推断 rule、semantic intent、context window fallback、model pool fallback 与 cascade 原因。
 4. `[closed 2026-05-10]` 切换体感治理：已新增 switch continuity summary，把 initial/final model、sticky、alignment、cascade、route source 和 fallback reason 合成为 stable/aligned/watch/critical 等可读状态；`/api/governance/traces` / detail 会返回最近请求的切换摘要，`/ui` 维护者 trace 区域展示“是否切换、是否补上下文、切换后是否触发 cascade”和下一步动作，并用 trace/server/UI 回归测试看护。
 5. `[closed 2026-05-10]` 慢路由与错路由调优建议：health routing tuning 已从“查看指标”推进到配置路径级建议；context window、switch without alignment、switch cascade risk、slow route group 会返回 `configSuggestions`，直接指向 `Models[].metadata.context_window_tokens`、`Router.longContext`、`SmartRouter.sticky.alignment`、`SmartRouter.rules` 与 `SmartRouter.candidates` 等可调整位置；`/ui` Routing tuning 会展示这些配置路径和建议原因，并用 metrics/server/UI 回归测试看护。
+6. `[closed 2026-05-10]` v1.4.0 发布前复核：已新增 `docs/release-notes-v1.4.0.md` 固化 SmartRouter 常用体验版的发布主线、发布边界和发布前验证清单；`docs/releasing.md` 已切换当前 minor release 口径到 v1.4.0；deploy assets 测试看护 release notes、包文件包含规则和 SmartRouter v1.4.0 发布承诺。
 
 ### v1.5.0 多模型收益运营化
 

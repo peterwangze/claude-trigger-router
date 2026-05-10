@@ -53,6 +53,22 @@ describe('deployment assets', () => {
 
     const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
     expect(releasingGuide).toContain('Release');
+    expect(releasingGuide).toContain('docs/release-notes-v1.4.0.md');
+    expect(releasingGuide).toContain('SmartRouter v1.4.0');
+  });
+
+  it('keeps v1.4.0 SmartRouter release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.4.0.md'), 'utf-8');
+
+    expect(packageJson.files).toContain('docs/*.md');
+    expect(releaseNotes).toContain('SmartRouter 常用体验版');
+    expect(releaseNotes).toContain('config/trigger.smart-router.yaml');
+    expect(releaseNotes).toContain('Candidate guide');
+    expect(releaseNotes).toContain('route decision');
+    expect(releaseNotes).toContain('switch continuity summary');
+    expect(releaseNotes).toContain('configSuggestions');
+    expect(releaseNotes).toContain('benchmark 历史看板');
+    expect(releaseNotes).toContain('npm run release:verify');
   });
 
   it('keeps release-stage server profile output out of the returned profile object', () => {

@@ -65,7 +65,7 @@
 | 事项 / 特性 | 类型 | 当前状态 | 当前优先级 | 当前闭环结论 | 详细进展 / 设计 / 实施文档 |
 |---|---|---|---|---|---|
 | Governance 治理主链首轮落地 | 核心能力 | closed | closed | sticky / alignment / cascade / semantic / shadow 首轮能力已闭环，当前已转入观测增强与运营化阶段；输入侧 Prompt / Intent Optimization 被定义为治理下一轮增强子特性，而不是独立新总线 | `docs/superpowers/plans/2026-04-04-router-evolution-roadmap.md` ; `docs/superpowers/specs/2026-04-04-router-governance-design.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-implementation.md` ; `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-04-governance-milestone-summary.md` ; `docs/superpowers/plans/2026-04-04-governance-release-notes.md` |
-| 基础路由与 SmartRouter 常用体验收口 | 用户高频核心主线 | in_progress | P1-主路径易用性 | 2026-05-07 从用户使用频率复审后新增为后续版本主线：基础路由 `Router.default/think/longContext/background/webSearch` 和 SmartRouter 规则/候选/切换体感是用户每天最常用的核心功能，优先级应高于离线评测、benchmark 看板、远程部署和 agent/tool 扩展。当前闭环结论是“v1.3.0 基础路由常用体验已阶段闭环；v1.4.0 已闭环 SmartRouter 常用规则模板、UI 配置解释、候选模型向导、近期路由决策摘要、切换体感摘要和配置路径级调优建议：新增 `config/trigger.smart-router.yaml` 覆盖 coding/review/architecture/long_context/fast_reply，`/api/models/compiled` 和 preview 已返回 SmartRouter explanation，`/ui` 可展示规则顺序、候选、router_model、semantic/sticky 与 fallback，并通过 Candidate guide 检查 fast / balanced / deep / long-context 覆盖、支持把建议模型加入 candidates；governance trace 现在记录 route source、rule、confidence 和选中模型，`/api/governance/traces` 与 `/ui` 可把最近请求的 rule / semantic intent / fallback reason 翻译成可读摘要；switch continuity summary 已把 initial/final model、sticky、alignment、cascade 和 route source 合成为 stable/aligned/watch/critical 等可读状态；health routing tuning 已把 context window、switch without alignment、switch cascade risk 和 slow route group 转成 `Router.longContext`、`SmartRouter.sticky.alignment`、`SmartRouter.rules/candidates` 等配置建议；下一步进入 v1.4.0 发布前复核”。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` |
+| 基础路由与 SmartRouter 常用体验收口 | 用户高频核心主线 | closed | closed | 2026-05-07 从用户使用频率复审后新增为后续版本主线：基础路由 `Router.default/think/longContext/background/webSearch` 和 SmartRouter 规则/候选/切换体感是用户每天最常用的核心功能，优先级应高于离线评测、benchmark 看板、远程部署和 agent/tool 扩展。当前闭环结论是“v1.3.0 基础路由常用体验已阶段闭环；v1.4.0 SmartRouter 常用体验已阶段闭环：新增 `config/trigger.smart-router.yaml` 覆盖 coding/review/architecture/long_context/fast_reply，`/api/models/compiled` 和 preview 已返回 SmartRouter explanation，`/ui` 可展示规则顺序、候选、router_model、semantic/sticky 与 fallback，并通过 Candidate guide 检查 fast / balanced / deep / long-context 覆盖、支持把建议模型加入 candidates；governance trace 现在记录 route source、rule、confidence 和选中模型，`/api/governance/traces` 与 `/ui` 可把最近请求的 rule / semantic intent / fallback reason 翻译成可读摘要；switch continuity summary 已把 initial/final model、sticky、alignment、cascade 和 route source 合成为 stable/aligned/watch/critical 等可读状态；health routing tuning 已把 context window、switch without alignment、switch cascade risk 和 slow route group 转成 `Router.longContext`、`SmartRouter.sticky.alignment`、`SmartRouter.rules/candidates` 等配置建议；`docs/release-notes-v1.4.0.md` 与 `docs/releasing.md` 已固化发布边界和发布前验证口径，deploy assets 测试看护 release notes 包含和发布承诺”。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` |
 | 智能路由收益与切换体感治理 | 复审新增持续演进特性 | in_progress | P1-主路径易用性 | 当前 SmartRouter 已具备规则路由、语义匹配、LLM 选模、sticky correction、context alignment、cascade retry、shadow supervisor 和治理 health；已新增 routing outcome scorecard，`/api/governance/metrics` 与 `/api/governance/health` 能返回 routed rate、model switch rate、stable model rate、alignment-on-switch、cascade-after-switch、route reason 平均延迟、Top model switches，以及 route reason / final model / semantic intent 三类分组 outcome，`/ui` 维护者工作台已展示切换率、切换后 alignment 和分组收益；health 已新增 routing tuning 建议，把切换但未 alignment、切换后 cascade、上下文窗口超限/降级和慢 route 变成 API/UI/CSV 可见的策略调优入口；metrics 已新增 `qualityEvidence`，把真实 trace 中的 cascade failure、model pool fallback、shadow verification、context window guard、slow request 与 alignment continuity 沉淀为 API/UI/CSV 可见样本；synthetic tasks regression 已固定覆盖规则命中、semantic、SmartRouter、sticky correction 与真实非流式响应治理中的 cascade gate / retry，并断言 outcome 分组指标；`ctr eval` 已支持固定任务、自动执行、严格质量维度评分、人工/外部 LLM 裁判校准字段和内置 `--judge-model` 裁判执行器，报告会输出 calibration summary、高分歧样本与 judge_error findings；`/ui` 维护者工作台已新增 benchmark summary，把 task comparison、quality evidence 与 `ctr eval --run` 下一步动作合并展示。当前闭环结论是“多模型组合链路、可解释收益观测、策略调优入口、真实 trace 质量/失败样本、可重复回归输入、维度化离线评测、校准入口、内置裁判执行和维护者 benchmark 摘要已成立，后续收益增强应继续补人工校准表单和 benchmark 历史看板” | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
 | 服务端 API key 与鉴权控制面 | 复审新增持续演进特性 | in_progress | P1-主路径易用性 | `APIKEY` 已收口为 bootstrap/admin key；已新增 `Auth.managed_keys` 哈希存储、managed key 生成/列表/撤销 API，以及 admin/operator/client/read-only scope 判定；运行时 `apiKeyAuth` 已能接受 active managed client/operator/admin key，并拒绝 revoked、expired 或 scope 不足的 key；启动入口鉴权会刷新当前配置中的 `APIKEY/Auth`，新生成 key 与已吊销 key 不再依赖重启生效；已新增 auth audit store、admin-only `/api/auth/audit`、`/api/service-info` 的 `auth/security` 摘要，并让 `ctr doctor` / `/ui` 展示 server/cloud 或公网监听无鉴权风险；启动入口、doctor、service-info 和 UI 已统一 active managed key 的公网保护口径，并能识别仅剩 inactive managed key 的不可用状态；managed key `quota.request_limit` / `quota.token_limit` / `quota.window_seconds` 已接入模型调用计量、窗口重置、审计与本地持久化，状态查询/管理请求不消耗模型调用配额，read-only key 已限定为健康/状态 GET 接口；operator key 已覆盖重启、治理快照/定时快照、异常阈值和归档删除，并继续禁止配置读写和 auth 管理；`/api/service-info` 和 `/ui` 已显示按 key 脱敏的 quota 配额表、当前用量和 ok/watch/exhausted/inactive/unlimited 状态，README 已同步远程客户端优先使用 managed client key、operator 运维 key、quota 和 audit 入口。当前闭环结论是“服务端资源泄漏风险、撤销即时性、窗口配额、安全可见性和日常运维最小权限已完成第一层压降，下一步需要补更完整的服务端部署默认安全策略与密钥轮换运营指引” | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` ; `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` |
 | server/cloud 一键部署与角色化运维入口 | 复审新增持续演进特性 | planned | P1-主路径易用性 | Runtime / remote status / registration 已形成最小边界；当前闭环结论是“还不能宣称一键 server/cloud 部署或完整服务端控制面，下一步必须在安全默认值前提下提供服务提供者、维护者和远程使用者三类路径” | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` ; `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` |
@@ -292,7 +292,7 @@
   - 本轮从用户使用频率复审后新增为后续版本最高优先主线：普通用户每天最常用的是基础路由和 SmartRouter，而不是离线评测、benchmark 看板、远程部署或 agent/tool 扩展。
   - 已确认运行时基础能力具备：`Router.default/think/longContext/background/webSearch`、SmartRouter 规则/语义/候选、sticky/alignment/cascade/context guard 均已落地。
   - v1.3.0 基础路由体验已阶段闭环：基础路由五槽位配置向导与 `config/trigger.routing.yaml` 可复制模板已闭环，`ctr doctor` 槽位体检已闭环，`/ui` 使用者工作台也已展示 default/think/longContext/background/webSearch 槽位解析、上游目标、能力、warning 和 context window 可操作提示；packaged acceptance 已覆盖 fresh setup、`ctr status`、`ctr code`、槽位解析和 longContext fallback。
-  - v1.4.0 已闭环 SmartRouter 规则模板、配置解释、候选模型向导、近期路由决策摘要、切换体感摘要和慢路由/错路由配置路径级调优建议；下一步进入 v1.4.0 发布前复核。
+  - v1.4.0 已闭环 SmartRouter 规则模板、配置解释、候选模型向导、近期路由决策摘要、切换体感摘要、慢路由/错路由配置路径级调优建议和发布前复核。
 - `智能路由收益与切换体感治理`
   - 已有规则路由、语义匹配、LLM 选模、sticky correction、context alignment、cascade、shadow、health 和第一层 routing outcome scorecard。
   - 已把 initial/final model、切换、稳定模型、alignment-on-switch、cascade-after-switch、route reason 延迟、Top model switches、route reason / final model / semantic intent 分组收益沉淀为 `/api/governance/metrics` / `/api/governance/health` 可查询指标。
@@ -399,22 +399,21 @@
 
 | 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
 |---|---|---|---|---|
-| 1 | 基础路由与 SmartRouter 常用体验收口 | P1-主路径易用性 | v1.4.0 核心体验项已阶段闭环，下一步优先做 v1.4.0 发布前复核 | 这是用户每天实际使用的最高频路径；基础路由 smoke 已补齐，后续应把 SmartRouter 常用体验收口成同样可配置、可解释、可回退的用户入口 |
-| 2 | 智能路由收益与切换体感治理 | P1-主路径易用性 | v1.4.0 已把切换体感和调优建议沉淀进 API/UI；benchmark 历史看板和人工校准表单后移到 v1.5.0 | 它仍是 `1+1>2` 的价值证明，但 `ctr eval` 是验证工具，不应再压过基础路由与 SmartRouter 常用体验 |
-| 3 | 配置产品化最终收口 | P1-主路径易用性 | 优先服务基础路由和 SmartRouter：把 `id/api/key/interface/model/thinking/metadata`、路由槽位和 capability warning 继续收敛进 README / configuration guide / UI / setup | 核心路由体验需要统一配置心智支撑，配置产品化应贴着 v1.3.0/v1.4.0 做 |
-| 4 | CLI / setup UX 重设计 | P1-主路径易用性 | 让 setup 的本地使用主路径优先引导默认模型、复杂任务模型、长上下文模型和 SmartRouter 起步模板 | setup 是用户进入基础路由与 SmartRouter 的入口，优先级高于服务端和 benchmark 运营化 |
-| 5 | 服务端 API key 与鉴权控制面 | P1-主路径易用性 | 继续补服务端部署默认安全策略、密钥轮换和维护手册 | server/cloud 和池化会放大资源泄漏风险，但从本地日常使用频率看应排在核心路由体验之后 |
-| 6 | server/cloud 一键部署与角色化运维入口 | P1-主路径易用性 | 在安全默认值基础上补一键部署脚本/命令和角色化指导 | 一键部署必须建立在鉴权控制面之后，且不能抢占本地核心路由体验 |
-| 7 | 项目目标与用户使用视角复审 | P1-主路径易用性 | 继续作为校准主线归档新增事项和顺序调整 | 本轮复审明确了“用户高频核心路由优先”的排序，后续仍需防止主线再次偏向低频治理能力 |
-| 8 | 同模型多源池化与注册调度 | P2-能力扩展与体验增强 | 在 logical model pool、endpoint health、fallback、熔断、延迟窗口、持久化 health 和维护者运营视图基础上补主动探测、成本/速率元数据与更多策略 | 它能提升服务质量，但依赖鉴权、部署和注册边界稳定后再做 |
-| 9 | 部署形态与远程接入收敛 | P2-能力扩展与体验增强 | 在最小远端请求转发与只读注册摘要同步之后，继续补服务发现和更完整服务模式 | 远程状态查询、模型调用转发和远端注册摘要已阶段闭环，下一步应建立在安全部署和池化调度基础上 |
-| 10 | UI 双层工作台收敛 | P2-能力扩展与体验增强 | 先承载基础路由解释和 SmartRouter 决策解释，再承载收益、鉴权、部署、池化和维护者观测入口 | UI 后续首要任务是让高频路由配置和决策可理解，而不只是继续扩维护者观测 |
-| 11 | 治理观测增强 / 运营化 | P2-能力扩展与体验增强 | 把基础路由、SmartRouter 切换体感、pool health、key audit 纳入 health/metrics | 治理观测需要跟随核心价值和服务化风险扩展，而不只是 trace 查看 |
-| 12 | Agent / 工具能力演进探索 | P2-能力扩展与体验增强 | 先做 handoff summary、guardrail、trace span 化等低侵入增强 | 可以借鉴主流 agent 工具，但不能让项目偏离 Claude Code 路由代理定位 |
-| 13 | CLI 稳定性与发布工程 | P3-治理支撑 | 持续补 packaged CLI 用户流 E2E 与 release verify slice，优先覆盖 v1.3.0/v1.4.0 核心路由用户流 | 它需要持续跟随前面新路径一起扩 coverage，属于伴随式治理支撑 |
-| 14 | 已闭环事项复审校准 | P3-治理支撑 | 持续复审 closed 事项，并把新发现的问题承接为增量事项 | 避免历史 closed 结论与新路由/服务化目标漂移 |
-| 15 | 进展文档体系治理 | P3-治理支撑 | 持续维护统一基线、优先级、闭环标准和执行顺序表 | 它是总台账机制，必须持续维护，但不抢占主功能闭环 |
-| 16 | 问题修改记录 | P3-治理支撑 | 发现治理偏差就即时追加 issue log 并更新闭环结论 | 它是防重复踩坑机制，属于全程伴随动作 |
+| 1 | 智能路由收益与切换体感治理 | P1-主路径易用性 | v1.5.0 优先推进 benchmark 历史看板和人工校准 UI 表单，把现有 `ctr eval`、task comparison 和真实 trace 质量证据变成可运营收益判断 | v1.4.0 已把 SmartRouter 常用体验收口；下一阶段应证明“多模型组合是否真的提升质量/速度”，但仍限定在路由价值证明，不扩张为完整平台 |
+| 2 | 配置产品化最终收口 | P1-主路径易用性 | 继续服务基础路由和 SmartRouter：把 `id/api/key/interface/model/thinking/metadata`、路由槽位和 capability warning 继续收敛进 README / configuration guide / UI / setup | 核心路由体验需要统一配置心智支撑，配置产品化应贴着 v1.3.0/v1.4.0 做 |
+| 3 | CLI / setup UX 重设计 | P1-主路径易用性 | 让 setup 的本地使用主路径优先引导默认模型、复杂任务模型、长上下文模型和 SmartRouter 起步模板 | setup 是用户进入基础路由与 SmartRouter 的入口，优先级高于服务端和 benchmark 运营化 |
+| 4 | 服务端 API key 与鉴权控制面 | P1-主路径易用性 | 继续补服务端部署默认安全策略、密钥轮换和维护手册 | server/cloud 和池化会放大资源泄漏风险，但从本地日常使用频率看应排在核心路由体验之后 |
+| 5 | server/cloud 一键部署与角色化运维入口 | P1-主路径易用性 | 在安全默认值基础上补一键部署脚本/命令和角色化指导 | 一键部署必须建立在鉴权控制面之后，且不能抢占本地核心路由体验 |
+| 6 | 项目目标与用户使用视角复审 | P1-主路径易用性 | 继续作为校准主线归档新增事项和顺序调整 | 本轮复审明确了“用户高频核心路由优先”的排序，后续仍需防止主线再次偏向低频治理能力 |
+| 7 | 同模型多源池化与注册调度 | P2-能力扩展与体验增强 | 在 logical model pool、endpoint health、fallback、熔断、延迟窗口、持久化 health 和维护者运营视图基础上补主动探测、成本/速率元数据与更多策略 | 它能提升服务质量，但依赖鉴权、部署和注册边界稳定后再做 |
+| 8 | 部署形态与远程接入收敛 | P2-能力扩展与体验增强 | 在最小远端请求转发与只读注册摘要同步之后，继续补服务发现和更完整服务模式 | 远程状态查询、模型调用转发和远端注册摘要已阶段闭环，下一步应建立在安全部署和池化调度基础上 |
+| 9 | UI 双层工作台收敛 | P2-能力扩展与体验增强 | 先承载基础路由解释和 SmartRouter 决策解释，再承载收益、鉴权、部署、池化和维护者观测入口 | UI 后续首要任务是让高频路由配置和决策可理解，而不只是继续扩维护者观测 |
+| 10 | 治理观测增强 / 运营化 | P2-能力扩展与体验增强 | 把基础路由、SmartRouter 切换体感、pool health、key audit 纳入 health/metrics | 治理观测需要跟随核心价值和服务化风险扩展，而不只是 trace 查看 |
+| 11 | Agent / 工具能力演进探索 | P2-能力扩展与体验增强 | 先做 handoff summary、guardrail、trace span 化等低侵入增强 | 可以借鉴主流 agent 工具，但不能让项目偏离 Claude Code 路由代理定位 |
+| 12 | CLI 稳定性与发布工程 | P3-治理支撑 | 持续补 packaged CLI 用户流 E2E 与 release verify slice，优先覆盖 v1.3.0/v1.4.0 核心路由用户流 | 它需要持续跟随前面新路径一起扩 coverage，属于伴随式治理支撑 |
+| 13 | 已闭环事项复审校准 | P3-治理支撑 | 持续复审 closed 事项，并把新发现的问题承接为增量事项 | 避免历史 closed 结论与新路由/服务化目标漂移 |
+| 14 | 进展文档体系治理 | P3-治理支撑 | 持续维护统一基线、优先级、闭环标准和执行顺序表 | 它是总台账机制，必须持续维护，但不抢占主功能闭环 |
+| 15 | 问题修改记录 | P3-治理支撑 | 发现治理偏差就即时追加 issue log 并更新闭环结论 | 它是防重复踩坑机制，属于全程伴随动作 |
 
 ### 7. 版本计划入口
 
@@ -471,6 +470,6 @@
 
 本次明确延期、继续按原优先级推进的事项：
 
-- SmartRouter 规则模板、候选模型配置向导、路由决策解释、sticky/alignment 切换体感和慢路由/错路由调优建议已进入 v1.4.0 并阶段闭环，下一步进入发布前复核。
+- SmartRouter 规则模板、候选模型配置向导、路由决策解释、sticky/alignment 切换体感、慢路由/错路由调优建议和 v1.4.0 发布前复核均已阶段闭环。
 - benchmark 历史看板、人工校准 UI 表单和评测/真实 trace 的统一解释进入 v1.5.0。
 - 服务端安全默认值、密钥轮换手册、server/cloud 一键部署、主动 pool health、成本/速率元数据和更多调度策略继续按 v1.6.0 服务化与模型池安全体验推进。

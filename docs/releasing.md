@@ -23,8 +23,8 @@
 推荐主流程：
 
 1. 更新版本号
-   - `v1.3.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.3.0` 的发布边界以 `docs/release-notes-v1.3.0.md` 为准：主打基础路由常用体验，不宣称完整 SmartRouter 产品化版本或完整云端平台。
+   - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
+   - 本次 `v1.4.0` 的发布边界以 `docs/release-notes-v1.4.0.md` 为准：主打 SmartRouter 常用体验，不宣称完整 benchmark 运营平台或完整云端平台。
 2. 本地先执行发布包验证：
 
 ```bash
@@ -63,6 +63,7 @@ npm run release:verify
 - 目标端口被非本服务占用时的安全提示与“无额外文件修改”边界
 - 残留 / 失效 PID 文件的安全清理
 - `release:stage` 生成的 `.release-stage\ctr-release-home.cmd` wrapper 是否真的指向隔离 `.release-home`
+- SmartRouter v1.4.0 发布承诺的模板、配置解释、候选向导、路由决策摘要、切换体感摘要和配置路径级调优建议
 
 只有这一步通过后，才继续正式发布，避免“发布后才发现包内容、CLI 启动或 setup 主流程有问题”。
 
