@@ -69,6 +69,12 @@ describe('deployment assets', () => {
     expect(releaseNotes).toContain('configSuggestions');
     expect(releaseNotes).toContain('benchmark 历史看板');
     expect(releaseNotes).toContain('npm run release:verify');
+
+    const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
+    expect(readme).toContain('## v1.4.0 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.4.0.md');
+    expect(readme).toContain('config/trigger.smart-router.yaml');
+    expect(readme).toContain('switch continuity summary');
   });
 
   it('keeps release-stage server profile output out of the returned profile object', () => {
