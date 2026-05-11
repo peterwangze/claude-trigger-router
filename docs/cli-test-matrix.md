@@ -137,7 +137,28 @@
 - `release:stage` 产物本身可作为手工验收入口使用
 - staged 包路径会直接 smoke `/ui` 和 `/api/governance/health`，避免维护者工作台只在源码测试中可用
 
-## 4. 当前发布门禁
+## 4. v1.5 入口稳定专项门禁
+
+v1.5.0 期间新增或修改功能前，先确认这些入口契约不退化：
+
+- `setup`：覆盖 fresh setup、复用已有配置、legacy migration、repair、rebuild、远程客户端和服务端部署三类角色；不能误启动、误覆盖或把 next steps 指向错误角色。
+- `start/status/stop/restart`：覆盖前台、后台、alternate port、端口被非本服务占用、stale PID、服务已运行和配置错误；失败信息必须给出清晰下一步。
+- `code`：只在服务 ready 时进入 Claude Code；本地/远程代理环境变量必须正确注入；服务未运行或 Claude CLI 缺失时必须明确失败。
+- `doctor/setup/ui save`：复用同一 validation issue contract；写入前保留备份，不能静默丢弃 `Runtime` / `Registration` / `Auth` 等已配置分支。
+- `/ui`：现阶段继续保留 HTML 和 API smoke；后续最小 DOM/browser smoke 需要覆盖载入配置、compiled models 预览、保存失败提示、服务状态、基础路由解释和维护者 Health 展示。
+- coverage：入口看护范围从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链。
+
+专项验证建议加跑：
+
+```bash
+npm test -- --run --coverage
+npm run test:e2e:cli
+npm run test:e2e:acceptance
+```
+
+这组检查不是替代 `release:verify`，而是在 v1.5.0 期间提前暴露入口主路径和 coverage 口径漂移。
+
+## 5. 当前发布门禁
 
 发布前建议至少通过：
 
@@ -155,7 +176,7 @@ npm run release:verify
 - `release:verify` 已包含 `test:e2e:acceptance`
 - `test:e2e:acceptance` 已包含 release-stage wrapper 的 `/ui` HTML 与治理健康 API smoke
 
-## 5. 仍建议保留的人工验收重点
+## 6. 仍建议保留的人工验收重点
 
 自动化已经尽量接近真实路径，但发布前仍建议人工快速确认：
 
@@ -166,7 +187,7 @@ npm run release:verify
 - 新增配置模板和 README 的指引是否和实现一致
 - server 部署入口生成的 bootstrap key 是否只用于维护者管理，远程客户端是否改用 managed `client + read-only` key
 
-## 6. 后续增补原则
+## 7. 后续增补原则
 
 后续新增用户可见命令、选项、setup 分支或发布脚本行为时，优先补到这 3 层之一：
 

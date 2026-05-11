@@ -124,11 +124,11 @@
 
 - 当前有 40 个 `.test.ts`，并且存在 `cli-e2e`、`cli-acceptance`、release verify、release stage。
 - `docs/releasing.md` 已形成发布前验证路径。
-- `vitest.config.ts` 的 coverage 当前只 include `src/trigger/**/*.ts`，与当前项目重心已经不完全匹配。
+- `vitest.config.ts` 的 coverage 当时只 include `src/trigger/**/*.ts`，与当前项目重心已经不完全匹配；2026-05-11 已先扩展到 setup / config / models / protocols / governance / server / auth / doctor / cli 主链。
 
 主要风险：
 
-- coverage 口径停留在早期 trigger 阶段，无法反映 CLI/setup/server/protocol/governance 的真实看护水平。
+- coverage 口径已从早期 trigger 阶段扩展到入口主链；后续风险转为“新增入口功能是否继续补对应测试层级和发布门禁归属”。
 - UI 目前更多靠 server test 的 HTML 字符串断言支撑，缺少真实浏览器或 DOM 交互契约。
 - 新增能力若没有同步更新 `docs/cli-test-matrix.md` 和 release verify slice，发布门禁会逐步失真。
 
@@ -230,7 +230,7 @@ P2-3：治理观测运营化
 
 P3-1：扩大 coverage 口径
 
-- 将 coverage 从仅 `src/trigger/**/*.ts` 扩展到至少覆盖 `setup / utils/config / models / protocols / governance` 的核心模块。
+- `[done 2026-05-11]` 将 coverage 从仅 `src/trigger/**/*.ts` 扩展到至少覆盖 `setup / utils/config / models / protocols / governance` 的核心模块；当前已纳入 setup / config / models / protocols / governance / server / auth / doctor / cli 主链。
 - 不强求一次性高覆盖率，先建立合理 include/exclude 和基线数字。
 
 验收：
@@ -450,7 +450,7 @@ P2-5：Agent / 工具能力演进探索
 - v1.6.0 再把已有 `ctr eval`、真实 trace outcome、quality evidence 和 `/ui` benchmark summary 做成长期收益判断工具。
 - v1.7.0 的服务化和模型池已经有第一层实现：managed key、operator scope、quota、remote forward、remote registration 摘要、model pool fallback、least-latency、pool health persistence 和 `/api/models/pool-health` 都已落地；下一步重点是安全运营和主动看护，而不是继续堆新策略。
 - 架构瓶颈仍然明显：`src/ui/workbench.ts` 已从 `server.ts` 拆出，但仍是约 1900 行的 HTML/CSS/JS 字符串；`src/server.ts` 仍集中 20+ 个 API endpoint、auth、config save、remote status、metrics 和 UI 注入；`src/index.ts` 同时编排 remote forward、SmartRouter、agent tool loop、protocol dispatch、model pool fallback 和 response governance。
-- 看护体系的真实用户流基础较好：unit/integration、packaged CLI E2E、acceptance、release-stage wrapper 和 `/ui` + `/api/governance/health` smoke 已经存在；但 coverage 仍只统计 `src/trigger/**/*.ts`，真实浏览器 DOM 交互仍停留在人工验收，无法反映当前 setup/server/UI/governance/models 主链的稳定度。
+- 看护体系的真实用户流基础较好：unit/integration、packaged CLI E2E、acceptance、release-stage wrapper 和 `/ui` + `/api/governance/health` smoke 已经存在；coverage 已在 2026-05-11 先扩到 setup/server/auth/doctor/cli/governance/models/protocols 主链，真实浏览器 DOM 交互仍停留在人工验收，后续需要最小 DOM/browser smoke 反映 UI 基础交互稳定度。
 
 ### 本轮优先级归档
 
@@ -465,7 +465,7 @@ P2-5：Agent / 工具能力演进探索
 | 7 | P2 | UI 工作台工程化 | 拆分 `workbench.ts` 的 CSS/JS/渲染片段，建立最小 DOM/browser smoke，覆盖载入配置、预览 compiled models、保存失败提示和维护者 health 展示 | UI 已成为真实入口，字符串级测试不足以守住交互行为 |
 | 8 | P2 | 治理观测运营化 | 先把入口主路径、基础路由、SmartRouter 切换体感纳入 health/metrics，再扩 pool health、key audit、benchmark summary | 维护者需要一个健康判断，而不是在多个区域拼信息 |
 | 9 | P2 | 模型池主动看护 | 在已有 fallback、冷却、熔断、延迟窗口和持久化 health 基础上补主动健康探测、成本/速率元数据和 health-aware 策略 | 模型池下一步应提升稳定性与可解释性，而不是只增加调度花样 |
-| 10 | P3 | coverage 与 release 门禁校准 | 将 coverage include 扩到 `setup / utils/config / models / protocols / governance / server` 的核心模块，并补 packaged CLI 对入口主路径、remote client、server deploy 的代表性 slice | 当前 coverage 口径仍停留在早期 trigger 阶段，不能反映项目主链 |
+| 10 | P3 | coverage 与 release 门禁校准 | `[in_progress 2026-05-11]` coverage include 已扩到 `setup / utils/config / models / protocols / governance / server / auth / doctor / cli` 主链；下一步补 packaged CLI 对入口主路径、remote client、server deploy 的代表性 slice | coverage 口径已完成第一步，后续重点是让新增入口路径持续补测试层级和发布门禁归属 |
 | 11 | P3 | 复审与问题记录机制 | 继续把本轮发现的文档漂移、架构压力和看护缺口下沉到统一基线与 issue log，而不是新增平行入口 | 项目文档多、演进快，单一事实源比新增计划更重要 |
 
 ### P0 触发条件

@@ -7,6 +7,8 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
+当前后续 minor release 优先级已经切到 `v1.5.0` 入口基础功能稳定与易用性巩固。继续扩展 benchmark、服务化、模型池或 agent/tool 前，发布检查需要先保护 `setup / start / status / code / doctor / ui`、配置保存/修复/迁移、打包后真实用户流和 UI 基础交互看护。
+
 ## 一次性准备
 
 1. 在 npm 包 `@peterwangze/claude-trigger-router` 的包设置中添加 trusted publisher
@@ -30,6 +32,16 @@
 ```bash
 npm run release:verify
 ```
+
+v1.5.0 期间建议在正式 `release:verify` 前额外跑一次入口稳定专项：
+
+```bash
+npm test -- --run --coverage
+npm run test:e2e:cli
+npm run test:e2e:acceptance
+```
+
+其中 coverage 口径已经从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链；后续新增入口功能时，先补对应看护再扩展低频能力。
 
 这一步会依次执行：
 
