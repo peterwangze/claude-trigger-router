@@ -348,7 +348,7 @@ P3-3：持续 closed 事项复审
 
 下一项按优先级继续推进：
 
-- 智能路由收益与切换体感治理：在 outcome scorecard、synthetic regression、routing tuning、真实 trace quality evidence、`taskComparison` 后验对比、`ctr eval --input` 离线评测、`ctr eval --tasks` fixture 导出、`ctr eval --run` 最小自动执行器和严格质量维度 rubric 已形成后，继续补 LLM 裁判/人工校准入口，以及 UI/治理面 benchmark 摘要，让维护者能用端到端可重复样本判断不同模型组合下的质量、速度和失败率收益。
+- 入口基础功能稳定与易用性巩固：v1.3.0 / v1.4.0 已完成基础路由和 SmartRouter 常用体验后，下一步先保护 `setup/start/status/code/doctor/ui`、配置保存/修复/迁移、UI 基础交互、coverage 口径和 release verify 入口门禁。智能路由收益运营化中的人工校准 UI 表单和 benchmark 历史看板顺延到 v1.6.0。
 
 ## 七、2026-04-27 智能路由与服务化复审
 
@@ -431,7 +431,60 @@ P2-5：Agent / 工具能力演进探索
 | 10 | P2-5 Agent / 工具能力演进探索 | P2 | 路由收益与治理 trace | 先做 guardrail / handoff / tracing 这类低侵入增强，再考虑更复杂 agent 编排 |
 | 11 | coverage 口径扩展与 release 门禁同步 | P3 | 伴随所有新增路径 | 不再作为下一主线抢跑，但每个新增路径都必须补测试层级和发布门禁归属 |
 
-## 八、关联文件
+## 八、2026-05-11 项目目标、常用功能与看护再复审
+
+### 复审范围
+
+本轮按当前代码与文档现状重新检查四个问题：
+
+1. 项目目标是否仍聚焦在 Claude Code 本地/远程路由代理，而不是扩张成完整 agent 平台或云平台。
+2. 用户最高频路径是否稳定、可理解：`ctr setup -> ctr start/status -> ctr code`，基础路由五槽位，SmartRouter 规则/候选，`ctr doctor` 和 `/ui`。
+3. 当前架构与实现是否还能承接 v1.5 / v1.6 / v1.7 的计划演进。
+4. 测试、发布门禁、coverage、UI smoke 和问题记录是否足够“看护”这些高频路径。
+
+### 当前结论
+
+- 项目目标仍然清晰：当前产品应继续定位为 Claude Code 的本地/远程路由代理，用 `Models + Router + SmartRouter + Governance + Runtime` 解释配置、请求转发、智能路由和维护观测。
+- v1.3.0 / v1.4.0 的高频路由体验已阶段闭环：基础路由五槽位、SmartRouter 模板、候选向导、路由解释、切换体感摘要和 routing tuning 都已进入 README、UI、doctor 或测试矩阵。
+- 发布计划应先回到入口基础功能稳定：v1.5.0 优先保护 `setup / start / status / code / doctor / ui`、配置保存/修复/迁移、UI 基础交互、coverage 口径和 release verify 主路径。
+- v1.6.0 再把已有 `ctr eval`、真实 trace outcome、quality evidence 和 `/ui` benchmark summary 做成长期收益判断工具。
+- v1.7.0 的服务化和模型池已经有第一层实现：managed key、operator scope、quota、remote forward、remote registration 摘要、model pool fallback、least-latency、pool health persistence 和 `/api/models/pool-health` 都已落地；下一步重点是安全运营和主动看护，而不是继续堆新策略。
+- 架构瓶颈仍然明显：`src/ui/workbench.ts` 已从 `server.ts` 拆出，但仍是约 1900 行的 HTML/CSS/JS 字符串；`src/server.ts` 仍集中 20+ 个 API endpoint、auth、config save、remote status、metrics 和 UI 注入；`src/index.ts` 同时编排 remote forward、SmartRouter、agent tool loop、protocol dispatch、model pool fallback 和 response governance。
+- 看护体系的真实用户流基础较好：unit/integration、packaged CLI E2E、acceptance、release-stage wrapper 和 `/ui` + `/api/governance/health` smoke 已经存在；但 coverage 仍只统计 `src/trigger/**/*.ts`，真实浏览器 DOM 交互仍停留在人工验收，无法反映当前 setup/server/UI/governance/models 主链的稳定度。
+
+### 本轮优先级归档
+
+| 顺序 | 优先级 | 事项 | 先做什么 | 原因 |
+|---|---|---|---|---|
+| 1 | P1 | v1.5.0 入口基础功能稳定与易用性巩固 | 先保护 `setup/start/status/code/doctor/ui`、配置保存/修复/迁移、UI 基础交互、coverage 口径和 release verify 入口门禁 | 用户每天最先接触入口；入口不稳，后续 benchmark、服务化和模型池都无法兑现价值 |
+| 2 | P1 | 配置产品化最终收口 | 持续收拢 README / setup / doctor / UI 中的 `id/api/key/interface/model/thinking/metadata`、基础槽位、SmartRouter candidates 和 capability warning 文案 | 高频用户路径仍依赖低心智配置；任何术语漂移都会直接影响 setup 和日常修配置 |
+| 3 | P1 | CLI / setup UX 重设计 | 继续强化本地路径优先、远程客户端路径和服务端维护路径的 next steps，不让 server/cloud 术语回流污染本地默认使用 | setup 是最高频入口，必须比 UI 和高级治理更稳 |
+| 4 | P1 | v1.6.0 多模型收益运营化 | 入口稳定后再做 benchmark 历史看板和人工校准 UI 表单，并把 `ctr eval` 结果、真实 trace outcome、quality evidence、task comparison 对齐到同一解释口径 | 多模型收益需要建立在入口稳定、配置可理解、路由可解释之后 |
+| 5 | P1 | 服务端安全运营补齐 | 在已有 managed key / operator / quota 基础上补密钥轮换、默认安全策略、泄漏处置和托管维护手册 | v1.7.0 要安全暴露服务，下一步是运营动作，不只是 API 能生成 key |
+| 6 | P1 | server/cloud 角色化部署收口 | 将 `ctr deploy init --target server`、Docker/systemd 模板、server/remote 手册和 staged 验收合成一条维护者可执行 checklist | 一键部署入口已存在，但还需要让维护者知道如何安全上线和交付远程客户端 key |
+| 7 | P2 | UI 工作台工程化 | 拆分 `workbench.ts` 的 CSS/JS/渲染片段，建立最小 DOM/browser smoke，覆盖载入配置、预览 compiled models、保存失败提示和维护者 health 展示 | UI 已成为真实入口，字符串级测试不足以守住交互行为 |
+| 8 | P2 | 治理观测运营化 | 先把入口主路径、基础路由、SmartRouter 切换体感纳入 health/metrics，再扩 pool health、key audit、benchmark summary | 维护者需要一个健康判断，而不是在多个区域拼信息 |
+| 9 | P2 | 模型池主动看护 | 在已有 fallback、冷却、熔断、延迟窗口和持久化 health 基础上补主动健康探测、成本/速率元数据和 health-aware 策略 | 模型池下一步应提升稳定性与可解释性，而不是只增加调度花样 |
+| 10 | P3 | coverage 与 release 门禁校准 | 将 coverage include 扩到 `setup / utils/config / models / protocols / governance / server` 的核心模块，并补 packaged CLI 对入口主路径、remote client、server deploy 的代表性 slice | 当前 coverage 口径仍停留在早期 trigger 阶段，不能反映项目主链 |
+| 11 | P3 | 复审与问题记录机制 | 继续把本轮发现的文档漂移、架构压力和看护缺口下沉到统一基线与 issue log，而不是新增平行入口 | 项目文档多、演进快，单一事实源比新增计划更重要 |
+
+### P0 触发条件
+
+本轮没有发现新的 P0。但出现以下情况时必须立即升 P0，而不是继续推进后续版本计划：
+
+- fresh `ctr setup -> ctr start/status -> ctr code` 不可用。
+- OpenAI-compatible 或 Anthropic 主请求链路阻塞。
+- 远程客户端 `Runtime.remote_service.enabled` 状态 ready 但模型调用没有进入远端。
+- 配置保存、repair 或 migration 会破坏用户已有可用配置。
+- server/cloud 对外监听绕过认证或 managed key scope 失效。
+
+### 归档动作
+
+- 本节作为 2026-05-11 再复审归档，承接 `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` 的版本路线。
+- 统一进展基线需要同步校准 `server/cloud 一键部署与角色化运维入口` 和 `项目目标与用户使用视角复审` 的当前结论，避免仍停留在 2026-04-27 的“缺一键部署命令 / 下一步安全前置”口径。
+- 后续若按“计划优先级继续推进”，默认先执行本节顺序 1-3；P2/P3 事项伴随推进，但不抢占入口基础功能稳定。
+
+## 九、关联文件
 
 本次复审重点参考：
 

@@ -446,3 +446,24 @@
   - `src/auth/api-keys.ts`
   - `src/auth/api-keys.test.ts`
   - `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md`
+
+### PI-021：项目复审计划与统一基线未同步 v1.4.0 后的当前事实
+
+- 发现时间：2026-05-11
+- 严重级别：P3
+- 现象：2026-04-25 复审计划中的“下一项”仍停留在补 LLM 裁判 / benchmark summary 的口径，而代码和统一基线已经显示 `ctr eval --judge-model`、人工/外部裁判字段和 `/ui` benchmark summary 已落地；统一基线中 `server/cloud 一键部署与角色化运维入口` 也仍描述为 planned / 缺一键部署命令，但当前已经有 `ctr deploy init --target server`、setup 服务端路径、Docker/systemd 模板和角色手册。
+- 影响范围：
+  - 后续按“计划优先级继续推进”时可能重复做已闭环事项
+  - 维护者可能低估当前 server deploy / role guide 的已实现边界，或误判 v1.5 / v1.6 的下一步
+  - 项目目标复审入口与版本计划入口之间出现事实漂移
+- 修正动作：
+  - 在 `2026-04-25-project-goal-user-review-implementation.md` 追加 2026-05-11 再复审章节，重新归档项目目标、高频功能稳定性/易用性、架构压力和看护优先级
+  - 修正该实施计划中“下一项”口径，明确 v1.5.0 先做入口基础功能稳定与易用性巩固，人工校准 UI 表单和 benchmark 历史看板顺延到 v1.6.0，而不是再补已完成的 LLM 裁判入口
+  - 将统一基线的 `server/cloud 一键部署与角色化运维入口` 从 planned 校准为 in_progress，并补充当前已有 deploy init、Docker/systemd、角色手册和 status/doctor/UI 角色表达
+  - 将统一基线的 `项目目标与用户使用视角复审` 更新为 2026-05-11 的最新校准结论
+- 当前状态：`closed`
+- 闭环结论：复审计划、统一基线和版本路线已重新对齐到 v1.4.0 后的当前事实；后续默认按 2026-05-11 入口基础功能稳定优先的发布计划推进，若再发现事实漂移，需要继续通过 issue log 记录并同步入口文档。
+- 关联文档：
+  - `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md`
+  - `docs/superpowers/plans/unified-progress-baseline.md`
+  - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`

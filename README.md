@@ -22,8 +22,9 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 从用户使用频率看，版本演进会优先回到最常用的基础路由和 SmartRouter 体验：
 
 - `v1.3.0`：基础路由常用体验，已收口 `Router.default` / `think` / `longContext` / `background` / `webSearch` 五槽位、doctor 诊断、UI 路由解释和 packaged smoke。
-- `v1.5.0`：多模型收益运营化，继续补 benchmark 历史看板、人工校准表单和评测/真实 trace 的统一解释。
-- `v1.6.0`：服务化与模型池安全体验，继续补服务端安全默认值、密钥轮换手册、主动 pool health、成本/速率元数据和更多调度策略。
+- `v1.5.0`：入口基础功能稳定与易用性巩固，优先看护 `setup` / `start` / `status` / `code` / `doctor` / `ui`、配置保存/修复/迁移、UI 基础交互和 release verify 主路径。
+- `v1.6.0`：多模型收益运营化，继续补 benchmark 历史看板、人工校准表单和评测/真实 trace 的统一解释。
+- `v1.7.0`：服务化与模型池安全体验，继续补服务端安全默认值、密钥轮换手册、主动 pool health、成本/速率元数据和更多调度策略。
 
 完整版本计划见 [docs/superpowers/plans/2026-05-07-core-routing-version-plan.md](docs/superpowers/plans/2026-05-07-core-routing-version-plan.md)。
 

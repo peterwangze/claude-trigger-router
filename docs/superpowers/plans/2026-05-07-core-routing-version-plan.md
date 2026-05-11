@@ -36,6 +36,15 @@
 | 多模型上下文窗口差异已经有 guard，但仍需要更贴近用户的配置/观测入口 | 配少浪费大窗口，配多影响小窗口质量，用户难以知道当前请求是否发生了降级或 fallback | 把 context window preset、doctor warning、UI 路由解释提升到核心路由版本内 |
 | 远程部署、模型池、鉴权、agent/tool 增强仍重要 | 但它们不是本地日常使用最高频路径；过早抢占会稀释核心路由体验 | 排到核心路由体验版本之后，按安全和服务化依赖推进 |
 
+### 2026-05-11 发布计划重排
+
+v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环后，下一版本不直接进入 benchmark 或服务化扩展。先把用户每天会碰到的入口基础功能做稳，再往前推进收益运营、服务化、模型池和 agent/tool 增强。
+
+1. v1.5.0 先做入口基础功能稳定与易用性巩固：`setup / start / status / code / doctor / ui`、配置保存/修复/迁移、基础路由和 SmartRouter 模板、打包后真实用户流、UI 基础交互 smoke 与 coverage 口径。
+2. v1.6.0 再把已有 `ctr eval`、`--judge-model`、真实 trace outcome、quality evidence、task comparison 和 `/ui` benchmark summary 做成长期收益运营闭环。
+3. v1.7.0 在已有 managed key、operator、quota、remote forward、server deploy init、model pool fallback、least-latency 和 pool health persistence 基础上，补服务端默认安全策略、密钥轮换、主动 pool health 和成本/速率元数据。
+4. UI 与看护从 v1.5.0 开始伴随推进：`src/ui/workbench.ts` 需要工程化拆分和最小 DOM/browser smoke，coverage 需要从早期 `src/trigger/**/*.ts` 扩到 setup/config/models/protocols/governance/server 主链。
+
 ## 版本路线
 
 | 版本 | 用户目标 | 主要闭环事项 | 验收标准 |
@@ -43,9 +52,10 @@
 | v1.2.x | 修复与稳态维护 | 只承接影响当前 v1.2.0 发布质量、CLI/packaged 行为、`ctr code` 主路径、基础配置兼容的缺陷 | 不引入大功能；`release:verify` 通过；README 与帮助不漂移 |
 | v1.3.0 | 基础路由常用体验闭环 | `Router.default/think/longContext/background/webSearch` 用户流、doctor/UI 路由解释、context window 配置提示、核心路由 smoke/e2e | 新用户能在 README/setup/UI 中完成基础分流配置，并能看懂当前请求为什么选中某模型 |
 | v1.4.0 | SmartRouter 常用体验闭环 | 规则模板、候选模型配置向导、路由决策解释、sticky/alignment 切换体感、慢路由/错路由调优建议 | 用户能用规则和候选模型稳定覆盖高频任务，且能通过 UI/metrics 发现切换割裂或错路由 |
-| v1.5.0 | 多模型组合收益运营化 | `ctr eval` 历史看板、人工校准表单、核心路由任务集默认样本、收益趋势 | 维护者能用固定样本和真实 trace 判断路由配置是否真的提升质量/速度 |
-| v1.6.0 | 远程服务与模型池安全体验 | 服务端部署安全默认值、密钥轮换手册、主动 pool health、成本/速率元数据、更多调度策略 | 服务提供者能安全暴露服务，远程使用者能稳定接入，模型池能提升可用性而不放大风险 |
-| v1.7.0 | 低侵入 agent/tool 增强 | handoff summary、tool capability guardrail、trace span 化、输入/输出 guardrail | 增强能力进入现有路由与治理体系，不扩张成平行 agent 平台 |
+| v1.5.0 | 入口基础功能稳定与易用性巩固 | setup/start/status/code/doctor/ui 主路径、配置保存/修复/迁移安全、UI 基础交互 smoke、coverage 口径、release verify 入口门禁 | 新用户和日常用户能稳定完成安装后首次使用、服务启停、进入 Claude Code、诊断修复和打开 UI；失败时有清晰下一步 |
+| v1.6.0 | 多模型组合收益运营化 | `ctr eval` 历史看板、人工校准表单、核心路由任务集默认样本、收益趋势、评测与真实 trace 对齐 | 维护者能用固定样本和真实 trace 判断路由配置是否真的提升质量/速度 |
+| v1.7.0 | 远程服务与模型池安全体验 | 服务端部署安全默认值、密钥轮换手册、主动 pool health、成本/速率元数据、更多调度策略 | 服务提供者能安全暴露服务，远程使用者能稳定接入，模型池能提升可用性而不放大风险 |
+| v1.8.0 | 低侵入 agent/tool 增强 | handoff summary、tool capability guardrail、trace span 化、输入/输出 guardrail | 增强能力进入现有路由与治理体系，不扩张成平行 agent 平台 |
 
 ## 待处理事项按用户优先级归档
 
@@ -70,7 +80,18 @@
 5. `[closed 2026-05-10]` 慢路由与错路由调优建议：health routing tuning 已从“查看指标”推进到配置路径级建议；context window、switch without alignment、switch cascade risk、slow route group 会返回 `configSuggestions`，直接指向 `Models[].metadata.context_window_tokens`、`Router.longContext`、`SmartRouter.sticky.alignment`、`SmartRouter.rules` 与 `SmartRouter.candidates` 等可调整位置；`/ui` Routing tuning 会展示这些配置路径和建议原因，并用 metrics/server/UI 回归测试看护。
 6. `[closed 2026-05-10]` v1.4.0 发布前复核：已新增 `docs/release-notes-v1.4.0.md` 固化 SmartRouter 常用体验版的发布主线、发布边界和发布前验证清单；`docs/releasing.md` 已切换当前 minor release 口径到 v1.4.0；deploy assets 测试看护 release notes、包文件包含规则和 SmartRouter v1.4.0 发布承诺。
 
-### v1.5.0 多模型收益运营化
+### v1.5.0 入口基础功能稳定与易用性巩固
+
+优先级：最高。
+
+1. Fresh install / setup 主路径稳定：覆盖无配置、复用已有配置、legacy migration、repair、rebuild、远程客户端、服务端部署三类角色，确保不误启动、不误覆盖、不误导 next steps。
+2. 服务生命周期稳定：`ctr start` / `start --daemon` / `status` / `stop` / `restart` 在端口占用、stale PID、alternate port、配置错误、服务已运行时都给出清晰结果。
+3. Claude Code 入口稳定：`ctr code` 只在服务 ready 时进入 Claude Code，正确注入本地/远程代理环境，服务未运行或 Claude CLI 不存在时明确失败。
+4. 配置保存 / 修复 / 迁移安全：setup、doctor、UI save 复用同一 validation issue contract；写入前有备份，不静默丢弃 `Runtime` / `Registration` / `Auth` 等已配置分支。
+5. UI 基础交互可看护：从 HTML 字符串 smoke 推进到最小 DOM/browser smoke，覆盖载入配置、预览 compiled models、保存失败提示、服务状态、基础路由解释和维护者 Health 展示。
+6. 看护口径校准：coverage 从早期 `src/trigger/**/*.ts` 扩到 setup / config / models / protocols / governance / server 主链；release verify 明确保入口主路径，不让新扩展绕过主路径稳定性。
+
+### v1.6.0 多模型收益运营化
 
 优先级：中高。
 
@@ -79,7 +100,7 @@
 3. 固定任务集按核心路由场景重排：日常默认、思考、长上下文、后台、规则命中、候选选择。
 4. `ctr eval` 与真实 trace 的对齐：将离线评测结果与 route outcome / task comparison 建立同一解释口径。
 
-### v1.6.0 服务化与模型池
+### v1.7.0 服务化与模型池
 
 优先级：中。
 
@@ -89,7 +110,7 @@
 4. 成本/速率元数据。
 5. round-robin / health-aware / cost-aware 策略。
 
-### v1.7.0 Agent / 工具增强
+### v1.8.0 Agent / 工具增强
 
 优先级：中低。
 
@@ -101,6 +122,6 @@
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.3.0 / v1.4.0 期间，除非出现阻塞发布或安全风险的问题，不应优先扩展 benchmark、部署、模型池或 agent 平台化能力。
-3. `ctr eval` 后续服务于验证核心路由，而不是替代核心路由体验本身。
+2. v1.5.0 之前和 v1.5.0 期间，除非出现安全风险或 P0 主路径故障，不应优先扩展 benchmark、部署、模型池或 agent 平台化能力。
+3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。
