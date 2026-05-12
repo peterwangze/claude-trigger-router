@@ -88,7 +88,7 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 2. Fresh install / setup 主路径稳定：覆盖无配置、复用已有配置、legacy migration、repair、rebuild、远程客户端、服务端部署三类角色，确保不误启动、不误覆盖、不误导 next steps。
 3. 服务生命周期稳定：`ctr start` / `start --daemon` / `status` / `stop` / `restart` 在端口占用、stale PID、alternate port、配置错误、服务已运行时都给出清晰结果。
 4. Claude Code 入口稳定：`ctr code` 只在服务 ready 时进入 Claude Code，正确注入本地/远程代理环境，服务未运行或 Claude CLI 不存在时明确失败。
-5. 配置保存 / 修复 / 迁移安全：setup、doctor、UI save 复用同一 validation issue contract；写入前有备份，不静默丢弃 `Runtime` / `Registration` / `Auth` 等已配置分支。
+5. `[in_progress 2026-05-12]` 配置保存 / 修复 / 迁移安全：setup、doctor、UI save 复用同一 validation issue contract；本轮已让 `/api/config`、managed key 写入和治理阈值保存沿用“已有配置必须先备份，备份失败不写入”的安全线，并补 UI save 不丢弃 `Auth.managed_keys` 的回归测试；后续继续补 packaged CLI 对 remote client / server deploy 代表性 slice。
 6. UI 基础交互可看护：从 HTML 字符串 smoke 推进到最小 DOM/browser smoke，覆盖载入配置、预览 compiled models、保存失败提示、服务状态、基础路由解释和维护者 Health 展示。
 7. 看护口径校准：release verify 明确保入口主路径，不让新扩展绕过主路径稳定性；后续新增入口功能时，先补对应单元/打包后 E2E/acceptance 看护，再推进低频扩展能力。
 

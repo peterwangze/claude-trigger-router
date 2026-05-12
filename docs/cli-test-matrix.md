@@ -77,6 +77,8 @@
 ### UI / 服务状态
 
 - `/ui` 首屏展示服务 ready、端口、模型数、`Router.default`、`Runtime.mode`、listener、远程状态和 Registration 摘要
+- `POST /api/config` 保存前复用 validation issue contract；已有配置备份失败时必须拒绝写入，避免 UI save 静默覆盖用户配置
+- `POST /api/config` 保存 `Runtime` / `Registration` / `Auth` 等已配置分支时不能静默丢弃，尤其要保留 managed key 记录且不暴露一次性 secret
 - 维护者工作台展示 role / listener / remote client connection guide，和 `/api/service-info` 的 listener / clientConnection contract 对齐
 - 维护者工作台展示 Governance trace、metrics、Health 摘要、异常阈值、快照和归档入口
 - Compiled Models 区展示 `Registration.models` 编译出的 model pools、active endpoint、priority endpoint 列表和 upstream warning，覆盖同模型多源池化的编译期契约

@@ -5,7 +5,7 @@
  */
 
 import Server from "@musistudio/llms";
-import { readConfigFile, writeConfigFile, backupConfigFile, normalizeAndValidateConfig, deriveRuntimeSmartRouterConfig } from "./utils";
+import { readConfigFile, writeConfigFile, backupConfigFile, configFileExists, normalizeAndValidateConfig, deriveRuntimeSmartRouterConfig } from "./utils";
 import { log } from "./utils/log";
 import { probeRemoteRegistrationStatus, probeRemoteServiceStatus, SERVICE_NAME } from "./service-health";
 import {
@@ -750,6 +750,28 @@ function buildPersistedConfig(rawConfig: any, normalizedConfig: any) {
   return persisted;
 }
 
+async function backupExistingConfigBeforeWrite(reply: any) {
+  const hasExistingConfig = configFileExists();
+  const backupPath = await backupConfigFile();
+  if (backupPath) {
+    log(`Backed up existing configuration file to ${backupPath}`);
+    return { success: true, backupPath };
+  }
+
+  if (hasExistingConfig) {
+    reply.code(500);
+    return {
+      success: false,
+      response: {
+        success: false,
+        message: "Failed to back up existing configuration",
+      },
+    };
+  }
+
+  return { success: true };
+}
+
 function denyAuth(reply: any, statusCode: number, reason: string) {
   reply.code(statusCode);
   return {
@@ -1145,9 +1167,9 @@ export const createServer = (config: any): Server => {
       };
     }
 
-    const backupPath = await backupConfigFile();
-    if (backupPath) {
-      log(`Backed up existing configuration file to ${backupPath}`);
+    const backupResult = await backupExistingConfigBeforeWrite(reply);
+    if (!backupResult.success) {
+      return backupResult.response;
     }
     await writeConfigFile(buildPersistedConfig(nextConfig, result.config));
 
@@ -1199,9 +1221,9 @@ export const createServer = (config: any): Server => {
       };
     }
 
-    const backupPath = await backupConfigFile();
-    if (backupPath) {
-      log(`Backed up existing configuration file to ${backupPath}`);
+    const backupResult = await backupExistingConfigBeforeWrite(reply);
+    if (!backupResult.success) {
+      return backupResult.response;
     }
     await writeConfigFile(buildPersistedConfig(nextConfig, result.config));
 
@@ -1372,9 +1394,9 @@ export const createServer = (config: any): Server => {
       };
     }
 
-    const backupPath = await backupConfigFile();
-    if (backupPath) {
-      log(`Backed up existing configuration file to ${backupPath}`);
+    const backupResult = await backupExistingConfigBeforeWrite(reply);
+    if (!backupResult.success) {
+      return backupResult.response;
     }
 
     await writeConfigFile(result.config);
@@ -1479,10 +1501,9 @@ export const createServer = (config: any): Server => {
       };
     }
 
-    // 备份现有配置
-    const backupPath = await backupConfigFile();
-    if (backupPath) {
-      log(`Backed up existing configuration file to ${backupPath}`);
+    const backupResult = await backupExistingConfigBeforeWrite(reply);
+    if (!backupResult.success) {
+      return backupResult.response;
     }
 
     await writeConfigFile(buildPersistedConfig(req.body ?? {}, result.config));

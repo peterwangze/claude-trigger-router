@@ -1055,6 +1055,10 @@ export async function readConfigFile(): Promise<IAppConfig> {
   return initConfig();
 }
 
+export function configFileExists(): boolean {
+  return existsSync(CONFIG_FILE) || existsSync(CONFIG_FILE_YML) || existsSync(CONFIG_FILE_JSON);
+}
+
 /**
  * 写入配置文件
  * 写回策略：优先保持原有格式（YAML 或 JSON）。

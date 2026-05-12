@@ -4,10 +4,12 @@ const {
   mockReadConfigFile,
   mockWriteConfigFile,
   mockBackupConfigFile,
+  mockConfigFileExists,
 } = vi.hoisted(() => ({
   mockReadConfigFile: vi.fn(),
   mockWriteConfigFile: vi.fn(),
   mockBackupConfigFile: vi.fn(),
+  mockConfigFileExists: vi.fn(),
 }));
 
 vi.mock('./utils', async (importOriginal) => {
@@ -18,6 +20,7 @@ vi.mock('./utils', async (importOriginal) => {
     readConfigFile: mockReadConfigFile,
     writeConfigFile: mockWriteConfigFile,
     backupConfigFile: mockBackupConfigFile,
+    configFileExists: mockConfigFileExists,
   };
 });
 
@@ -575,6 +578,7 @@ describe('createServer /api/config', () => {
     authAuditStore.clear();
     authQuotaUsageStore.clear();
     modelPoolHealthStore.clear();
+    mockConfigFileExists.mockReturnValue(false);
     mockBackupConfigFile.mockResolvedValue(null);
     mockWriteConfigFile.mockResolvedValue(undefined);
     mockReadConfigFile.mockResolvedValue({});
@@ -3064,6 +3068,39 @@ describe('createServer /api/config', () => {
     });
   });
 
+  it('does not overwrite an existing config when backup fails during UI save', async () => {
+    mockConfigFileExists.mockReturnValue(true);
+    mockBackupConfigFile.mockResolvedValue(null);
+
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      body: {
+        Router: { default: 'sonnet' },
+        Models: [
+          {
+            id: 'sonnet',
+            api: 'https://api.example.com/v1/messages',
+            key: 'sk-test',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+          },
+        ],
+      },
+    }, reply);
+
+    expect(reply.code).toHaveBeenCalledWith(500);
+    expect(result).toEqual({
+      success: false,
+      message: 'Failed to back up existing configuration',
+    });
+    expect(mockWriteConfigFile).not.toHaveBeenCalled();
+  });
+
   it('persists configured Runtime and Registration blocks after normalization', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('POST /api/config');
@@ -3142,6 +3179,53 @@ describe('createServer /api/config', () => {
         },
       })
     );
+  });
+
+  it('persists configured Auth blocks during UI save without dropping managed key records', async () => {
+    const created = createManagedApiKey({ label: 'remote client', scopes: ['client', 'read-only'] });
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      body: {
+        APIKEY: 'bootstrap-key',
+        Router: { default: 'sonnet' },
+        Models: [
+          {
+            id: 'sonnet',
+            api: 'https://api.example.com/v1/messages',
+            key: 'sk-test',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+          },
+        ],
+        Auth: {
+          managed_keys: [created.record],
+        },
+      },
+    }, reply);
+
+    expect(reply.code).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        APIKEY: 'bootstrap-key',
+        Auth: {
+          managed_keys: [
+            expect.objectContaining({
+              id: created.record.id,
+              label: 'remote client',
+              scopes: ['client', 'read-only'],
+              key_hash: created.record.key_hash,
+            }),
+          ],
+        },
+      })
+    );
+    expect(JSON.stringify(mockWriteConfigFile.mock.calls.at(-1)?.[0])).not.toContain(created.secret);
   });
 
   it('returns warnings when saving a config with capability downgrade hints', async () => {
