@@ -4,6 +4,11 @@ import {
   REMOTE_CLIENT_ROLE_GUIDE,
   SERVER_MAINTAINER_ROLE_GUIDE,
 } from "../runtime-role-guidance";
+import {
+  renderWorkbenchDocumentEnd,
+  renderWorkbenchDocumentStart,
+  renderWorkbenchScriptStart,
+} from "./workbench-document";
 
 function toInlineScriptJson(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
@@ -88,8 +93,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const escapedLatencyWarnMs = escapeHtml(configuredThresholds.latency_warn_ms ?? 1500);
 
   return (
-    `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Claude Trigger Router</title>` +
-    `<style>` +
+    renderWorkbenchDocumentStart() +
     `body{font-family:ui-sans-serif,system-ui,sans-serif;padding:2rem;max-width:1100px;margin:0 auto;background:#f7f7f5;color:#1f2328}` +
     `.panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem}` +
     `.muted{color:#6b7280}` +
@@ -591,7 +595,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</ul>` +
     `</div>` +
     `</section>` +
-    `<script>` +
+    renderWorkbenchScriptStart() +
     `const tbody=document.querySelector('#traceTable tbody');` +
     `const detail=document.getElementById('traceDetail');` +
     `const detailHint=document.getElementById('detailHint');` +
@@ -1960,6 +1964,6 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `loadArchives();` +
     `loadTraces();` +
     `</script>` +
-    `</body></html>`
+    renderWorkbenchDocumentEnd()
   );
 }

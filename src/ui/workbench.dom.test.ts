@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { renderWorkbenchHtml } from './workbench';
+import { extractWorkbenchInlineScript } from './workbench-document';
 
 const baseConfig = {
   HOST: '127.0.0.1',
@@ -267,6 +268,14 @@ async function createWorkbenchDom(options: {
 }
 
 describe('workbench DOM smoke', () => {
+  it('emits syntactically valid inline script', () => {
+    const html = renderWorkbenchHtml(baseConfig);
+    const script = extractWorkbenchInlineScript(html);
+
+    expect(script.length).toBeGreaterThan(1000);
+    expect(() => new Function(script)).not.toThrow();
+  });
+
   it('loads current config and compiled models into the usable workspace', async () => {
     const { dom } = await createWorkbenchDom();
     const document = dom.window.document;
