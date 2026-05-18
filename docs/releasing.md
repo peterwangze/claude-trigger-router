@@ -37,17 +37,19 @@ v1.5.0 期间建议在正式 `release:verify` 前额外跑一次入口稳定专�
 
 ```bash
 npm test -- --run --coverage
+npm run test:ui
 npm run test:e2e:cli:entry
 npm run test:e2e:cli
 npm run test:e2e:acceptance
 ```
 
-其中 coverage 口径已经从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链；`test:e2e:cli:entry` 是较短的打包后入口 smoke，用于先保护 init、doctor、start/status/stop、setup fresh、code 和 ui；后续新增入口功能时，先补对应看护再扩展低频能力。
+其中 coverage 口径已经从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链；`test:ui` 是源码侧 `/ui` DOM smoke，用于保护配置载入、compiled preview、保存失败提示和 Health action 这类基础交互；`test:e2e:cli:entry` 是较短的打包后入口 smoke，用于先保护 init、doctor、start/status/stop、setup fresh、code 和 ui；后续新增入口功能时，先补对应看护再扩展低频能力。
 
 这一步会依次执行：
 
 - `npm run build`
 - `npm test -- --run`
+- `npm run test:ui`
 - `npm run test:e2e:cli:entry`
 - `npm run test:e2e:cli`
 - `npm run test:e2e:acceptance`

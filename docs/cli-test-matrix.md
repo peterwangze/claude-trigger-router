@@ -14,6 +14,9 @@
 - `src/e2e/cli-acceptance.test.ts`
   - 关注更贴近真实人工验证的 shell / wrapper / staged 包路径
   - 重点校验 Windows 终端输出、wrapper、daemon 生命周期、release stage 验收链路
+- `src/ui/workbench.dom.test.ts`
+  - 关注 `/ui` 工作台真实 DOM 脚本执行和基础交互
+  - 重点校验配置载入、compiled preview、保存失败 validation issue 和 Health action 过滤
 
 ## 2. 当前自动覆盖范围
 
@@ -86,6 +89,7 @@
 - `GET /api/governance/health` 返回维护者健康摘要、关键指标、模型切换 signals、routing outcome、异常列表和建议 action
 - Health action 可联动 trace 过滤：cascade action 对应 `cascadeTriggered=true`，shadow action 对应 `shadowChecked=true`
 - UI HTML 渲染测试覆盖 `/api/governance/health` 数据源、Health 状态占位、routing outcome 指标、分组 outcome 面板和健康摘要说明入口
+- UI DOM smoke 执行 `renderWorkbenchHtml()` 生成的内联脚本，覆盖载入当前配置、compiled models 预览、保存失败 validation issue 展示和 Health action trace 过滤，防止字符串级 HTML 断言漏掉脚本拼接或 DOM 绑定错误
 
 ### setup 主要选择路径
 
@@ -148,19 +152,20 @@ v1.5.0 期间新增或修改功能前，先确认这些入口契约不退化：
 - `start/status/stop/restart`：覆盖前台、后台、alternate port、端口被非本服务占用、stale PID、服务已运行和配置错误；失败信息必须给出清晰下一步。
 - `code`：只在服务 ready 时进入 Claude Code；本地/远程代理环境变量必须正确注入；服务未运行或 Claude CLI 缺失时必须明确失败。
 - `doctor/setup/ui save`：复用同一 validation issue contract；写入前保留备份，不能静默丢弃 `Runtime` / `Registration` / `Auth` 等已配置分支。
-- `/ui`：现阶段继续保留 HTML 和 API smoke；后续最小 DOM/browser smoke 需要覆盖载入配置、compiled models 预览、保存失败提示、服务状态、基础路由解释和维护者 Health 展示。
+- `/ui`：现阶段保留 HTML / API smoke，并新增 `npm run test:ui` 的 jsdom DOM smoke；后续真实浏览器 smoke 继续覆盖基础路由解释、键鼠流程和维护者 Health 展示。
 - coverage：入口看护范围从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链。
 
 专项验证建议加跑：
 
 ```bash
 npm test -- --run --coverage
+npm run test:ui
 npm run test:e2e:cli:entry
 npm run test:e2e:cli
 npm run test:e2e:acceptance
 ```
 
-这组检查不是替代 `release:verify`，而是在 v1.5.0 期间提前暴露入口主路径和 coverage 口径漂移。`test:e2e:cli:entry` 是较短的入口 smoke，覆盖 init、doctor、start/status/stop、setup fresh、code 和 ui；完整 `test:e2e:cli` 仍保留为发布门禁，当前在 Windows 本地约 3-4 分钟。
+这组检查不是替代 `release:verify`，而是在 v1.5.0 期间提前暴露入口主路径、UI 交互和 coverage 口径漂移。`test:ui` 是源码侧 `/ui` DOM smoke；`test:e2e:cli:entry` 是较短的入口 smoke，覆盖 init、doctor、start/status/stop、setup fresh、code 和 ui；完整 `test:e2e:cli` 仍保留为发布门禁，当前在 Windows 本地约 3-4 分钟。
 
 ## 5. 当前发布门禁
 
@@ -169,6 +174,7 @@ npm run test:e2e:acceptance
 ```bash
 npm run build
 npm test -- --run
+npm run test:ui
 npm run test:e2e:cli:entry
 npm run test:e2e:cli
 npm run test:e2e:acceptance

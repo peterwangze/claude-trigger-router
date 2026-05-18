@@ -548,6 +548,8 @@ P2-5：Agent / 工具能力演进探索
 - P1 `packaged CLI e2e 门禁稳定化`（Chunk 1）：已确认完整 `npm run test:e2e:cli` 在 Windows 本地可通过，耗时约 3-4 分钟，之前 180 秒失败属于外层执行窗口过短而非断言失败。已新增 `npm run test:e2e:cli:entry` 作为较短入口 smoke，覆盖 init、doctor、start/status/stop、setup fresh、code 和 ui；release verify、本地文档和 GitHub release/publish workflow 均接入该入口 smoke，完整 e2e 仍保留为发布门禁。
 - 看护补强：`src/e2e/harness.ts` 的单命令 timeout 现在会清理子进程树并输出 cwd、stdout、stderr 摘要，避免后续只看到超时和残留进程。
 - 闭环验证：`npm run build`、`npm test -- --run`、`npm run test:e2e:cli:entry`、`npm run test:e2e:cli`、`npm run test:e2e:acceptance`、`npm run release:verify` 均已通过；执行后未发现本仓库相关 node 进程、tarball、`.tmp-npm-global`、`.release-stage`、`.release-home` 或 `.release-server-home` 残留。
+- P2 `UI 工作台工程化与最小 DOM/browser smoke`（Chunk 1）：已新增 `src/ui/workbench.dom.test.ts` 和 `npm run test:ui`，用 jsdom 真实执行 `/ui` 内联脚本并覆盖载入当前配置、compiled models 预览、保存失败 validation issue 展示和 Health action 联动 trace 过滤。本轮 smoke 暴露并修复 `workbench.ts` 内联脚本拼接语法错误，以及 route decision / switch continuity 摘要列表未绑定 DOM 节点的问题。
+- 本轮闭环判定：UI DOM smoke 已满足 v1.5.0 首轮“基础交互可看护”标准；尚未覆盖真实浏览器截图、键鼠流程和 `workbench.ts` 模块级拆分，因此后续仍按 P2 继续推进 UI 工程化拆分，不把完整 UI 工作台收敛标记为 closed。
 
 ## 十、关联文件
 

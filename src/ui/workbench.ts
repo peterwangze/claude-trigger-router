@@ -672,6 +672,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const intentOutcomeRanking=document.getElementById('intentOutcomeRanking');` +
     `const healthSummary=document.getElementById('healthSummary');` +
     `const routingTuningList=document.getElementById('routingTuningList');` +
+    `const routeDecisionSummaryList=document.getElementById('routeDecisionSummaryList');` +
+    `const switchContinuitySummaryList=document.getElementById('switchContinuitySummaryList');` +
     `const qualityEvidenceSummary=document.getElementById('qualityEvidenceSummary');` +
     `const qualityEvidenceList=document.getElementById('qualityEvidenceList');` +
     `const taskComparisonSummary=document.getElementById('taskComparisonSummary');` +
@@ -928,7 +930,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `}` +
     `function renderDraftPreviewMeta(meta){` +
     `  if(!meta){ draftPreviewMeta.innerHTML='<div class="alert info"><strong>Draft preview mode</strong><div class="muted">当前显示为草稿编辑视图，预设 dry-run 会在这里提示影响范围。</div></div>'; return; }` +
-    `  draftPreviewMeta.innerHTML='<div class="alert info"><strong>'+esc(meta.title || 'Preset dry-run')+'</strong><div>'+esc(meta.description || '')+'</div><div class="muted">模式：'+esc(meta.mode || '-')+' · 预设声明影响范围：'+esc((meta.affects || []).join(' / ') || '-')</div><div class="muted">实际预览命中区域：'+esc((meta.actualAffects || []).join(' / ') || '-')</div></div>';` +
+    `  draftPreviewMeta.innerHTML='<div class="alert info"><strong>'+esc(meta.title || 'Preset dry-run')+'</strong><div>'+esc(meta.description || '')+'</div><div class="muted">模式：'+esc(meta.mode || '-')+' · 预设声明影响范围：'+esc((meta.affects || []).join(' / ') || '-')+'</div><div class="muted">实际预览命中区域：'+esc((meta.actualAffects || []).join(' / ') || '-')+'</div></div>';` +
     `}` +
     `function renderDraftPresetGuide(){` +
     `  draftPresetList.innerHTML=Object.entries(draftPresets).map(([key,preset])=>'<div class="alert info"><strong>'+esc(preset.label || key)+'</strong><div>'+esc(preset.description || '')+'</div><div class="muted">影响范围：'+esc((preset.affects || []).join(' / '))+'</div></div>').join('');` +
@@ -1258,7 +1260,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    '<td>'+esc(item.type)+'</td>' +` +
     `    '<td><code>'+esc(item.key)+'</code></td>' +` +
     `    '<td>'+esc(item.fields.join(', ') || '-')+'</td>' +` +
-    `    '<td><code>'+esc(item.target.providerName || item.target.name || '-')+'</code><div class="muted">'+esc(item.target.modelName || (item.target.models || []).join(', ') || '-')}</div></td>' +` +
+    `    '<td><code>'+esc(item.target.providerName || item.target.name || '-')+'</code><div class="muted">'+esc(item.target.modelName || (item.target.models || []).join(', ') || '-')+'</div></td>' +` +
     `  '</tr>').join('') : '<tr><td colspan="5" class="muted">No compiled registry changes</td></tr>';` +
     `}` +
     `function renderReferenceImpact(impact){` +
@@ -1276,7 +1278,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    '<td><code>'+esc(item.value)+'</code></td>' +` +
     `    '<td>'+esc(item.referenceType)+'</td>' +` +
     `    '<td>'+esc(item.status)+'</td>' +` +
-    `    '<td><code>'+esc(item.resolvedTarget?.providerName || '-')+'</code><div class="muted">'+esc(item.resolvedTarget?.modelName || '-')}</div></td>' +` +
+    `    '<td><code>'+esc(item.resolvedTarget?.providerName || '-')+'</code><div class="muted">'+esc(item.resolvedTarget?.modelName || '-')+'</div></td>' +` +
     `    '<td>'+((item.suggestions || []).length ? item.suggestions.map(s=>'<div><code>'+esc(s.modelId)+'</code><div class="muted">'+esc(s.modelName || '-')+'</div><button type="button" data-apply-reference-path=\"'+esc(item.path)+'\" data-apply-reference-model=\"'+esc(s.modelId)+'\">应用建议</button></div>').join('') : '<span class="muted">-</span>')+'</td>' +` +
     `  '</tr>').join('') : '<tr><td colspan="6" class="muted">No model references found</td></tr>';` +
     `}` +
@@ -1791,7 +1793,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const exports=(data.exports || []);` +
     `  const schedules=(data.schedules || []);` +
     `  exportTableBody.innerHTML=exports.length ? exports.map(item=>'<tr><td><code>'+esc(item.id)+'</code></td><td>'+esc(item.kind)+'</td><td>'+esc(item.format)+'</td><td>'+esc(new Date(item.createdAt).toISOString())+'</td></tr>').join('') : '<tr><td colspan="4" class="muted">No exports yet</td></tr>';` +
-    `  scheduleTableBody.innerHTML=schedules.length ? schedules.map(item=>'<tr><td><code>'+esc(item.id)+'</code></td><td>'+esc(item.intervalMs)+' ms</td><td>'+esc(item.format)+'</td><td>'+esc(item.lastRunAt ? new Date(item.lastRunAt).toISOString() : '-')}</td></tr>').join('') : '<tr><td colspan="4" class="muted">No schedules yet</td></tr>';` +
+    `  scheduleTableBody.innerHTML=schedules.length ? schedules.map(item=>'<tr><td><code>'+esc(item.id)+'</code></td><td>'+esc(item.intervalMs)+' ms</td><td>'+esc(item.format)+'</td><td>'+esc(item.lastRunAt ? new Date(item.lastRunAt).toISOString() : '-')+'</td></tr>').join('') : '<tr><td colspan="4" class="muted">No schedules yet</td></tr>';` +
     `}` +
     `function renderArchives(data){` +
     `  const archives=(data.archives || []);` +
