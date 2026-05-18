@@ -407,7 +407,7 @@
 
 | 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
 |---|---|---|---|---|
-| 1 | 入口基础功能稳定与易用性巩固 | P1-主路径易用性 | v1.5.0 优先保护 `setup/start/status/code/doctor/ui`、配置保存/修复/迁移、UI 基础交互、coverage 口径和 release verify 入口门禁；2026-05-18 已补 packaged CLI e2e 超时定位、残留清理和可诊断日志，2026-05-19 已补 UI DOM smoke 首轮 | 这是用户每天最先触碰的入口；入口不稳或发布门禁不可依赖时，benchmark、服务化和模型池收益都无法兑现 |
+| 1 | 入口基础功能稳定与易用性巩固 | P1-主路径易用性 | v1.5.0 优先保护 `setup/start/status/code/doctor/ui`、配置保存/修复/迁移、UI 基础交互、coverage 口径和 release verify 入口门禁；2026-05-18 已补 packaged CLI e2e 超时定位、残留清理和可诊断日志，2026-05-19 已补 UI DOM smoke 首轮，并把 setup remote client / server deployment 加入短入口 packaged smoke | 这是用户每天最先触碰的入口；入口不稳或发布门禁不可依赖时，benchmark、服务化和模型池收益都无法兑现 |
 | 2 | 配置产品化最终收口 | P1-主路径易用性 | 继续服务入口主路径：把 `id/api/key/interface/model/thinking/metadata`、路由槽位和 capability warning 继续收敛进 README / configuration guide / UI / setup | 配置心智不统一会直接破坏 setup、doctor、UI save 和日常修配置体验 |
 | 3 | CLI / setup UX 重设计 | P1-主路径易用性 | 让 setup 的本地使用主路径优先引导默认模型、复杂任务模型、长上下文模型和 SmartRouter 起步模板，并明确 remote/server next steps | setup 是入口主路径的第一站，优先级高于收益看板和服务化扩展 |
 | 4 | 智能路由收益与切换体感治理 | P1-主路径易用性 | v1.6.0 再推进 benchmark 历史看板和人工校准 UI 表单，把现有 `ctr eval`、task comparison 和真实 trace 质量证据变成可运营收益判断 | 多模型收益需要建立在入口稳定、配置可理解、路由可解释之后 |

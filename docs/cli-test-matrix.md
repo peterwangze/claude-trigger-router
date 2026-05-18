@@ -165,7 +165,7 @@ npm run test:e2e:cli
 npm run test:e2e:acceptance
 ```
 
-这组检查不是替代 `release:verify`，而是在 v1.5.0 期间提前暴露入口主路径、UI 交互和 coverage 口径漂移。`test:ui` 是源码侧 `/ui` DOM smoke；`test:e2e:cli:entry` 是较短的入口 smoke，覆盖 init、doctor、start/status/stop、setup fresh、code 和 ui；完整 `test:e2e:cli` 仍保留为发布门禁，当前在 Windows 本地约 3-4 分钟。
+这组检查不是替代 `release:verify`，而是在 v1.5.0 期间提前暴露入口主路径、UI 交互和 coverage 口径漂移。`test:ui` 是源码侧 `/ui` DOM smoke；`test:e2e:cli:entry` 是较短的入口 smoke，覆盖 init、doctor、start/status/stop、setup fresh、setup remote client、setup server deployment、code 和 ui；完整 `test:e2e:cli` 仍保留为发布门禁，当前在 Windows 本地约 3-4 分钟。
 
 ## 5. 当前发布门禁
 

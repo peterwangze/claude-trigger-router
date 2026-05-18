@@ -550,6 +550,7 @@ P2-5：Agent / 工具能力演进探索
 - 闭环验证：`npm run build`、`npm test -- --run`、`npm run test:e2e:cli:entry`、`npm run test:e2e:cli`、`npm run test:e2e:acceptance`、`npm run release:verify` 均已通过；执行后未发现本仓库相关 node 进程、tarball、`.tmp-npm-global`、`.release-stage`、`.release-home` 或 `.release-server-home` 残留。
 - P2 `UI 工作台工程化与最小 DOM/browser smoke`（Chunk 1）：已新增 `src/ui/workbench.dom.test.ts` 和 `npm run test:ui`，用 jsdom 真实执行 `/ui` 内联脚本并覆盖载入当前配置、compiled models 预览、保存失败 validation issue 展示和 Health action 联动 trace 过滤。本轮 smoke 暴露并修复 `workbench.ts` 内联脚本拼接语法错误，以及 route decision / switch continuity 摘要列表未绑定 DOM 节点的问题。
 - 本轮闭环判定：UI DOM smoke 已满足 v1.5.0 首轮“基础交互可看护”标准；尚未覆盖真实浏览器截图、键鼠流程和 `workbench.ts` 模块级拆分，因此后续仍按 P2 继续推进 UI 工程化拆分，不把完整 UI 工作台收敛标记为 closed。
+- P1 `配置保存 / 修复 / 迁移安全`（Chunk 2）：已把 remote client setup 与 server deployment setup 加入 packaged CLI E2E，并扩入 `npm run test:e2e:cli:entry`。remote client 路径验证保存 `Runtime.remote_service`、不进入 provider/model 填写，并输出直连远端 next steps；server deployment 路径验证生成 `Runtime.mode: server` / bootstrap `APIKEY`，并明确不会自动启动服务。
 
 ## 十、关联文件
 

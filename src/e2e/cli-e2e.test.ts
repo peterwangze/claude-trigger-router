@@ -1903,6 +1903,90 @@ describe('packaged CLI E2E', () => {
     }
   }, 300000);
 
+  it('setup can create a remote-service client config on first use without prompting provider setup', async () => {
+    const env = await createTestEnvironment('ctr-setup-remote-client-e2e-');
+    try {
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: [
+          '连接远程服务',
+          'https://router.example.com',
+          'remote-token',
+        ].join('\n'),
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+      const configText = await readCurrentCtrConfigText(env.homeDir);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('当前要本地使用、连接远程服务，还是部署为远程服务端？');
+      expect(result.stdout).toContain('已生成远程服务连接配置，本机不会要求你先填写 provider/model。');
+      expect(result.stdout).toContain('远程服务连接配置已保存，可用于检查远端 ready/status。');
+      expect(result.stdout).toContain('日常直连远程服务时，请按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_AUTH_TOKEN 配置 Claude Code。');
+      expect(configText).toContain('enabled: true');
+      expect(configText).toContain('base_url: https://router.example.com');
+      expect(configText).toContain('auth_token: remote-token');
+      expect(configText).toContain('mode: local');
+      expect(configText).toContain('Providers: []');
+      expect(configText).not.toContain('Models:');
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
+
+      const stopResult = await runCtr(cliPath, ['stop'], env);
+      expect(stopResult.code).toBe(0);
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
+  it('setup can create a server deployment profile on first use without auto-starting the service', async () => {
+    const env = await createTestEnvironment('ctr-setup-server-deploy-e2e-');
+    try {
+      const before = await snapshotTree(env.homeDir);
+      const result = await runCtr(cliPath, ['setup'], env, {
+        input: ['部署为远程服务端'].join('\n'),
+        timeoutMs: 180000,
+        extraEnv: {
+          CTR_SETUP_FORCE_SCRIPTED_INPUT: '1',
+          CTR_SETUP_SKIP_ENTER_CODE: '1',
+        },
+      });
+      const after = await snapshotTree(env.homeDir);
+      const configText = await readCurrentCtrConfigText(env.homeDir);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('当前要本地使用、连接远程服务，还是部署为远程服务端？');
+      expect(result.stdout).toContain('setup 将生成 server profile 和 bootstrap admin APIKEY，但不会自动启动服务。');
+      expect(result.stdout).toContain('已生成 server 部署配置；setup 不会自动启动远程服务。');
+      expect(result.stdout).toContain('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+      expect(configText).toContain('HOST: 0.0.0.0');
+      expect(configText).toContain('mode: server');
+      expect(configText).toContain('Router:');
+      expect(configText).toContain('default: sonnet');
+      expect(configText).toContain('APIKEY: ctr_bootstrap_');
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
+
+      const statusResult = await runCtr(cliPath, ['status'], env);
+      expect(statusResult.code).toBe(0);
+      expect(statusResult.stdout).toContain('未运行');
+    } finally {
+      try {
+        await runCtr(cliPath, ['stop'], env, { timeoutMs: 15000 });
+      } catch {
+        // Ignore cleanup stop failures.
+      }
+      await removePath(env.rootDir);
+    }
+  }, 300000);
+
   it('setup can skip legacy migration and build a fresh config on first use', async () => {
     const env = await createTestEnvironment('ctr-setup-skip-legacy-e2e-');
     try {
