@@ -28,6 +28,7 @@
     "start": "node dist/cli.js start",
     "test": "vitest --exclude src/e2e/**",
     "test:e2e:cli": "vitest --run src/e2e/cli-e2e.test.ts",
+    "test:e2e:cli:entry": "vitest --run src/e2e/cli-e2e.test.ts -t \"init --force generates|doctor can repair|start/status/stop work|code reuses|ui prints|setup can create a fresh config\"",
     "test:e2e:acceptance": "vitest --run src/e2e/cli-acceptance.test.ts",
     "verify:package": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-package.ps1",
     "install:local-release": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-local-release.ps1",

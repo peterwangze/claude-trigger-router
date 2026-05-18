@@ -37,16 +37,18 @@ v1.5.0 期间建议在正式 `release:verify` 前额外跑一次入口稳定专�
 
 ```bash
 npm test -- --run --coverage
+npm run test:e2e:cli:entry
 npm run test:e2e:cli
 npm run test:e2e:acceptance
 ```
 
-其中 coverage 口径已经从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链；后续新增入口功能时，先补对应看护再扩展低频能力。
+其中 coverage 口径已经从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链；`test:e2e:cli:entry` 是较短的打包后入口 smoke，用于先保护 init、doctor、start/status/stop、setup fresh、code 和 ui；后续新增入口功能时，先补对应看护再扩展低频能力。
 
 这一步会依次执行：
 
 - `npm run build`
 - `npm test -- --run`
+- `npm run test:e2e:cli:entry`
 - `npm run test:e2e:cli`
 - `npm run test:e2e:acceptance`
 - `npm pack --dry-run`
@@ -56,7 +58,8 @@ npm run test:e2e:acceptance
 
 其中两层打包后验证分别承担不同职责：
 
-- `npm run test:e2e:cli`：覆盖打包后 CLI 的主要命令、选择路径与文件副作用边界
+- `npm run test:e2e:cli:entry`：覆盖打包后 CLI 的入口 smoke，优先保护 init、doctor、start/status/stop、setup fresh、code 和 ui
+- `npm run test:e2e:cli`：覆盖打包后 CLI 的主要命令、选择路径与文件副作用边界；当前 Windows 本地完整运行约 3-4 分钟
 - `npm run test:e2e:acceptance`：通过真实 shell / 全局 wrapper / 隔离 HOME 做更贴近人工验收的主路径看护
 
 当前已经覆盖：
@@ -222,6 +225,7 @@ git push origin v1.0.1
    - `npm ci`
    - `npm run build`
    - `npm test -- --run`
+   - `npm run test:e2e:cli:entry`
    - `npm run test:e2e:cli`
    - npm trusted publishing 版本门禁
    - `npm publish --access public`

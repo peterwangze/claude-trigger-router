@@ -24,6 +24,44 @@ export interface IFileSnapshotEntry {
 
 export type TFileSnapshot = Record<string, IFileSnapshotEntry>;
 
+function formatCommand(command: string, args: string[]): string {
+  return [command, ...args].join(' ');
+}
+
+function truncateOutput(output: string, maxLength = 4000): string {
+  if (output.length <= maxLength) {
+    return output;
+  }
+
+  const omitted = output.length - maxLength;
+  return `${output.slice(0, maxLength)}\n...[truncated ${omitted} chars]`;
+}
+
+function killProcessTree(pid: number | undefined): void {
+  if (!pid) {
+    return;
+  }
+
+  if (process.platform === 'win32') {
+    const killer = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    killer.on('error', () => undefined);
+    return;
+  }
+
+  try {
+    process.kill(-pid, 'SIGTERM');
+  } catch {
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {
+      // The child may already have exited between timeout and cleanup.
+    }
+  }
+}
+
 export function runCommand(
   command: string,
   args: string[],
@@ -36,24 +74,36 @@ export function runCommand(
   }
 ): Promise<ICommandResult> {
   return new Promise((resolve, reject) => {
+    const commandText = formatCommand(command, args);
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
       shell: options.shell ?? false,
       stdio: 'pipe',
+      detached: process.platform !== 'win32',
     });
 
     let stdout = '';
     let stderr = '';
     let settled = false;
+    const timeoutMs = options.timeoutMs ?? 60000;
     const timeout = setTimeout(() => {
       if (settled) {
         return;
       }
       settled = true;
-      child.kill();
-      reject(new Error(`Command timed out: ${command} ${args.join(' ')}`));
-    }, options.timeoutMs ?? 60000);
+      killProcessTree(child.pid);
+      reject(new Error(
+        [
+          `Command timed out after ${timeoutMs}ms: ${commandText}`,
+          `cwd: ${options.cwd}`,
+          'stdout:',
+          truncateOutput(stdout) || '<empty>',
+          'stderr:',
+          truncateOutput(stderr) || '<empty>',
+        ].join('\n')
+      ));
+    }, timeoutMs);
 
     child.stdout.on('data', (chunk) => {
       stdout += String(chunk);

@@ -484,7 +484,72 @@ P2-5：Agent / 工具能力演进探索
 - 统一进展基线需要同步校准 `server/cloud 一键部署与角色化运维入口` 和 `项目目标与用户使用视角复审` 的当前结论，避免仍停留在 2026-04-27 的“缺一键部署命令 / 下一步安全前置”口径。
 - 后续若按“计划优先级继续推进”，默认先执行本节顺序 1-3；P2/P3 事项伴随推进，但不抢占入口基础功能稳定。
 
-## 九、关联文件
+## 九、2026-05-18 当前项目再复审
+
+### 复审范围
+
+本轮按当前仓库状态重新检查五个问题：
+
+1. 项目目标是否仍聚焦在 Claude Code 本地/远程路由代理，而不是继续横向扩张。
+2. 用户常用功能是否稳定、易懂、可恢复：`setup / start / status / code / doctor / ui`、基础路由、SmartRouter、配置保存/修复/迁移。
+3. 当前架构和实现是否还能支撑 v1.5.0 入口稳定、v1.6.0 多模型收益运营化、v1.7.0 服务化与模型池安全体验。
+4. 看护体系是否能守住真实用户路径，而不只守住源码级单元测试。
+5. 现有实施计划的下一步优先级是否需要调整。
+
+### 当前验证信号
+
+- `npm run build` 通过。
+- `npm test -- --run` 通过：47 个测试文件、646 个测试用例通过。
+- `npm run test:e2e:cli` 本轮在 180 秒后超时，未返回测试摘要；超时后留下 npm / vitest / packaged ctr 子进程和 npm pack 产物，已手动清理本次残留。
+- 代码规模信号：`src/server.ts` 约 1554 行，`src/ui/workbench.ts` 约 1963 行，`src/index.ts` 约 760 行，测试文件约 49 个。
+- coverage 配置已覆盖 auth / cli / doctor / governance / index / models / protocols / server / setup / trigger / config / validation contract 主链，但仍显式排除 `src/ui/**`。
+
+### 复审结论
+
+- 项目目标仍清晰：当前阶段应继续定位为 Claude Code 的本地/远程路由代理，用 `Models + Router + SmartRouter + Governance + Runtime` 承接配置、路由、协议分发、远程转发和维护观测；不应在 v1.5.0 之前把重心转向完整 agent 平台、托管云控制面或复杂模型池策略。
+- 高频能力已经有较强基础：README、setup、doctor、UI、基础五槽位、SmartRouter 模板、route decision、switch continuity、health routing tuning、managed key、remote forward 和 pool health 已能形成用户可解释的产品面。
+- 当前最大风险不是“能力缺失”，而是“入口与看护能否稳定守住这些能力”。源码级测试和 build 通过，但 packaged CLI e2e 本轮超时且残留子进程，说明发布门禁自身需要先被治理。
+- 架构压力仍集中在三个大文件：`server.ts` 集中 API / auth / config save / remote status / governance / UI 注入；`workbench.ts` 虽从 server 拆出，但仍是长字符串式 HTML/CSS/JS；`index.ts` 同时编排 remote forward、SmartRouter、agent loop、protocol dispatch、pool fallback 和 response governance。
+- UI 已是高频入口，但 coverage 排除了 `src/ui/**`，当前主要依赖 server HTML 字符串断言和 staged smoke；这不足以守住载入配置、compiled preview、保存失败提示、Health action 等真实交互。
+- v1.5.0 的方向不需要重排：仍应优先做入口基础功能稳定与易用性巩固。区别是本轮把“packaged e2e 门禁可依赖性”和“UI 最小 DOM/browser smoke”提升为更靠前的看护项。
+
+### 本轮优先级归档
+
+| 顺序 | 优先级 | 事项 | 先做什么 | 原因 |
+|---|---|---|---|---|
+| 1 | P1 | packaged CLI e2e 门禁稳定化 | 先定位 `npm run test:e2e:cli` 超时点；确保 Windows 超时能清理 npm / vitest / packaged ctr 进程和 pack 产物；必要时拆分慢用例或增加可诊断日志 | `release:verify` 依赖 e2e；门禁不稳定会直接削弱 v1.5.0 入口稳定承诺 |
+| 2 | P1 | v1.5.0 入口基础功能稳定 | 继续保护 `setup/start/status/code/doctor/ui`、配置保存/修复/迁移、远程客户端和服务端部署三类角色 next steps | 这是用户最高频路径，且是后续收益看板、服务化和模型池的前提 |
+| 3 | P1 | 配置产品化与 setup/doctor/UI 文案一致性 | 持续收敛 `Models` 字段、基础路由五槽位、SmartRouter candidates、capability warning 和修复建议 | 用户日常修配置时最怕不同入口给出不同解释 |
+| 4 | P2 | UI 工作台工程化与最小 DOM/browser smoke | 拆分 `workbench.ts` 的 CSS/JS/渲染片段，建立浏览器或 DOM 级 smoke，覆盖载入配置、compiled preview、保存失败提示、Health 展示与 action | UI 已经不是附属调试页；字符串断言不足以看护真实交互 |
+| 5 | P2 | 服务端运行时编排减压 | 在不改行为的前提下逐步拆分 `server.ts` endpoint 注册、config save、remote status、governance API；梳理 `index.ts` remote/router/agent/protocol/pool/governance 编排边界 | 大文件继续膨胀会提高入口修复和服务化演进的回归风险 |
+| 6 | P2 | 治理观测运营化 | 入口稳定后继续把 routing outcome、quality evidence、pool health、key audit 和 benchmark summary 收敛到维护者健康判断 | 维护者需要先判断是否健康，再决定是否调路由或模型池 |
+| 7 | P2 | 模型池主动看护与成本/速率元数据 | 在现有 fallback、熔断、冷却、least-latency、health persistence 基础上补主动探测和运营元数据 | v1.7.0 的模型池价值应体现为稳定性和可解释性，而不是只增加策略 |
+| 8 | P3 | 测试日志与 coverage 口径治理 | 降低测试中预期错误日志噪声；评估是否把拆分后的 UI 逻辑纳入 coverage 或单独 DOM smoke 门禁 | 当前测试通过但日志噪声较多，容易掩盖真实异常 |
+
+### P0 触发条件
+
+本轮未发现新的 P0。但以下情况必须立即升 P0：
+
+- fresh `ctr setup -> ctr start/status -> ctr code` 主路径不可用。
+- OpenAI-compatible / Anthropic 主请求链路阻塞。
+- `Runtime.remote_service.enabled` 状态 ready 但模型调用未转发远端。
+- `POST /api/config`、setup repair 或 migration 会破坏用户已有可用配置，或丢弃 `Runtime / Registration / Auth`。
+- server/cloud 或公网监听绕过认证、managed key scope 失效、quota 失效。
+- `release:verify` 因 e2e 超时或残留进程在发布机器上不可稳定执行。
+
+### 归档动作
+
+- 本节作为 2026-05-18 再复审归档，承接 v1.5.0 “入口基础功能稳定与易用性巩固”主线。
+- 统一进展基线需同步校准 `项目目标与用户使用视角复审` 的当前闭环结论，明确 packaged e2e 门禁稳定化和 UI DOM/browser smoke 是本轮新增的靠前看护项。
+- 后续如果用户只说“按计划优先级继续推进”，默认先处理本节顺序 1-3；P2/P3 事项伴随推进，但不抢占入口稳定。
+
+### 本轮闭环记录
+
+- P1 `packaged CLI e2e 门禁稳定化`（Chunk 1）：已确认完整 `npm run test:e2e:cli` 在 Windows 本地可通过，耗时约 3-4 分钟，之前 180 秒失败属于外层执行窗口过短而非断言失败。已新增 `npm run test:e2e:cli:entry` 作为较短入口 smoke，覆盖 init、doctor、start/status/stop、setup fresh、code 和 ui；release verify、本地文档和 GitHub release/publish workflow 均接入该入口 smoke，完整 e2e 仍保留为发布门禁。
+- 看护补强：`src/e2e/harness.ts` 的单命令 timeout 现在会清理子进程树并输出 cwd、stdout、stderr 摘要，避免后续只看到超时和残留进程。
+- 闭环验证：`npm run build`、`npm test -- --run`、`npm run test:e2e:cli:entry`、`npm run test:e2e:cli`、`npm run test:e2e:acceptance`、`npm run release:verify` 均已通过；执行后未发现本仓库相关 node 进程、tarball、`.tmp-npm-global`、`.release-stage`、`.release-home` 或 `.release-server-home` 残留。
+
+## 十、关联文件
 
 本次复审重点参考：
 
@@ -494,10 +559,13 @@ P2-5：Agent / 工具能力演进探索
 - `docs/cli-test-matrix.md`
 - `docs/releasing.md`
 - `docs/superpowers/plans/unified-progress-baseline.md`
+- `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
 - `docs/superpowers/plans/progress-issue-log.md`
+- `vitest.config.ts`
 - `src/cli.ts`
 - `src/index.ts`
 - `src/server.ts`
+- `src/ui/workbench.ts`
 - `src/setup/`
 - `src/doctor/`
 - `src/trigger/`

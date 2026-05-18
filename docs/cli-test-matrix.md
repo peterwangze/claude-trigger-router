@@ -130,6 +130,7 @@
 - 主命令不会异常退出
 - 命令只修改允许的隔离文件
 - setup 与路由主流程可走通
+- 单个子命令超时时，harness 会清理子进程树并输出 stdout/stderr 摘要，便于定位卡点
 
 ### `cli-acceptance`
 
@@ -154,11 +155,12 @@ v1.5.0 期间新增或修改功能前，先确认这些入口契约不退化：
 
 ```bash
 npm test -- --run --coverage
+npm run test:e2e:cli:entry
 npm run test:e2e:cli
 npm run test:e2e:acceptance
 ```
 
-这组检查不是替代 `release:verify`，而是在 v1.5.0 期间提前暴露入口主路径和 coverage 口径漂移。
+这组检查不是替代 `release:verify`，而是在 v1.5.0 期间提前暴露入口主路径和 coverage 口径漂移。`test:e2e:cli:entry` 是较短的入口 smoke，覆盖 init、doctor、start/status/stop、setup fresh、code 和 ui；完整 `test:e2e:cli` 仍保留为发布门禁，当前在 Windows 本地约 3-4 分钟。
 
 ## 5. 当前发布门禁
 
@@ -167,6 +169,7 @@ npm run test:e2e:acceptance
 ```bash
 npm run build
 npm test -- --run
+npm run test:e2e:cli:entry
 npm run test:e2e:cli
 npm run test:e2e:acceptance
 npm run release:verify

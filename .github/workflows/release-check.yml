@@ -35,6 +35,9 @@ jobs:
       - name: Run test suite
         run: npm test -- --run
 
+      - name: Run packaged CLI entry smoke
+        run: npm run test:e2e:cli:entry
+
       - name: Run packaged CLI E2E
         run: npm run test:e2e:cli
 

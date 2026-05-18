@@ -266,6 +266,10 @@ function Invoke-ReleaseVerification {
     Invoke-CommandChecked { npm test -- --run } "Tests failed"
   }
 
+  Invoke-Step "Run packaged CLI entry smoke" {
+    Invoke-CommandChecked { npm run test:e2e:cli:entry } "Packaged CLI entry smoke failed"
+  }
+
   Invoke-Step "Run packaged CLI end-to-end suite" {
     Invoke-CommandChecked { npm run test:e2e:cli } "Packaged CLI E2E failed"
   }
