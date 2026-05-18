@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-当前后续 minor release 优先级已经切到 `v1.5.0` 入口基础功能稳定与易用性巩固。继续扩展 benchmark、服务化、模型池或 agent/tool 前，发布检查需要先保护 `setup / start / status / code / doctor / ui`、配置保存/修复/迁移、打包后真实用户流和 UI 基础交互看护。
+本次 `v1.5.0` minor release 的优先级是入口基础功能稳定与易用性巩固。继续扩展 benchmark、服务化、模型池或 agent/tool 前，发布检查需要先保护 `setup / start / status / code / doctor / ui`、配置保存/修复/迁移、打包后真实用户流和 UI 基础交互看护。
 
 ## 一次性准备
 
@@ -26,7 +26,7 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.4.0` 的发布边界以 `docs/release-notes-v1.4.0.md` 为准：主打 SmartRouter 常用体验，不宣称完整 benchmark 运营平台或完整云端平台。
+   - 本次 `v1.5.0` 的发布边界以 `docs/release-notes-v1.5.0.md` 为准：主打入口基础功能稳定与易用性巩固，不宣称完整 benchmark 运营平台或完整云端平台。
 2. 本地先执行发布包验证：
 
 ```bash
@@ -80,7 +80,7 @@ npm run test:e2e:acceptance
 - 目标端口被非本服务占用时的安全提示与“无额外文件修改”边界
 - 残留 / 失效 PID 文件的安全清理
 - `release:stage` 生成的 `.release-stage\ctr-release-home.cmd` wrapper 是否真的指向隔离 `.release-home`
-- SmartRouter v1.4.0 发布承诺的模板、配置解释、候选向导、路由决策摘要、切换体感摘要和配置路径级调优建议
+- v1.5.0 入口稳定发布承诺的 packaged entry smoke、UI DOM smoke、配置保存安全线、remote client setup 和 server deployment setup
 
 只有这一步通过后，才继续正式发布，避免“发布后才发现包内容、CLI 启动或 setup 主流程有问题”。
 

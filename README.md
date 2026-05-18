@@ -11,18 +11,19 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - 想在 Claude Code 外层增加配置校验、健康检查、治理观测和 UI 工作台
 - 想从 `claude-code-router` 迁移到更清晰的 `Models + Router` 配置心智
 
-## v1.4.0 发布定位
+## v1.5.0 发布定位
 
-`v1.4.0` 是 SmartRouter 常用体验版。它把 CTR 的智能路由从“有能力但需要理解内部机制”推进到“能复制模板、能配置候选、能看懂为什么选模、能发现切换割裂，并能按配置路径调优”。
+`v1.5.0` 是入口基础功能稳定与易用性巩固版。它把 CTR 的发布重心从继续扩展能力切回用户每天会碰到的主路径：`setup` / `start` / `status` / `code` / `doctor` / `ui`、配置保存/修复/迁移、打包后真实用户流和 UI 基础交互看护。
 
-这个版本的目标是让用户能把规则和候选模型稳定用于高频任务：`config/trigger.smart-router.yaml` 提供可复制起步模板，`/ui` 展示 SmartRouter 规则、候选、route decision 和 switch continuity summary，health routing tuning 会把慢路由、错路由、上下文窗口和切换割裂转成 `configSuggestions`。它不把 benchmark 历史看板、完整 server/cloud 托管平台或更复杂模型池策略纳入发布承诺。完整发布边界见 [docs/release-notes-v1.4.0.md](docs/release-notes-v1.4.0.md)。
+这个版本新增较短 packaged CLI entry smoke、UI DOM smoke、remote client / server deployment setup 代表性 slice，并让 E2E timeout 更容易诊断和清理。它不把 benchmark 历史看板、完整 server/cloud 托管平台或更复杂模型池策略纳入发布承诺。完整发布边界见 [docs/release-notes-v1.5.0.md](docs/release-notes-v1.5.0.md)。
 
 ## 版本路线
 
 从用户使用频率看，版本演进会优先回到最常用的基础路由和 SmartRouter 体验：
 
 - `v1.3.0`：基础路由常用体验，已收口 `Router.default` / `think` / `longContext` / `background` / `webSearch` 五槽位、doctor 诊断、UI 路由解释和 packaged smoke。
-- `v1.5.0`：入口基础功能稳定与易用性巩固，优先看护 `setup` / `start` / `status` / `code` / `doctor` / `ui`、配置保存/修复/迁移、UI 基础交互和 release verify 主路径。
+- `v1.4.0`：SmartRouter 常用体验，已收口规则模板、候选模型配置向导、路由决策解释、切换体感摘要和配置路径级调优建议。
+- `v1.5.0`：入口基础功能稳定与易用性巩固，已补 packaged entry smoke、remote/server setup slice、UI DOM smoke 和配置保存安全线。
 - `v1.6.0`：多模型收益运营化，继续补 benchmark 历史看板、人工校准表单和评测/真实 trace 的统一解释。
 - `v1.7.0`：服务化与模型池安全体验，继续补服务端安全默认值、密钥轮换手册、主动 pool health、成本/速率元数据和更多调度策略。
 
