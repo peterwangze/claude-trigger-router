@@ -407,7 +407,7 @@
 
 | 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
 |---|---|---|---|---|
-| 1 | 智能路由收益与切换体感治理 | P1-主路径易用性 | v1.6.0 推进 benchmark 历史看板和人工校准 UI 表单，把现有 `ctr eval`、task comparison 和真实 trace 质量证据变成可运营收益判断 | v1.5.0 入口稳定已闭环，多模型收益运营化是下一条用户价值主线 |
+| 1 | 智能路由收益与切换体感治理 | P1-主路径易用性 | v1.6.0 推进 benchmark 历史看板和人工校准 UI 表单；2026-05-22 已先补 `ctr eval --save-history` / `ctr eval --history`，把现有 `ctr eval` 报告沉淀为本地可比较历史，下一步接入 `/ui` benchmark history 看板 | v1.5.0 入口稳定已闭环，多模型收益运营化是下一条用户价值主线 |
 | 2 | 配置产品化最终收口 | P1-主路径易用性 | 继续服务入口主路径：把 `id/api/key/interface/model/thinking/metadata`、路由槽位和 capability warning 继续收敛进 README / configuration guide / UI / setup | 配置心智不统一会直接破坏 setup、doctor、UI save 和日常修配置体验 |
 | 3 | CLI / setup UX 重设计 | P1-主路径易用性 | 让 setup 的本地使用主路径优先引导默认模型、复杂任务模型、长上下文模型和 SmartRouter 起步模板，并明确 remote/server next steps | setup 是入口主路径的第一站，需要继续跟随 v1.6/v1.7 的收益和部署路径演进 |
 | 4 | 服务端 API key 与鉴权控制面 | P1-主路径易用性 | 继续补服务端部署默认安全策略、密钥轮换和维护手册 | v1.7.0 要安全暴露服务，入口稳定后应继续压低服务端资源泄漏风险 |

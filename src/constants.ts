@@ -53,6 +53,11 @@ export const GOVERNANCE_TRACE_ARCHIVE_DIR = join(CONFIG_DIR, 'governance-trace-a
 export const GOVERNANCE_EXPORT_HISTORY_FILE = join(CONFIG_DIR, 'governance-metrics-export-history.json');
 
 /**
+ * Offline benchmark history file
+ */
+export const BENCHMARK_HISTORY_FILE = join(CONFIG_DIR, 'benchmark-history.json');
+
+/**
  * Governance metrics 快照目录
  */
 export const GOVERNANCE_SNAPSHOT_DIR = join(CONFIG_DIR, 'governance-metric-snapshots');

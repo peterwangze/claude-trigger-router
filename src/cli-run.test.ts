@@ -291,6 +291,123 @@ describe('runClaudeCode', () => {
     logSpy.mockRestore();
   });
 
+  it('can save and summarize offline benchmark history', async () => {
+    process.argv = [
+      'node',
+      'cli.ts',
+      'eval',
+      '--input',
+      'results.json',
+      '--save-history',
+      '--history-file',
+      'history.json',
+      '--history-label',
+      'baseline',
+    ];
+    mockReadFileSync.mockImplementation((filePath: string) => {
+      if (String(filePath).endsWith('package.json')) {
+        return JSON.stringify({
+          name: '@peterwangze/claude-trigger-router',
+          version: '1.1.0',
+        });
+      }
+      if (String(filePath) === 'results.json') {
+        return JSON.stringify([
+          {
+            taskId: 'quick_status',
+            model: 'fast,haiku',
+            latencyMs: 300,
+            output: 'Status is ready. Next action is to keep monitoring the route.',
+          },
+        ]);
+      }
+      throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const written = String(mockWriteFileSync.mock.calls[0]?.[1]);
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('Benchmark history saved: history.json#');
+    expect(mockMkdirSync).toHaveBeenCalledWith('.', { recursive: true });
+    expect(mockWriteFileSync).toHaveBeenCalledWith('history.json', expect.any(String), 'utf-8');
+    expect(written).toContain('"label": "baseline"');
+    expect(written).not.toContain('Next action is to keep monitoring');
+
+    logSpy.mockRestore();
+  });
+
+  it('prints saved benchmark history trends', async () => {
+    process.argv = ['node', 'cli.ts', 'eval', '--history', '--history-file', 'history.json'];
+    mockExistsSync.mockImplementation((filePath: string) => String(filePath) === 'history.json');
+    mockReadFileSync.mockImplementation((filePath: string) => {
+      if (String(filePath).endsWith('package.json')) {
+        return JSON.stringify({
+          name: '@peterwangze/claude-trigger-router',
+          version: '1.1.0',
+        });
+      }
+      if (String(filePath) === 'history.json') {
+        return JSON.stringify({
+          version: 1,
+          entries: [
+            {
+              id: 'bench_1',
+              createdAt: '2026-05-20T00:00:00.000Z',
+              source: 'input',
+              totalTasks: 7,
+              totalRuns: 7,
+              evaluatedRuns: 7,
+              passRate: 0.7,
+              averageQualityScore: 0.7,
+              averageSpeedScore: 0.8,
+              averageLatencyMs: 500,
+              calibratedRuns: 0,
+              averageCalibrationScore: 0,
+              averageRubricDelta: 0,
+              models: [{ model: 'fast,haiku', totalRuns: 7, passRate: 0.7, averageQualityScore: 0.7, averageSpeedScore: 0.8, averageLatencyMs: 500 }],
+              bestRunsByTask: [],
+            },
+            {
+              id: 'bench_2',
+              createdAt: '2026-05-21T00:00:00.000Z',
+              source: 'run',
+              totalTasks: 7,
+              totalRuns: 7,
+              evaluatedRuns: 7,
+              passRate: 0.8,
+              averageQualityScore: 0.82,
+              averageSpeedScore: 0.85,
+              averageLatencyMs: 430,
+              calibratedRuns: 1,
+              averageCalibrationScore: 0.9,
+              averageRubricDelta: 0.08,
+              models: [{ model: 'sonnet', totalRuns: 7, passRate: 0.8, averageQualityScore: 0.82, averageSpeedScore: 0.85, averageLatencyMs: 430 }],
+              bestRunsByTask: [],
+            },
+          ],
+        });
+      }
+      throw new Error(`unexpected readFileSync call: ${String(filePath)}`);
+    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const { main } = await import('./cli');
+    await main();
+
+    const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
+    expect(output).toContain('Benchmark history');
+    expect(output).toContain('Entries: 2');
+    expect(output).toContain('Trend vs previous');
+    expect(output).toContain('sonnet');
+    expect(output).toContain('History file: history.json');
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
+  });
+
   it('prints offline evaluation task manifest', async () => {
     process.argv = ['node', 'cli.ts', 'eval', '--tasks'];
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);

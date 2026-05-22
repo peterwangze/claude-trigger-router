@@ -98,7 +98,7 @@ v1.5.0 闭环验证：`npm run release:verify` 已通过，包含 build、常规
 
 优先级：中高。
 
-1. benchmark 历史看板。
+1. `[in_progress 2026-05-22]` benchmark 历史看板：本轮先闭环 CLI 可运营历史切片，`ctr eval --input/--run` 可通过 `--save-history` 把评测摘要写入 `~/.claude-trigger-router/benchmark-history.json`，`ctr eval --history` 可查看最近一次分数、与上一次的 pass / quality / speed / latency 趋势、Top models；历史文件只保存摘要、模型均分、best run 和趋势所需字段，不保存原始模型输出。后续继续把该 history 接入 `/ui` benchmark history 看板。
 2. 人工校准 UI 表单。
 3. 固定任务集按核心路由场景重排：日常默认、思考、长上下文、后台、规则命中、候选选择。
 4. `ctr eval` 与真实 trace 的对齐：将离线评测结果与 route outcome / task comparison 建立同一解释口径。

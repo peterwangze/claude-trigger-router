@@ -11,7 +11,7 @@ import open from "openurl";
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "fs";
 import { run, initializeClaudeConfig } from "./index";
 import { isServiceRunning, killProcess, readServiceInfo } from "./utils/processCheck";
-import { CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from "./constants";
+import { BENCHMARK_HISTORY_FILE, CONFIG_DIR, CONFIG_FILE, CONFIG_FILE_JSON, CONFIG_FILE_YML, DEFAULT_CONFIG } from "./constants";
 import { SERVICE_INFO_PATH, SERVICE_NAME, isTcpPortOccupied, waitForService } from "./service-health";
 import { runSetupCli } from "./setup";
 import { buildServerDeploymentConfig, buildUsableMinimalTemplateConfig } from "./setup/templates";
@@ -20,13 +20,18 @@ import { managedApiKeySummary } from "./auth/api-keys";
 import { normalizeAndValidateConfig } from "./utils/config";
 import {
   buildOfflineTaskManifest,
+  appendBenchmarkHistory,
+  formatBenchmarkHistorySummary,
   formatOfflineTaskEvaluationReport,
   formatOfflineTaskManifest,
   parseOfflineEvaluationInputs,
+  readBenchmarkHistory,
   runOfflineTaskBenchmark,
   runOfflineTaskEvaluation,
   runOfflineTaskJudge,
+  summarizeBenchmarkHistory,
   type IOfflineEvaluationInput,
+  type IOfflineTaskEvaluationReport,
 } from "./governance/task-evaluation";
 
 const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
@@ -168,6 +173,7 @@ Claude Trigger Router - 智能触发路由器
   ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果
   ctr eval --run --models "sonnet;haiku"  # 自动调用 CTR /v1/messages 后评测
   ctr eval --run --models "sonnet;haiku" --judge-model sonnet  # 自动追加 LLM 裁判分
+  ctr eval --history       # 查看已保存 benchmark 历史趋势
   ctr init                 # 初始化最小配置模板
   ctr deploy init --target server  # 生成安全默认的 server 部署配置
   ctr version              # 查看当前安装版本
@@ -302,7 +308,37 @@ function parseEvalModelsArg(): string[] {
     .filter(Boolean);
 }
 
+function getBenchmarkHistoryFile(): string {
+  return getArgValue("--history-file") || BENCHMARK_HISTORY_FILE;
+}
+
+function saveBenchmarkHistoryIfRequested(report: IOfflineTaskEvaluationReport, source: "input" | "run" | "judge"): string | undefined {
+  if (!hasArg("--save-history")) {
+    return undefined;
+  }
+
+  const historyFile = getBenchmarkHistoryFile();
+  const entry = appendBenchmarkHistory(report, {
+    historyFile,
+    source,
+    label: getArgValue("--history-label"),
+  });
+  return `${historyFile}#${entry.id}`;
+}
+
 async function runOfflineEvaluationCli() {
+  if (hasArg("--history")) {
+    const historyFile = getBenchmarkHistoryFile();
+    const summary = summarizeBenchmarkHistory(readBenchmarkHistory(historyFile));
+    if (hasArg("--json")) {
+      console.log(JSON.stringify({ historyFile, summary }, null, 2));
+      return;
+    }
+    console.log(formatBenchmarkHistorySummary(summary));
+    console.log(`History file: ${historyFile}`);
+    return;
+  }
+
   if (hasArg("--tasks")) {
     if (hasArg("--json")) {
       console.log(JSON.stringify(buildOfflineTaskManifest(), null, 2));
@@ -335,12 +371,16 @@ async function runOfflineEvaluationCli() {
         judgeModel,
         judgeMaxTokens: parsePositiveIntegerArg("--judge-max-tokens", undefined, 256, "judge-max-tokens"),
       });
+      const saved = saveBenchmarkHistoryIfRequested(result.report, "run");
       if (hasArg("--json")) {
         console.log(JSON.stringify(result, null, 2));
         return;
       }
 
       console.log(formatOfflineTaskEvaluationReport(result.report));
+      if (saved) {
+        console.log(`Benchmark history saved: ${saved}`);
+      }
       return;
     } catch (error: any) {
       console.error(`❌ 自动评测失败：${error.message}`);
@@ -371,22 +411,30 @@ async function runOfflineEvaluationCli() {
         concurrency: parsePositiveIntegerArg("--concurrency", undefined, 2, "concurrency"),
         maxTokens: parsePositiveIntegerArg("--judge-max-tokens", undefined, 256, "judge-max-tokens"),
       });
+      const saved = saveBenchmarkHistoryIfRequested(result.report, "judge");
       if (hasArg("--json")) {
         console.log(JSON.stringify(result, null, 2));
         return;
       }
 
       console.log(formatOfflineTaskEvaluationReport(result.report));
+      if (saved) {
+        console.log(`Benchmark history saved: ${saved}`);
+      }
       return;
     }
 
     const report = runOfflineTaskEvaluation(inputs);
+    const saved = saveBenchmarkHistoryIfRequested(report, "input");
     if (hasArg("--json")) {
       console.log(JSON.stringify(report, null, 2));
       return;
     }
 
     console.log(formatOfflineTaskEvaluationReport(report));
+    if (saved) {
+      console.log(`Benchmark history saved: ${saved}`);
+    }
   } catch (error: any) {
     console.error(`❌ 离线评测失败：${error.message}`);
     console.error("   请检查输入格式：ctr eval --input results.json");

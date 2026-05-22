@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { dirname } from 'path';
+
 export interface IOfflineEvaluationTask {
   id: string;
   intent: string;
@@ -127,6 +130,64 @@ export interface IOfflineTaskBenchmarkOptions {
 export interface IOfflineTaskBenchmarkResult {
   inputs: IOfflineEvaluationInput[];
   report: IOfflineTaskEvaluationReport;
+}
+
+export interface IBenchmarkHistoryModelSummary {
+  model: string;
+  totalRuns: number;
+  passRate: number;
+  averageQualityScore: number;
+  averageSpeedScore: number;
+  averageLatencyMs: number;
+}
+
+export interface IBenchmarkHistoryEntry {
+  id: string;
+  createdAt: string;
+  source: 'input' | 'run' | 'judge' | 'unknown';
+  label?: string;
+  totalTasks: number;
+  totalRuns: number;
+  evaluatedRuns: number;
+  passRate: number;
+  averageQualityScore: number;
+  averageSpeedScore: number;
+  averageLatencyMs: number;
+  calibratedRuns: number;
+  averageCalibrationScore: number;
+  averageRubricDelta: number;
+  models: IBenchmarkHistoryModelSummary[];
+  bestRunsByTask: Array<{
+    taskId: string;
+    model: string;
+    qualityScore: number;
+    speedScore: number;
+    latencyMs?: number;
+    passed: boolean;
+  }>;
+}
+
+export interface IBenchmarkHistorySummary {
+  totalEntries: number;
+  latest?: IBenchmarkHistoryEntry;
+  previous?: IBenchmarkHistoryEntry;
+  trends: {
+    passRateDelta: number;
+    qualityDelta: number;
+    speedDelta: number;
+    latencyDeltaMs: number;
+    calibrationDelta: number;
+  };
+  topModels: IBenchmarkHistoryModelSummary[];
+  entries: IBenchmarkHistoryEntry[];
+}
+
+export interface IBenchmarkHistoryAppendOptions {
+  historyFile: string;
+  source?: IBenchmarkHistoryEntry['source'];
+  label?: string;
+  maxEntries?: number;
+  now?: Date;
 }
 
 export interface IOfflineTaskJudgeOptions {
@@ -1041,6 +1102,170 @@ export async function runOfflineTaskBenchmark(options: IOfflineTaskBenchmarkOpti
     inputs,
     report: runOfflineTaskEvaluation(inputs, tasks),
   };
+}
+
+function roundMetric(value: number): number {
+  return Number((Number.isFinite(value) ? value : 0).toFixed(4));
+}
+
+function buildHistoryEntry(
+  report: IOfflineTaskEvaluationReport,
+  options: Omit<IBenchmarkHistoryAppendOptions, 'historyFile'>
+): IBenchmarkHistoryEntry {
+  const createdAt = (options.now ?? new Date()).toISOString();
+  const id = `bench_${createdAt.replace(/\D/g, '')}_${report.evaluatedRuns}`;
+
+  return {
+    id,
+    createdAt,
+    source: options.source ?? 'unknown',
+    label: options.label?.trim() || undefined,
+    totalTasks: report.totalTasks,
+    totalRuns: report.totalRuns,
+    evaluatedRuns: report.evaluatedRuns,
+    passRate: roundMetric(report.passRate),
+    averageQualityScore: roundMetric(report.averageQualityScore),
+    averageSpeedScore: roundMetric(report.averageSpeedScore),
+    averageLatencyMs: roundMetric(report.averageLatencyMs),
+    calibratedRuns: report.calibrationSummary.calibratedRuns,
+    averageCalibrationScore: roundMetric(report.calibrationSummary.averageCalibrationScore),
+    averageRubricDelta: roundMetric(report.calibrationSummary.averageRubricDelta),
+    models: report.byModel.map((item) => ({
+      model: item.key,
+      totalRuns: item.totalRuns,
+      passRate: roundMetric(item.passRate),
+      averageQualityScore: roundMetric(item.averageQualityScore),
+      averageSpeedScore: roundMetric(item.averageSpeedScore),
+      averageLatencyMs: roundMetric(item.averageLatencyMs),
+    })),
+    bestRunsByTask: report.bestRunsByTask.map((run) => ({
+      taskId: run.taskId,
+      model: run.model,
+      qualityScore: roundMetric(run.qualityScore),
+      speedScore: roundMetric(run.speedScore),
+      latencyMs: run.latencyMs,
+      passed: run.passed,
+    })),
+  };
+}
+
+function parseBenchmarkHistoryPayload(payload: unknown): IBenchmarkHistoryEntry[] {
+  const rawEntries = Array.isArray(payload)
+    ? payload
+    : typeof payload === 'object' && payload !== null && Array.isArray((payload as { entries?: unknown }).entries)
+      ? (payload as { entries: unknown[] }).entries
+      : [];
+
+  return rawEntries
+    .filter((entry): entry is IBenchmarkHistoryEntry => {
+      if (!entry || typeof entry !== 'object') {
+        return false;
+      }
+      const candidate = entry as Partial<IBenchmarkHistoryEntry>;
+      return Boolean(
+        typeof candidate.id === 'string' &&
+        typeof candidate.createdAt === 'string' &&
+        typeof candidate.evaluatedRuns === 'number'
+      );
+    })
+    .map((entry) => ({
+      ...entry,
+      source: entry.source ?? 'unknown',
+      totalRuns: typeof entry.totalRuns === 'number' ? entry.totalRuns : entry.evaluatedRuns,
+      models: Array.isArray(entry.models) ? entry.models : [],
+      bestRunsByTask: Array.isArray(entry.bestRunsByTask) ? entry.bestRunsByTask : [],
+    }));
+}
+
+export function readBenchmarkHistory(historyFile: string): IBenchmarkHistoryEntry[] {
+  if (!existsSync(historyFile)) {
+    return [];
+  }
+
+  const content = readFileSync(historyFile, 'utf-8').trim();
+  if (!content) {
+    return [];
+  }
+
+  return parseBenchmarkHistoryPayload(JSON.parse(content));
+}
+
+export function appendBenchmarkHistory(
+  report: IOfflineTaskEvaluationReport,
+  options: IBenchmarkHistoryAppendOptions
+): IBenchmarkHistoryEntry {
+  const entry = buildHistoryEntry(report, options);
+  const maxEntries = Math.max(1, Math.floor(options.maxEntries ?? 50));
+  const existing = readBenchmarkHistory(options.historyFile);
+  const entries = [...existing, entry].slice(-maxEntries);
+  mkdirSync(dirname(options.historyFile), { recursive: true });
+  writeFileSync(options.historyFile, JSON.stringify({ version: 1, entries }, null, 2), 'utf-8');
+  return entry;
+}
+
+export function summarizeBenchmarkHistory(entries: IBenchmarkHistoryEntry[]): IBenchmarkHistorySummary {
+  const ordered = [...entries].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const latest = ordered.at(-1);
+  const previous = ordered.at(-2);
+  const topModels = latest
+    ? [...latest.models].sort((a, b) => {
+      const qualityDelta = b.averageQualityScore - a.averageQualityScore;
+      if (qualityDelta !== 0) {
+        return qualityDelta;
+      }
+      return a.averageLatencyMs - b.averageLatencyMs;
+    }).slice(0, 5)
+    : [];
+
+  return {
+    totalEntries: ordered.length,
+    latest,
+    previous,
+    trends: {
+      passRateDelta: latest && previous ? roundMetric(latest.passRate - previous.passRate) : 0,
+      qualityDelta: latest && previous ? roundMetric(latest.averageQualityScore - previous.averageQualityScore) : 0,
+      speedDelta: latest && previous ? roundMetric(latest.averageSpeedScore - previous.averageSpeedScore) : 0,
+      latencyDeltaMs: latest && previous ? roundMetric(latest.averageLatencyMs - previous.averageLatencyMs) : 0,
+      calibrationDelta: latest && previous ? roundMetric(latest.averageCalibrationScore - previous.averageCalibrationScore) : 0,
+    },
+    topModels,
+    entries: ordered,
+  };
+}
+
+function signedMetric(value: number, digits = 2): string {
+  const prefix = value > 0 ? '+' : '';
+  return `${prefix}${value.toFixed(digits)}`;
+}
+
+export function formatBenchmarkHistorySummary(summary: IBenchmarkHistorySummary): string {
+  const lines = ['Benchmark history'];
+  if (!summary.latest) {
+    lines.push('No benchmark history yet. Run ctr eval --input results.json --save-history or ctr eval --run --models "sonnet;haiku" --save-history.');
+    return lines.join('\n');
+  }
+
+  const latest = summary.latest;
+  lines.push(`Entries: ${summary.totalEntries}`);
+  lines.push(`Latest: ${latest.createdAt}${latest.label ? ` (${latest.label})` : ''}, source=${latest.source}, runs=${latest.evaluatedRuns}/${latest.totalRuns}`);
+  lines.push(`Latest score: pass ${(latest.passRate * 100).toFixed(1)}%, quality ${latest.averageQualityScore.toFixed(2)}, speed ${latest.averageSpeedScore.toFixed(2)}, latency ${latest.averageLatencyMs} ms`);
+
+  if (summary.previous) {
+    lines.push(
+      `Trend vs previous: pass ${signedMetric(summary.trends.passRateDelta * 100, 1)}pp, quality ${signedMetric(summary.trends.qualityDelta)}, speed ${signedMetric(summary.trends.speedDelta)}, latency ${signedMetric(summary.trends.latencyDeltaMs, 0)} ms`
+    );
+  } else {
+    lines.push('Trend vs previous: waiting for another saved run');
+  }
+
+  if (summary.topModels.length) {
+    lines.push('Top models in latest run:');
+    for (const model of summary.topModels) {
+      lines.push(`- ${model.model}: quality ${model.averageQualityScore.toFixed(2)}, pass ${(model.passRate * 100).toFixed(1)}%, latency ${model.averageLatencyMs} ms`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 export function buildOfflineTaskManifest(tasks: IOfflineEvaluationTask[] = DEFAULT_OFFLINE_EVALUATION_TASKS) {

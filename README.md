@@ -405,6 +405,7 @@ ctr eval --tasks
 ctr eval --input results.json
 ctr eval --run --models "sonnet;haiku"
 ctr eval --run --models "sonnet;haiku" --judge-model sonnet
+ctr eval --history
 ```
 
 输入文件可以是数组，也可以是 `{ "results": [...] }`：
@@ -427,6 +428,16 @@ ctr eval --run --models "sonnet;haiku" --judge-model sonnet
 `ctr eval --tasks` 会列出固定任务的 prompt、expected output、关键词、字符数、延迟预算、质量维度和 result template；加 `--json` 可导出给后续自动执行器或外部脚本。当前内置任务覆盖 quick reply、coding、architecture、long context、server auth/deployment 和 model pool incident。评测会输出按模型和任务聚合的 pass rate、quality、speed、latency、best run、维度均分和失败 findings；默认是离线 deterministic rubric，不等同于人工复核。
 
 如果你已经有人工复核或外部 LLM 裁判结果，可以在输入里补 `humanScore` / `judgeScore`，范围是 `0..1`。报告会生成 calibration summary，并标出 deterministic rubric 与人工/裁判结果差异较大的任务，帮助维护者判断某个模型组合是否真的带来质量提升。
+
+如果想把多次评测变成可比较的历史趋势，给离线或自动评测追加 `--save-history`：
+
+```bash
+ctr eval --input results.json --save-history --history-label baseline
+ctr eval --run --models "sonnet;haiku" --save-history --history-label smart-router-candidates
+ctr eval --history
+```
+
+benchmark history 默认保存到 `~/.claude-trigger-router/benchmark-history.json`，只保存摘要、模型均分、best run 和趋势指标，不保存原始模型输出。需要放到别的位置时可以用 `--history-file path/to/history.json`。
 
 也可以让 CTR 自动调用一个裁判模型：
 
@@ -535,6 +546,7 @@ GET /api/auth/audit
 | `ctr eval --input results.json` | 离线固定任务集评测 |
 | `ctr eval --run --models "sonnet;haiku"` | 自动调用 CTR 后评测固定任务集 |
 | `ctr eval --run --models "sonnet;haiku" --judge-model sonnet` | 自动执行并追加 LLM 裁判校准 |
+| `ctr eval --history` | 查看已保存 benchmark 历史趋势 |
 | `ctr ui` | 打开本地 UI 工作台 |
 | `ctr version` | 查看版本 |
 | `ctr upgrade` | 升级 |

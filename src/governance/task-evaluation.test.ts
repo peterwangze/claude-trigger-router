@@ -1,13 +1,20 @@
 import { describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import {
+  appendBenchmarkHistory,
   buildOfflineTaskManifest,
   DEFAULT_OFFLINE_EVALUATION_TASKS,
+  formatBenchmarkHistorySummary,
   formatOfflineTaskEvaluationReport,
   formatOfflineTaskManifest,
   parseOfflineEvaluationInputs,
+  readBenchmarkHistory,
   runOfflineTaskBenchmark,
   runOfflineTaskEvaluation,
   runOfflineTaskJudge,
+  summarizeBenchmarkHistory,
 } from './task-evaluation';
 
 describe('offline task evaluation', () => {
@@ -105,6 +112,63 @@ describe('offline task evaluation', () => {
     expect(formatOfflineTaskEvaluationReport(report)).toContain('Offline routing evaluation');
     expect(formatOfflineTaskEvaluationReport(report)).toContain('fast,haiku');
     expect(formatOfflineTaskEvaluationReport(report)).toContain('quick_status -> fast,haiku');
+  });
+
+  it('persists benchmark history without storing raw model outputs', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctr-benchmark-history-'));
+    try {
+      const historyFile = join(dir, 'benchmark-history.json');
+      const firstReport = runOfflineTaskEvaluation([
+        {
+          taskId: 'quick_status',
+          model: 'fast,haiku',
+          latencyMs: 300,
+          output: 'Status is ready. Next action is to keep monitoring the route.',
+          humanScore: 0.9,
+        },
+      ]);
+      const secondReport = runOfflineTaskEvaluation([
+        {
+          taskId: 'quick_status',
+          model: 'fast,haiku',
+          latencyMs: 220,
+          output: 'Status is ready. Next action is to run the benchmark again.',
+          humanScore: 1,
+        },
+      ]);
+
+      appendBenchmarkHistory(firstReport, {
+        historyFile,
+        source: 'input',
+        label: 'baseline',
+        now: new Date('2026-05-20T00:00:00.000Z'),
+      });
+      const latest = appendBenchmarkHistory(secondReport, {
+        historyFile,
+        source: 'run',
+        label: 'candidate',
+        now: new Date('2026-05-21T00:00:00.000Z'),
+      });
+
+      const entries = readBenchmarkHistory(historyFile);
+      expect(entries).toHaveLength(2);
+      expect(entries[1]).toEqual(expect.objectContaining({
+        id: latest.id,
+        source: 'run',
+        label: 'candidate',
+        evaluatedRuns: 1,
+        calibratedRuns: 1,
+      }));
+      expect(readFileSync(historyFile, 'utf-8')).not.toContain('Next action is to run the benchmark again');
+
+      const summary = summarizeBenchmarkHistory(entries);
+      expect(summary.trends.latencyDeltaMs).toBe(-80);
+      expect(summary.topModels[0]).toEqual(expect.objectContaining({ model: 'fast,haiku' }));
+      expect(formatBenchmarkHistorySummary(summary)).toContain('Trend vs previous');
+      expect(formatBenchmarkHistorySummary(summary)).toContain('fast,haiku');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('validates operator supplied result files before scoring', () => {
