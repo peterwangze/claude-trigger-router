@@ -143,25 +143,25 @@ describe('normalizeAndValidateConfig governance', () => {
     ]);
   });
 
-  it('accepts explicit registration pool strategy and rejects unsupported values', () => {
+  it('accepts explicit registration pool strategies and rejects unsupported values', () => {
     const valid = normalizeAndValidateConfig({
       ...baseConfig,
       Registration: {
         enabled: true,
-        strategy: 'least-latency',
+        strategy: 'cost-aware',
       },
     });
     expect(valid.errors).toEqual([]);
-    expect(valid.config.Registration?.strategy).toBe('least-latency');
+    expect(valid.config.Registration?.strategy).toBe('cost-aware');
 
     const invalid = normalizeAndValidateConfig({
       ...baseConfig,
       Registration: {
         enabled: true,
-        strategy: 'round-robin',
+        strategy: 'random',
       },
     } as any);
-    expect(invalid.errors).toContain('Registration.strategy must be one of "priority", "least-latency"');
+    expect(invalid.errors).toContain('Registration.strategy must be one of "priority", "least-latency", "round-robin", "health-aware", or "cost-aware"');
   });
 
   it('allows duplicate Registration model ids for logical model pools', () => {

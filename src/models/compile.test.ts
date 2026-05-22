@@ -742,6 +742,149 @@ describe('model compile', () => {
     expect(resolveModelReference(config, 'sonnet')).toBe('registration__edge-a,claude-sonnet-4-5');
   });
 
+  it('uses round-robin strategy by selecting the least used healthy endpoint', () => {
+    const config = {
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Registration: {
+        enabled: true,
+        strategy: 'round-robin',
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+        ],
+      },
+    } as any;
+
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-a');
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-a');
+
+    expect(buildModelRegistry(config).modelPools.sonnet.activeEndpointId).toBe('edge-b');
+    expect(getCompiledModelRef(config, 'sonnet')?.modelPool).toEqual({
+      modelId: 'sonnet',
+      endpointId: 'edge-b',
+      strategy: 'round-robin',
+    });
+  });
+
+  it('uses health-aware strategy by preferring lower latency among healthy endpoints', () => {
+    const config = {
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Registration: {
+        enabled: true,
+        strategy: 'health-aware',
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              pool_priority: 10,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-b.example.com/v1',
+            key: 'sk-edge-b',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-b',
+              pool_priority: 20,
+            },
+          },
+        ],
+      },
+    } as any;
+
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-a', 10_000, 800);
+    modelPoolHealthStore.recordSuccess('sonnet', 'edge-b', 10_000, 150);
+
+    expect(buildModelRegistry(config).modelPools.sonnet.activeEndpointId).toBe('edge-b');
+    expect(getModelPoolFallbackCandidate(config, {
+      modelId: 'sonnet',
+      endpointId: 'edge-b',
+      strategy: 'health-aware',
+    })).toEqual(expect.objectContaining({
+      endpointId: 'edge-a',
+      strategy: 'health-aware',
+    }));
+  });
+
+  it('uses cost-aware strategy by selecting the lowest declared token cost', () => {
+    const config = {
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Registration: {
+        enabled: true,
+        strategy: 'cost-aware',
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-premium.example.com/v1',
+            key: 'sk-premium',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'premium',
+              pool_priority: 10,
+              cost_per_1m_input_tokens: 3,
+              cost_per_1m_output_tokens: 15,
+            },
+          },
+          {
+            id: 'sonnet',
+            api: 'https://edge-economy.example.com/v1',
+            key: 'sk-economy',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'economy',
+              pool_priority: 20,
+              cost_per_1m_input_tokens: 1,
+              cost_per_1m_output_tokens: 5,
+            },
+          },
+        ],
+      },
+    } as any;
+
+    expect(buildModelRegistry(config).modelPools.sonnet.activeEndpointId).toBe('economy');
+    expect(resolveModelReference(config, 'sonnet')).toBe('registration__economy,claude-sonnet-4-5');
+    expect(getModelPoolFallbackCandidate(config, {
+      modelId: 'sonnet',
+      endpointId: 'economy',
+      strategy: 'cost-aware',
+    })).toEqual(expect.objectContaining({
+      endpointId: 'premium',
+      strategy: 'cost-aware',
+    }));
+  });
+
   it('opens the model pool endpoint circuit after repeated failures', () => {
     const config = {
       Providers: [],

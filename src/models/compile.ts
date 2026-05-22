@@ -33,7 +33,7 @@ export interface ICompiledModelRegistry {
   modelPools: Record<string, ICompiledModelPool>;
 }
 
-export type TModelPoolStrategy = 'priority' | 'least-latency';
+export type TModelPoolStrategy = 'priority' | 'least-latency' | 'round-robin' | 'health-aware' | 'cost-aware';
 
 export interface ICompiledModelPoolSelection {
   modelId: string;
@@ -313,7 +313,13 @@ function buildCompiledModelRefFromPoolEndpoint(
 }
 
 function getRegistrationPoolStrategy(config: IAppConfig): TModelPoolStrategy {
-  return config.Registration?.strategy === 'least-latency' ? 'least-latency' : 'priority';
+  const strategy = config.Registration?.strategy;
+  return strategy === 'least-latency' ||
+    strategy === 'round-robin' ||
+    strategy === 'health-aware' ||
+    strategy === 'cost-aware'
+    ? strategy
+    : 'priority';
 }
 
 function latencyScore(endpoint: ICompiledModelPoolEndpoint): number | undefined {
@@ -321,26 +327,67 @@ function latencyScore(endpoint: ICompiledModelPoolEndpoint): number | undefined 
   return typeof averageMs === 'number' && Number.isFinite(averageMs) ? averageMs : undefined;
 }
 
+function costScore(endpoint: ICompiledModelPoolEndpoint): number | undefined {
+  const inputCost = endpoint.cost?.inputPer1MTokens;
+  const outputCost = endpoint.cost?.outputPer1MTokens;
+  if (typeof inputCost !== 'number' && typeof outputCost !== 'number') {
+    return undefined;
+  }
+  return (inputCost ?? 0) + (outputCost ?? 0);
+}
+
+function compareOptionalNumber(left: number | undefined, right: number | undefined): number {
+  if (left !== undefined && right !== undefined && left !== right) {
+    return left - right;
+  }
+  if (left !== undefined && right === undefined) {
+    return -1;
+  }
+  if (left === undefined && right !== undefined) {
+    return 1;
+  }
+  return 0;
+}
+
 function sortEndpointsForStrategy(
   endpoints: ICompiledModelPoolEndpoint[],
   strategy: TModelPoolStrategy
 ): ICompiledModelPoolEndpoint[] {
-  if (strategy !== 'least-latency') {
-    return [...endpoints].sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
-  }
-
   return [...endpoints].sort((a, b) => {
-    const leftLatency = latencyScore(a);
-    const rightLatency = latencyScore(b);
-    if (leftLatency !== undefined && rightLatency !== undefined && leftLatency !== rightLatency) {
-      return leftLatency - rightLatency;
+    if (strategy === 'least-latency') {
+      const latencyCompare = compareOptionalNumber(latencyScore(a), latencyScore(b));
+      if (latencyCompare !== 0) {
+        return latencyCompare;
+      }
     }
-    if (leftLatency !== undefined && rightLatency === undefined) {
-      return -1;
+
+    if (strategy === 'round-robin' && a.health.successCount !== b.health.successCount) {
+      return a.health.successCount - b.health.successCount;
     }
-    if (leftLatency === undefined && rightLatency !== undefined) {
-      return 1;
+
+    if (strategy === 'health-aware') {
+      const statusRank = (endpoint: ICompiledModelPoolEndpoint) =>
+        endpoint.health.status === 'healthy' ? 0 : endpoint.health.status === 'cooldown' ? 1 : 2;
+      const statusCompare = statusRank(a) - statusRank(b);
+      if (statusCompare !== 0) {
+        return statusCompare;
+      }
+      if (a.health.failureCount !== b.health.failureCount) {
+        return a.health.failureCount - b.health.failureCount;
+      }
+      const latencyCompare = compareOptionalNumber(latencyScore(a), latencyScore(b));
+      if (latencyCompare !== 0) {
+        return latencyCompare;
+      }
     }
+
+    if (strategy === 'cost-aware') {
+      const costCompare = compareOptionalNumber(costScore(a), costScore(b));
+      if (costCompare !== 0) {
+        return costCompare;
+      }
+    }
+
     return a.priority - b.priority || a.id.localeCompare(b.id);
   });
 }
@@ -608,7 +655,7 @@ export function getModelPoolFallbackCandidate(
 
   const enabledEndpoints = pool.endpoints.filter((endpoint) => endpoint.enabled);
   const currentIndex = enabledEndpoints.findIndex((endpoint) => endpoint.id === selection.endpointId);
-  const fallbackCandidates = pool.strategy === 'least-latency'
+  const fallbackCandidates = pool.strategy !== 'priority'
     ? enabledEndpoints.filter((endpoint) => endpoint.id !== selection.endpointId)
     : currentIndex >= 0
       ? enabledEndpoints.slice(currentIndex + 1)

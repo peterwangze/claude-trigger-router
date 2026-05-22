@@ -320,9 +320,9 @@ Health 摘要只解释已有 trace / metrics / anomaly 数据，不会改变路�
 
 - `models`：可注册模型列表，字段复用 `Models[]` 的最小模型配置语义；多个相同 `id` 会编译成同一个 logical model pool。
 - `upstream_services`：上游服务引用列表，只保存服务 ID、base URL 和可选 token。
-- `strategy`：可选，当前支持 `priority` 和 `least-latency`；默认是 `priority`，显式设置 `least-latency` 后会优先选择已有成功延迟样本中平均延迟最低的健康 endpoint，没有样本时回退 priority。
+- `strategy`：可选，当前支持 `priority`、`least-latency`、`round-robin`、`health-aware` 和 `cost-aware`；默认是 `priority`。`least-latency` 按成功延迟窗口选低延迟 endpoint；`round-robin` 按当前成功次数选择低使用 endpoint；`health-aware` 优先健康、低失败、低延迟 endpoint；`cost-aware` 使用成本 metadata 选择低成本 endpoint。
 - `metadata.pool_endpoint_id`：可选，给某个 pool endpoint 一个稳定 ID。
-- `metadata.pool_priority`：可选，数值越小优先级越高；在 `priority` 策略下直接决定 active endpoint，在 `least-latency` 没有延迟样本或延迟相同时作为稳定回退顺序。
+- `metadata.pool_priority`：可选，数值越小优先级越高；在 `priority` 策略下直接决定 active endpoint，在其他策略缺少对应样本或分数相同时作为稳定回退顺序。
 - `metadata.pool_enabled`：可选，设为 `false` 时该 endpoint 会保留在 pool 中但不会成为 active endpoint。
 - `metadata.upstream_service_id`：可选，将 endpoint 关联到 `upstream_services[].id`，用于维护者观测和后续调度。
 - `metadata.cost_per_1m_input_tokens` / `metadata.cost_per_1m_output_tokens` / `metadata.cost_currency`：可选，用于展示和 cost-aware 调度的成本提示。
@@ -333,7 +333,7 @@ Health 摘要只解释已有 trace / metrics / anomaly 数据，不会改变路�
 ```yaml
 Registration:
   enabled: true
-  strategy: "least-latency"
+  strategy: "health-aware"
   upstream_services:
     - id: "edge-router"
       base_url: "https://edge.example.com"

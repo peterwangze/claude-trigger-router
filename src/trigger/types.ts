@@ -209,7 +209,7 @@ export interface IRuntimeConfig {
 
 export interface IRegistrationConfig {
   enabled?: boolean;
-  strategy?: 'priority' | 'least-latency';
+  strategy?: 'priority' | 'least-latency' | 'round-robin' | 'health-aware' | 'cost-aware';
   models?: IModelEndpointConfig[];
   upstream_services?: Array<{
     id: string;

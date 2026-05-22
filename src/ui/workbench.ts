@@ -372,7 +372,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</table>` +
     `</div>` +
     `<div class="panel" style="margin-bottom:0">` +
-    `<div class="row"><strong>Model pools</strong><span class="muted">Registration.models 编译出的同模型多源池，当前支持 priority / least-latency active endpoint、非流式错误 fallback、内存 health/cooldown、熔断状态与延迟窗口</span></div>` +
+    `<div class="row"><strong>Model pools</strong><span class="muted">Registration.models 编译出的同模型多源池，当前支持 priority / least-latency / round-robin / health-aware / cost-aware active endpoint、非流式错误 fallback、health/cooldown、熔断状态、延迟窗口与成本/速率元数据</span></div>` +
     `<table id="compiledModelPoolsTable" class="management-table">` +
     `<thead><tr><th>Pool</th><th>Strategy</th><th>Active endpoint</th><th>Endpoints</th><th>Warnings</th></tr></thead>` +
     `<tbody><tr><td colspan="5" class="muted">Loading model pools...</td></tr></tbody>` +

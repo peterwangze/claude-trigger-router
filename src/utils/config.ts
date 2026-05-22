@@ -532,8 +532,8 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
   }
 
   const registration = config.Registration as any;
-  if (registration?.strategy !== undefined && !['priority', 'least-latency'].includes(registration.strategy)) {
-    errors.push('Registration.strategy must be one of "priority", "least-latency"');
+  if (registration?.strategy !== undefined && !['priority', 'least-latency', 'round-robin', 'health-aware', 'cost-aware'].includes(registration.strategy)) {
+    errors.push('Registration.strategy must be one of "priority", "least-latency", "round-robin", "health-aware", or "cost-aware"');
   }
   if (registration?.nodes !== undefined) {
     errors.push('Registration.nodes is not supported yet; use Registration.models or Registration.upstream_services');

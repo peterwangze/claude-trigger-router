@@ -113,6 +113,7 @@ ctr start --daemon
 - `POST /api/auth/keys/:id/rotate` 会生成替代 managed key、只返回一次新 secret，并立即吊销旧 key；用于定期轮换、交接和疑似泄漏处置。
 - `POST /api/models/pool-health/probe` 可由 operator/admin 触发主动 pool 探测，用轻量 `HEAD` 检查 enabled endpoint 可达性，并把成功延迟或失败写入现有 pool health。
 - `Registration.models[].metadata` 可声明成本和速率限制：`cost_per_1m_input_tokens`、`cost_per_1m_output_tokens`、`cost_currency`、`rate_limit_rpm`、`rate_limit_tpm`，这些字段会进入 compiled model pool 和 `/api/models/pool-health`。
+- `Registration.strategy` 支持 `priority`、`least-latency`、`round-robin`、`health-aware`、`cost-aware`，active endpoint 和 fallback candidate 使用同一排序口径。
 - 公网入口仍建议放在 HTTPS 反向代理之后；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
 
 ## 安装
