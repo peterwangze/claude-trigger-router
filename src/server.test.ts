@@ -1525,6 +1525,90 @@ describe('createServer /api/config', () => {
     );
   });
 
+  it('actively probes enabled model pool endpoints and updates health state', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ status: 401 })
+      .mockResolvedValueOnce({ status: 503 });
+    vi.stubGlobal('fetch', fetchMock);
+    const server = createServer({
+      initialConfig: {
+        Providers: [],
+        Router: {
+          default: 'sonnet',
+        },
+        Registration: {
+          enabled: true,
+          models: [
+            {
+              id: 'sonnet',
+              api: 'https://edge-ok.example.com/v1',
+              key: 'sk-edge',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-ok',
+                pool_priority: 10,
+              },
+            },
+            {
+              id: 'sonnet',
+              api: 'https://edge-down.example.com/v1',
+              key: 'sk-down',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-down',
+                pool_priority: 20,
+              },
+            },
+          ],
+        },
+      },
+    });
+    const handler = server.app.routes.get('POST /api/models/pool-health/probe');
+
+    const result = await handler({ body: {} }, {});
+
+    expect(fetchMock).toHaveBeenCalledWith('https://edge-ok.example.com/v1/messages', expect.objectContaining({
+      method: 'HEAD',
+    }));
+    expect(fetchMock).toHaveBeenCalledWith('https://edge-down.example.com/v1/messages', expect.objectContaining({
+      method: 'HEAD',
+    }));
+    expect(result.summary).toEqual({
+      targets: 2,
+      probed: 2,
+      ok: 1,
+      failed: 1,
+      skipped: 0,
+    });
+    expect(result.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        endpointId: 'edge-ok',
+        statusCode: 401,
+        ok: true,
+        health: expect.objectContaining({
+          status: 'healthy',
+          successCount: 1,
+        }),
+      }),
+      expect.objectContaining({
+        endpointId: 'edge-down',
+        statusCode: 503,
+        ok: false,
+        health: expect.objectContaining({
+          status: 'cooldown',
+          failureCount: 1,
+        }),
+      }),
+    ]));
+    expect(result.health.summary).toEqual(expect.objectContaining({
+      endpoints: 2,
+      healthy: 1,
+      cooldown: 1,
+    }));
+  });
+
   it('previews compiled Models registry for a draft config without saving', async () => {
     const server = createServer({
       initialConfig: {
@@ -2995,6 +3079,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('modelPoolHealthSummary');
     expect(html).toContain('modelPoolHealthTable');
     expect(html).toContain('/api/models/pool-health');
+    expect(html).toContain('/api/models/pool-health/probe');
     expect(html).toContain('loadModelPoolHealth');
     expect(html).toContain('Compatibility profile');
     expect(html).toContain('Dispatch format');

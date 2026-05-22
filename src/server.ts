@@ -386,6 +386,77 @@ function buildModelPoolHealthReport(rawConfig: any) {
   };
 }
 
+async function probeModelPoolEndpoint(pool: any, endpoint: any) {
+  const startedAt = Date.now();
+  if (!endpoint.api) {
+    return {
+      modelId: pool.modelId,
+      endpointId: endpoint.id,
+      skipped: true,
+      reason: "missing_api",
+      health: modelPoolHealthStore.getSnapshot(pool.modelId, endpoint.id),
+    };
+  }
+
+  try {
+    const response = await fetch(endpoint.api, {
+      method: "HEAD",
+    } as any);
+    const latencyMs = Date.now() - startedAt;
+    const ok = response.status < 500;
+    const health = ok
+      ? modelPoolHealthStore.recordSuccess(pool.modelId, endpoint.id, Date.now(), latencyMs)
+      : modelPoolHealthStore.recordFailure(pool.modelId, endpoint.id, Date.now());
+    return {
+      modelId: pool.modelId,
+      endpointId: endpoint.id,
+      url: endpoint.api,
+      statusCode: response.status,
+      ok,
+      latencyMs,
+      health,
+    };
+  } catch (error: any) {
+    const health = modelPoolHealthStore.recordFailure(pool.modelId, endpoint.id, Date.now());
+    return {
+      modelId: pool.modelId,
+      endpointId: endpoint.id,
+      url: endpoint.api,
+      ok: false,
+      error: error?.message || String(error),
+      health,
+    };
+  }
+}
+
+async function probeModelPools(rawConfig: any, filter: { modelId?: string; endpointId?: string } = {}) {
+  const normalized = normalizeAndValidateConfig(rawConfig ?? {}).config;
+  const registry = buildModelRegistry(normalized);
+  const pools = Object.values(registry.modelPools ?? {})
+    .filter((pool: any) => !filter.modelId || pool.modelId === filter.modelId);
+  const targets = pools.flatMap((pool: any) =>
+    (pool.endpoints ?? [])
+      .filter((endpoint: any) => endpoint.enabled !== false)
+      .filter((endpoint: any) => !filter.endpointId || endpoint.id === filter.endpointId)
+      .map((endpoint: any) => ({ pool, endpoint }))
+  );
+  const results = await Promise.all(targets.map(({ pool, endpoint }) => probeModelPoolEndpoint(pool, endpoint)));
+  const failed = results.filter((item: any) => item.ok === false).length;
+  const skipped = results.filter((item: any) => item.skipped).length;
+  return {
+    generatedAt: new Date().toISOString(),
+    summary: {
+      targets: targets.length,
+      probed: results.length - skipped,
+      ok: results.filter((item: any) => item.ok === true).length,
+      failed,
+      skipped,
+    },
+    results,
+    health: buildModelPoolHealthReport(rawConfig),
+  };
+}
+
 function summarizeCompiledModels(normalized: any) {
   const compiled = toCompiledRegistryView(normalized);
   const capabilityWarnings = collectCapabilityWarnings(normalized);
@@ -1047,6 +1118,13 @@ export const createServer = (config: any): Server => {
 
   server.app.get("/api/models/pool-health", async () => {
     return buildModelPoolHealthReport(await readActiveConfig());
+  });
+
+  server.app.post("/api/models/pool-health/probe", async (req: any) => {
+    return probeModelPools(await readActiveConfig(), {
+      modelId: typeof req.body?.modelId === "string" ? req.body.modelId : undefined,
+      endpointId: typeof req.body?.endpointId === "string" ? req.body.endpointId : undefined,
+    });
   });
 
   server.app.post("/api/models/compiled/preview", async (req: any, reply: any) => {

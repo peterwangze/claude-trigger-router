@@ -382,6 +382,10 @@ describe('apiKeyAuth', () => {
       method: 'POST',
       url: '/api/governance/metrics/snapshots',
     });
+    const operatorPoolProbe = await runAuth(middleware, operatorHeaders, {}, {
+      method: 'POST',
+      url: '/api/models/pool-health/probe',
+    });
     const operatorArchiveDelete = await runAuth(middleware, operatorHeaders, undefined, {
       method: 'POST',
       url: '/api/governance/archives/archive.json/delete',
@@ -424,6 +428,7 @@ describe('apiKeyAuth', () => {
     expect(clientRestart.reply.code).toHaveBeenCalledWith(403);
     expect(operatorHealth.error).toBeUndefined();
     expect(operatorSnapshot.error).toBeUndefined();
+    expect(operatorPoolProbe.error).toBeUndefined();
     expect(operatorArchiveDelete.error).toBeUndefined();
     expect(operatorConfig.error).toBeInstanceOf(Error);
     expect(operatorConfig.reply.code).toHaveBeenCalledWith(403);

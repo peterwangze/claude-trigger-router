@@ -416,7 +416,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</table>` +
     `</div>` +
     `<div class="subpanel">` +
-    `<div class="row"><strong>Model pool health</strong><span class="muted">查看同模型多源池的 active endpoint、持久化状态、cooldown、熔断与延迟窗口。</span></div>` +
+    `<div class="row"><strong>Model pool health</strong><span class="muted">查看同模型多源池的 active endpoint、持久化状态、cooldown、熔断与延迟窗口。</span><button id="probeModelPoolBtn" type="button">主动探测</button></div>` +
     `<div id="modelPoolHealthSummary" class="alert info"><strong>Pool health pending</strong><div class="muted">等待模型池健康状态加载</div></div>` +
     `<table id="modelPoolHealthTable" class="management-table">` +
     `<thead><tr><th>Pool</th><th>Endpoint</th><th>Status</th><th>Latency</th><th>Failures</th><th>Last success</th><th>Recovery</th></tr></thead>` +
@@ -771,6 +771,13 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const res=await fetch('/api/models/pool-health');` +
     `  const data=await res.json();` +
     `  renderModelPoolHealth(data);` +
+    `}` +
+    `async function probeModelPoolHealth(){` +
+    `  modelPoolHealthSummary.className='alert info';` +
+    `  modelPoolHealthSummary.innerHTML='<strong>Probing pool health...</strong><div class="muted">正在轻量探测 enabled endpoint</div>';` +
+    `  const res=await fetch('/api/models/pool-health/probe',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}) });` +
+    `  const data=await res.json();` +
+    `  renderModelPoolHealth(data.health || data);` +
     `}` +
     `function renderRoleConnectionGuide(data){` +
     `  const listener=data.listener || {};` +
@@ -2015,6 +2022,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +
     `document.getElementById('saveThresholdsBtn').addEventListener('click',saveThresholds);` +
     `document.getElementById('saveCalibrationBtn').addEventListener('click',saveBenchmarkCalibration);` +
+    `document.getElementById('probeModelPoolBtn').addEventListener('click',probeModelPoolHealth);` +
     `routeDecisionSummaryList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn && btn.dataset.request){ loadDetail(btn.dataset.request); } });` +
     `switchContinuitySummaryList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn && btn.dataset.request){ loadDetail(btn.dataset.request); } });` +
     `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +

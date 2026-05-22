@@ -95,3 +95,5 @@ ctr ui
 ```
 
 `ctr ui` opens the workbench. The maintainer area shows security status, auth scope guidance, quota usage, governance health and routing outcome summaries.
+
+For model pools, use `GET /api/models/pool-health` for current health and `POST /api/models/pool-health/probe` for an operator-triggered lightweight reachability probe. The probe does not send a model request; it uses `HEAD` against enabled endpoints, records latency for reachable endpoints, and records failures into the existing cooldown/circuit breaker state.

@@ -43,6 +43,7 @@ function authRequirementForRequest(req: FastifyRequest): TManagedApiKeyScope {
   ]);
   const operatorWritePaths = new Set([
     '/api/restart',
+    '/api/models/pool-health/probe',
     '/api/governance/metrics/snapshots',
     '/api/governance/metrics/schedules',
     '/api/governance/observability/anomaly-thresholds',
