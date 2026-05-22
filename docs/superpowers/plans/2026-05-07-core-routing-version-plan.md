@@ -98,10 +98,12 @@ v1.5.0 闭环验证：`npm run release:verify` 已通过，包含 build、常规
 
 优先级：中高。
 
-1. `[in_progress 2026-05-22]` benchmark 历史看板：本轮先闭环 CLI 可运营历史切片，`ctr eval --input/--run` 可通过 `--save-history` 把评测摘要写入 `~/.claude-trigger-router/benchmark-history.json`，`ctr eval --history` 可查看最近一次分数、与上一次的 pass / quality / speed / latency 趋势、Top models；历史文件只保存摘要、模型均分、best run 和趋势所需字段，不保存原始模型输出。后续继续把该 history 接入 `/ui` benchmark history 看板。
-2. 人工校准 UI 表单。
-3. 固定任务集按核心路由场景重排：日常默认、思考、长上下文、后台、规则命中、候选选择。
-4. `ctr eval` 与真实 trace 的对齐：将离线评测结果与 route outcome / task comparison 建立同一解释口径。
+1. `[closed 2026-05-22]` benchmark 历史看板：`ctr eval --input/--run` 可通过 `--save-history` 把评测摘要写入 `~/.claude-trigger-router/benchmark-history.json`，`ctr eval --history` 可查看最近一次分数、与上一次的 pass / quality / speed / latency 趋势、Top models；`/api/benchmark/history` 与 `/ui` Benchmark history 已接入同一 history，历史文件只保存摘要、模型均分、best run 和趋势所需字段，不保存原始模型输出。
+2. `[closed 2026-05-22]` 人工校准 UI 表单：`/api/benchmark/calibration` 与 `/ui` Human calibration 表单已支持维护者录入 taskId、model、output、latency、humanScore 和 notes，服务端即时用固定任务 rubric 评分并只把摘要追加进 benchmark history。
+3. `[closed 2026-05-22]` 固定任务集按核心路由场景重排：固定任务新增 `routeScenario`，覆盖日常默认、思考、长上下文、后台、规则命中、候选选择，并保留 server_ops / pool_health 作为 v1.7 服务化和模型池证据。
+4. `[closed 2026-05-22]` `ctr eval` 与真实 trace 的对齐：离线评测报告新增 `byRouteScenario`，`/api/benchmark/history` 返回真实 trace 的 task comparison / quality evidence 摘要，`/ui` Benchmark history 同屏展示离线 history、真实 trace 对比任务和质量证据。
+
+v1.6.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前已通过 targeted `task-evaluation` / `server` / `workbench.dom` / `cli-run` 测试与 `npm run build`。发布边界见 `docs/release-notes-v1.6.0.md`。
 
 ### v1.7.0 服务化与模型池
 
@@ -125,6 +127,6 @@ v1.5.0 闭环验证：`npm run release:verify` 已通过，包含 build、常规
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.5.0 已阶段闭环；后续默认切到 v1.6.0 多模型收益运营化，除非出现安全风险、P0 主路径故障或入口回归，不再回头扩展 v1.5.0 范围。
+2. v1.6.0 已阶段闭环；后续默认切到 v1.7.0 服务化与模型池安全体验，除非出现安全风险、P0 主路径故障、入口回归或收益证据链回归，不再回头扩展 v1.6.0 范围。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。

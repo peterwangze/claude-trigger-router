@@ -73,6 +73,7 @@ describe('offline task evaluation', () => {
     expect(report.runs).toEqual(expect.arrayContaining([
       expect.objectContaining({
         taskId: 'coding_fix',
+        routeScenario: 'think',
         model: 'fast,haiku',
         passed: false,
         dimensionScores: expect.arrayContaining([
@@ -90,6 +91,10 @@ describe('offline task evaluation', () => {
     expect(report.averageDimensionScores).toEqual(expect.objectContaining({
       semantic_coverage: expect.any(Number),
     }));
+    expect(report.byRouteScenario).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'think' }),
+      expect.objectContaining({ key: 'candidate_selection' }),
+    ]));
     expect(report.bestRunsByTask).toEqual(expect.arrayContaining([
       expect.objectContaining({
         taskId: 'coding_fix',
@@ -111,6 +116,7 @@ describe('offline task evaluation', () => {
 
     expect(formatOfflineTaskEvaluationReport(report)).toContain('Offline routing evaluation');
     expect(formatOfflineTaskEvaluationReport(report)).toContain('fast,haiku');
+    expect(formatOfflineTaskEvaluationReport(report)).toContain('By route scenario:');
     expect(formatOfflineTaskEvaluationReport(report)).toContain('quick_status -> fast,haiku');
   });
 
@@ -358,9 +364,18 @@ describe('offline task evaluation', () => {
     const manifest = buildOfflineTaskManifest();
     expect(manifest.version).toBe(1);
     expect(manifest.tasks.length).toBeGreaterThanOrEqual(6);
+    expect(manifest.tasks.map((task) => task.routeScenario)).toEqual(expect.arrayContaining([
+      'default',
+      'think',
+      'long_context',
+      'background',
+      'rule_hit',
+      'candidate_selection',
+    ]));
     expect(manifest.tasks).toEqual(expect.arrayContaining([
       expect.objectContaining({
         id: 'auth_deployment_plan',
+        routeScenario: 'server_ops',
         category: 'server_ops',
         rubric: expect.objectContaining({
           requiredKeywords: expect.arrayContaining(['scope', 'rotation', 'audit', 'rollback']),
@@ -371,6 +386,7 @@ describe('offline task evaluation', () => {
       }),
       expect.objectContaining({
         id: 'model_pool_incident',
+        routeScenario: 'pool_health',
         category: 'pool_health',
         resultTemplate: expect.objectContaining({
           taskId: 'model_pool_incident',
@@ -396,6 +412,7 @@ describe('offline task evaluation', () => {
     expect(manifest.tasks[0]).toEqual(expect.objectContaining({
       id: 'custom_task',
       category: 'general',
+      routeScenario: 'custom',
       expectedOutput: 'A complete answer that satisfies the task prompt.',
     }));
   });

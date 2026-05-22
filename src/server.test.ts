@@ -1,4 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 const {
   mockReadConfigFile,
@@ -2061,6 +2064,72 @@ describe('createServer /api/config', () => {
     });
     expect(cascadeMetrics.metrics.totalTraces).toBe(1);
     expect(cascadeMetrics.metrics.cascadeTriggeredRate).toBe(1);
+  });
+
+  it('persists UI benchmark calibration into benchmark history summary', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctr-server-benchmark-'));
+    try {
+      const historyFile = join(dir, 'benchmark-history.json');
+      const server = createServer({ benchmarkHistoryFile: historyFile });
+      const saveHandler = server.app.routes.get('POST /api/benchmark/calibration');
+      const historyHandler = server.app.routes.get('GET /api/benchmark/history');
+      const reply = { code: vi.fn().mockReturnThis() };
+
+      const saved = await saveHandler({
+        body: {
+          taskId: 'quick_status',
+          model: 'fast,haiku',
+          output: 'Status is ready. Next action is to keep monitoring the route.',
+          latencyMs: 300,
+          humanScore: 0.9,
+          calibrationNotes: 'human accepted',
+          label: 'ui-baseline',
+        },
+      }, reply);
+      const history = await historyHandler({}, {});
+
+      expect(saved.success).toBe(true);
+      expect(saved.entry).toEqual(expect.objectContaining({
+        label: 'ui-baseline',
+        source: 'input',
+        evaluatedRuns: 1,
+        calibratedRuns: 1,
+      }));
+      expect(history.summary.totalEntries).toBe(1);
+      expect(history.summary.latest.label).toBe('ui-baseline');
+      expect(history.traceAlignment).toEqual(expect.objectContaining({
+        taskComparison: expect.any(Object),
+        qualityEvidence: expect.any(Object),
+      }));
+      expect(JSON.stringify(history)).not.toContain('Next action is to keep monitoring');
+      expect(reply.code).not.toHaveBeenCalled();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects invalid UI benchmark calibration input without writing history', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ctr-server-benchmark-invalid-'));
+    try {
+      const historyFile = join(dir, 'benchmark-history.json');
+      const server = createServer({ benchmarkHistoryFile: historyFile });
+      const saveHandler = server.app.routes.get('POST /api/benchmark/calibration');
+      const reply = { code: vi.fn().mockReturnThis() };
+
+      const result = await saveHandler({
+        body: {
+          taskId: 'quick_status',
+          model: '',
+          output: 'Status is ready.',
+        },
+      }, reply);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('缺少 model');
+      expect(reply.code).toHaveBeenCalledWith(400);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('supports windowed governance metrics buckets', async () => {

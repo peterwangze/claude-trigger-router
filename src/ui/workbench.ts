@@ -439,7 +439,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<input id="limit" placeholder="limit" value="20">` +
     `<button id="refreshBtn">刷新</button>` +
     `</div>` +
-    `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/models/pool-health</code>、<code>/api/models/compiled/preview</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/health</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code></div>` +
+    `<div class="muted" style="margin-top:.75rem">数据源：<code>/api/models/compiled</code>、<code>/api/models/pool-health</code>、<code>/api/models/compiled/preview</code>、<code>/api/governance/traces</code>、<code>/api/governance/traces/:requestId</code>、<code>/api/governance/archives</code>、<code>/api/governance/metrics</code>、<code>/api/governance/health</code>、<code>/api/governance/metrics/export</code>、<code>/api/governance/metrics/exports</code>、<code>/api/benchmark/history</code></div>` +
     `<div id="metricsGrid" class="stats">` +
     `<div class="stat"><span class="muted">Health</span><strong>-</strong></div>` +
     `<div class="stat"><span class="muted">Recent traces</span><strong>-</strong></div>` +
@@ -476,6 +476,23 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="row"><strong>Benchmark summary</strong><span class="muted">把治理 trace 与固定任务评测入口合并成维护者 A/B 闭环</span></div>` +
     `<div id="benchmarkSummary" class="stats"><div class="stat"><span class="muted">Comparable tasks</span><strong>-</strong></div><div class="stat"><span class="muted">Evidence samples</span><strong>-</strong></div><div class="stat"><span class="muted">Best quality lift</span><strong>-</strong></div><div class="stat"><span class="muted">Best speed lift</span><strong>-</strong></div></div>` +
     `<ul id="benchmarkActionList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="subpanel">` +
+    `<div class="row"><strong>Benchmark history</strong><span id="benchmarkHistoryFile" class="muted">等待历史加载</span></div>` +
+    `<div id="benchmarkHistorySummary" class="stats"><div class="stat"><span class="muted">Entries</span><strong>-</strong></div><div class="stat"><span class="muted">Quality</span><strong>-</strong></div><div class="stat"><span class="muted">Trace tasks</span><strong>-</strong></div><div class="stat"><span class="muted">Latency</span><strong>-</strong></div></div>` +
+    `<ul id="benchmarkHistoryList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="subpanel">` +
+    `<div class="row"><strong>Human calibration</strong><span id="benchmarkCalibrationStatus" class="muted">把人工复核样本追加到 benchmark history</span></div>` +
+    `<div class="control-grid">` +
+    `<div><label>Task ID</label><input id="calibrationTaskId" value="quick_status"></div>` +
+    `<div><label>Model</label><input id="calibrationModel" placeholder="sonnet"></div>` +
+    `<div><label>Human score</label><input id="calibrationHumanScore" placeholder="0.9"></div>` +
+    `<div><label>Latency ms</label><input id="calibrationLatencyMs" placeholder="1200"></div>` +
+    `</div>` +
+    `<div style="margin-top:.75rem"><label>Output</label><textarea id="calibrationOutput" rows="4" placeholder="Paste the model output to score"></textarea></div>` +
+    `<div style="margin-top:.75rem"><label>Calibration notes</label><textarea id="calibrationNotes" rows="2" placeholder="Why did the human score differ from the rubric?"></textarea></div>` +
+    `<div class="row" style="margin-top:.75rem"><button id="saveCalibrationBtn" type="button">保存校准样本</button><span class="muted">保存摘要，不持久化原始 output</span></div>` +
     `</div>` +
     `<div class="subpanel">` +
     `<div class="row"><strong>Anomaly tuning</strong><span class="muted">来自配置文件，可在此临时覆盖当前页面查询</span></div>` +
@@ -684,6 +701,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const taskComparisonList=document.getElementById('taskComparisonList');` +
     `const benchmarkSummary=document.getElementById('benchmarkSummary');` +
     `const benchmarkActionList=document.getElementById('benchmarkActionList');` +
+    `const benchmarkHistoryFile=document.getElementById('benchmarkHistoryFile');` +
+    `const benchmarkHistorySummary=document.getElementById('benchmarkHistorySummary');` +
+    `const benchmarkHistoryList=document.getElementById('benchmarkHistoryList');` +
+    `const benchmarkCalibrationStatus=document.getElementById('benchmarkCalibrationStatus');` +
     `const securitySummary=document.getElementById('securitySummary');` +
     `const authQuotaTableBody=document.querySelector('#authQuotaTable tbody');` +
     `const modelPoolHealthSummary=document.getElementById('modelPoolHealthSummary');` +
@@ -1729,6 +1750,48 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  actions.push(['Add calibration','Attach humanScore or judgeScore to ctr eval input results before treating rubric scores as release evidence.']);` +
     `  benchmarkActionList.innerHTML=actions.map(([title,detail])=>'<li><span><strong>'+esc(title)+'</strong><div class="muted">'+esc(detail)+'</div></span><strong>benchmark</strong></li>').join('');` +
     `}` +
+    `function signed(v,digits){ const n=Number(v || 0); return (n>0?'+':'')+n.toFixed(digits ?? 2); }` +
+    `function renderBenchmarkHistory(data){` +
+    `  const summary=data?.summary || {};` +
+    `  const latest=summary.latest || null;` +
+    `  const trends=summary.trends || {};` +
+    `  const alignment=data?.traceAlignment || {};` +
+    `  const traceTasks=alignment.taskComparison?.totalComparedTasks || 0;` +
+    `  benchmarkHistoryFile.textContent=data?.historyFile || 'benchmark-history.json';` +
+    `  benchmarkHistorySummary.innerHTML=[` +
+    `    ['Entries',summary.totalEntries || 0],` +
+    `    ['Quality',latest ? fmt(latest.averageQualityScore) : '-'],` +
+    `    ['Trace tasks',traceTasks],` +
+    `    ['Latency',latest ? (fmt(latest.averageLatencyMs)+' ms') : '-']` +
+    `  ].map(([label,value])=>'<div class="stat"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
+    `  if(!latest){ benchmarkHistoryList.innerHTML='<li><span class="muted">No saved benchmark history</span><strong>0</strong></li>'; return; }` +
+    `  const entries=Array.isArray(summary.entries) ? summary.entries.slice(-5).reverse() : [];` +
+    `  const rows=entries.map(entry=>'<li><span><strong>'+esc(entry.label || entry.id || '-')+'</strong><div class="muted">'+esc(entry.createdAt || '-')+' · '+esc(entry.source || '-')+' · runs '+esc(entry.evaluatedRuns || 0)+'/'+esc(entry.totalRuns || entry.evaluatedRuns || 0)+'</div><div class="muted">pass '+esc(pct(entry.passRate || 0))+' · quality '+esc(fmt(entry.averageQualityScore || 0))+' · calibration '+esc(fmt(entry.averageCalibrationScore || 0))+'</div></span><strong>'+esc(fmt(entry.averageLatencyMs || 0))+' ms</strong></li>');` +
+    `  const modelRows=(summary.topModels || []).map(model=>'<li><span><strong>'+esc(model.model || '-')+'</strong><div class="muted">quality '+esc(fmt(model.averageQualityScore || 0))+' · pass '+esc(pct(model.passRate || 0))+' · latency '+esc(fmt(model.averageLatencyMs || 0))+' ms</div></span><strong>top</strong></li>');` +
+    `  const alignmentRows=[ '<li><span><strong>Trace alignment</strong><div class="muted">task comparison '+esc(traceTasks)+' · quality evidence '+esc(alignment.qualityEvidence?.totalSamples || 0)+' · quality trend '+esc(summary.previous ? signed(trends.qualityDelta || 0,2) : 'waiting')+'</div></span><strong>trace</strong></li>' ];` +
+    `  benchmarkHistoryList.innerHTML=[...rows,...modelRows,...alignmentRows].join('') || '<li><span class="muted">No saved benchmark history</span><strong>0</strong></li>';` +
+    `}` +
+    `async function loadBenchmarkHistory(){` +
+    `  const res=await fetch('/api/benchmark/history');` +
+    `  renderBenchmarkHistory(await res.json());` +
+    `}` +
+    `async function saveBenchmarkCalibration(){` +
+    `  benchmarkCalibrationStatus.textContent='保存校准中...';` +
+    `  const payload={` +
+    `    taskId:document.getElementById('calibrationTaskId').value.trim(),` +
+    `    model:document.getElementById('calibrationModel').value.trim(),` +
+    `    humanScore:document.getElementById('calibrationHumanScore').value.trim() ? Number(document.getElementById('calibrationHumanScore').value.trim()) : undefined,` +
+    `    latencyMs:document.getElementById('calibrationLatencyMs').value.trim() ? Number(document.getElementById('calibrationLatencyMs').value.trim()) : undefined,` +
+    `    output:document.getElementById('calibrationOutput').value,` +
+    `    calibrationNotes:document.getElementById('calibrationNotes').value,` +
+    `    label:'ui-calibration'` +
+    `  };` +
+    `  const res=await fetch('/api/benchmark/calibration',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });` +
+    `  const data=await res.json();` +
+    `  if(!res.ok){ benchmarkCalibrationStatus.textContent='保存失败：'+(data.message || 'unknown error'); return; }` +
+    `  benchmarkCalibrationStatus.textContent='已保存校准：'+(data.entry?.id || 'benchmark history');` +
+    `  renderBenchmarkHistory({ historyFile:data.historyFile, summary:data.summary });` +
+    `}` +
     `function renderRouteDecisionSummaries(items){` +
     `  const decisions=Array.isArray(items) ? items.slice(0,5) : [];` +
     `  if(!decisions.length){ routeDecisionSummaryList.innerHTML='<li><span class="muted">No recent route decisions</span><strong>0</strong></li>'; return; }` +
@@ -1951,6 +2014,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `document.getElementById('createSnapshotBtn').addEventListener('click',createSnapshot);` +
     `document.getElementById('loadArchivesBtn').addEventListener('click',loadArchives);` +
     `document.getElementById('saveThresholdsBtn').addEventListener('click',saveThresholds);` +
+    `document.getElementById('saveCalibrationBtn').addEventListener('click',saveBenchmarkCalibration);` +
     `routeDecisionSummaryList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn && btn.dataset.request){ loadDetail(btn.dataset.request); } });` +
     `switchContinuitySummaryList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn && btn.dataset.request){ loadDetail(btn.dataset.request); } });` +
     `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
@@ -1960,6 +2024,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `loadServiceStatus();` +
     `loadConfigDraft();` +
     `loadCompiledModels();` +
+    `loadBenchmarkHistory();` +
     `loadExports();` +
     `loadArchives();` +
     `loadTraces();` +

@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.5.0` minor release 的优先级是入口基础功能稳定与易用性巩固。继续扩展 benchmark、服务化、模型池或 agent/tool 前，发布检查需要先保护 `setup / start / status / code / doctor / ui`、配置保存/修复/迁移、打包后真实用户流和 UI 基础交互看护。
+本次 `v1.6.0` minor release 的优先级是多模型收益运营化。发布检查需要同时保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 `ctr eval`、benchmark history、人工校准 UI、真实 trace outcome / task comparison 的收益证据链。
 
 ## 一次性准备
 
@@ -26,14 +26,14 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.5.0` 的发布边界以 `docs/release-notes-v1.5.0.md` 为准：主打入口基础功能稳定与易用性巩固，不宣称完整 benchmark 运营平台或完整云端平台。
+   - 本次 `v1.6.0` 的发布边界以 `docs/release-notes-v1.6.0.md` 为准：主打多模型收益运营化，不宣称完整云端平台、完整模型池运营平台或 agent 平台。
 2. 本地先执行发布包验证：
 
 ```bash
 npm run release:verify
 ```
 
-v1.5.0 期间建议在正式 `release:verify` 前额外跑一次入口稳定专项：
+v1.6.0 期间建议在正式 `release:verify` 前额外跑一次收益运营专项：
 
 ```bash
 npm test -- --run --coverage
@@ -43,7 +43,7 @@ npm run test:e2e:cli
 npm run test:e2e:acceptance
 ```
 
-其中 coverage 口径已经从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链；`test:ui` 是源码侧 `/ui` DOM smoke，用于保护配置载入、compiled preview、保存失败提示和 Health action 这类基础交互；`test:e2e:cli:entry` 是较短的打包后入口 smoke，用于先保护 init、doctor、start/status/stop、setup fresh、setup remote client、setup server deployment、code 和 ui；后续新增入口功能时，先补对应看护再扩展低频能力。
+其中 coverage 口径已经从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链；`test:ui` 是源码侧 `/ui` DOM smoke，用于保护配置载入、compiled preview、保存失败提示、Health action、benchmark history 和人工校准表单这类基础交互；`test:e2e:cli:entry` 是较短的打包后入口 smoke，用于先保护 init、doctor、start/status/stop、setup fresh、setup remote client、setup server deployment、code 和 ui；后续新增入口功能时，先补对应看护再扩展低频能力。
 
 这一步会依次执行：
 
@@ -80,7 +80,7 @@ npm run test:e2e:acceptance
 - 目标端口被非本服务占用时的安全提示与“无额外文件修改”边界
 - 残留 / 失效 PID 文件的安全清理
 - `release:stage` 生成的 `.release-stage\ctr-release-home.cmd` wrapper 是否真的指向隔离 `.release-home`
-- v1.5.0 入口稳定发布承诺的 packaged entry smoke、UI DOM smoke、配置保存安全线、remote client setup 和 server deployment setup
+- v1.6.0 收益运营发布承诺的 benchmark history CLI/API/UI、人工校准 UI、核心路由场景任务集和评测/真实 trace 对齐
 
 只有这一步通过后，才继续正式发布，避免“发布后才发现包内容、CLI 启动或 setup 主流程有问题”。
 

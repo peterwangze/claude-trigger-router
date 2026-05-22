@@ -240,6 +240,71 @@ async function createWorkbenchDom(options: {
             persistedState: { endpoints: 0 },
           }) as any;
         }
+        if (url === '/api/benchmark/history') {
+          return jsonResponse({
+            historyFile: '/tmp/benchmark-history.json',
+            summary: {
+              totalEntries: 1,
+              latest: {
+                id: 'bench_1',
+                createdAt: '2026-05-22T00:00:00.000Z',
+                source: 'input',
+                label: 'baseline',
+                totalTasks: 7,
+                totalRuns: 7,
+                evaluatedRuns: 7,
+                passRate: 0.8,
+                averageQualityScore: 0.82,
+                averageSpeedScore: 0.9,
+                averageLatencyMs: 430,
+                calibratedRuns: 1,
+                averageCalibrationScore: 0.88,
+                averageRubricDelta: 0.06,
+                models: [{ model: 'sonnet', totalRuns: 7, passRate: 0.8, averageQualityScore: 0.82, averageSpeedScore: 0.9, averageLatencyMs: 430 }],
+                bestRunsByTask: [],
+              },
+              previous: undefined,
+              trends: { passRateDelta: 0, qualityDelta: 0, speedDelta: 0, latencyDeltaMs: 0, calibrationDelta: 0 },
+              topModels: [{ model: 'sonnet', totalRuns: 7, passRate: 0.8, averageQualityScore: 0.82, averageSpeedScore: 0.9, averageLatencyMs: 430 }],
+              entries: [],
+            },
+            traceAlignment: {
+              taskComparison: { totalComparedTasks: 2, totalComparedTraces: 8 },
+              qualityEvidence: { totalSamples: 3 },
+            },
+          }) as any;
+        }
+        if (url === '/api/benchmark/calibration') {
+          return jsonResponse({
+            success: true,
+            historyFile: '/tmp/benchmark-history.json',
+            entry: { id: 'bench_ui', label: 'ui-calibration' },
+            summary: {
+              totalEntries: 2,
+              latest: {
+                id: 'bench_ui',
+                createdAt: '2026-05-22T00:01:00.000Z',
+                source: 'input',
+                label: 'ui-calibration',
+                totalTasks: 7,
+                totalRuns: 1,
+                evaluatedRuns: 1,
+                passRate: 1,
+                averageQualityScore: 0.9,
+                averageSpeedScore: 1,
+                averageLatencyMs: 300,
+                calibratedRuns: 1,
+                averageCalibrationScore: 0.9,
+                averageRubricDelta: 0,
+                models: [],
+                bestRunsByTask: [],
+              },
+              trends: { passRateDelta: 0.2, qualityDelta: 0.08, speedDelta: 0.1, latencyDeltaMs: -130, calibrationDelta: 0.02 },
+              topModels: [],
+              entries: [],
+            },
+          }) as any;
+        }
         if (url === '/api/governance/metrics/exports') {
           return jsonResponse({ exports: [], schedules: [] }) as any;
         }
@@ -256,6 +321,7 @@ async function createWorkbenchDom(options: {
     expect(dom.window.document.getElementById('draftPreviewStatus')?.textContent).toContain('已载入当前配置');
     expect(dom.window.document.getElementById('compiledModelsStatus')?.textContent).toContain('已加载');
     expect(dom.window.document.getElementById('healthSummary')?.textContent).toContain('Health: watch');
+    expect(dom.window.document.getElementById('benchmarkHistorySummary')?.textContent).toContain('Entries');
   });
 
   return {
@@ -284,6 +350,31 @@ describe('workbench DOM smoke', () => {
     expect(document.getElementById('configDraftEditor')?.textContent || (document.getElementById('configDraftEditor') as HTMLTextAreaElement).value).toContain('claude-sonnet-4');
     expect(document.querySelector('#compiledModelMapTable tbody')?.textContent).toContain('model__sonnet');
     expect(document.getElementById('contextWindowGuide')?.textContent).toContain('Context window guide');
+
+    dom.window.close();
+  });
+
+  it('submits human calibration from the workbench', async () => {
+    const { dom, fetchCalls } = await createWorkbenchDom();
+    const document = dom.window.document;
+
+    (document.getElementById('calibrationModel') as HTMLInputElement).value = 'sonnet';
+    (document.getElementById('calibrationHumanScore') as HTMLInputElement).value = '0.9';
+    (document.getElementById('calibrationLatencyMs') as HTMLInputElement).value = '300';
+    (document.getElementById('calibrationOutput') as HTMLTextAreaElement).value = 'Status is ready. Next action is to keep monitoring.';
+    document.getElementById('saveCalibrationBtn')?.click();
+
+    await waitFor(() => {
+      expect(document.getElementById('benchmarkCalibrationStatus')?.textContent).toContain('已保存校准');
+    });
+    const call = fetchCalls.find((item) => item.url === '/api/benchmark/calibration');
+    expect(call).toBeTruthy();
+    expect(JSON.parse(String(call?.init?.body))).toEqual(expect.objectContaining({
+      taskId: 'quick_status',
+      model: 'sonnet',
+      humanScore: 0.9,
+      latencyMs: 300,
+    }));
 
     dom.window.close();
   });

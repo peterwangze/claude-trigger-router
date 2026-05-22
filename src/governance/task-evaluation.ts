@@ -4,6 +4,7 @@ import { dirname } from 'path';
 export interface IOfflineEvaluationTask {
   id: string;
   intent: string;
+  routeScenario?: 'default' | 'think' | 'long_context' | 'background' | 'rule_hit' | 'candidate_selection' | 'server_ops' | 'pool_health';
   prompt: string;
   category?: string;
   expectedOutput?: string;
@@ -43,6 +44,7 @@ export interface IOfflineEvaluationInput {
 export interface IOfflineEvaluationRun {
   taskId: string;
   intent: string;
+  routeScenario: string;
   model: string;
   passed: boolean;
   qualityScore: number;
@@ -110,6 +112,7 @@ export interface IOfflineTaskEvaluationReport {
   calibrationSummary: IOfflineEvaluationCalibrationSummary;
   bestRunsByTask: IOfflineEvaluationRun[];
   byTask: IOfflineEvaluationGroup[];
+  byRouteScenario: IOfflineEvaluationGroup[];
   byModel: IOfflineEvaluationGroup[];
   runs: IOfflineEvaluationRun[];
 }
@@ -272,7 +275,8 @@ export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
   {
     id: 'quick_status',
     intent: 'quick_reply',
-    category: 'speed',
+    routeScenario: 'default',
+    category: 'daily_default',
     prompt: 'Summarize the current service status and next action in two concise sentences.',
     expectedOutput: 'A brief status summary with a concrete next action.',
     maxLatencyMs: 800,
@@ -283,7 +287,8 @@ export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
   {
     id: 'coding_fix',
     intent: 'coding',
-    category: 'quality',
+    routeScenario: 'think',
+    category: 'thinking',
     prompt: 'Fix a TypeScript regression and explain the changed behavior with a test plan.',
     expectedOutput: 'A concise fix explanation, a TypeScript code block, and a focused test plan.',
     maxLatencyMs: 1800,
@@ -295,7 +300,8 @@ export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
   {
     id: 'architecture_review',
     intent: 'architecture',
-    category: 'quality',
+    routeScenario: 'candidate_selection',
+    category: 'smart_candidate',
     prompt: 'Review a router architecture change and list risks, tradeoffs, and rollout checks.',
     expectedOutput: 'A structured architecture review that names risks, tradeoffs, and rollout checks.',
     maxLatencyMs: 2600,
@@ -306,6 +312,7 @@ export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
   {
     id: 'long_context_triage',
     intent: 'long_context',
+    routeScenario: 'long_context',
     category: 'continuity',
     prompt: 'Triage a long conversation and preserve the user goal, constraints, and open blockers.',
     expectedOutput: 'A continuity-preserving summary with goal, constraints, and blockers.',
@@ -315,8 +322,33 @@ export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
     forbiddenPatterns: ['lost context', 'cannot access previous'],
   },
   {
+    id: 'background_maintenance',
+    intent: 'background',
+    routeScenario: 'background',
+    category: 'background',
+    prompt: 'Prepare a quiet background maintenance status note with current status, next action, and monitoring scope.',
+    expectedOutput: 'A short background maintenance note that names status, next action, and monitoring scope.',
+    maxLatencyMs: 1200,
+    minOutputChars: 80,
+    requiredKeywords: ['status', 'next', 'scope'],
+    forbiddenPatterns: ['TODO', 'placeholder', 'wake the user'],
+  },
+  {
+    id: 'smart_rule_review',
+    intent: 'review',
+    routeScenario: 'rule_hit',
+    category: 'smart_rule',
+    prompt: 'Review a small code change that should be caught by a SmartRouter review rule; include risk, test, and rollout notes.',
+    expectedOutput: 'A review-focused answer with risk, test, and rollout notes.',
+    maxLatencyMs: 1800,
+    minOutputChars: 120,
+    requiredKeywords: ['risk', 'test', 'rollout'],
+    forbiddenPatterns: ['TODO', 'placeholder'],
+  },
+  {
     id: 'auth_deployment_plan',
     intent: 'security',
+    routeScenario: 'server_ops',
     category: 'server_ops',
     prompt: 'Create a safe remote server deployment checklist for an LLM router with API key scope, rotation, audit, and rollback.',
     expectedOutput: 'An operator checklist covering scoped keys, rotation, audit, and rollback.',
@@ -328,6 +360,7 @@ export const DEFAULT_OFFLINE_EVALUATION_TASKS: IOfflineEvaluationTask[] = [
   {
     id: 'model_pool_incident',
     intent: 'operations',
+    routeScenario: 'pool_health',
     category: 'pool_health',
     prompt: 'Diagnose a model pool incident where one endpoint is slow and another returns intermittent 5xx errors; propose routing actions.',
     expectedOutput: 'A pool health diagnosis with latency, 5xx, fallback or circuit breaker actions.',
@@ -718,6 +751,7 @@ function evaluateRun(task: IOfflineEvaluationTask, input: IOfflineEvaluationInpu
   return {
     taskId: task.id,
     intent: task.intent,
+    routeScenario: task.routeScenario ?? task.category ?? task.intent,
     model: input.model,
     passed: !input.error && dimensionsPassed && finalQualityScore >= minQualityScore,
     qualityScore: finalQualityScore,
@@ -846,6 +880,7 @@ export function runOfflineTaskEvaluation(
     calibrationSummary: summarizeCalibration(runs),
     bestRunsByTask,
     byTask: groupRuns(runs, (run) => run.taskId),
+    byRouteScenario: groupRuns(runs, (run) => run.routeScenario),
     byModel: groupRuns(runs, (run) => run.model),
     runs,
   };
@@ -1275,6 +1310,7 @@ export function buildOfflineTaskManifest(tasks: IOfflineEvaluationTask[] = DEFAU
     tasks: tasks.map((task) => ({
       id: task.id,
       intent: task.intent,
+      routeScenario: task.routeScenario ?? task.category ?? task.intent,
       category: task.category ?? 'general',
       prompt: task.prompt,
       expectedOutput: task.expectedOutput ?? 'A complete answer that satisfies the task prompt.',
@@ -1366,6 +1402,11 @@ export function formatOfflineTaskEvaluationReport(report: IOfflineTaskEvaluation
   lines.push('By model:');
   for (const item of report.byModel) {
     lines.push(`- ${item.key}: pass ${(item.passRate * 100).toFixed(1)}%, quality ${item.averageQualityScore.toFixed(2)}, latency ${item.averageLatencyMs} ms, dimensions ${formatDimensionSummary(item.averageDimensionScores)}`);
+  }
+
+  lines.push('By route scenario:');
+  for (const item of report.byRouteScenario) {
+    lines.push(`- ${item.key}: pass ${(item.passRate * 100).toFixed(1)}%, quality ${item.averageQualityScore.toFixed(2)}, latency ${item.averageLatencyMs} ms`);
   }
 
   lines.push('Best runs by task:');

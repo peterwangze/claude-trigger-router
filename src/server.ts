@@ -8,6 +8,7 @@ import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile, configFileExists, normalizeAndValidateConfig, deriveRuntimeSmartRouterConfig } from "./utils";
 import { log } from "./utils/log";
 import { probeRemoteRegistrationStatus, probeRemoteServiceStatus, SERVICE_NAME } from "./service-health";
+import { BENCHMARK_HISTORY_FILE } from "./constants";
 import {
   governanceTraceStore,
   getGovernanceMetricsReport,
@@ -34,6 +35,13 @@ import {
   validateManagedApiKeyScopes,
   verifyApiKey,
 } from "./auth/api-keys";
+import {
+  appendBenchmarkHistory,
+  parseOfflineEvaluationInputs,
+  readBenchmarkHistory,
+  runOfflineTaskEvaluation,
+  summarizeBenchmarkHistory,
+} from "./governance/task-evaluation";
 
 type CompiledProviderView = {
   name: string;
@@ -932,6 +940,7 @@ function diffCompiledRegistry(base: CompiledRegistryView, next: CompiledRegistry
 export const createServer = (config: any): Server => {
   const server = new Server(config);
   const configuredThresholds = config.initialConfig?.Governance?.observability?.anomaly_thresholds ?? {};
+  const benchmarkHistoryFile = config.benchmarkHistoryFile ?? BENCHMARK_HISTORY_FILE;
   const readActiveConfig = async () => {
     try {
       const currentConfig = await readConfigFile();
@@ -1306,6 +1315,63 @@ export const createServer = (config: any): Server => {
       windowStart: report.windowStart,
       windowEnd: report.windowEnd,
     };
+  });
+
+  server.app.get("/api/benchmark/history", async () => {
+    const entries = readBenchmarkHistory(benchmarkHistoryFile);
+    const metricsReport = getGovernanceMetricsReport(readGovernanceMetricsQuery({}));
+    return {
+      historyFile: benchmarkHistoryFile,
+      summary: summarizeBenchmarkHistory(entries),
+      traceAlignment: {
+        taskComparison: metricsReport.taskComparison,
+        qualityEvidence: metricsReport.qualityEvidence,
+      },
+    };
+  });
+
+  server.app.post("/api/benchmark/calibration", async (req: any, reply: any) => {
+    try {
+      const body = req.body ?? {};
+      const inputs = parseOfflineEvaluationInputs({
+        results: [
+          {
+            taskId: body.taskId,
+            model: body.model,
+            output: body.output,
+            latencyMs: body.latencyMs,
+            humanScore: body.humanScore,
+            judgeScore: body.judgeScore,
+            calibrationNotes: body.calibrationNotes,
+            judgeFindings: Array.isArray(body.judgeFindings)
+              ? body.judgeFindings
+              : typeof body.judgeFindings === 'string'
+                ? body.judgeFindings.split('\n').map((item: string) => item.trim()).filter(Boolean)
+                : undefined,
+          },
+        ],
+      });
+      const report = runOfflineTaskEvaluation(inputs);
+      const entry = appendBenchmarkHistory(report, {
+        historyFile: benchmarkHistoryFile,
+        source: 'input',
+        label: typeof body.label === 'string' ? body.label : 'ui-calibration',
+      });
+      const summary = summarizeBenchmarkHistory(readBenchmarkHistory(benchmarkHistoryFile));
+      return {
+        success: true,
+        historyFile: benchmarkHistoryFile,
+        entry,
+        report,
+        summary,
+      };
+    } catch (error: any) {
+      reply.code(400);
+      return {
+        success: false,
+        message: error?.message || 'Invalid benchmark calibration input',
+      };
+    }
   });
 
   server.app.get("/api/governance/metrics/export", async (req: any, reply: any) => {

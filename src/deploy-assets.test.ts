@@ -53,28 +53,28 @@ describe('deployment assets', () => {
 
     const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
     expect(releasingGuide).toContain('Release');
-    expect(releasingGuide).toContain('docs/release-notes-v1.5.0.md');
-    expect(releasingGuide).toContain('v1.5.0 入口稳定');
+    expect(releasingGuide).toContain('docs/release-notes-v1.6.0.md');
+    expect(releasingGuide).toContain('v1.6.0 收益运营');
   });
 
-  it('keeps v1.5.0 entry stability release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.5.0.md'), 'utf-8');
+  it('keeps v1.6.0 benchmark operations release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.6.0.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('入口基础功能稳定与易用性巩固版');
-    expect(releaseNotes).toContain('test:e2e:cli:entry');
-    expect(releaseNotes).toContain('setup remote client');
-    expect(releaseNotes).toContain('setup server deployment');
-    expect(releaseNotes).toContain('test:ui');
-    expect(releaseNotes).toContain('workbench-document.ts');
-    expect(releaseNotes).toContain('benchmark 历史看板');
+    expect(releaseNotes).toContain('多模型收益运营化版');
+    expect(releaseNotes).toContain('ctr eval --history');
+    expect(releaseNotes).toContain('/api/benchmark/history');
+    expect(releaseNotes).toContain('/api/benchmark/calibration');
+    expect(releaseNotes).toContain('routeScenario');
+    expect(releaseNotes).toContain('byRouteScenario');
+    expect(releaseNotes).toContain('task comparison');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.5.0 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.5.0.md');
-    expect(readme).toContain('packaged CLI entry smoke');
-    expect(readme).toContain('UI DOM smoke');
+    expect(readme).toContain('## v1.6.0 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.6.0.md');
+    expect(readme).toContain('ctr eval --history');
+    expect(readme).toContain('benchmark-history.json');
   });
 
   it('keeps release-stage server profile output out of the returned profile object', () => {
