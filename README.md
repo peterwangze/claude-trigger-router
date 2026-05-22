@@ -11,11 +11,11 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - 想在 Claude Code 外层增加配置校验、健康检查、治理观测和 UI 工作台
 - 想从 `claude-code-router` 迁移到更清晰的 `Models + Router` 配置心智
 
-## v1.6.0 发布定位
+## v1.7.0 发布定位
 
-`v1.6.0` 是多模型收益运营化版。它把已有 `ctr eval`、LLM judge、真实 trace outcome、quality evidence、task comparison 和 `/ui` benchmark summary 连成一条更可运营的收益判断链路。
+`v1.7.0` 是远程服务与模型池安全体验版。它把已有 server deploy、managed key、quota、remote forward、registration model pool 和 pool health 基础收口成更安全、更可运营的自托管服务路径。
 
-这个版本新增 benchmark history CLI/API/UI、人工校准 UI 表单、按核心路由场景重排的固定任务集，以及离线评测与真实 trace 的同屏解释口径。它不把完整 server/cloud 托管平台、主动模型池运营或 agent 平台化纳入发布承诺。完整发布边界见 [docs/release-notes-v1.6.0.md](docs/release-notes-v1.6.0.md)。
+这个版本新增 server profile 默认安全策略、managed key 轮换、模型池主动健康探测、成本/速率元数据，以及 round-robin / health-aware / cost-aware 调度策略。它不把完整 cloud 托管控制面、节点集群编排或 agent 平台化纳入发布承诺。完整发布边界见 [docs/release-notes-v1.7.0.md](docs/release-notes-v1.7.0.md)。
 
 ## 版本路线
 
@@ -25,7 +25,7 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - `v1.4.0`：SmartRouter 常用体验，已收口规则模板、候选模型配置向导、路由决策解释、切换体感摘要和配置路径级调优建议。
 - `v1.5.0`：入口基础功能稳定与易用性巩固，已补 packaged entry smoke、remote/server setup slice、UI DOM smoke 和配置保存安全线。
 - `v1.6.0`：多模型收益运营化，已补 benchmark history、人工校准 UI、核心路由场景任务集和评测/真实 trace 统一解释。
-- `v1.7.0`：服务化与模型池安全体验，继续补服务端安全默认值、密钥轮换手册、主动 pool health、成本/速率元数据和更多调度策略。
+- `v1.7.0`：服务化与模型池安全体验，已补服务端安全默认值、密钥轮换、主动 pool health、成本/速率元数据和更多调度策略。
 
 完整版本计划见 [docs/superpowers/plans/2026-05-07-core-routing-version-plan.md](docs/superpowers/plans/2026-05-07-core-routing-version-plan.md)。
 

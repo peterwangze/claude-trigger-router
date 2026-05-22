@@ -115,6 +115,8 @@ v1.6.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 4. `[closed 2026-05-23]` 成本/速率元数据：`Registration.models[].metadata` 新增 `cost_per_1m_input_tokens`、`cost_per_1m_output_tokens`、`cost_currency`、`rate_limit_rpm`、`rate_limit_tpm`，compiled model pool、`/api/models/pool-health` 与 `/ui` 均可展示 endpoint 成本和速率限制，为 cost-aware / health-aware 调度提供数据基础。
 5. `[closed 2026-05-23]` round-robin / health-aware / cost-aware 策略：`Registration.strategy` 已支持 `priority`、`least-latency`、`round-robin`、`health-aware`、`cost-aware`；active endpoint 与 fallback candidate 复用同一排序逻辑，round-robin 基于 success count，health-aware 基于健康状态/失败数/延迟，cost-aware 基于成本 metadata，并补模型编译与配置校验回归。
 
+v1.7.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前已通过 targeted `server` / `middleware/auth` / `models/compile` / `router` / `governance` / `workbench.dom` / `utils/config` 测试与 `git diff --check`。发布边界见 `docs/release-notes-v1.7.0.md`。
+
 ### v1.8.0 Agent / 工具增强
 
 优先级：中低。
@@ -127,6 +129,6 @@ v1.6.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.6.0 已阶段闭环；后续默认切到 v1.7.0 服务化与模型池安全体验，除非出现安全风险、P0 主路径故障、入口回归或收益证据链回归，不再回头扩展 v1.6.0 范围。
+2. v1.7.0 已阶段闭环；后续默认切到 v1.8.0 低侵入 agent / tool 增强，除非出现安全风险、P0 主路径故障、入口回归、收益证据链回归或远程服务 / 模型池安全体验回归，不再回头扩展 v1.7.0 范围。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。

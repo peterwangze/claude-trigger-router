@@ -357,14 +357,18 @@ describe('runSetupCli', () => {
     expect(io.choose).not.toHaveBeenCalledWith('这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(writeConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        Runtime: {
+        Runtime: expect.objectContaining({
           mode: 'local',
           remote_service: {
             enabled: true,
             base_url: 'https://router.example.com',
             auth_token: 'remote-token',
           },
-        },
+          security: expect.objectContaining({
+            public_host_requires_auth: true,
+            recommended_client_scopes: ['client', 'read-only'],
+          }),
+        }),
         Providers: [],
         Router: {
           default: '',
