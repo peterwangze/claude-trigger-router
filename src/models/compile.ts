@@ -63,6 +63,15 @@ export interface ICompiledModelPoolEndpoint {
   priority: number;
   enabled: boolean;
   health: IModelPoolEndpointHealthSnapshot;
+  cost?: {
+    inputPer1MTokens?: number;
+    outputPer1MTokens?: number;
+    currency: string;
+  };
+  rateLimit?: {
+    requestsPerMinute?: number;
+    tokensPerMinute?: number;
+  };
   capabilities: ICompiledModelCapabilities;
   source: 'registration';
 }
@@ -213,6 +222,30 @@ function readMetadataBoolean(metadata: IModelEndpointConfig['metadata'], key: st
   return typeof value === 'boolean' ? value : undefined;
 }
 
+function buildOperationalMetadata(metadata: IModelEndpointConfig['metadata']) {
+  const inputPer1MTokens = readMetadataNumber(metadata, 'cost_per_1m_input_tokens');
+  const outputPer1MTokens = readMetadataNumber(metadata, 'cost_per_1m_output_tokens');
+  const requestsPerMinute = readMetadataNumber(metadata, 'rate_limit_rpm');
+  const tokensPerMinute = readMetadataNumber(metadata, 'rate_limit_tpm');
+  const currency = readMetadataString(metadata, 'cost_currency') || 'USD';
+
+  return {
+    cost: inputPer1MTokens !== undefined || outputPer1MTokens !== undefined
+      ? {
+          inputPer1MTokens,
+          outputPer1MTokens,
+          currency,
+        }
+      : undefined,
+    rateLimit: requestsPerMinute !== undefined || tokensPerMinute !== undefined
+      ? {
+          requestsPerMinute,
+          tokensPerMinute,
+        }
+      : undefined,
+  };
+}
+
 function buildRegistrationUpstreamIndex(config: IAppConfig) {
   const services = Array.isArray(config.Registration?.upstream_services)
     ? config.Registration?.upstream_services
@@ -357,6 +390,7 @@ function buildRegistrationModelPools(config: IAppConfig): IRegistrationPoolCompi
     const enabled = readMetadataBoolean(item.metadata, 'pool_enabled') ?? true;
     const compatibilityProfile = inferCompatibilityProfile(item, modelInterface);
     const capabilities = buildCompiledCapabilities(item, modelInterface);
+    const operationalMetadata = buildOperationalMetadata(item.metadata);
     const endpoint: ICompiledModelPoolEndpoint = {
       id: endpointId,
       modelId: item.id,
@@ -373,6 +407,7 @@ function buildRegistrationModelPools(config: IAppConfig): IRegistrationPoolCompi
       priority: poolPriority,
       enabled,
       health: modelPoolHealthStore.getSnapshot(item.id, endpointId),
+      ...operationalMetadata,
       capabilities,
       source: 'registration',
     };

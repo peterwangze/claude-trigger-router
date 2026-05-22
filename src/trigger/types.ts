@@ -279,6 +279,11 @@ export interface IModelEndpointMetadata {
   upstream_service_id?: string;
   pool_priority?: number;
   pool_enabled?: boolean;
+  cost_per_1m_input_tokens?: number;
+  cost_per_1m_output_tokens?: number;
+  cost_currency?: string;
+  rate_limit_rpm?: number;
+  rate_limit_tpm?: number;
 }
 
 export interface ICompiledModelCapabilities {

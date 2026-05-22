@@ -325,6 +325,8 @@ Health 摘要只解释已有 trace / metrics / anomaly 数据，不会改变路�
 - `metadata.pool_priority`：可选，数值越小优先级越高；在 `priority` 策略下直接决定 active endpoint，在 `least-latency` 没有延迟样本或延迟相同时作为稳定回退顺序。
 - `metadata.pool_enabled`：可选，设为 `false` 时该 endpoint 会保留在 pool 中但不会成为 active endpoint。
 - `metadata.upstream_service_id`：可选，将 endpoint 关联到 `upstream_services[].id`，用于维护者观测和后续调度。
+- `metadata.cost_per_1m_input_tokens` / `metadata.cost_per_1m_output_tokens` / `metadata.cost_currency`：可选，用于展示和 cost-aware 调度的成本提示。
+- `metadata.rate_limit_rpm` / `metadata.rate_limit_tpm`：可选，用于展示和调度时识别速率容量。
 
 示例：
 
@@ -346,6 +348,11 @@ Registration:
         pool_endpoint_id: "sonnet-edge-a"
         pool_priority: 10
         upstream_service_id: "edge-router"
+        cost_per_1m_input_tokens: 3
+        cost_per_1m_output_tokens: 15
+        cost_currency: "USD"
+        rate_limit_rpm: 120
+        rate_limit_tpm: 240000
     - id: sonnet
       api: "https://edge-b.example.com/v1"
       key: "${EDGE_B_MODEL_KEY}"
@@ -356,7 +363,7 @@ Registration:
         pool_priority: 20
 ```
 
-编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 会把 active endpoint 编译成真实内部 provider；如果没有同名顶层 `Models[]` 覆盖，`Router.default: sonnet` 这类 logical model id 会解析到 active pool endpoint，并在治理 trace 中记录 `model_pool:<modelId>:<endpointId>`。当当前 pool endpoint 返回非流式 upstream error 时，运行时会按当前策略选择下一个 enabled endpoint 做一次本地重试，并记录 `model_pool_fallback:<modelId>:<endpointId>`；失败 endpoint 会进入短冷却，连续失败达到阈值后会进入更长的 `open` 熔断状态，后续 logical model 解析和 fallback candidate 会优先跳过冷却或熔断中的 endpoint。成功响应会写入延迟窗口，compiled model pool、`/api/models/pool-health` 和 `/ui` 可看到 endpoint 的平均延迟；维护者也可以调用 `POST /api/models/pool-health/probe` 或点击 `/ui` 的“主动探测”，对 enabled endpoint 做轻量 `HEAD` 探测：2xx/3xx/4xx 视为网络可达并记录成功延迟，5xx/网络错误记录失败并复用 cooldown / circuit breaker。启用远程客户端配置时，本地 `/api/remote-status` 会拉取远端 `/api/registration` 的只读脱敏摘要，帮助使用者确认远端服务端注册了多少模型和 upstream 服务，但不会自动同步或覆盖本地 `Registration`。
+编译结果可以通过 `GET /api/models/compiled`、`POST /api/models/compiled/preview` 或 `/ui` 的 Compiled Models 区查看。当前阶段 pool 会把 active endpoint 编译成真实内部 provider；如果没有同名顶层 `Models[]` 覆盖，`Router.default: sonnet` 这类 logical model id 会解析到 active pool endpoint，并在治理 trace 中记录 `model_pool:<modelId>:<endpointId>`。当当前 pool endpoint 返回非流式 upstream error 时，运行时会按当前策略选择下一个 enabled endpoint 做一次本地重试，并记录 `model_pool_fallback:<modelId>:<endpointId>`；失败 endpoint 会进入短冷却，连续失败达到阈值后会进入更长的 `open` 熔断状态，后续 logical model 解析和 fallback candidate 会优先跳过冷却或熔断中的 endpoint。成功响应会写入延迟窗口，compiled model pool、`/api/models/pool-health` 和 `/ui` 可看到 endpoint 的平均延迟、成本和速率限制元数据；维护者也可以调用 `POST /api/models/pool-health/probe` 或点击 `/ui` 的“主动探测”，对 enabled endpoint 做轻量 `HEAD` 探测：2xx/3xx/4xx 视为网络可达并记录成功延迟，5xx/网络错误记录失败并复用 cooldown / circuit breaker。启用远程客户端配置时，本地 `/api/remote-status` 会拉取远端 `/api/registration` 的只读脱敏摘要，帮助使用者确认远端服务端注册了多少模型和 upstream 服务，但不会自动同步或覆盖本地 `Registration`。
 
 当前明确不支持 `nodes`、`node_id`、`cluster` 这类集群/节点编排字段。
 

@@ -112,7 +112,7 @@ v1.6.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 1. `[closed 2026-05-23]` 服务端部署默认安全策略：`ctr deploy init --target server` 生成 `Runtime.security` 默认策略，明确公网监听必须鉴权、bootstrap key 仅限 admin、远程客户端使用 managed `client + read-only` key、公网部署前置 HTTPS 反向代理或内网；`/api/service-info` 返回同一 policy 和 deployment checklist，README 与 server maintainer guide 已同步。
 2. `[closed 2026-05-23]` 密钥轮换和托管维护手册：新增 `POST /api/auth/keys/:id/rotate`，admin 可为 managed key 生成替代 secret、保留或覆盖 scopes/quota/expiresAt，并立即吊销旧 key；README、`/ui` auth guide 与 server maintainer guide 已补定期轮换、交接和泄漏处置路径。
 3. `[closed 2026-05-23]` 模型池主动健康探测：新增 operator/admin 可触发的 `POST /api/models/pool-health/probe`，对 enabled pool endpoint 做轻量 `HEAD` 探测，2xx/3xx/4xx 记录成功和 latency，5xx/网络错误记录失败并复用 cooldown / circuit breaker；`/ui` Model pool health 已提供主动探测按钮，README、configuration guide 和维护手册已同步。
-4. 成本/速率元数据。
+4. `[closed 2026-05-23]` 成本/速率元数据：`Registration.models[].metadata` 新增 `cost_per_1m_input_tokens`、`cost_per_1m_output_tokens`、`cost_currency`、`rate_limit_rpm`、`rate_limit_tpm`，compiled model pool、`/api/models/pool-health` 与 `/ui` 均可展示 endpoint 成本和速率限制，为 cost-aware / health-aware 调度提供数据基础。
 5. round-robin / health-aware / cost-aware 策略。
 
 ### v1.8.0 Agent / 工具增强

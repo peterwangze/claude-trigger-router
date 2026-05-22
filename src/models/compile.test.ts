@@ -421,6 +421,45 @@ describe('model compile', () => {
     );
   });
 
+  it('exposes cost and rate metadata on registration pool endpoints', () => {
+    const registry = buildModelRegistry({
+      Providers: [],
+      Router: { default: 'sonnet' },
+      Registration: {
+        enabled: true,
+        models: [
+          {
+            id: 'sonnet',
+            api: 'https://edge-a.example.com/v1',
+            key: 'sk-edge-a',
+            interface: 'anthropic',
+            model: 'claude-sonnet-4-5',
+            metadata: {
+              pool_endpoint_id: 'edge-a',
+              cost_per_1m_input_tokens: 3,
+              cost_per_1m_output_tokens: 15,
+              cost_currency: 'USD',
+              rate_limit_rpm: 120,
+              rate_limit_tpm: 240000,
+            },
+          },
+        ],
+      },
+    } as any);
+
+    expect(registry.modelPools.sonnet.endpoints[0]).toEqual(expect.objectContaining({
+      cost: {
+        inputPer1MTokens: 3,
+        outputPer1MTokens: 15,
+        currency: 'USD',
+      },
+      rateLimit: {
+        requestsPerMinute: 120,
+        tokensPerMinute: 240000,
+      },
+    }));
+  });
+
   it('resolves registration logical model ids to the active pool endpoint when no primary model exists', () => {
     const config = {
       Providers: [],

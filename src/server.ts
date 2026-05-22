@@ -338,6 +338,8 @@ function buildModelPoolHealthReport(rawConfig: any) {
         enabled: endpoint.enabled,
         active: endpoint.id === pool.activeEndpointId,
         status: health.status,
+        cost: endpoint.cost,
+        rateLimit: endpoint.rateLimit,
         failureCount: health.failureCount,
         successCount: health.successCount,
         lastFailureAt: health.lastFailureAt,

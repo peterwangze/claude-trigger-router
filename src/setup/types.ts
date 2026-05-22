@@ -54,6 +54,11 @@ export interface ISetupModelDraft {
     supports_images?: boolean;
     context_window_tokens?: number;
     safe_input_tokens?: number;
+    cost_per_1m_input_tokens?: number;
+    cost_per_1m_output_tokens?: number;
+    cost_currency?: string;
+    rate_limit_rpm?: number;
+    rate_limit_tpm?: number;
     [key: string]: unknown;
   };
 }

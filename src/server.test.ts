@@ -1478,6 +1478,10 @@ describe('createServer /api/config', () => {
               metadata: {
                 pool_endpoint_id: 'edge-backup',
                 pool_priority: 20,
+                cost_per_1m_input_tokens: 2,
+                cost_per_1m_output_tokens: 10,
+                rate_limit_rpm: 60,
+                rate_limit_tpm: 120000,
               },
             },
           ],
@@ -1520,6 +1524,15 @@ describe('createServer /api/config', () => {
           latency: expect.objectContaining({
             averageMs: 180,
           }),
+          cost: {
+            inputPer1MTokens: 2,
+            outputPer1MTokens: 10,
+            currency: 'USD',
+          },
+          rateLimit: {
+            requestsPerMinute: 60,
+            tokensPerMinute: 120000,
+          },
         }),
       ])
     );
