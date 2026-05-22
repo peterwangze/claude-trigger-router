@@ -163,6 +163,11 @@ describe('createServer /api/config', () => {
       security: {
         status: 'critical',
         publicHost: true,
+        policy: expect.objectContaining({
+          publicHostRequiresAuth: true,
+          recommendedClientScopes: ['client', 'read-only'],
+        }),
+        deploymentChecklist: expect.any(Array),
         issues: [
           expect.objectContaining({
             code: 'server_without_auth',
@@ -203,6 +208,9 @@ describe('createServer /api/config', () => {
     expect(result.security).toEqual(expect.objectContaining({
       status: 'ok',
       publicHost: true,
+      policy: expect.objectContaining({
+        bootstrapKeyAdminOnly: true,
+      }),
       issues: [],
     }));
     expect(JSON.stringify(result)).not.toContain('bootstrap-key');

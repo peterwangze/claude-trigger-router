@@ -72,14 +72,18 @@ describe('normalizeAndValidateConfig governance', () => {
     });
 
     expect(result.errors).toEqual([]);
-    expect(result.config.Runtime).toEqual({
+    expect(result.config.Runtime).toEqual(expect.objectContaining({
       mode: 'server',
       remote_service: {
         enabled: true,
         base_url: 'https://router.example.com',
         auth_token: '',
       },
-    });
+      security: expect.objectContaining({
+        public_host_requires_auth: true,
+        recommended_client_scopes: ['client', 'read-only'],
+      }),
+    }));
     expect(result.config.Registration).toEqual({
       enabled: true,
       strategy: 'priority',
@@ -289,14 +293,18 @@ describe('normalizeAndValidateConfig governance', () => {
     });
 
     expect(result.errors).toEqual([]);
-    expect(result.config.Runtime).toEqual({
+    expect(result.config.Runtime).toEqual(expect.objectContaining({
       mode: 'local',
       remote_service: {
         enabled: true,
         base_url: 'https://router.example.com',
         auth_token: '${CTR_REMOTE_AUTH_TOKEN}',
       },
-    });
+      security: expect.objectContaining({
+        public_host_requires_auth: true,
+        recommended_operator_scopes: ['operator'],
+      }),
+    }));
     expect(result.config.Providers).toEqual([]);
     expect(result.config.Router.default).toBe('');
   });

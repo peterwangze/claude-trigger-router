@@ -33,6 +33,13 @@ const DEFAULT_RUNTIME_CONFIG: NonNullable<IAppConfig['Runtime']> = {
     base_url: '',
     auth_token: '',
   },
+  security: {
+    public_host_requires_auth: true,
+    bootstrap_key_admin_only: true,
+    require_https_proxy: false,
+    recommended_client_scopes: ['client', 'read-only'],
+    recommended_operator_scopes: ['operator'],
+  },
 };
 
 const DEFAULT_REGISTRATION_CONFIG: NonNullable<IAppConfig['Registration']> = {
@@ -509,6 +516,19 @@ function validateConfig(config: Partial<IAppConfig>): string[] {
 
   if (config.Runtime?.remote_service?.enabled && !config.Runtime.remote_service.base_url?.trim()) {
     errors.push('Runtime.remote_service.base_url is required when remote_service is enabled');
+  }
+  const runtimeSecurity = config.Runtime?.security;
+  if (runtimeSecurity?.recommended_client_scopes !== undefined) {
+    errors.push(
+      ...validateManagedApiKeyScopes(runtimeSecurity.recommended_client_scopes)
+        .map((message) => `Runtime.security.recommended_client_scopes.${message}`)
+    );
+  }
+  if (runtimeSecurity?.recommended_operator_scopes !== undefined) {
+    errors.push(
+      ...validateManagedApiKeyScopes(runtimeSecurity.recommended_operator_scopes)
+        .map((message) => `Runtime.security.recommended_operator_scopes.${message}`)
+    );
   }
 
   const registration = config.Registration as any;

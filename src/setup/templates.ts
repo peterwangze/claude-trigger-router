@@ -110,6 +110,13 @@ export function buildServerDeploymentConfig(input: IServerDeploymentConfigInput)
     APIKEY: input.apiKey,
     Runtime: {
       mode: 'server',
+      security: {
+        public_host_requires_auth: true,
+        bootstrap_key_admin_only: true,
+        require_https_proxy: true,
+        recommended_client_scopes: ['client', 'read-only'],
+        recommended_operator_scopes: ['operator'],
+      },
     },
   };
 }

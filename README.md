@@ -71,7 +71,7 @@ npm 包也随附可复制部署模板：
 - 服务提供者/维护者：[docs/server-maintainer-guide.md](docs/server-maintainer-guide.md)
 - 远程服务使用者：[docs/remote-client-guide.md](docs/remote-client-guide.md)
 
-这些模板仍以 `ctr deploy init --target server` 生成的配置为起点。首次暴露给其他机器前，请先确认 `APIKEY` 或 active managed key 存在，并优先放在 HTTPS 反向代理或内网之后。
+这些模板仍以 `ctr deploy init --target server` 生成的配置为起点。生成的 server profile 会写入 `Runtime.security` 默认策略：公网监听必须有鉴权、bootstrap key 只用于 admin、远程客户端使用 managed `client + read-only` key，公网部署前应放在 HTTPS 反向代理或内网之后。`GET /api/service-info` 会返回同一策略和部署 checklist，方便 `/ui`、`ctr status` 和维护脚本复核。
 
 生成后确认或调整的最小结构如下：
 

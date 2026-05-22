@@ -198,6 +198,13 @@ export interface IRuntimeConfig {
     base_url?: string;
     auth_token?: string;
   };
+  security?: {
+    public_host_requires_auth?: boolean;
+    bootstrap_key_admin_only?: boolean;
+    require_https_proxy?: boolean;
+    recommended_client_scopes?: TManagedApiKeyScope[];
+    recommended_operator_scopes?: TManagedApiKeyScope[];
+  };
 }
 
 export interface IRegistrationConfig {

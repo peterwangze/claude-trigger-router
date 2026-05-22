@@ -109,7 +109,7 @@ v1.6.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 
 优先级：中。
 
-1. 服务端部署默认安全策略。
+1. `[closed 2026-05-23]` 服务端部署默认安全策略：`ctr deploy init --target server` 生成 `Runtime.security` 默认策略，明确公网监听必须鉴权、bootstrap key 仅限 admin、远程客户端使用 managed `client + read-only` key、公网部署前置 HTTPS 反向代理或内网；`/api/service-info` 返回同一 policy 和 deployment checklist，README 与 server maintainer guide 已同步。
 2. 密钥轮换和托管维护手册。
 3. 模型池主动健康探测。
 4. 成本/速率元数据。

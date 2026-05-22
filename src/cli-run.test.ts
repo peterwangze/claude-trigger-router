@@ -674,8 +674,11 @@ describe('runClaudeCode', () => {
     expect(output).toContain('Server 部署配置已覆盖');
     expect(output).toContain('bootstrap admin APIKEY');
     expect(output).toContain('POST /api/auth/keys');
+    expect(output).toContain('HTTPS 反向代理');
     expect(written).toContain('HOST: 0.0.0.0');
     expect(written).toContain('mode: server');
+    expect(written).toContain('public_host_requires_auth: true');
+    expect(written).toContain('require_https_proxy: true');
     expect(written).toContain('default: sonnet');
     expect(written).toMatch(/APIKEY: ctr_bootstrap_[a-f0-9]{48}/);
 

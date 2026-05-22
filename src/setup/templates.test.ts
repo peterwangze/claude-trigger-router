@@ -359,6 +359,13 @@ describe('setup templates', () => {
       expect(draft.APIKEY).toBe('bootstrap-key');
       expect(draft.Runtime).toEqual({
         mode: 'server',
+        security: {
+          public_host_requires_auth: true,
+          bootstrap_key_admin_only: true,
+          require_https_proxy: true,
+          recommended_client_scopes: ['client', 'read-only'],
+          recommended_operator_scopes: ['operator'],
+        },
       });
       expect(draft.Models?.[0]).toEqual(expect.objectContaining({
         id: 'sonnet',

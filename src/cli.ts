@@ -654,6 +654,7 @@ function initDeployConfig() {
     console.log("  2. 运行：ctr doctor");
     console.log("  3. 运行：ctr start --daemon");
     console.log("  4. 用 admin key 调用 POST /api/auth/keys 生成 client + read-only 远程客户端 key");
+    console.log("  5. 公网部署前放到 HTTPS 反向代理或内网后面，并保留 bootstrap key 仅用于维护者管理");
   } catch (error: any) {
     console.error("❌ 创建部署配置失败:", error.message);
     process.exit(1);

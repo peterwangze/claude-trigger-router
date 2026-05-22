@@ -116,6 +116,13 @@ function buildServiceInfo(rawConfig: any) {
   const normalized = normalizeAndValidateConfig(rawConfig ?? {}).config;
   const runtime = normalized.Runtime ?? {};
   const remoteService = runtime.remote_service ?? {};
+  const securityPolicy = {
+    publicHostRequiresAuth: runtime.security?.public_host_requires_auth !== false,
+    bootstrapKeyAdminOnly: runtime.security?.bootstrap_key_admin_only !== false,
+    requireHttpsProxy: Boolean(runtime.security?.require_https_proxy),
+    recommendedClientScopes: runtime.security?.recommended_client_scopes ?? ["client", "read-only"],
+    recommendedOperatorScopes: runtime.security?.recommended_operator_scopes ?? ["operator"],
+  };
   const registration = normalized.Registration ?? {};
   const runtimeMode = runtime.mode ?? "local";
   const managedKeys = listManagedApiKeys(normalized);
@@ -138,7 +145,7 @@ function buildServiceInfo(rawConfig: any) {
     message: string;
     action: string;
   }> = [];
-  if (!authRequired && (publicHost || runtimeMode !== "local")) {
+  if (securityPolicy.publicHostRequiresAuth && !authRequired && (publicHost || runtimeMode !== "local")) {
     securityIssues.push({
       code: "server_without_auth",
       severity: "critical",
@@ -162,6 +169,25 @@ function buildServiceInfo(rawConfig: any) {
       action: "Create an active managed admin/client key or configure APIKEY before relying on this service.",
     });
   }
+  const deploymentChecklist = runtimeMode === "local"
+    ? []
+    : [
+        {
+          code: "auth_configured",
+          ok: authRequired && (hasBootstrapAuth || hasActiveManagedAuth),
+          action: "Keep bootstrap APIKEY for administrators only and create managed client/read-only keys for remote users.",
+        },
+        {
+          code: "managed_client_key",
+          ok: hasActiveManagedAuth,
+          action: "Create at least one active managed key for remote clients before sharing the service URL.",
+        },
+        {
+          code: "https_or_private_network",
+          ok: !securityPolicy.requireHttpsProxy,
+          action: "Place public server deployments behind HTTPS reverse proxy or private network access before exposing them.",
+        },
+      ];
   const quotaSummary = authQuotaUsageStore.summary();
   const quotaKeys = managedKeys.map((key) => {
     const usage = authQuotaUsageStore.snapshotForKey(key.id, key.quota);
@@ -256,6 +282,8 @@ function buildServiceInfo(rawConfig: any) {
           ? "warning"
           : "ok",
       publicHost,
+      policy: securityPolicy,
+      deploymentChecklist,
       issues: securityIssues,
     },
   };

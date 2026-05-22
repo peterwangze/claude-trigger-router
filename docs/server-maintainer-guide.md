@@ -16,11 +16,14 @@ The command creates a server-oriented config with:
 
 - `HOST: "0.0.0.0"`
 - `Runtime.mode: "server"`
+- `Runtime.security` defaults for public auth, admin-only bootstrap key, HTTPS/private-network exposure and recommended managed key scopes
 - a bootstrap `APIKEY`
 - logging enabled
 - editable `Models` and `Router.default`
 
 Edit `Models[].key`, `Models[].api`, `Models[].interface` and `Models[].model` before exposing the service.
+
+`GET /api/service-info` returns the same security policy and a deployment checklist so maintainers can verify the live service before sharing the URL.
 
 ## 2. Diagnose and start
 
