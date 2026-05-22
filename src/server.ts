@@ -1270,6 +1270,104 @@ export const createServer = (config: any): Server => {
     };
   });
 
+  server.app.post("/api/auth/keys/:id/rotate", async (req: any, reply: any) => {
+    const currentConfig = await readConfigFile();
+    const denied = requireAdminAuth(req, reply, currentConfig);
+    if (denied) {
+      return denied;
+    }
+
+    const keyId = String(req.params?.id ?? "").trim();
+    const managedKeys = currentConfig?.Auth?.managed_keys ?? [];
+    const keyIndex = managedKeys.findIndex((key: any) => key.id === keyId);
+    if (keyIndex < 0) {
+      reply.code(404);
+      return {
+        success: false,
+        message: "Managed API key not found",
+      };
+    }
+
+    const currentKey = managedKeys[keyIndex];
+    if (currentKey.revoked_at) {
+      reply.code(409);
+      return {
+        success: false,
+        message: "Managed API key is already revoked",
+      };
+    }
+
+    const scopeInput = req.body?.scopes ?? currentKey.scopes;
+    const quotaInput = req.body?.quota ?? currentKey.quota;
+    const scopeErrors = validateManagedApiKeyScopes(scopeInput);
+    const quotaErrors = validateManagedApiKeyQuota(quotaInput);
+    const inputErrors = [...scopeErrors, ...quotaErrors];
+    if (inputErrors.length > 0) {
+      reply.code(400);
+      return {
+        success: false,
+        message: "Invalid managed API key rotation input",
+        errors: inputErrors,
+      };
+    }
+
+    const expiresAt = req.body?.expiresAt ?? currentKey.expires_at;
+    if (expiresAt !== undefined && Number.isNaN(Date.parse(String(expiresAt)))) {
+      reply.code(400);
+      return {
+        success: false,
+        message: "expiresAt must be an ISO date string when provided",
+      };
+    }
+
+    const rotated = createManagedApiKey({
+      label: typeof req.body?.label === "string" && req.body.label.trim()
+        ? req.body.label
+        : `${currentKey.label} rotated`,
+      scopes: scopeInput,
+      expiresAt,
+      quota: quotaInput,
+    });
+    const revokedAt = new Date().toISOString();
+    const nextKeys = [
+      ...managedKeys.map((key: any, index: number) => index === keyIndex
+        ? { ...key, revoked_at: key.revoked_at ?? revokedAt }
+        : key
+      ),
+      rotated.record,
+    ];
+    const nextConfig = {
+      ...(currentConfig ?? {}),
+      Auth: {
+        ...(currentConfig?.Auth ?? {}),
+        managed_keys: nextKeys,
+      },
+    };
+    const result = normalizeAndValidateConfig(nextConfig);
+    if (result.errors.length > 0) {
+      reply.code(400);
+      return {
+        success: false,
+        message: "Invalid rotated auth key configuration",
+        errors: result.errors,
+      };
+    }
+
+    const backupResult = await backupExistingConfigBeforeWrite(reply);
+    if (!backupResult.success) {
+      return backupResult.response;
+    }
+    await writeConfigFile(buildPersistedConfig(nextConfig, result.config));
+
+    return {
+      success: true,
+      revokedKey: sanitizeManagedApiKey(nextKeys[keyIndex]),
+      key: sanitizeManagedApiKey(rotated.record),
+      secret: rotated.secret,
+      message: "Managed API key rotated. Store the new secret now; the old key has been revoked.",
+    };
+  });
+
   server.app.get("/api/remote-status", async (req: any) => {
     const normalizedResult = normalizeAndValidateConfig(config.initialConfig ?? {});
     const normalized = normalizedResult.config;

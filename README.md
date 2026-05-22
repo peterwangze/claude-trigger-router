@@ -110,6 +110,7 @@ ctr start --daemon
 - `operator` key 用于日常运维写操作，例如重启、治理指标快照/定时快照、异常阈值和归档删除；它不能读取配置、保存配置或管理 auth key。
 - managed key 支持过期、撤销和 `quota.request_limit` / `quota.token_limit` / `quota.window_seconds`；窗口配额会持久化到本地状态文件，超限时 429 会返回 `quota.windowResetAt` 和 `Retry-After`。
 - `GET /api/service-info` 会返回脱敏的 `auth` / `security` 摘要和 quota 用量；`GET /api/auth/audit` 可用 admin key 查看最近鉴权允许/拒绝记录。
+- `POST /api/auth/keys/:id/rotate` 会生成替代 managed key、只返回一次新 secret，并立即吊销旧 key；用于定期轮换、交接和疑似泄漏处置。
 - 公网入口仍建议放在 HTTPS 反向代理之后；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
 
 ## 安装

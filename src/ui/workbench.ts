@@ -406,7 +406,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div><strong>read-only</strong><span class="muted">只读观测：health、service-info、compiled models、model pool health、transformers 和 governance GET。</span></div>` +
     `<div><strong>client + read-only</strong><span class="muted">远程 token 同时需要 ready/status 探测与模型调用时使用该组合。</span></div>` +
     `</div>` +
-    `<div class="muted" style="margin-top:.75rem">管理入口：用 admin key 调用 <code>GET /api/auth/keys</code> 查看列表，<code>POST /api/auth/keys</code> 生成 key，<code>POST /api/auth/keys/:id/revoke</code> 吊销 key；生成的 secret 只返回一次，请直接交给对应客户端保存。</div>` +
+    `<div class="muted" style="margin-top:.75rem">管理入口：用 admin key 调用 <code>GET /api/auth/keys</code> 查看列表，<code>POST /api/auth/keys</code> 生成 key，<code>POST /api/auth/keys/:id/rotate</code> 轮换 key，<code>POST /api/auth/keys/:id/revoke</code> 吊销 key；生成的 secret 只返回一次，请直接交给对应客户端保存。</div>` +
     `</div>` +
     `<div class="subpanel">` +
     `<div class="row"><strong>Auth quota</strong><span class="muted">按 managed key 查看模型调用配额、当前用量与窗口重置时间</span></div>` +

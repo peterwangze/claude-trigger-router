@@ -110,7 +110,7 @@ v1.6.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 优先级：中。
 
 1. `[closed 2026-05-23]` 服务端部署默认安全策略：`ctr deploy init --target server` 生成 `Runtime.security` 默认策略，明确公网监听必须鉴权、bootstrap key 仅限 admin、远程客户端使用 managed `client + read-only` key、公网部署前置 HTTPS 反向代理或内网；`/api/service-info` 返回同一 policy 和 deployment checklist，README 与 server maintainer guide 已同步。
-2. 密钥轮换和托管维护手册。
+2. `[closed 2026-05-23]` 密钥轮换和托管维护手册：新增 `POST /api/auth/keys/:id/rotate`，admin 可为 managed key 生成替代 secret、保留或覆盖 scopes/quota/expiresAt，并立即吊销旧 key；README、`/ui` auth guide 与 server maintainer guide 已补定期轮换、交接和泄漏处置路径。
 3. 模型池主动健康探测。
 4. 成本/速率元数据。
 5. round-robin / health-aware / cost-aware 策略。

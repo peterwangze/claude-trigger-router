@@ -58,7 +58,19 @@ Recommended remote-user scopes:
 
 `client` allows model calls. `read-only` allows ready/status checks such as `/api/health`, `/api/service-info`, compiled model summaries and governance GET endpoints. `operator` is for day-to-day maintenance writes such as restart, governance snapshots, schedules, anomaly thresholds and archive deletion; it cannot read or save config and cannot manage auth keys. Generated secrets are returned once.
 
-## 4. Expose safely
+## 4. Rotate keys
+
+Use admin auth to rotate a managed key when a remote client changes owner, a secret may have leaked, or a regular maintenance window requires renewal:
+
+```text
+POST /api/auth/keys/:id/rotate
+```
+
+Rotation creates one replacement key, returns the new secret once, preserves the old key's scopes/quota unless overrides are provided, and immediately revokes the old key. After the client confirms the new secret works, check `GET /api/auth/keys` and `GET /api/auth/audit` for the expected active/revoked state.
+
+Use `POST /api/auth/keys/:id/revoke` when no replacement should be issued.
+
+## 5. Expose safely
 
 Prefer one of these deployment envelopes:
 
@@ -70,8 +82,9 @@ Before exposing the service to other machines:
 - keep auth enabled with bootstrap or active managed keys
 - put public deployments behind HTTPS reverse proxy or private network access
 - give remote users managed `client + read-only` keys, not admin/bootstrap keys
+- rotate managed keys during ownership changes or suspected leaks
 
-## 5. Daily maintenance
+## 6. Daily maintenance
 
 Use:
 

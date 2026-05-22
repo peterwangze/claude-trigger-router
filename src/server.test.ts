@@ -874,6 +874,114 @@ describe('createServer /api/config', () => {
     expect(reply.code).not.toHaveBeenCalled();
   });
 
+  it('rotates managed API keys by revoking the old key and returning one new secret', async () => {
+    const created = createManagedApiKey({
+      label: 'remote client',
+      scopes: ['client', 'read-only'],
+      quota: {
+        request_limit: 100,
+        window_seconds: 3600,
+      },
+    });
+    mockReadConfigFile.mockResolvedValue({
+      APIKEY: 'bootstrap-key',
+      Router: { default: 'sonnet' },
+      Models: [
+        {
+          id: 'sonnet',
+          api: 'https://api.example.com/v1/messages',
+          key: 'sk-test',
+          interface: 'anthropic',
+          model: 'claude-sonnet-4-5',
+        },
+      ],
+      Auth: {
+        managed_keys: [created.record],
+      },
+    });
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/auth/keys/:id/rotate');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      headers: { authorization: 'Bearer bootstrap-key' },
+      params: { id: created.record.id },
+      body: {
+        label: 'remote client q2',
+      },
+    }, reply);
+
+    expect(result.success).toBe(true);
+    expect(result.secret).toMatch(/^ctr_/);
+    expect(result.revokedKey).toEqual(expect.objectContaining({
+      id: created.record.id,
+      active: false,
+      revokedAt: expect.any(String),
+    }));
+    expect(result.key).toEqual(expect.objectContaining({
+      label: 'remote client q2',
+      scopes: ['client', 'read-only'],
+      quota: {
+        request_limit: 100,
+        window_seconds: 3600,
+      },
+      active: true,
+    }));
+    expect(mockWriteConfigFile).toHaveBeenCalledWith(expect.objectContaining({
+      Auth: {
+        managed_keys: [
+          expect.objectContaining({
+            id: created.record.id,
+            revoked_at: expect.any(String),
+          }),
+          expect.objectContaining({
+            label: 'remote client q2',
+            key_hash: expect.any(String),
+            scopes: ['client', 'read-only'],
+          }),
+        ],
+      },
+    }));
+    expect(JSON.stringify(mockWriteConfigFile.mock.calls[0][0])).not.toContain(result.secret);
+    expect(JSON.stringify(result)).not.toContain(created.secret);
+    expect(reply.code).not.toHaveBeenCalled();
+  });
+
+  it('rejects rotation for already revoked managed API keys', async () => {
+    const created = createManagedApiKey({ label: 'remote client', scopes: ['client'] });
+    mockReadConfigFile.mockResolvedValue({
+      APIKEY: 'bootstrap-key',
+      Auth: {
+        managed_keys: [
+          {
+            ...created.record,
+            revoked_at: '2026-05-22T00:00:00.000Z',
+          },
+        ],
+      },
+    });
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/auth/keys/:id/rotate');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      headers: { authorization: 'Bearer bootstrap-key' },
+      params: { id: created.record.id },
+      body: {},
+    }, reply);
+
+    expect(reply.code).toHaveBeenCalledWith(409);
+    expect(result).toEqual({
+      success: false,
+      message: 'Managed API key is already revoked',
+    });
+    expect(mockWriteConfigFile).not.toHaveBeenCalled();
+  });
+
   it('exposes governance trace list and detail endpoints', async () => {
     governanceTraceStore.add({
       requestId: 'trace-1',
@@ -2627,6 +2735,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('client + read-only');
     expect(html).toContain('远程 token 同时需要 ready/status 探测与模型调用');
     expect(html).toContain('POST /api/auth/keys');
+    expect(html).toContain('POST /api/auth/keys/:id/rotate');
     expect(html).toContain('POST /api/auth/keys/:id/revoke');
     expect(html).toContain('secret 只返回一次');
     expect(html).toContain('userSurfaceTab');
