@@ -76,6 +76,22 @@ describe('deployment assets', () => {
     expect(readme).toContain('trace spans');
   });
 
+  it('keeps README new-user quick start before release positioning', () => {
+    const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
+    const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
+    const releaseIndex = readme.indexOf('## v1.8.0 发布定位');
+    const deployIndex = readme.indexOf('## 部署模式与边界');
+
+    expect(quickStartIndex).toBeGreaterThan(0);
+    expect(releaseIndex).toBeGreaterThan(quickStartIndex);
+    expect(deployIndex).toBeGreaterThan(quickStartIndex);
+    expect(readme.slice(quickStartIndex, deployIndex)).toContain('ctr setup');
+    expect(readme.slice(quickStartIndex, deployIndex)).toContain('ctr status');
+    expect(readme.slice(quickStartIndex, deployIndex)).toContain('ctr doctor');
+    expect(readme.slice(quickStartIndex, deployIndex)).toContain('ctr code');
+    expect(readme.slice(quickStartIndex, deployIndex)).toContain('ctr ui');
+  });
+
   it('keeps remote Claude Code auth guidance on ANTHROPIC_AUTH_TOKEN', () => {
     const remoteClientGuide = readFileSync(join(process.cwd(), 'docs', 'remote-client-guide.md'), 'utf-8');
     const roleGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-roles.md'), 'utf-8');

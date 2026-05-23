@@ -11,6 +11,49 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - 想在 Claude Code 外层增加配置校验、健康检查、治理观测和 UI 工作台
 - 想从 `claude-code-router` 迁移到更清晰的 `Models + Router` 配置心智
 
+## 5 分钟跑起来
+
+安装并确认命令可用：
+
+```bash
+npm install -g @peterwangze/claude-trigger-router
+ctr version
+ctr help
+```
+
+首次使用最推荐走交互式 setup：
+
+```bash
+ctr setup
+```
+
+`ctr setup` 会自动处理：
+
+- 复用已有 `~/.claude-trigger-router/config.yaml`
+- 探测并迁移旧 `claude-code-router` 配置
+- 在没有可用配置时询问“本地使用”、“连接远程服务”还是“部署为远程服务端”
+- 本地使用时创建最小可用配置
+- 连接远程服务时写入 `Runtime.remote_service`，不要求你先填写本地 provider/model
+- 部署为远程服务端时生成 server profile 和 bootstrap admin `APIKEY`，但不会自动启动服务
+- 本地使用时，引导填写默认模型 ID、接口地址、API Key 和模型名
+- 本地使用时，可选追加复杂任务模型，并生成 SmartRouter 起步模板
+- 保存配置后按角色输出下一步：本地路径提示 `ctr code` 和路由模板，远程客户端路径提示 `ctr doctor` / `ctr status` / 本地代理转发，服务端路径提示 `ctr doctor` / `ctr start --daemon`
+
+本地日常使用路径：
+
+```bash
+ctr status
+ctr doctor
+ctr code
+ctr ui
+```
+
+`ctr code` 会带着本地代理环境启动 Claude Code。之后你在 Claude Code 里的请求会经过本地 Trigger Router；`ctr ui` 用于查看当前服务、配置草稿、远程状态、compiled models 和治理摘要。
+
+如果 setup 选择的是“连接远程服务”，它会生成远程服务连接配置；先用 `ctr doctor` / `ctr status` 检查远端 ready 状态，再运行 `ctr code`，Claude Code 会继续连接本地 `ctr`，由本地 `ctr` 把模型调用转发到远端 CTR。直接把 Claude Code 指向远端服务仍然可用，但属于可选路径；这时使用 `ANTHROPIC_BASE_URL` 指向远端服务地址，并用 `ANTHROPIC_AUTH_TOKEN` 传服务维护者发放的 managed key。
+
+如果 setup 选择的是“部署为远程服务端”，setup 只生成配置，不会自动启动；请先编辑 `Models[].key` / `Models[].model`，再运行 `ctr doctor` 和 `ctr start --daemon`。服务端和远程客户端细节见下方“部署模式与边界”。
+
 ## v1.8.0 发布定位
 
 `v1.8.0` 是低侵入 agent/tool 增强与架构减压版。它把 agent/tool 能力压回现有路由代理和治理观测体系，先补 runtime pipeline、管理 API 权限 contract、UI fragment contract、route handoff summary、tool capability guardrail、输入/输出 guardrail 和 trace spans。
@@ -117,50 +160,6 @@ ctr start --daemon
 - `Registration.models[].metadata` 可声明成本和速率限制：`cost_per_1m_input_tokens`、`cost_per_1m_output_tokens`、`cost_currency`、`rate_limit_rpm`、`rate_limit_tpm`，这些字段会进入 compiled model pool 和 `/api/models/pool-health`。
 - `Registration.strategy` 支持 `priority`、`least-latency`、`round-robin`、`health-aware`、`cost-aware`，active endpoint 和 fallback candidate 使用同一排序口径。
 - 公网入口仍建议放在 HTTPS 反向代理之后；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
-
-## 安装
-
-```bash
-npm install -g @peterwangze/claude-trigger-router
-```
-
-安装后确认命令可用：
-
-```bash
-ctr version
-ctr help
-```
-
-## 5 分钟跑起来
-
-首次使用最推荐走交互式 setup：
-
-```bash
-ctr setup
-```
-
-`ctr setup` 会自动处理：
-
-- 复用已有 `~/.claude-trigger-router/config.yaml`
-- 探测并迁移旧 `claude-code-router` 配置
-- 在没有可用配置时询问“本地使用”、“连接远程服务”还是“部署为远程服务端”
-- 本地使用时创建最小可用配置
-- 连接远程服务时写入 `Runtime.remote_service`，不要求你先填写本地 provider/model
-- 部署为远程服务端时生成 server profile 和 bootstrap admin `APIKEY`，但不会自动启动服务
-- 本地使用时，引导填写默认模型 ID、接口地址、API Key 和模型名
-- 本地使用时，可选追加复杂任务模型，并生成 SmartRouter 起步模板
-- 保存配置后按角色输出下一步：本地路径提示 `ctr code` 和路由模板，远程客户端路径提示 `ctr status` / 远端 ready 检查，服务端路径提示 `ctr doctor` / `ctr start --daemon`
-
-本地使用路径完成后按这个顺序使用：
-
-```bash
-ctr status
-ctr code
-```
-
-`ctr code` 会带着本地代理环境启动 Claude Code。之后你在 Claude Code 里的请求会经过本地 Trigger Router。
-
-如果 setup 选择的是“连接远程服务”，它会生成远程服务连接配置；先用 `ctr doctor` / `ctr status` 检查远端 ready 状态，再运行 `ctr code`，Claude Code 会继续连接本地 `ctr`，由本地 `ctr` 把模型调用转发到远端 CTR。直接把 Claude Code 指向远端服务仍然可用，但属于可选路径；这时使用 `ANTHROPIC_BASE_URL` 指向远端服务地址，并用 `ANTHROPIC_AUTH_TOKEN` 传服务维护者发放的 managed key。如果选择“部署为远程服务端”，setup 只生成配置，不会自动启动；请先编辑 `Models[].key` / `Models[].model`，再运行 `ctr doctor` 和 `ctr start --daemon`。
 
 ## 手动配置
 
