@@ -80,16 +80,30 @@ describe('deployment assets', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
     const releaseIndex = readme.indexOf('## v1.10.0 发布定位');
-    const deployIndex = readme.indexOf('## 部署模式与边界');
+    const docsIndex = readme.indexOf('## 文档入口');
 
     expect(quickStartIndex).toBeGreaterThan(0);
     expect(releaseIndex).toBeGreaterThan(quickStartIndex);
-    expect(deployIndex).toBeGreaterThan(quickStartIndex);
-    expect(readme.slice(quickStartIndex, deployIndex)).toContain('ctr setup');
-    expect(readme.slice(quickStartIndex, deployIndex)).toContain('ctr status');
-    expect(readme.slice(quickStartIndex, deployIndex)).toContain('ctr doctor');
-    expect(readme.slice(quickStartIndex, deployIndex)).toContain('ctr code');
-    expect(readme.slice(quickStartIndex, deployIndex)).toContain('ctr ui');
+    expect(docsIndex).toBeGreaterThan(quickStartIndex);
+    expect(readme.slice(quickStartIndex, docsIndex)).toContain('ctr setup');
+    expect(readme.slice(quickStartIndex, docsIndex)).toContain('ctr status');
+    expect(readme.slice(quickStartIndex, docsIndex)).toContain('ctr doctor');
+    expect(readme.slice(quickStartIndex, docsIndex)).toContain('ctr code');
+    expect(readme.slice(quickStartIndex, docsIndex)).toContain('ctr ui');
+  });
+
+  it('keeps README as a concise user entry instead of a full manual', () => {
+    const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
+    const lines = readme.trim().split(/\r?\n/);
+
+    expect(lines.length).toBeLessThan(260);
+    expect(readme).toContain('## 你会得到什么');
+    expect(readme).toContain('## 常用命令');
+    expect(readme).toContain('## 文档入口');
+    expect(readme).toContain('docs/configuration-guide.md');
+    expect(readme).toContain('docs/server-maintainer-guide.md');
+    expect(readme).not.toContain('## 基础路由五个槽位');
+    expect(readme).not.toContain('## capability hint');
   });
 
   it('keeps remote Claude Code auth guidance on ANTHROPIC_AUTH_TOKEN', () => {
