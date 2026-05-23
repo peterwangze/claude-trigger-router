@@ -141,7 +141,7 @@ v1.7.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 优先级：中低。
 
 1. `[closed 2026-05-23]` runtime pipeline 边界收口：新增 `src/runtime/pipeline.ts` 定义 `auth -> remote_forward -> smart_router -> agent_tools -> router -> context_guard -> protocol_dispatch -> agent_stream -> response_governance` 阶段顺序、请求级记录和顺序断言；`src/index.ts` 已在现有 hooks 中记录 remote forward bypass、失败转发、SmartRouter、agent/tool、router、context guard、protocol dispatch 与 response governance 状态，并用 `src/runtime/pipeline.test.ts` / `src/index-startup.test.ts` 看护 hook 顺序、bypass 和 error path contract。
-2. 管理 API route/service facade 收口：把 `src/server.ts` 中 auth、service-info、models/pool-health、governance、benchmark、config save 等 route 按领域注册，统一权限、脱敏和错误返回 contract，避免 v1.8.0 新增 API 继续堆进单文件。
+2. `[closed 2026-05-23]` 管理 API route/service facade 收口：新增 `src/server/management-routes.ts` 作为管理 API contract，显式记录 auth、service-info、models/pool-health、governance、benchmark、config save、restart 和 `/ui` 的 method / path / domain / requiredScope / sensitiveResponse；`apiKeyAuth` 改为消费同一 contract 推导权限，动态 traces / archives / auth key rotate/revoke 路径有 matcher 看护，并用 `src/server/management-routes.test.ts` 与 `src/middleware/auth.test.ts` 固化权限矩阵。
 3. UI 片段与脚本 contract 拆分：继续拆 `src/ui/workbench.ts`，至少把使用者配置 surface、维护者治理 surface、auth/pool/benchmark 片段和内联脚本 helper 拆到可单测单元，再承载 guardrail / trace span 视图。
 4. route handoff summary：在现有 governance trace 上记录路由交接摘要，说明请求从用户输入、SmartRouter、fallback、agent/tool、协议分发到上游的关键决策，不引入独立 agent 运行时。
 5. tool capability guardrail：为现有 agents/tools 建立能力声明、模型能力匹配、权限拒绝原因和内部调用鉴权边界，所有允许/拒绝都进入 governance trace / health。

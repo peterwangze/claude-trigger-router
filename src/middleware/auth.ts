@@ -7,6 +7,7 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { IAppConfig, IAuthConfig, TManagedApiKeyScope } from "../trigger/types";
 import { authAuditStore, authQuotaUsageStore, extractApiKeyFromHeaders, verifyApiKey } from "../auth/api-keys";
+import { getRequiredScopeForRequest } from "../server/management-routes";
 
 type AuthConfigInput = Partial<IAppConfig> | (() => Partial<IAppConfig> | Promise<Partial<IAppConfig>>);
 type AuthMiddlewareOptions = {
@@ -22,55 +23,7 @@ function estimateRequestTokens(body: unknown): number {
 }
 
 function authRequirementForRequest(req: FastifyRequest): TManagedApiKeyScope {
-  const method = String(req.method ?? '').toUpperCase();
-  const path = String(req.url ?? '').split('?')[0];
-  const readOnlyPaths = new Set([
-    '/api/health',
-    '/api/service-info',
-    '/api/remote-status',
-    '/api/registration',
-    '/api/models/compiled',
-    '/api/models/pool-health',
-    '/api/transformers',
-    '/api/governance/health',
-    '/api/governance/metrics',
-    '/api/governance/metrics/export',
-    '/api/governance/metrics/exports',
-  ]);
-  const modelCallPaths = new Set([
-    '/v1/messages',
-    '/v1/chat/completions',
-  ]);
-  const operatorWritePaths = new Set([
-    '/api/restart',
-    '/api/models/pool-health/probe',
-    '/api/governance/metrics/snapshots',
-    '/api/governance/metrics/schedules',
-    '/api/governance/observability/anomaly-thresholds',
-  ]);
-
-  if (method === 'GET' && (
-    readOnlyPaths.has(path) ||
-    path === '/api/governance/traces' ||
-    path.startsWith('/api/governance/traces/') ||
-    path === '/api/governance/archives' ||
-    path.startsWith('/api/governance/archives/')
-  )) {
-    return 'read-only';
-  }
-
-  if (modelCallPaths.has(path)) {
-    return 'client';
-  }
-
-  if (method === 'POST' && (
-    operatorWritePaths.has(path) ||
-    (path.startsWith('/api/governance/archives/') && path.endsWith('/delete'))
-  )) {
-    return 'operator';
-  }
-
-  return path.startsWith('/api/') || path === '/ui' ? 'admin' : 'client';
+  return getRequiredScopeForRequest(req.method, req.url);
 }
 
 function isQuotaMeteredRequest(req: FastifyRequest): boolean {
