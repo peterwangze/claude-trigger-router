@@ -74,7 +74,7 @@
 - `ctr status` 在 server/cloud 模式下输出 role、listener、auth 摘要、维护入口和远程客户端连接说明；服务已 ready 时优先使用 live `/api/service-info`，PID 元数据缺失时也不能误报停止
 - `ctr setup` 在本地使用和连接远程服务两条 fresh 路径中输出统一角色说明，避免把 remote service、server deploy 和 managed key 混成同一条用户路径
 - `ctr setup` fresh 路径支持“部署为远程服务端”，生成 server profile / bootstrap admin `APIKEY` / `Runtime.mode: server`，并且不自动启动服务
-- `ctr setup` 保存后按角色输出状态反馈：本地路径说明本地代理已 start/reuse/reload/restart 并提示 `ctr code`，远程客户端路径只承诺 ready/status 检查和直连远端所需环境变量，服务端路径不启动服务
+- `ctr setup` 保存后按角色输出状态反馈：本地路径说明本地代理已 start/reuse/reload/restart 并提示 `ctr code`，远程客户端路径提示先用 `ctr doctor` / `ctr status` 检查本地代理与远端 ready，再运行本地 `ctr code` 由本地代理转发模型调用，直连远端所需环境变量只作为可选路径，服务端路径不启动服务
 - `ctr setup` 复用已有 `Runtime.mode: server/cloud` 配置时不能自动启动服务或进入 Claude Code，本地代理 next steps 只适用于 `Runtime.mode: local`
 
 ### UI / 服务状态

@@ -378,9 +378,10 @@ describe('runSetupCli', () => {
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).not.toHaveBeenCalled();
-    expect(io.info).toHaveBeenCalledWith('本地代理已启动并通过健康检查。远程服务连接配置已保存，可用于检查远端 ready/status。');
-    expect(io.info).toHaveBeenCalledWith('下一步：运行 ctr status 查看本地代理与远程服务 ready 状态。');
-    expect(io.info).toHaveBeenCalledWith('日常直连远程服务时，请按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_AUTH_TOKEN 配置 Claude Code。');
+    expect(io.info).toHaveBeenCalledWith('本地代理已启动并通过健康检查。远程服务连接配置已保存，可用于本地代理转发和检查远端 ready/status。');
+    expect(io.info).toHaveBeenCalledWith('下一步：运行 ctr doctor 或 ctr status 查看本地代理与远程服务 ready 状态。');
+    expect(io.info).toHaveBeenCalledWith('日常使用：运行 ctr code，Claude Code 会连接本地 ctr，并由本地 ctr 转发模型调用到远端服务。');
+    expect(io.info).toHaveBeenCalledWith('可选直连远端服务时，再按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_AUTH_TOKEN 配置 Claude Code。');
     expect(io.info).toHaveBeenCalledWith('如果远端不可用，请确认 Runtime.remote_service.base_url 和 managed client + read-only key。');
     expect(io.info).not.toHaveBeenCalledWith('你可以按需继续配置路由能力：');
     expect(io.info).not.toHaveBeenCalledWith('为避免 setup 结束后接管当前终端，请手动运行：ctr code');

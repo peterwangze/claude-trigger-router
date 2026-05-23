@@ -1925,8 +1925,10 @@ describe('packaged CLI E2E', () => {
       expect(result.code).toBe(0);
       expect(result.stdout).toContain('当前要本地使用、连接远程服务，还是部署为远程服务端？');
       expect(result.stdout).toContain('已生成远程服务连接配置，本机不会要求你先填写 provider/model。');
-      expect(result.stdout).toContain('远程服务连接配置已保存，可用于检查远端 ready/status。');
-      expect(result.stdout).toContain('日常直连远程服务时，请按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_AUTH_TOKEN 配置 Claude Code。');
+      expect(result.stdout).toContain('远程服务连接配置已保存，可用于本地代理转发和检查远端 ready/status。');
+      expect(result.stdout).toContain('下一步：运行 ctr doctor 或 ctr status 查看本地代理与远程服务 ready 状态。');
+      expect(result.stdout).toContain('日常使用：运行 ctr code，Claude Code 会连接本地 ctr，并由本地 ctr 转发模型调用到远端服务。');
+      expect(result.stdout).toContain('可选直连远端服务时，再按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_AUTH_TOKEN 配置 Claude Code。');
       expect(configText).toContain('enabled: true');
       expect(configText).toContain('base_url: https://router.example.com');
       expect(configText).toContain('auth_token: remote-token');
