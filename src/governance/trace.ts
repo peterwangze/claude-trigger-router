@@ -382,6 +382,14 @@ export function createGovernanceTrace(
       ...input.handoffSummary,
       stages: input.handoffSummary.stages.map((stage) => ({ ...stage })),
     } : undefined,
+    inputGuardrail: input.inputGuardrail ? {
+      ...input.inputGuardrail,
+      findings: input.inputGuardrail.findings.map((finding) => ({ ...finding })),
+    } : undefined,
+    outputGuardrail: input.outputGuardrail ? {
+      ...input.outputGuardrail,
+      findings: input.outputGuardrail.findings.map((finding) => ({ ...finding })),
+    } : undefined,
     stickyHit: input.stickyHit ?? false,
     alignmentUsed: input.alignmentUsed ?? false,
     semanticIntent: input.semanticIntent,

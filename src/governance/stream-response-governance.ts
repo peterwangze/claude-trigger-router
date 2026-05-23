@@ -11,6 +11,7 @@ import { appendTraceReason, finalizeTrace, recordGovernanceTrace, summarizeRoute
 import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetryStream } from './cascade-gate';
 import { resolveModelReference } from '../models/compile';
 import { getRuntimePipeline } from '../runtime/pipeline';
+import { inspectOutputGuardrail } from './io-guardrail';
 
 interface ICollectedSSE {
   events: any[];
@@ -150,6 +151,11 @@ export function governStreamingResponse(
         }
 
         if (req.governanceTrace) {
+          const outputGuardrail = inspectOutputGuardrail(selected.text);
+          req.governanceTrace.outputGuardrail = outputGuardrail;
+          for (const finding of outputGuardrail.findings) {
+            appendTraceReason(req.governanceTrace, `output_guardrail:${finding.code}`);
+          }
           req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
             req.governanceTrace,
             getRuntimePipeline(req)

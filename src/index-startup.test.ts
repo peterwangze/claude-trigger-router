@@ -110,6 +110,10 @@ vi.mock('./governance', () => ({
     blocked: false,
     action: 'none',
   }),
+  inspectInputGuardrail: vi.fn().mockReturnValue({
+    status: 'ok',
+    findings: [],
+  }),
 }));
 
 vi.mock('./models/compile', () => ({

@@ -13,6 +13,7 @@ import { getModelPoolFallbackCandidate, resolveModelReference } from '../models/
 import { extractApiKeyFromHeaders } from '../auth/api-keys';
 import { modelPoolHealthStore } from '../models/pool-health';
 import { getRuntimePipeline } from '../runtime/pipeline';
+import { inspectOutputGuardrail } from './io-guardrail';
 
 export interface IResponseGovernanceDeps {
   decideCascadeEscalation?: typeof decideCascadeEscalation;
@@ -303,6 +304,11 @@ export async function applyResponseGovernance({
   }
 
   if (req.governanceTrace) {
+    const outputGuardrail = inspectOutputGuardrail(nextPayload);
+    req.governanceTrace.outputGuardrail = outputGuardrail;
+    for (const finding of outputGuardrail.findings) {
+      appendTraceReason(req.governanceTrace, `output_guardrail:${finding.code}`);
+    }
     req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
       req.governanceTrace,
       getRuntimePipeline(req)

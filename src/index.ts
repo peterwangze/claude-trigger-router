@@ -32,7 +32,7 @@ import { evaluateToolCapabilityGuardrail } from "./agents/guardrail";
 import { EventEmitter } from "node:events";
 import { triggerRouter as smartRouterRuntime } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, recordGovernanceTrace, sessionStateStore, summarizeRouteHandoffTrace } from "./governance";
+import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, inspectInputGuardrail, recordGovernanceTrace, sessionStateStore, summarizeRouteHandoffTrace } from "./governance";
 import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
 import { modelPoolHealthStore } from "./models/pool-health";
 import { createModelPoolHealthPersistenceScheduler, loadPersistedModelPoolHealth } from "./models/pool-health-persistence";
@@ -401,6 +401,11 @@ async function run(options: RunOptions = {}) {
         initialModel: req.body?.model,
       });
       appendTraceReason(req.governanceTrace, "request_received");
+      const inputGuardrail = inspectInputGuardrail(req.body);
+      req.governanceTrace.inputGuardrail = inputGuardrail;
+      for (const finding of inputGuardrail.findings) {
+        appendTraceReason(req.governanceTrace, `input_guardrail:${finding.code}`);
+      }
 
       const bypassSmartRouter = req.headers["x-ctr-smart-router"] === "1";
       const triggerResult = bypassSmartRouter

@@ -55,6 +55,35 @@ describe('applyResponseGovernance', () => {
     expect(req.governanceTrace.routeReason).toContain('cascade_retry_executed');
   });
 
+  it('records output guardrail findings on the existing governance trace', async () => {
+    const req: any = {
+      body: {
+        model: 'provider,model-a',
+        metadata: {},
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-output-guardrail' }),
+    };
+
+    await applyResponseGovernance({
+      req,
+      payload: { content: [{ text: 'TODO placeholder' }] },
+      config: {
+        Governance: {
+          enabled: true,
+        },
+      } as any,
+      servicePort: 5678,
+    });
+
+    expect(req.governanceTrace.outputGuardrail).toEqual(expect.objectContaining({
+      status: 'watch',
+      findings: expect.arrayContaining([
+        expect.objectContaining({ code: 'placeholder_output' }),
+      ]),
+    }));
+    expect(req.governanceTrace.routeReason).toContain('output_guardrail:placeholder_output');
+  });
+
   it('supports semantic + shadow sync_guard combination', async () => {
     const selector = new ModelSelector();
     const req: any = {

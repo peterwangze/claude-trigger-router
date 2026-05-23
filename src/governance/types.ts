@@ -156,6 +156,22 @@ export interface IGovernanceTrace {
     blocked: boolean;
     action: string;
   };
+  inputGuardrail?: {
+    status: string;
+    findings: Array<{
+      code: string;
+      severity: string;
+      message: string;
+    }>;
+  };
+  outputGuardrail?: {
+    status: string;
+    findings: Array<{
+      code: string;
+      severity: string;
+      message: string;
+    }>;
+  };
   stickyHit: boolean;
   alignmentUsed: boolean;
   semanticIntent?: string;

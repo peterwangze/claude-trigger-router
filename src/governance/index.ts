@@ -9,3 +9,4 @@ export * from './response-governance';
 export * from './stream-response-governance';
 export * from './metrics';
 export * from './metrics-export';
+export * from './io-guardrail';
