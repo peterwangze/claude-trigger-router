@@ -15,6 +15,7 @@ import {
   exportGovernanceMetricsReport,
   governanceMetricsExportStore,
   buildGovernanceHealthSummary,
+  buildRoutingAdvisorSummary,
   summarizeRouteDecisionTrace,
   summarizeSwitchContinuityTrace,
 } from "./governance";
@@ -1505,6 +1506,26 @@ export const createServer = (config: any): Server => {
   server.app.get("/api/governance/metrics", async (req: any) => {
     return {
       ...getGovernanceMetricsReport(readGovernanceMetricsQuery(req.query)),
+    };
+  });
+
+  server.app.get("/api/governance/routing-advisor", async (req: any) => {
+    const rawConfig = await readActiveConfig();
+    const normalized = normalizeAndValidateConfig(rawConfig ?? {}).config;
+    const smartRouter = deriveRuntimeSmartRouterConfig(normalized, rawConfig);
+    const historyLimit = req.query?.limit ? Number(req.query.limit) : undefined;
+    const advisor = buildRoutingAdvisorSummary({
+      candidates: smartRouter?.candidates ?? [],
+      historyLimit: Number.isFinite(historyLimit) && historyLimit > 0
+        ? historyLimit
+        : smartRouter?.adaptive?.history_limit,
+    });
+
+    return {
+      enabled: Boolean(smartRouter?.enabled),
+      candidateCount: smartRouter?.candidates?.length ?? 0,
+      generatedAt: Date.now(),
+      advisor: advisor ?? null,
     };
   });
 

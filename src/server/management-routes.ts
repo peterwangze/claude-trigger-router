@@ -30,6 +30,7 @@ const readOnlyRoutes: IManagementRouteContract[] = [
   { method: 'GET', path: '/api/transformers', domain: 'models', requiredScope: 'read-only' },
   { method: 'GET', path: '/api/governance/health', domain: 'governance', requiredScope: 'read-only' },
   { method: 'GET', path: '/api/governance/metrics', domain: 'governance', requiredScope: 'read-only' },
+  { method: 'GET', path: '/api/governance/routing-advisor', domain: 'governance', requiredScope: 'read-only' },
   { method: 'GET', path: '/api/governance/metrics/export', domain: 'governance', requiredScope: 'read-only' },
   { method: 'GET', path: '/api/governance/metrics/exports', domain: 'governance', requiredScope: 'read-only' },
   { method: 'GET', path: '/api/governance/traces', domain: 'governance', requiredScope: 'read-only' },

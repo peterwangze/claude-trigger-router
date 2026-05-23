@@ -1079,6 +1079,63 @@ describe('createServer /api/config', () => {
     });
   });
 
+  it('exposes adaptive routing advisor profiles for SmartRouter candidates', async () => {
+    mockReadConfigFile.mockResolvedValue({
+      Router: { default: 'fast' },
+      SmartRouter: {
+        enabled: true,
+        router_model: 'fast',
+        candidates: [
+          { model: 'provider,fast', description: 'fast model' },
+          { model: 'provider,deep', description: 'deep model' },
+        ],
+        adaptive: { history_limit: 20 },
+      },
+    });
+    governanceTraceStore.hydrate([
+      {
+        requestId: 'profile-fast',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        semanticIntent: 'coding',
+        finalModel: 'provider,fast',
+        latencyMs: 100,
+        startedAt: 1,
+      },
+      {
+        requestId: 'profile-deep',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: true,
+        shadowChecked: false,
+        semanticIntent: 'coding',
+        finalModel: 'provider,deep',
+        latencyMs: 900,
+        startedAt: 2,
+      },
+    ]);
+
+    const server = createServer({});
+    const handler = server.app.routes.get('GET /api/governance/routing-advisor');
+
+    const result = await handler({ query: {} }, {});
+
+    expect(result.enabled).toBe(true);
+    expect(result.candidateCount).toBe(2);
+    expect(result.advisor).toEqual(expect.objectContaining({
+      preferredModel: 'provider,fast',
+      totalComparedTasks: 1,
+    }));
+    expect(result.advisor.candidateProfiles[0]).toEqual(expect.objectContaining({
+      model: 'provider,fast',
+      profileSource: 'history',
+    }));
+  });
+
   it('exposes compiled Models registry debug endpoint', async () => {
     const server = createServer({
       initialConfig: {

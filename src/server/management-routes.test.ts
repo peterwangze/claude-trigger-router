@@ -21,6 +21,12 @@ describe('management API route contracts', () => {
         requiredScope: 'operator',
       }),
       expect.objectContaining({
+        method: 'GET',
+        path: '/api/governance/routing-advisor',
+        domain: 'governance',
+        requiredScope: 'read-only',
+      }),
+      expect.objectContaining({
         method: 'POST',
         path: '/api/config',
         domain: 'config',
