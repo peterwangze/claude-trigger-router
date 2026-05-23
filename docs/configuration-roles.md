@@ -32,11 +32,11 @@
 
 - 向服务维护者获取服务 base URL。
 - 获取同时带 `client` 和 `read-only` scope 的 managed key。
-- 使用 `Runtime.remote_service` 保存连接配置，并做 ready/status 检查。
+- 使用 `Runtime.remote_service` 保存连接配置，并做 ready/status 检查；日常可以继续运行本地 `ctr code`，由本地 `ctr` 把模型调用转发到远端服务。
 - 如果直接让 Claude Code 连接远程服务，把 `ANTHROPIC_BASE_URL` 设置为服务地址，把 `ANTHROPIC_API_KEY` 设置为 managed key。
 
 详细客户端步骤见 `docs/remote-client-guide.md`。
 
 ## 当前边界
 
-`Runtime.remote_service` 当前是连接配置、ready/status 检查和注册摘要 contract。它还不表示本地 `ctr code` 会自动把所有请求转发到远程 router。首次日常使用仍建议优先走本地 `Models + Router.default` 路径，除非你已经有一个由维护者提供的远程服务。
+`Runtime.remote_service` 当前是连接配置、ready/status 检查、注册摘要和本地 thin proxy 转发 contract。当 `Runtime.mode: local` 且 `Runtime.remote_service.enabled` 时，本地 `ctr code` 仍启动 Claude Code 连接本地 `ctr`，模型请求会由本地 `ctr` 转发到远程 router。它不表示已经有集群节点调度或托管控制面；直接让 Claude Code 连接远端只是可选路径。

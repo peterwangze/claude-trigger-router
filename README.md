@@ -41,7 +41,7 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - **路由评测**：`ctr eval --tasks` 查看固定任务契约，`ctr eval --input results.json` 离线评分，`ctr eval --run --models "sonnet;haiku"` 真实调用 CTR 做多模型 A/B；追加 `--judge-model` 后可调用一个 LLM 裁判模型给结果打分。
 - **doctor 诊断**：检查配置、服务可启动性、基础路由槽位、上下文窗口提示、鉴权安全状态、模型兼容策略和可选模型探测。
 - **UI 工作台**：`ctr ui` 打开本地页面，查看服务上下文、远程状态、鉴权安全状态、配置草稿、compiled models、capability warnings、治理 trace、metrics 和 Health 摘要。
-- **远程状态基础**：可配置 `Runtime.remote_service`，通过 `/api/remote-status` 查看远程服务健康、compiled model 摘要和治理告警摘要。默认用户不需要配置远程模式。
+- **远程客户端基础**：可配置 `Runtime.remote_service`，通过 `/api/remote-status` 查看远程服务健康、compiled model 摘要和治理告警摘要；在本地 `ctr code` 主路径中，本地 `ctr` 也可作为 thin proxy 把模型调用转发到远端 CTR。默认用户不需要配置远程模式。
 
 ## 部署模式与边界
 
@@ -51,7 +51,7 @@ Claude Trigger Router 是给 Claude Code 用的本地路由代理。
 - `server`：把 `ctr` 作为远程路由服务运行。它暴露 `/api/service-info`、`/api/remote-status`、`/api/registration`、`/ui` 等服务端状态和管理入口。
 - `cloud`：保留给托管/云端形态的配置语义；当前 npm 包仍按自托管进程运行，不包含托管控制面或集群编排。
 
-已落地的远程能力聚焦在“远程服务连接配置、状态查询和注册摘要”。它不会默认替代本地代理主路径，也不会自动启用尚未实现的集群、节点调度或托管控制面。
+已落地的远程能力聚焦在“远程服务连接配置、状态查询、注册摘要和本地 thin proxy 转发”。远程客户端配置下，Claude Code 仍连接本地 `ctr`，本地 `ctr` 会把 `/v1/messages` 与 `/v1/chat/completions` 转发到远端 CTR；这不会自动启用尚未实现的集群、节点调度或托管控制面。
 
 如果要把当前机器作为远程 `server` 暴露给其他客户端，先生成安全默认的服务端配置：
 
@@ -159,7 +159,7 @@ ctr code
 
 `ctr code` 会带着本地代理环境启动 Claude Code。之后你在 Claude Code 里的请求会经过本地 Trigger Router。
 
-如果 setup 选择的是“连接远程服务”，当前主要用于生成远程服务连接配置并通过 `ctr status` 检查远端 ready 状态；日常直连远程服务时，请按服务维护者提供的 `ANTHROPIC_BASE_URL` 和 `ANTHROPIC_AUTH_TOKEN` 配置 Claude Code。首次日常使用仍建议先跑通本地 `Models + Router.default` 主路径。如果选择“部署为远程服务端”，setup 只生成配置，不会自动启动；请先编辑 `Models[].key` / `Models[].model`，再运行 `ctr doctor` 和 `ctr start --daemon`。
+如果 setup 选择的是“连接远程服务”，它会生成远程服务连接配置；先用 `ctr doctor` / `ctr status` 检查远端 ready 状态，再运行 `ctr code`，Claude Code 会继续连接本地 `ctr`，由本地 `ctr` 把模型调用转发到远端 CTR。直接把 Claude Code 指向远端服务仍然可用，但属于可选路径。如果选择“部署为远程服务端”，setup 只生成配置，不会自动启动；请先编辑 `Models[].key` / `Models[].model`，再运行 `ctr doctor` 和 `ctr start --daemon`。
 
 ## 手动配置
 
@@ -531,7 +531,7 @@ GET /api/registration
 GET /api/auth/audit
 ```
 
-这条能力当前作为远程接入基础 contract 提供，用于服务发现、状态检查和注册摘要；它不表示已经自动把 Claude Code 请求转发到远端。首次使用仍建议从本地 `ctr setup -> ctr start -> ctr code` 开始。
+这条能力当前作为远程接入基础 contract 提供，用于服务发现、状态检查、注册摘要和本地 thin proxy 转发。启用 `Runtime.remote_service` 后，Claude Code 仍可通过本地 `ctr code` 进入，本地 `ctr` 会把模型请求转发到远端 CTR；直接连接远端服务只是可选高级路径。首次本地使用仍建议从 `ctr setup -> ctr start -> ctr code` 开始。
 
 ## 常用命令
 

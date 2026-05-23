@@ -169,7 +169,7 @@ v1.8.0 闭环验证：`npm run release:verify` 已通过，包含 build、常规
 
 用户目标：新用户、日常本地用户和远程客户端使用者能从 README、`ctr setup`、`ctr status`、`ctr doctor`、`ctr code` 和 `/ui` 获得一致且可执行的下一步，不再被远程转发、鉴权 token、UI admin 入口或发布定位信息打断。
 
-1. `[planned]` 远程客户端 proxy 心智统一：README、configuration roles、configuration guide 与 remote client guide 必须一致说明：当 `Runtime.mode: local` 且 `Runtime.remote_service.enabled` 时，本地 CTR 可作为远端 CTR 的 thin proxy 转发模型调用；direct remote endpoint 是可选高级路径，不是唯一用法。
+1. `[closed 2026-05-23]` 远程客户端 proxy 心智统一：README、configuration roles、configuration guide 与 remote client guide 已一致说明：当 `Runtime.mode: local` 且 `Runtime.remote_service.enabled` 时，本地 CTR 可作为远端 CTR 的 thin proxy 转发模型调用；direct remote endpoint 是可选高级路径，不是唯一用法。
    - 闭环标准：文档中不再出现与当前 runtime 相反的“不会转发模型请求”口径；远程客户端指南能明确区分本地代理、直接远端调用、read-only registration 摘要和远端 managed key。
 2. `[planned]` `ctr setup` remote-client next steps 收口：`printRemoteClientNextSteps` 需要把下一步改为先用 `ctr doctor` / `ctr status` 验证远端，再通过本地 `ctr code` 进入 Claude Code；direct remote URL 和 token 只作为可选说明。
    - 闭环标准：setup 单测和 packaged CLI E2E 更新到新文案；fresh remote client setup 后不会让用户误以为本地 `ctr code` 无法走远端。
