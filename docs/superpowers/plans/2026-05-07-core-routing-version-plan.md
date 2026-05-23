@@ -76,6 +76,19 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 | `/ui` 需要 admin scope，但 `ctr ui` 只能打开裸 URL，无法携带 Authorization header。 | 维护者知道有 UI，却没有顺滑方式进入受保护 UI，公网/服务端部署场景尤其容易卡住。 | v1.9.0 P1/P2：最小闭环先给出可执行 admin 访问指导，进一步评估一次性本地 token 或 loopback 授权入口。 |
 | README 的“5 分钟跑起来”位于版本和部署信息之后。 | 新用户首先看到发布和维护者信息，主路径 `setup -> status -> code` 不够靠前。 | v1.9.0 P1：调整 README 信息架构，把新用户路径前置，发布定位和维护者说明后移或链接化。 |
 
+### 2026-05-23 智能路由深度复审：自适应与协同能力
+
+本轮从后续 LLM 演进和用户对“多模型配合产生 1+1 远大于 2”的预期复审 SmartRouter。结论是：当前实现已经能稳定支撑“把请求送到更合适的单个模型”，并具备治理观测、收益证据和切换体感看护；但还不足以支撑“多模型协同产生明显体验增益”的产品承诺。下一轮需要把 SmartRouter 从静态/半静态路由推进到 outcome-driven、自适应、可组合的协同路由。
+
+| 发现 | 影响 | 后续版本归档 |
+|---|---|---|
+| SmartRouter 决策链仍以 `smart_rule -> semantic_match -> smart_router -> sticky_correction` 选定单个模型为主，cascade / shadow 更像兜底治理而非协作编排。 | 用户能感知“路由换了模型”，但很难感知“多个模型共同让结果明显更好”。 | v1.10.0 P1：新增多模型协作模式，至少覆盖 `route_only`、`verify_only`、`compare_then_arbiter`、`cascade_on_evidence`。 |
+| 候选模型画像主要依赖人工 description、规则 prototype 和静态 metadata，无法跟随 LLM 能力快速变化自动更新。 | 模型升级、供应商能力变化或本地模型替换后，路由质量会滞后，维护者需要手动调规则。 | v1.10.0 P1：建立模型能力画像，把真实 trace、benchmark history、人工校准和模型 metadata 归一成可用于路由的 profile。 |
+| 默认语义理解是轻量 token/字符 prototype 匹配，可解释但不擅长复杂意图、混合任务、隐含约束和任务拆解。 | 对架构+实现+验证这类混合请求容易只选一个“看起来最像”的模型，错过先拆解再协作的机会。 | v1.10.0 P1：补任务意图结构化分析，区分 fast / deep / review / long-context / tool-heavy 等子需求，并把低置信度显式暴露给后续策略。 |
+| `qualityEvidence`、`taskComparison`、benchmark history 和人工校准目前主要用于事后观测，没有自动反哺下一次路由。 | 维护者能看到“哪个模型更好”，但 SmartRouter 不会因此自动调整候选顺序、置信度或升级策略。 | v1.10.0 P1：实现 outcome-driven routing feedback，将质量、失败、延迟、人工校准等证据写入路由 hint 或本地 scoring。 |
+| 速度体验缺少请求级 latency budget、fast/deep 双路径和首包/总耗时策略。 | 简单任务可能被慢模型拖住，复杂任务又可能为了快而牺牲质量，用户体感不稳定。 | v1.10.0 P1：新增 confidence + latency budget 策略，支持快路径、深路径、低置信度升级和超预算降级。 |
+| UI/CLI 已能解释“为什么选中该模型”，但还不能证明“这次组合比默认更好/更快/更稳”。 | 多模型收益仍偏维护者视角，普通用户难以建立“智能路由值得开启”的信任。 | v1.10.0 P2：在 trace、health 和 UI 中展示协作收益证据、负收益证据和建议动作。 |
+
 ## 版本路线
 
 | 版本 | 用户目标 | 主要闭环事项 | 验收标准 |
@@ -88,6 +101,7 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 | v1.7.0 | 远程服务与模型池安全体验 | 服务端部署安全默认值、密钥轮换手册、主动 pool health、成本/速率元数据、更多调度策略 | 服务提供者能安全暴露服务，远程使用者能稳定接入，模型池能提升可用性而不放大风险 |
 | v1.8.0 | 低侵入 agent/tool 增强与架构减压 | runtime pipeline 边界、API route/service facade 收口、UI 片段拆分、handoff summary、tool capability guardrail、trace span 化、输入/输出 guardrail | 增强能力进入现有路由与治理体系，不扩张成平行 agent 平台；新增能力有清晰 hook 顺序、权限边界、trace span 和最小看护 |
 | v1.9.0 | 用户入口与远程客户端一致性收口 | 远程客户端代理文档、setup remote-client next steps、鉴权环境变量口径、`/ui` admin 入口、README 5 分钟路径前置 | 新用户、日常本地用户和远程客户端能从 README / setup / status / doctor / ui 获得一致且可执行的下一步；旧文档口径不再误导真实运行链路 |
+| v1.10.0 | 智能路由自适应与多模型协同增强 | outcome-driven routing feedback、模型能力画像、confidence/latency budget、多模型协作模式、协作收益证据 | SmartRouter 不再只停留在“选一个模型”，而是能基于真实质量/速度证据选择 fast/deep/verify/compare 等协作路径，并向用户解释收益与代价 |
 
 ## 待处理事项按用户优先级归档
 
@@ -182,9 +196,28 @@ v1.8.0 闭环验证：`npm run release:verify` 已通过，包含 build、常规
 
 v1.9.0 闭环验证：五个事项已分别独立提交并逐项补 targeted 看护；`docs/release-notes-v1.9.0.md` 已固化发布边界，`package.json` / `package-lock.json` 已更新到 `1.9.0`。最终发布门禁以 `npm run release:verify` 为准。
 
+### v1.10.0 智能路由自适应与多模型协同增强
+
+优先级：最高（P1 主路径体验，不属于 P0 可用性故障）。
+
+用户目标：用户开启 SmartRouter 后，不只是“被路由到某个模型”，而是能在常见复杂任务中感知到多模型分工带来的质量、速度和稳定性收益；维护者能看到收益证据，并让这些证据反哺下一轮路由策略。
+
+1. `[planned]` outcome-driven routing feedback：把真实 trace 的 `taskComparison`、`qualityEvidence`、latency、cascade、shadow、人工校准和 benchmark history 汇总为可消费的 route outcome signal。
+   - 闭环标准：SmartRouter 选择时能读取近期 outcome signal；同一任务类型下，低失败率、低延迟或人工校准更高的模型会被提高优先级；信号不足时明确回退到现有规则/semantic/LLM 选择。
+2. `[planned]` 模型能力画像自动刷新：为每个候选模型生成结构化 profile，覆盖任务类型表现、平均延迟、失败模式、上下文能力、工具/图片能力、成本/速率和样本可信度。
+   - 闭环标准：`/api/models/compiled` 或治理 API 能返回用于路由的 profile 摘要；profile 来源、样本量和更新时间可解释；人工 description 仍可作为冷启动输入但不再是唯一依据。
+3. `[planned]` confidence + latency budget 策略：在请求级别区分 fast path、deep path、long-context path、review/verify path，并基于置信度、上下文规模和 latency budget 决定是否升级、降级或保留默认模型。
+   - 闭环标准：SmartRouter trace 记录预算、置信度、路径类型和升级/降级原因；简单任务不会默认被慢模型拖住，复杂或低置信度任务能有明确升级策略。
+4. `[planned]` 多模型协作模式：在不扩张成完整 agent 平台的前提下，支持最小协作编排模式：`route_only`、`verify_only`、`compare_then_arbiter`、`cascade_on_evidence`。
+   - 闭环标准：每种模式都有配置开关、trace span、失败回退和 targeted tests；默认仍保持单模型 route-only，不让成本/延迟突然放大；compare/arbiter 只在显式策略或高置信收益场景触发。
+5. `[planned]` 协作收益可解释入口：在 `/ui`、governance trace、health/routing tuning 中展示协作路径、收益证据、负收益证据和建议动作。
+   - 闭环标准：用户能看懂本次是 fast/deep/verify/compare 中哪种路径、为什么这么走、是否超预算、是否带来质量或速度收益；维护者能据此调整规则、候选、预算或关闭某类协作。
+6. `[planned]` 看护与版本闭环：为上述能力补单元测试、server API contract、UI DOM smoke、metrics/trace 回归和 release notes。
+   - 闭环标准：`npm run release:verify` 作为最终发布门禁；每个事项独立提交，且每轮修改后检查是否满足“证据进入路由、路由进入 trace、trace 进入 UI/health、失败可回退”的闭环标准。
+
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.9.0 已阶段闭环；后续默认回到更宽泛的配置产品化最终收口与 CLI/setup UX 重设计。除非出现安全风险、P0 主路径故障、入口回归、收益证据链回归、远程服务 / 模型池安全体验回归、受保护 UI admin 入口回归或 agent/tool trace contract 回归，不再回头扩展 v1.9.0 范围。
+2. v1.9.0 已阶段闭环；2026-05-23 智能路由深度复审发现 P1 级产品承诺缺口后，下一轮默认先推进 v1.10.0 智能路由自适应与多模型协同增强。配置产品化最终收口与 CLI/setup UX 重设计继续作为伴随收口，确保新增路由策略能被用户配置、理解和诊断。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。
