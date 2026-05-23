@@ -306,6 +306,49 @@ describe('ModelSelector', () => {
       smartSpy.mockRestore();
     });
 
+    it('passes metadata routing budget into SmartRouter hints', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '帮我选一个模型' }],
+          metadata: {
+            ctr_latency_budget_ms: 300,
+            ctr_confidence_threshold: 0.75,
+          },
+        },
+      };
+      const smartRouterConfig: ISmartRouterConfig = {
+        enabled: true,
+        router_model: 'test,router',
+        candidates: [
+          { model: 'provider,model-a', description: 'A' },
+          { model: 'provider,model-b', description: 'B' },
+        ],
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.9,
+      });
+
+      await selector.selectModel(req as any, config, 5678, smartRouterConfig);
+
+      expect(smartSpy).toHaveBeenCalledWith(
+        '帮我选一个模型',
+        smartRouterConfig,
+        5678,
+        undefined,
+        undefined,
+        undefined,
+        expect.objectContaining({
+          routingBudget: {
+            latencyBudgetMs: 300,
+            confidenceThreshold: 0.75,
+            source: 'metadata',
+          },
+        })
+      );
+      smartSpy.mockRestore();
+    });
+
     it('should pass API timeout to intent detector loopback call', async () => {
       const req = {
         body: {

@@ -170,6 +170,117 @@ describe('SmartRouterSelector', () => {
     expect(result?.routingMode).toBe('speed');
   });
 
+  it('should apply latency budget guard when historical profile shows a faster candidate', async () => {
+    governanceTraceStore.hydrate([
+      {
+        requestId: 'fast-profile',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        semanticIntent: 'coding',
+        finalModel: 'provider,model-a',
+        latencyMs: 100,
+        startedAt: Date.now(),
+      },
+      {
+        requestId: 'slow-profile',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        semanticIntent: 'coding',
+        finalModel: 'provider,model-b',
+        latencyMs: 900,
+        startedAt: Date.now(),
+      },
+    ]);
+    const config: ISmartRouterConfig = {
+      ...baseConfig,
+      routing_budget: {
+        latency_budget_ms: 200,
+      },
+    };
+    const mockFetch = async () => ({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            text: JSON.stringify({
+              model: 'provider,model-b',
+              confidence: 0.82,
+              routingMode: 'quality',
+              reasoning: 'Deep candidate was selected by the router model',
+            }),
+          },
+        ],
+      }),
+    });
+
+    const result = await selector.selectModel('写一段代码', config, 5678, mockFetch as any);
+
+    expect(result?.model).toBe('provider,model-a');
+    expect(result?.routingMode).toBe('speed');
+    expect(result?.routingEvidence?.join('\n')).toContain('latency budget guard');
+  });
+
+  it('should apply confidence guard when historical profile has a quality-backed candidate', async () => {
+    governanceTraceStore.hydrate([
+      {
+        requestId: 'low-quality',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: true,
+        shadowChecked: false,
+        semanticIntent: 'review',
+        finalModel: 'provider,model-a',
+        latencyMs: 100,
+        startedAt: Date.now(),
+      },
+      {
+        requestId: 'high-quality',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        semanticIntent: 'review',
+        finalModel: 'provider,model-b',
+        latencyMs: 700,
+        startedAt: Date.now(),
+      },
+    ]);
+    const config: ISmartRouterConfig = {
+      ...baseConfig,
+      routing_budget: {
+        confidence_threshold: 0.8,
+      },
+    };
+    const mockFetch = async () => ({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            text: JSON.stringify({
+              model: 'provider,model-a',
+              confidence: 0.42,
+              reasoning: 'Router model was unsure',
+            }),
+          },
+        ],
+      }),
+    });
+
+    const result = await selector.selectModel('review this patch', config, 5678, mockFetch as any);
+
+    expect(result?.model).toBe('provider,model-b');
+    expect(result?.routingMode).toBe('quality');
+    expect(result?.routingEvidence?.join('\n')).toContain('confidence guard');
+  });
+
   it('should pass AbortSignal timeout to internal smart router fetch when configured', async () => {
     let receivedSignal: AbortSignal | undefined;
     const mockFetch = async (_url: string, init?: RequestInit) => {

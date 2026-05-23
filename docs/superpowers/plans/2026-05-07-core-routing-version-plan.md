@@ -206,8 +206,8 @@ v1.9.0 闭环验证：五个事项已分别独立提交并逐项补 targeted 看
    - 闭环标准：SmartRouter 选择时能读取近期 outcome signal；同一任务类型下，低失败率、低延迟或人工校准更高的模型会被提高优先级；信号不足时明确回退到现有规则/semantic/LLM 选择。当前已通过 `src/governance/routing-advisor.test.ts`、`src/trigger/smart-router.test.ts` 和 `src/trigger/trigger-router.test.ts` 看护。
 2. `[closed 2026-05-23]` 模型能力画像自动刷新：已新增 `/api/governance/routing-advisor`，对当前 SmartRouter candidates 返回由真实 trace 生成的结构化 candidate profile，包含 profile source、样本量、失败率、平均延迟、best/fastest 任务计数、任务 key、score 和证据。
    - 闭环标准：`/api/models/compiled` 或治理 API 能返回用于路由的 profile 摘要；profile 来源、样本量和更新时间可解释；人工 description 仍可作为冷启动输入但不再是唯一依据。当前已通过 `src/server.test.ts`、`src/server/management-routes.test.ts` 与 routing advisor 单测看护。
-3. `[planned]` confidence + latency budget 策略：在请求级别区分 fast path、deep path、long-context path、review/verify path，并基于置信度、上下文规模和 latency budget 决定是否升级、降级或保留默认模型。
-   - 闭环标准：SmartRouter trace 记录预算、置信度、路径类型和升级/降级原因；简单任务不会默认被慢模型拖住，复杂或低置信度任务能有明确升级策略。
+3. `[closed 2026-05-23]` confidence + latency budget 策略：SmartRouter 已支持 `SmartRouter.routing_budget.latency_budget_ms` / `confidence_threshold`，并允许请求 metadata 的 `ctr_latency_budget_ms` / `ctr_confidence_threshold` 覆盖配置；selector 会把预算传入 SmartRouter hint，SmartRouter 会基于历史 profile 执行 latency guard 或 confidence guard。
+   - 闭环标准：SmartRouter trace 记录预算、置信度、路径类型和升级/降级原因；简单任务不会默认被慢模型拖住，复杂或低置信度任务能有明确升级策略。当前已通过 `src/trigger/smart-router.test.ts` 与 `src/trigger/selector.test.ts` 看护。
 4. `[planned]` 多模型协作模式：在不扩张成完整 agent 平台的前提下，支持最小协作编排模式：`route_only`、`verify_only`、`compare_then_arbiter`、`cascade_on_evidence`。
    - 闭环标准：每种模式都有配置开关、trace span、失败回退和 targeted tests；默认仍保持单模型 route-only，不让成本/延迟突然放大；compare/arbiter 只在显式策略或高置信收益场景触发。
 5. `[planned]` 协作收益可解释入口：在 `/ui`、governance trace、health/routing tuning 中展示协作路径、收益证据、负收益证据和建议动作。

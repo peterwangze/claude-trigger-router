@@ -46,6 +46,13 @@ export interface ISmartRouterHintContext {
     confidence?: number;
   }>;
   routingAdvisor?: IRoutingAdvisorSummary;
+  routingBudget?: ISmartRouterBudgetHint;
+}
+
+export interface ISmartRouterBudgetHint {
+  latencyBudgetMs?: number;
+  confidenceThreshold?: number;
+  source?: 'config' | 'metadata';
 }
 
 /**
@@ -72,9 +79,10 @@ export class SmartRouterSelector {
     text: string,
     routerModel: string,
     candidates: ISmartRouterConfig['candidates'],
-    advisorSignature?: string
+    advisorSignature?: string,
+    budgetSignature?: string
   ): string {
-    const content = `${text}:${routerModel}:${candidates.map(c => c.model).join(',')}:${advisorSignature ?? 'static'}`;
+    const content = `${text}:${routerModel}:${candidates.map(c => c.model).join(',')}:${advisorSignature ?? 'static'}:${budgetSignature ?? 'no-budget'}`;
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
       const char = content.charCodeAt(i);
@@ -136,6 +144,23 @@ export class SmartRouterSelector {
       );
     }
 
+    if (hint?.routingBudget?.latencyBudgetMs || hint?.routingBudget?.confidenceThreshold) {
+      sections.push(
+        'Routing budget:\n' +
+        [
+          hint.routingBudget.latencyBudgetMs
+            ? `- latency budget: ${hint.routingBudget.latencyBudgetMs}ms`
+            : undefined,
+          hint.routingBudget.confidenceThreshold
+            ? `- confidence threshold: ${hint.routingBudget.confidenceThreshold}`
+            : undefined,
+          hint.routingBudget.source ? `- source: ${hint.routingBudget.source}` : undefined,
+          '- If recent evidence shows a candidate repeatedly exceeds the latency budget, prefer a faster candidate unless the task clearly needs a deep model.',
+          '- If your confidence would fall below the threshold, choose the safer or higher-quality model and explain why.',
+        ].filter(Boolean).join('\n')
+      );
+    }
+
     sections.push(
       `User request:\n"""\n${text}\n"""`,
       `Available models:\n${this.buildCandidatesList(candidates, hint?.routingAdvisor)}`,
@@ -194,19 +219,29 @@ Important:
           candidates: config.candidates,
           historyLimit: config.adaptive?.history_limit,
         });
+    const routingBudget = hint?.routingBudget ?? {
+      latencyBudgetMs: config.routing_budget?.latency_budget_ms,
+      confidenceThreshold: config.routing_budget?.confidence_threshold,
+      source: config.routing_budget ? 'config' as const : undefined,
+    };
 
     const effectiveHint = routingAdvisor
       ? {
           ...(hint ?? {}),
           routingAdvisor,
+          routingBudget,
         }
-      : hint;
+      : {
+          ...(hint ?? {}),
+          routingBudget,
+        };
 
     const cacheKey = this.generateCacheKey(
       text,
       config.router_model,
       config.candidates,
-      routingAdvisor?.signature
+      routingAdvisor?.signature,
+      this.buildBudgetSignature(routingBudget)
     );
     const cached = this.cache.get(cacheKey);
     if (cached) {
@@ -259,11 +294,11 @@ Important:
       }
 
       // 缓存结果（使用配置的 TTL 进行按条目覆盖）
-      const result: ISmartRouterResult = {
+      const result = this.applyRoutingBudgetGuard({
         ...parsed,
         routingMode: parsed.routingMode ?? routingAdvisor?.routeMode,
         routingEvidence: routingAdvisor?.evidence.slice(0, 6),
-      };
+      }, routingAdvisor, routingBudget, validModels);
 
       this.cache.set(cacheKey, result, { ttl: config.cache_ttl ?? 600000 });
 
@@ -279,6 +314,85 @@ Important:
    */
   clearCache(): void {
     this.cache.clear();
+  }
+
+  private buildBudgetSignature(budget: ISmartRouterBudgetHint | undefined): string | undefined {
+    if (!budget?.latencyBudgetMs && !budget?.confidenceThreshold) {
+      return undefined;
+    }
+
+    return [
+      budget.latencyBudgetMs ?? '-',
+      budget.confidenceThreshold ?? '-',
+      budget.source ?? 'config',
+    ].join(':');
+  }
+
+  private applyRoutingBudgetGuard(
+    result: ISmartRouterResult,
+    advisor: IRoutingAdvisorSummary | undefined,
+    budget: ISmartRouterBudgetHint | undefined,
+    validModels: string[]
+  ): ISmartRouterResult {
+    if (!advisor || (!budget?.latencyBudgetMs && !budget?.confidenceThreshold)) {
+      return result;
+    }
+
+    const profiles = new Map(advisor.candidateProfiles.map((profile) => [profile.model, profile]));
+    const evidence = [...(result.routingEvidence ?? [])];
+    let next = { ...result };
+    const selectedProfile = profiles.get(next.model);
+    const fastestProfile = advisor.fastestModel ? profiles.get(advisor.fastestModel) : undefined;
+
+    if (
+      budget.latencyBudgetMs &&
+      selectedProfile?.averageLatencyMs &&
+      selectedProfile.averageLatencyMs > budget.latencyBudgetMs &&
+      fastestProfile?.averageLatencyMs &&
+      fastestProfile.averageLatencyMs <= budget.latencyBudgetMs &&
+      validModels.includes(fastestProfile.model)
+    ) {
+      evidence.push(
+        `latency budget guard: ${selectedProfile.model} avg ${selectedProfile.averageLatencyMs}ms > ${budget.latencyBudgetMs}ms; using ${fastestProfile.model} avg ${fastestProfile.averageLatencyMs}ms`
+      );
+      next = {
+        ...next,
+        model: fastestProfile.model,
+        routingMode: 'speed',
+        reasoning: [
+          next.reasoning,
+          `Latency budget favored ${fastestProfile.model}.`,
+        ].filter(Boolean).join(' '),
+      };
+    }
+
+    const confidenceThreshold = budget.confidenceThreshold;
+    const qualityProfile = advisor.qualityModel ? profiles.get(advisor.qualityModel) : undefined;
+    if (
+      confidenceThreshold &&
+      next.confidence < confidenceThreshold &&
+      qualityProfile &&
+      qualityProfile.model !== next.model &&
+      validModels.includes(qualityProfile.model)
+    ) {
+      evidence.push(
+        `confidence guard: ${next.confidence} < ${confidenceThreshold}; using quality-backed ${qualityProfile.model}`
+      );
+      next = {
+        ...next,
+        model: qualityProfile.model,
+        routingMode: 'quality',
+        reasoning: [
+          next.reasoning,
+          `Confidence threshold favored quality-backed ${qualityProfile.model}.`,
+        ].filter(Boolean).join(' '),
+      };
+    }
+
+    return {
+      ...next,
+      routingEvidence: evidence,
+    };
   }
 }
 

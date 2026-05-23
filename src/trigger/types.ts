@@ -432,6 +432,12 @@ export interface ISmartRouterConfig {
     enabled?: boolean;
     history_limit?: number;
   };
+
+  /** 请求级质量/速度预算策略，可被 request metadata 覆盖 */
+  routing_budget?: {
+    latency_budget_ms?: number;
+    confidence_threshold?: number;
+  };
 }
 
 /**

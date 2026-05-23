@@ -8,7 +8,7 @@ import { ITriggerConfig, ITriggerRule, IAnalysisResult, IMatchResult, IRequestCo
 import { patternMatcher } from './matcher';
 import { contextAnalyzer } from './analyzer';
 import { intentDetector } from './intent';
-import { smartRouterSelector } from './smart-router';
+import { smartRouterSelector, ISmartRouterBudgetHint } from './smart-router';
 import { log, logError } from '../utils/log';
 import { DEFAULT_CONFIG } from '../constants';
 import { IGovernanceConfig } from '../governance/types';
@@ -171,7 +171,38 @@ export class ModelSelector {
     };
   }
 
-  private buildSmartRouterHint(text: string, rules: ITriggerRule[]) {
+  private readPositiveNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    }
+    return undefined;
+  }
+
+  private buildRoutingBudgetHint(req: IRequestContext, smartRouterConfig?: ISmartRouterConfig): ISmartRouterBudgetHint | undefined {
+    const metadata = req.body?.metadata ?? {};
+    const metadataLatency = this.readPositiveNumber(metadata.ctr_latency_budget_ms);
+    const metadataConfidence = this.readPositiveNumber(metadata.ctr_confidence_threshold);
+    const configLatency = this.readPositiveNumber(smartRouterConfig?.routing_budget?.latency_budget_ms);
+    const configConfidence = this.readPositiveNumber(smartRouterConfig?.routing_budget?.confidence_threshold);
+    const latencyBudgetMs = metadataLatency ?? configLatency;
+    const confidenceThreshold = metadataConfidence ?? configConfidence;
+
+    if (!latencyBudgetMs && !confidenceThreshold) {
+      return undefined;
+    }
+
+    return {
+      latencyBudgetMs,
+      confidenceThreshold,
+      source: metadataLatency || metadataConfidence ? 'metadata' : 'config',
+    };
+  }
+
+  private buildSmartRouterHint(text: string, rules: ITriggerRule[], req: IRequestContext, smartRouterConfig?: ISmartRouterConfig) {
     return {
       taskSummary: text.slice(0, 240),
       topRouteCandidates: this.sortRulesByPriority(rules)
@@ -183,6 +214,7 @@ export class ModelSelector {
           description: rule.description,
           confidence: undefined,
         })),
+      routingBudget: this.buildRoutingBudgetHint(req, smartRouterConfig),
     };
   }
   /**
@@ -372,7 +404,7 @@ export class ModelSelector {
           undefined,
           apiKey,
           timeoutMs,
-          this.buildSmartRouterHint(text, routingRules)
+          this.buildSmartRouterHint(text, routingRules, req, smartRouterConfig)
         );
         if (smartResult) {
           log(`[SmartRouter] Selected model "${smartResult.model}" (confidence: ${smartResult.confidence})`);
