@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.9.0` minor release 的优先级是用户入口与远程客户端一致性收口。发布检查需要同时保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及远程客户端 thin proxy 文档、setup remote-client next steps、`ANTHROPIC_AUTH_TOKEN` 鉴权口径、受保护 `/ui` admin 入口指导和 README 新用户路径前置。
+本次 `v1.10.0` minor release 的优先级是智能路由自适应与多模型协同增强。发布检查需要同时保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 outcome-driven routing feedback、模型能力画像、confidence/latency budget、多模型协作模式、SmartRouter trace metadata 和 `/ui` 协作证据入口。
 
 ## 一次性准备
 
@@ -26,14 +26,14 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.9.0` 的发布边界以 `docs/release-notes-v1.9.0.md` 为准：主打用户入口与远程客户端一致性收口，不宣称完整云端托管控制面、节点集群编排或完整 UI auth 代理。
+   - 本次 `v1.10.0` 的发布边界以 `docs/release-notes-v1.10.0.md` 为准：主打 SmartRouter 自适应反馈和最小多模型协作 contract，不宣称完整自动化多 agent 编排、全量任务拆解执行器、跨请求在线学习系统或完整云端模型调度平台。
 2. 本地先执行发布包验证：
 
 ```bash
 npm run release:verify
 ```
 
-v1.9.0 期间建议在正式 `release:verify` 前额外跑一次用户入口与远程客户端一致性专项：
+v1.10.0 期间建议在正式 `release:verify` 前额外跑一次智能路由协作专项：
 
 ```bash
 npm test -- --run --coverage
@@ -80,7 +80,7 @@ npm run test:e2e:acceptance
 - 目标端口被非本服务占用时的安全提示与“无额外文件修改”边界
 - 残留 / 失效 PID 文件的安全清理
 - `release:stage` 生成的 `.release-stage\ctr-release-home.cmd` wrapper 是否真的指向隔离 `.release-home`
-- v1.9.0 用户入口与远程客户端一致性发布承诺的 remote-client setup next steps、README quick start、remote Claude Code auth guidance、protected `/ui` admin guidance 和文档资产检查
+- v1.10.0 智能路由自适应与多模型协同发布承诺的 routing advisor、SmartRouter budget/collaboration guard、server routing-advisor API、trace metadata、`/ui` route decision evidence 和文档资产检查
 
 只有这一步通过后，才继续正式发布，避免“发布后才发现包内容、CLI 启动或 setup 主流程有问题”。
 

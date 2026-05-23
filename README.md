@@ -54,11 +54,11 @@ ctr ui
 
 如果 setup 选择的是“部署为远程服务端”，setup 只生成配置，不会自动启动；请先编辑 `Models[].key` / `Models[].model`，再运行 `ctr doctor` 和 `ctr start --daemon`。服务端和远程客户端细节见下方“部署模式与边界”。
 
-## v1.9.0 发布定位
+## v1.10.0 发布定位
 
-`v1.9.0` 是用户入口与远程客户端一致性收口版。它把 README、setup、status/doctor、`ctr code`、`ctr ui` 和远程客户端手册统一到同一条主路径：本地日常用户先走 `ctr setup -> ctr status/doctor -> ctr code -> ctr ui`；远程客户端可以继续通过本地 `ctr code` 让本地 `ctr` 作为 thin proxy 转发模型调用到远端 CTR。
+`v1.10.0` 是智能路由自适应与多模型协同增强版。它把真实 trace 里的质量、失败、延迟、cascade、shadow 和人工校准证据反哺 SmartRouter，让路由不只依赖静态描述，而是能基于候选模型画像、confidence threshold 和 latency budget 选择更合适的 fast/deep/verify/cascade 路径。
 
-这个版本不把独立 agent 编排、任务队列、完整工具平台、完整 cloud 托管控制面或节点集群编排纳入发布承诺；也不新增长期 key URL 或完整 UI auth 代理。完整发布边界见 [docs/release-notes-v1.9.0.md](docs/release-notes-v1.9.0.md)。
+这个版本不声明完整自动化多 agent 编排、全量任务拆解执行器、跨请求在线学习系统或完整云端模型调度平台；`compare_then_arbiter` / `cascade_on_evidence` 先作为可配置协作 contract 和可观测策略入口收口。完整发布边界见 [docs/release-notes-v1.10.0.md](docs/release-notes-v1.10.0.md)。
 
 ## 版本路线
 
@@ -71,6 +71,7 @@ ctr ui
 - `v1.7.0`：服务化与模型池安全体验，已补服务端安全默认值、密钥轮换、主动 pool health、成本/速率元数据和更多调度策略。
 - `v1.8.0`：低侵入 agent/tool 增强与架构减压，已补 runtime pipeline、管理 API route contract、UI fragment contract、handoff summary、tool capability guardrail、输入/输出 guardrail 和 trace spans。
 - `v1.9.0`：用户入口与远程客户端一致性收口，已补远程客户端 proxy 文档、setup next steps、远程 Claude Code 鉴权变量、受保护 `/ui` admin 入口指导和 README 新用户路径前置。
+- `v1.10.0`：智能路由自适应与多模型协同增强，已补 outcome-driven routing feedback、模型能力画像、confidence/latency budget、多模型协作模式和 UI 协作证据入口。
 
 完整版本计划见 [docs/superpowers/plans/2026-05-07-core-routing-version-plan.md](docs/superpowers/plans/2026-05-07-core-routing-version-plan.md)。
 
