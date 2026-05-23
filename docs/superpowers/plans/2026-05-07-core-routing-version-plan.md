@@ -45,6 +45,25 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 3. v1.7.0 在已有 managed key、operator、quota、remote forward、server deploy init、model pool fallback、least-latency 和 pool health persistence 基础上，补服务端默认安全策略、密钥轮换、主动 pool health 和成本/速率元数据。
 4. UI 与看护从 v1.5.0 开始伴随推进：`src/ui/workbench.ts` 需要工程化拆分和最小 DOM/browser smoke，coverage 需要从早期 `src/trigger/**/*.ts` 扩到 setup/config/models/protocols/governance/server 主链。
 
+### 2026-05-23 架构与目标复审
+
+本轮从“项目目标、架构清晰度、实现是否按架构预期落地”三个角度复审当前代码与文档。结论是：项目目标仍然成立，当前实现主线也基本一致，但 v1.8.0 之前需要先把若干架构压力点纳入计划，否则低侵入 agent/tool 增强会把已有路由代理边界推向平行 agent 平台。
+
+| 复审点 | 当前判断 | 后续调整 |
+|---|---|---|
+| 项目目标一致性 | README、发布说明和实现都继续围绕 Claude Code 本地/远程路由代理：`Models + Router`、SmartRouter、治理观测、server 安全和模型池均服务于“请求送到合适模型并可解释/可看护”。agent/tool 目前仍是辅助能力，而不是主平台。 | v1.8.0 继续保留“低侵入”边界：只做 handoff、guardrail 和 trace span，不新增独立 agent 编排、任务队列或完整工具平台。 |
+| 架构清晰度 | 领域模块已形成基本边界：`setup`、`models`、`router`、`trigger`、`governance`、`auth`、`protocols`、`doctor` 都有独立测试。但运行编排集中在 `src/index.ts`，管理 API 集中在 `src/server.ts`，UI 集中在 `src/ui/workbench.ts`，CLI 集中在 `src/cli.ts`，继续叠功能会让依赖方向和回归范围变重。 | v1.8.0 先补 runtime pipeline / API route / UI fragment 的边界收口任务，再在这些边界上加 guardrail 和 span。 |
+| 实现是否符合架构预期 | 核心能力大多按目标落地：配置归一、模型编译、路由选择、协议分发、治理记录、鉴权和发布看护都有回归测试。主要偏差是部分实现仍用“单文件承载多职责”的方式交付，闭环速度快但长期演进成本上升。 | 把单文件压力作为 v1.8.0 的闭环前置条件：新增能力必须进入现有 trace / health / validation contract，不允许绕开为临时私有状态。 |
+| 看护是否支撑演进 | `release:verify`、packaged E2E、UI jsdom smoke 和 targeted tests 已能拦截主路径回归；但 UI 脚本、API 路由权限矩阵、runtime hook 顺序和 agent/tool 自回调链路仍缺少结构化 contract。 | v1.8.0 每个事项必须补最小 contract：权限矩阵、trace span、UI DOM smoke 或 runtime pipeline 单测，避免只靠发布门禁末端发现问题。 |
+
+本轮发现的具体问题按后续版本归档：
+
+1. `src/index.ts` 同时承载服务启动、远程转发、SmartRouter、agent/tool 注入、协议分发、stream 工具续写和响应治理。短期可运行，但 v1.8.0 做 handoff / guardrail / span 化前，应先定义 runtime pipeline 阶段和 hook 顺序 contract。
+2. `src/server.ts` 已承载配置、compiled models、pool health、service-info、auth、remote status、governance、benchmark、archives、config save、restart 和 UI route。后续新增管理 API 时，应拆出 route registration 或 service facade，避免权限、脱敏、错误格式和测试继续分散在一个文件。
+3. `src/ui/workbench.ts` 仍是大型 HTML/CSS/内联 JS 字符串，虽然已有 `workbench-document.ts` 和 jsdom smoke，但继续承载 guardrail、span、工具能力视图会明显放大维护成本。后续应按使用者/维护者 surface 拆出渲染片段和脚本模块级 contract。
+4. agent/tool 能力目前通过 `agents` 和 image agent 自回调进入 `/v1/messages`，可用但边界偏隐式；v1.8.0 的 tool capability guardrail 必须明确工具能力声明、允许/拒绝原因、内部调用鉴权和 trace 记录。
+5. 配置产品化和 setup/CLI 仍是目标一致性的关键基础。v1.8.0 新增 guardrail 配置时必须沿用现有 validation issue contract、doctor 提示、README/configuration guide 和 UI 草稿预览，不另开一套配置心智。
+
 ## 版本路线
 
 | 版本 | 用户目标 | 主要闭环事项 | 验收标准 |
@@ -55,7 +74,7 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 | v1.5.0 | 入口基础功能稳定与易用性巩固 | setup/start/status/code/doctor/ui 主路径、配置保存/修复/迁移安全、UI 基础交互 smoke、coverage 口径、release verify 入口门禁 | 新用户和日常用户能稳定完成安装后首次使用、服务启停、进入 Claude Code、诊断修复和打开 UI；失败时有清晰下一步 |
 | v1.6.0 | 多模型组合收益运营化 | `ctr eval` 历史看板、人工校准表单、核心路由任务集默认样本、收益趋势、评测与真实 trace 对齐 | 维护者能用固定样本和真实 trace 判断路由配置是否真的提升质量/速度 |
 | v1.7.0 | 远程服务与模型池安全体验 | 服务端部署安全默认值、密钥轮换手册、主动 pool health、成本/速率元数据、更多调度策略 | 服务提供者能安全暴露服务，远程使用者能稳定接入，模型池能提升可用性而不放大风险 |
-| v1.8.0 | 低侵入 agent/tool 增强 | handoff summary、tool capability guardrail、trace span 化、输入/输出 guardrail | 增强能力进入现有路由与治理体系，不扩张成平行 agent 平台 |
+| v1.8.0 | 低侵入 agent/tool 增强与架构减压 | runtime pipeline 边界、API route/service facade 收口、UI 片段拆分、handoff summary、tool capability guardrail、trace span 化、输入/输出 guardrail | 增强能力进入现有路由与治理体系，不扩张成平行 agent 平台；新增能力有清晰 hook 顺序、权限边界、trace span 和最小看护 |
 
 ## 待处理事项按用户优先级归档
 
@@ -121,14 +140,17 @@ v1.7.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 
 优先级：中低。
 
-1. route handoff summary。
-2. tool capability guardrail。
-3. 输入/输出 guardrail。
-4. trace span 化。
+1. runtime pipeline 边界收口：把 `src/index.ts` 中远程转发、SmartRouter、agent/tool 注入、协议分发、stream 工具续写和响应治理定义为可测试阶段，补 hook 顺序 / bypass / error path contract，作为 handoff 与 guardrail 的前置看护。
+2. 管理 API route/service facade 收口：把 `src/server.ts` 中 auth、service-info、models/pool-health、governance、benchmark、config save 等 route 按领域注册，统一权限、脱敏和错误返回 contract，避免 v1.8.0 新增 API 继续堆进单文件。
+3. UI 片段与脚本 contract 拆分：继续拆 `src/ui/workbench.ts`，至少把使用者配置 surface、维护者治理 surface、auth/pool/benchmark 片段和内联脚本 helper 拆到可单测单元，再承载 guardrail / trace span 视图。
+4. route handoff summary：在现有 governance trace 上记录路由交接摘要，说明请求从用户输入、SmartRouter、fallback、agent/tool、协议分发到上游的关键决策，不引入独立 agent 运行时。
+5. tool capability guardrail：为现有 agents/tools 建立能力声明、模型能力匹配、权限拒绝原因和内部调用鉴权边界，所有允许/拒绝都进入 governance trace / health。
+6. 输入/输出 guardrail：复用 validation issue、response governance 和 trace contract，对高风险输入、占位输出、tool 结果异常和协议降级提供可解释处理。
+7. trace span 化：把 route、protocol dispatch、remote forward、model pool fallback、agent/tool、response governance 归一为 span 结构，服务于 UI 和后续排障，不另建平行观测系统。
 
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.7.0 已阶段闭环；后续默认切到 v1.8.0 低侵入 agent / tool 增强，除非出现安全风险、P0 主路径故障、入口回归、收益证据链回归或远程服务 / 模型池安全体验回归，不再回头扩展 v1.7.0 范围。
+2. v1.7.0 已阶段闭环；后续默认切到 v1.8.0 低侵入 agent / tool 增强与架构减压，除非出现安全风险、P0 主路径故障、入口回归、收益证据链回归或远程服务 / 模型池安全体验回归，不再回头扩展 v1.7.0 范围。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。
