@@ -172,6 +172,13 @@ export interface IGovernanceTrace {
       message: string;
     }>;
   };
+  spans?: Array<{
+    name: string;
+    status: string;
+    startOffsetMs?: number;
+    durationMs?: number;
+    attributes?: Record<string, unknown>;
+  }>;
   stickyHit: boolean;
   alignmentUsed: boolean;
   semanticIntent?: string;

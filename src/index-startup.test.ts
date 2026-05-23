@@ -114,6 +114,7 @@ vi.mock('./governance', () => ({
     status: 'ok',
     findings: [],
   }),
+  buildTraceSpansFromPipeline: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock('./models/compile', () => ({

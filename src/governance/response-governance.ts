@@ -5,7 +5,7 @@
  */
 
 import { IAppConfig, IRequestContext } from '../trigger/types';
-import { appendTraceReason, finalizeTrace, recordGovernanceTrace, summarizeRouteHandoffTrace } from './trace';
+import { appendTraceReason, buildTraceSpansFromPipeline, finalizeTrace, recordGovernanceTrace, summarizeRouteHandoffTrace } from './trace';
 import { createTaskFingerprint, sessionStateStore } from './session-store';
 import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetry } from './cascade-gate';
 import { shadowSupervisor } from './shadow-supervisor';
@@ -310,6 +310,10 @@ export async function applyResponseGovernance({
       appendTraceReason(req.governanceTrace, `output_guardrail:${finding.code}`);
     }
     req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
+      req.governanceTrace,
+      getRuntimePipeline(req)
+    );
+    req.governanceTrace.spans = buildTraceSpansFromPipeline(
       req.governanceTrace,
       getRuntimePipeline(req)
     );

@@ -390,6 +390,10 @@ export function createGovernanceTrace(
       ...input.outputGuardrail,
       findings: input.outputGuardrail.findings.map((finding) => ({ ...finding })),
     } : undefined,
+    spans: input.spans ? input.spans.map((span) => ({
+      ...span,
+      attributes: span.attributes ? { ...span.attributes } : undefined,
+    })) : undefined,
     stickyHit: input.stickyHit ?? false,
     alignmentUsed: input.alignmentUsed ?? false,
     semanticIntent: input.semanticIntent,
@@ -398,6 +402,10 @@ export function createGovernanceTrace(
     cascadeNextModel: input.cascadeNextModel,
     shadowChecked: input.shadowChecked ?? false,
     verificationResult: input.verificationResult,
+    modelPoolFallbackTriggered: input.modelPoolFallbackTriggered,
+    modelPoolFallbackFromEndpoint: input.modelPoolFallbackFromEndpoint,
+    modelPoolFallbackNextEndpoint: input.modelPoolFallbackNextEndpoint,
+    modelPoolFallbackEvidence: input.modelPoolFallbackEvidence,
     latencyMs: input.latencyMs,
     estimatedCost: input.estimatedCost,
     startedAt: input.startedAt ?? Date.now(),
@@ -469,6 +477,62 @@ export function summarizeRouteHandoffTrace(
     blocked,
     action,
   };
+}
+
+export function buildTraceSpansFromPipeline(
+  trace: IGovernanceTrace,
+  pipelineEntries: Array<{ stage: string; status: string; at?: number; detail?: Record<string, unknown> }> = []
+): NonNullable<IGovernanceTrace['spans']> {
+  const spans = pipelineEntries.map((entry, index) => {
+    const next = pipelineEntries[index + 1];
+    const startOffsetMs = typeof entry.at === 'number'
+      ? Math.max(0, entry.at - trace.startedAt)
+      : undefined;
+    const durationMs = typeof entry.at === 'number' && typeof next?.at === 'number'
+      ? Math.max(0, next.at - entry.at)
+      : undefined;
+    return {
+      name: entry.stage,
+      status: entry.status,
+      ...(startOffsetMs !== undefined ? { startOffsetMs } : {}),
+      ...(durationMs !== undefined ? { durationMs } : {}),
+      ...(entry.detail ? { attributes: { ...entry.detail } } : {}),
+    };
+  });
+
+  if (trace.modelPoolFallbackTriggered || trace.routeReason.some((reason) => reason.startsWith('model_pool_fallback'))) {
+    spans.push({
+      name: 'model_pool_fallback',
+      status: trace.routeReason.includes('model_pool_fallback_failed') ? 'failed' : 'completed',
+      attributes: {
+        fromEndpoint: trace.modelPoolFallbackFromEndpoint,
+        nextEndpoint: trace.modelPoolFallbackNextEndpoint,
+        evidence: trace.modelPoolFallbackEvidence,
+      },
+    });
+  }
+
+  if (trace.inputGuardrail?.findings.length) {
+    spans.push({
+      name: 'input_guardrail',
+      status: trace.inputGuardrail.status,
+      attributes: {
+        findings: trace.inputGuardrail.findings.map((finding) => finding.code),
+      },
+    });
+  }
+
+  if (trace.outputGuardrail?.findings.length) {
+    spans.push({
+      name: 'output_guardrail',
+      status: trace.outputGuardrail.status,
+      attributes: {
+        findings: trace.outputGuardrail.findings.map((finding) => finding.code),
+      },
+    });
+  }
+
+  return spans;
 }
 
 export function recordGovernanceTrace(trace: IGovernanceTrace): IGovernanceTrace {

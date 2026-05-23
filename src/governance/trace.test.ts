@@ -4,6 +4,7 @@ import { join } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   appendTraceReason,
+  buildTraceSpansFromPipeline,
   createGovernanceTrace,
   finalizeTrace,
   GovernanceTraceStore,
@@ -257,6 +258,62 @@ describe('governance trace', () => {
 
     expect(summary.blocked).toBe(true);
     expect(summary.action).toContain('Review failed pipeline stages');
+  });
+
+  it('builds trace spans from runtime pipeline and guardrail evidence', () => {
+    const trace = createGovernanceTrace({
+      requestId: 'req-spans',
+      startedAt: 100,
+      routeReason: ['model_pool_fallback:sonnet:edge-b'],
+      modelPoolFallbackTriggered: true,
+      modelPoolFallbackFromEndpoint: 'edge-a',
+      modelPoolFallbackNextEndpoint: 'edge-b',
+      outputGuardrail: {
+        status: 'watch',
+        findings: [
+          {
+            code: 'placeholder_output',
+            severity: 'warn',
+            message: 'placeholder',
+          },
+        ],
+      },
+    });
+
+    expect(buildTraceSpansFromPipeline(trace, [
+      { stage: 'smart_router', status: 'completed', at: 110 },
+      { stage: 'protocol_dispatch', status: 'completed', at: 130, detail: { interface: 'openai' } },
+      { stage: 'response_governance', status: 'completed', at: 180 },
+    ])).toEqual([
+      expect.objectContaining({
+        name: 'smart_router',
+        status: 'completed',
+        startOffsetMs: 10,
+        durationMs: 20,
+      }),
+      expect.objectContaining({
+        name: 'protocol_dispatch',
+        attributes: { interface: 'openai' },
+      }),
+      expect.objectContaining({
+        name: 'response_governance',
+      }),
+      expect.objectContaining({
+        name: 'model_pool_fallback',
+        status: 'completed',
+        attributes: expect.objectContaining({
+          fromEndpoint: 'edge-a',
+          nextEndpoint: 'edge-b',
+        }),
+      }),
+      expect.objectContaining({
+        name: 'output_guardrail',
+        status: 'watch',
+        attributes: {
+          findings: ['placeholder_output'],
+        },
+      }),
+    ]);
   });
 
   it('persists traces to disk and reloads them on restart', async () => {

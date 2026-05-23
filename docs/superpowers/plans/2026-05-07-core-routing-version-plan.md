@@ -146,7 +146,7 @@ v1.7.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 4. `[closed 2026-05-23]` route handoff summary：新增 `summarizeRouteHandoffTrace`，把 runtime pipeline 阶段、initial/final model、切换状态和 failed/cascade/context guard 风险合成为 `governanceTrace.handoffSummary`；非流式、流式和 context guard 本地 413 路径都会在记录 trace 前写入 handoff summary，`/api/governance/traces` 返回 `routeHandoffs`，trace detail 返回 `handoffSummary`，`/ui` 维护者区新增 Route handoff 摘要列表。
 5. `[closed 2026-05-23]` tool capability guardrail：`ITool` 新增 `capabilities.requiredModelCapabilities` / `internalCall` 声明，image agent 的 `analyzeImage` 声明需要 tool-call 能力；新增 `src/agents/guardrail.ts` 统一评估 selected compiled model 是否满足工具能力，运行时只注入通过 guardrail 的 tools，拒绝时不会执行 agent reqHandler，并把 `tool_guardrail_allowed/denied:<agent>:<tool>:<reason>` 写入 governance trace。
 6. `[closed 2026-05-23]` 输入/输出 guardrail：新增 `src/governance/io-guardrail.ts`，非阻断识别 prompt injection / secret exfiltration 输入，以及 placeholder / tool error / refusal 输出；输入检查在 governance trace 创建后写入 `inputGuardrail` 和 `input_guardrail:<code>` reason，非流式与流式响应治理在记录 trace 前写入 `outputGuardrail` 和 `output_guardrail:<code>` reason，复用现有 response governance / trace contract。
-7. trace span 化：把 route、protocol dispatch、remote forward、model pool fallback、agent/tool、response governance 归一为 span 结构，服务于 UI 和后续排障，不另建平行观测系统。
+7. `[closed 2026-05-23]` trace span 化：`IGovernanceTrace` 新增 `spans`，`buildTraceSpansFromPipeline` 将 runtime pipeline 记录归一为 span，并补充 model_pool_fallback / input_guardrail / output_guardrail 派生 span；非流式、流式和 context guard 本地错误路径都会在 finalize/record 前写入 spans，覆盖 route、protocol dispatch、agent/tool、response governance、model pool fallback 与 guardrail 证据，不另建平行观测系统。
 
 ## 执行规则
 

@@ -32,7 +32,7 @@ import { evaluateToolCapabilityGuardrail } from "./agents/guardrail";
 import { EventEmitter } from "node:events";
 import { triggerRouter as smartRouterRuntime } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, inspectInputGuardrail, recordGovernanceTrace, sessionStateStore, summarizeRouteHandoffTrace } from "./governance";
+import { appendTraceReason, applyResponseGovernance, buildTraceSpansFromPipeline, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, inspectInputGuardrail, recordGovernanceTrace, sessionStateStore, summarizeRouteHandoffTrace } from "./governance";
 import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
 import { modelPoolHealthStore } from "./models/pool-health";
 import { createModelPoolHealthPersistenceScheduler, loadPersistedModelPoolHealth } from "./models/pool-health-persistence";
@@ -538,6 +538,10 @@ async function run(options: RunOptions = {}) {
         req.localStructuredError = true;
         if (req.governanceTrace) {
           req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
+            req.governanceTrace,
+            getRuntimePipeline(req)
+          );
+          req.governanceTrace.spans = buildTraceSpansFromPipeline(
             req.governanceTrace,
             getRuntimePipeline(req)
           );
