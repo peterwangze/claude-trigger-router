@@ -148,9 +148,11 @@ v1.7.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 6. `[closed 2026-05-23]` 输入/输出 guardrail：新增 `src/governance/io-guardrail.ts`，非阻断识别 prompt injection / secret exfiltration 输入，以及 placeholder / tool error / refusal 输出；输入检查在 governance trace 创建后写入 `inputGuardrail` 和 `input_guardrail:<code>` reason，非流式与流式响应治理在记录 trace 前写入 `outputGuardrail` 和 `output_guardrail:<code>` reason，复用现有 response governance / trace contract。
 7. `[closed 2026-05-23]` trace span 化：`IGovernanceTrace` 新增 `spans`，`buildTraceSpansFromPipeline` 将 runtime pipeline 记录归一为 span，并补充 model_pool_fallback / input_guardrail / output_guardrail 派生 span；非流式、流式和 context guard 本地错误路径都会在 finalize/record 前写入 spans，覆盖 route、protocol dispatch、agent/tool、response governance、model pool fallback 与 guardrail 证据，不另建平行观测系统。
 
+v1.8.0 闭环验证：`npm run release:verify` 已通过，包含 build、常规测试、packaged CLI entry smoke、完整 packaged CLI E2E、acceptance、pack dry-run、tarball 安装和 installed CLI smoke；`npm run release:stage` 已通过并已执行 `npm run release:clean` 清理 staging 产物；`package.json` / `package-lock.json` 已更新到 `1.8.0`。发布边界见 `docs/release-notes-v1.8.0.md`。
+
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.7.0 已阶段闭环；后续默认切到 v1.8.0 低侵入 agent / tool 增强与架构减压，除非出现安全风险、P0 主路径故障、入口回归、收益证据链回归或远程服务 / 模型池安全体验回归，不再回头扩展 v1.7.0 范围。
+2. v1.8.0 已阶段闭环；后续默认回到统一进展基线的下一优先级，先推进配置产品化最终收口与 CLI/setup UX 重设计，除非出现安全风险、P0 主路径故障、入口回归、收益证据链回归、远程服务 / 模型池安全体验回归或 agent/tool trace contract 回归，不再回头扩展 v1.8.0 范围。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。

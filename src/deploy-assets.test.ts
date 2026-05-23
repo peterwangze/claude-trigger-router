@@ -53,27 +53,27 @@ describe('deployment assets', () => {
 
     const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
     expect(releasingGuide).toContain('Release');
-    expect(releasingGuide).toContain('docs/release-notes-v1.7.0.md');
-    expect(releasingGuide).toContain('v1.7.0 服务安全');
+    expect(releasingGuide).toContain('docs/release-notes-v1.8.0.md');
+    expect(releasingGuide).toContain('v1.8.0 agent/tool');
   });
 
-  it('keeps v1.7.0 server and model pool release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.7.0.md'), 'utf-8');
+  it('keeps v1.8.0 agent/tool architecture release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.8.0.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('远程服务与模型池安全体验版');
-    expect(releaseNotes).toContain('Runtime.security');
-    expect(releaseNotes).toContain('/api/auth/keys/:id/rotate');
-    expect(releaseNotes).toContain('/api/models/pool-health/probe');
-    expect(releaseNotes).toContain('cost_per_1m_input_tokens');
-    expect(releaseNotes).toContain('cost-aware');
+    expect(releaseNotes).toContain('低侵入 agent/tool 增强与架构减压版');
+    expect(releaseNotes).toContain('src/runtime/pipeline.ts');
+    expect(releaseNotes).toContain('src/server/management-routes.ts');
+    expect(releaseNotes).toContain('src/ui/workbench-fragments.ts');
+    expect(releaseNotes).toContain('Tool capability guardrail');
+    expect(releaseNotes).toContain('governanceTrace.spans');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.7.0 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.7.0.md');
-    expect(readme).toContain('/api/auth/keys/:id/rotate');
-    expect(readme).toContain('Registration.strategy');
+    expect(readme).toContain('## v1.8.0 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.8.0.md');
+    expect(readme).toContain('runtime pipeline');
+    expect(readme).toContain('trace spans');
   });
 
   it('keeps release-stage server profile output out of the returned profile object', () => {

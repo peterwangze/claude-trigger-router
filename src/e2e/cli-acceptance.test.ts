@@ -35,6 +35,7 @@ interface IFakeUpstreamRequest {
 
 function getAcceptanceMutationWhitelist(): string[] {
   return [
+    ...getPowerShellStartupCacheWhitelist(),
     '.claude-trigger-router',
     '.claude-trigger-router/config.yaml',
     '.claude-trigger-router/config.backup.*',
@@ -45,6 +46,16 @@ function getAcceptanceMutationWhitelist(): string[] {
     '.claude-code-router/config.json',
     '.claude.json',
     'claude-invoked.txt',
+  ];
+}
+
+function getPowerShellStartupCacheWhitelist(): string[] {
+  return [
+    'AppData',
+    'AppData/Local',
+    'AppData/Local/Microsoft',
+    'AppData/Local/Microsoft/PowerShell',
+    'AppData/Local/Microsoft/PowerShell/StartupProfileData-NonInteractive',
   ];
 }
 
@@ -706,7 +717,7 @@ describe('isolated packaged CLI acceptance', () => {
       expect(statusResult.code).toBe(0);
       expectNoTerminalCorruption(`${statusResult.stdout}\n${statusResult.stderr}`);
       expect(statusResult.stdout).toContain(`端口 ${port} 已被其他服务占用`);
-      expect(diffSnapshots(before, after)).toEqual({ added: [], removed: [], changed: [] });
+      assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getPowerShellStartupCacheWhitelist());
     } finally {
       await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
       await removePath(env.rootDir);
@@ -758,8 +769,10 @@ describe('isolated packaged CLI acceptance', () => {
       expect(existsSync(pidFilePath)).toBe(false);
 
       const diff = diffSnapshots(before, after);
-      expect(diff.added).toEqual([]);
-      expect(diff.changed).toEqual([]);
+      assertOnlyExpectedPathsChanged(diff, [
+        ...getPowerShellStartupCacheWhitelist(),
+        '.claude-trigger-router/claude-trigger-router.pid',
+      ]);
       expect(diff.removed).toEqual(['.claude-trigger-router/claude-trigger-router.pid']);
     } finally {
       await removePath(env.rootDir);
