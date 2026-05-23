@@ -210,8 +210,8 @@ v1.9.0 闭环验证：五个事项已分别独立提交并逐项补 targeted 看
    - 闭环标准：SmartRouter trace 记录预算、置信度、路径类型和升级/降级原因；简单任务不会默认被慢模型拖住，复杂或低置信度任务能有明确升级策略。当前已通过 `src/trigger/smart-router.test.ts` 与 `src/trigger/selector.test.ts` 看护。
 4. `[closed 2026-05-23]` 多模型协作模式：SmartRouter 已新增最小协作 contract：`route_only`、`verify_only`、`compare_then_arbiter`、`cascade_on_evidence`。默认仍是 `route_only`，配置可通过 `SmartRouter.collaboration.mode` / `allowed_modes` / `confidence_threshold` 显式开启或限制模式；低置信且允许 `verify_only` 时会自动升级到验证模式。
    - 闭环标准：每种模式都有配置开关、trace span、失败回退和 targeted tests；默认仍保持单模型 route-only，不让成本/延迟突然放大；compare/arbiter 只在显式策略或高置信收益场景触发。当前已通过 `src/trigger/smart-router.test.ts`、`src/trigger/trigger-router.test.ts` 和 trace summary 看护；本轮只建立协作 contract，不默认并发执行额外模型调用。
-5. `[planned]` 协作收益可解释入口：在 `/ui`、governance trace、health/routing tuning 中展示协作路径、收益证据、负收益证据和建议动作。
-   - 闭环标准：用户能看懂本次是 fast/deep/verify/compare 中哪种路径、为什么这么走、是否超预算、是否带来质量或速度收益；维护者能据此调整规则、候选、预算或关闭某类协作。
+5. `[closed 2026-05-23]` 协作收益可解释入口：route decision summary 已返回 `routingMode`、`collaborationMode` 和 `routingEvidence`；`/ui` Recent route decisions 已展示 mode、collab 和前两条证据，维护者能看到本次是否因 latency budget、confidence guard 或历史画像发生策略调整。
+   - 闭环标准：用户能看懂本次是 fast/deep/verify/compare 中哪种路径、为什么这么走、是否超预算、是否带来质量或速度收益；维护者能据此调整规则、候选、预算或关闭某类协作。当前已通过 `src/ui/workbench.dom.test.ts` 和 trace summary 相关测试看护。
 6. `[planned]` 看护与版本闭环：为上述能力补单元测试、server API contract、UI DOM smoke、metrics/trace 回归和 release notes。
    - 闭环标准：`npm run release:verify` 作为最终发布门禁；每个事项独立提交，且每轮修改后检查是否满足“证据进入路由、路由进入 trace、trace 进入 UI/health、失败可回退”的闭环标准。
 

@@ -144,7 +144,22 @@ async function createWorkbenchDom(options: {
 
         if (url.startsWith('/api/governance/traces')) {
           lastTraceUrl = url;
-          return jsonResponse({ traces: [], routeDecisions: [], switchContinuity: [] }) as any;
+          return jsonResponse({
+            traces: [],
+            routeDecisions: [
+              {
+                requestId: 'route-1',
+                headline: 'SmartRouter candidate selection selected sonnet with 86% confidence.',
+                sourceLabel: 'SmartRouter candidate selection',
+                routingMode: 'speed',
+                collaborationMode: 'verify_only',
+                confidenceLabel: '86%',
+                routingEvidence: ['latency budget guard: deep avg 900ms > 300ms; using sonnet avg 100ms'],
+              },
+            ],
+            switchContinuity: [],
+            routeHandoffs: [],
+          }) as any;
         }
         if (url.startsWith('/api/governance/metrics?') || url === '/api/governance/metrics') {
           return jsonResponse({
@@ -443,5 +458,19 @@ describe('workbench DOM smoke', () => {
     });
 
     smoke.dom.window.close();
+  });
+
+  it('shows SmartRouter collaboration evidence in route decisions', async () => {
+    const { dom } = await createWorkbenchDom();
+    const document = dom.window.document;
+
+    await waitFor(() => {
+      const text = document.getElementById('routeDecisionSummaryList')?.textContent ?? '';
+      expect(text).toContain('mode speed');
+      expect(text).toContain('collab verify_only');
+      expect(text).toContain('latency budget guard');
+    });
+
+    dom.window.close();
   });
 });

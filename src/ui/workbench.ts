@@ -1796,9 +1796,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const decisions=Array.isArray(items) ? items.slice(0,5) : [];` +
     `  if(!decisions.length){ routeDecisionSummaryList.innerHTML='<li><span class="muted">No recent route decisions</span><strong>0</strong></li>'; return; }` +
     `  routeDecisionSummaryList.innerHTML=decisions.map(item=>{` +
-    `    const meta=[item.sourceLabel || item.source || '-', item.ruleName ? ('rule '+item.ruleName) : '', item.semanticIntent ? ('intent '+item.semanticIntent) : '', item.confidenceLabel || '', item.latencyMs !== undefined ? (fmt(item.latencyMs)+' ms') : ''].filter(Boolean).join(' · ');` +
+    `    const meta=[item.sourceLabel || item.source || '-', item.ruleName ? ('rule '+item.ruleName) : '', item.semanticIntent ? ('intent '+item.semanticIntent) : '', item.routingMode ? ('mode '+item.routingMode) : '', item.collaborationMode ? ('collab '+item.collaborationMode) : '', item.confidenceLabel || '', item.latencyMs !== undefined ? (fmt(item.latencyMs)+' ms') : ''].filter(Boolean).join(' · ');` +
     `    const fallback=item.fallbackReason ? '<div class="muted">fallback: '+esc(item.fallbackReason)+'</div>' : '';` +
-    `    return '<li><span><strong>'+esc(item.headline || item.requestId || '-')+'</strong><div class="muted">'+esc(meta)+'</div>'+fallback+'</span><button type="button" data-request="'+esc(item.requestId || '')+'">View</button></li>';` +
+    `    const evidence=Array.isArray(item.routingEvidence) && item.routingEvidence.length ? '<div class="muted">'+esc(item.routingEvidence.slice(0,2).join(' / '))+'</div>' : '';` +
+    `    return '<li><span><strong>'+esc(item.headline || item.requestId || '-')+'</strong><div class="muted">'+esc(meta)+'</div>'+fallback+evidence+'</span><button type="button" data-request="'+esc(item.requestId || '')+'">View</button></li>';` +
     `  }).join('');` +
     `}` +
     `function renderSwitchContinuitySummaries(items){` +
