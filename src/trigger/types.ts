@@ -11,6 +11,11 @@ import { IGovernanceConfig, IGovernanceTrace } from '../governance/types';
  * 触发模式类型
  */
 export type PatternType = 'exact' | 'regex';
+export type TSmartRouterCollaborationMode =
+  | 'route_only'
+  | 'verify_only'
+  | 'compare_then_arbiter'
+  | 'cascade_on_evidence';
 
 /**
  * 触发模式配置
@@ -111,6 +116,9 @@ export interface IAnalysisResult {
 
   /** SmartRouter 自适应/协作模式，用于 trace 和 UI 解释 */
   routingMode?: string;
+
+  /** SmartRouter 多模型协作模式 */
+  collaborationMode?: TSmartRouterCollaborationMode;
 
   /** SmartRouter 选择理由 */
   reasoning?: string;
@@ -436,6 +444,13 @@ export interface ISmartRouterConfig {
   /** 请求级质量/速度预算策略，可被 request metadata 覆盖 */
   routing_budget?: {
     latency_budget_ms?: number;
+    confidence_threshold?: number;
+  };
+
+  /** 最小多模型协作模式。默认 route_only，不额外放大请求成本 */
+  collaboration?: {
+    mode?: TSmartRouterCollaborationMode;
+    allowed_modes?: TSmartRouterCollaborationMode[];
     confidence_threshold?: number;
   };
 }

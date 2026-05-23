@@ -641,6 +641,7 @@ export function summarizeRouteDecisionTrace(trace: IGovernanceTrace) {
   const confidenceLabel = formatPercent(confidence);
   const finalModel = trace.finalModel ?? trace.routeDecision?.model;
   const fallbackReason = inferFallbackReason(trace);
+  const collaborationMode = trace.routeDecision?.collaborationMode;
   const sourceLabels: Record<string, string> = {
     smart_rule: ruleName ? `SmartRouter rule "${ruleName}"` : 'SmartRouter rule',
     semantic_match: ruleName ? `Semantic match "${ruleName}"` : 'Semantic match',
@@ -666,6 +667,9 @@ export function summarizeRouteDecisionTrace(trace: IGovernanceTrace) {
     semanticIntent: trace.semanticIntent,
     confidence,
     confidenceLabel,
+    routingMode: trace.routeDecision?.routingMode,
+    collaborationMode,
+    routingEvidence: trace.routeDecision?.routingEvidence ?? [],
     initialModel: trace.initialModel,
     finalModel,
     fallbackReason,

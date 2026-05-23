@@ -416,6 +416,7 @@ export class ModelSelector {
             analyzedText: text,
             routeSource: 'smart_router',
             routingMode: smartResult.routingMode,
+            collaborationMode: smartResult.collaborationMode,
             reasoning: smartResult.reasoning,
             routingEvidence: smartResult.routingEvidence,
           };

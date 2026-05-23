@@ -5,7 +5,7 @@
  */
 
 import { LRUCache } from 'lru-cache';
-import { ISmartRouterConfig } from './types';
+import { ISmartRouterConfig, TSmartRouterCollaborationMode } from './types';
 import { DEFAULT_CONFIG } from '../constants';
 import { logError, logWarn } from '../utils/log';
 import { createSingleUserTextIR } from '../protocols/message-ir';
@@ -33,6 +33,9 @@ export interface ISmartRouterResult {
   /** 自适应路由模式 */
   routingMode?: string;
 
+  /** 多模型协作模式 */
+  collaborationMode?: TSmartRouterCollaborationMode;
+
   /** 用于本次选择的历史收益/能力画像证据 */
   routingEvidence?: string[];
 }
@@ -47,6 +50,7 @@ export interface ISmartRouterHintContext {
   }>;
   routingAdvisor?: IRoutingAdvisorSummary;
   routingBudget?: ISmartRouterBudgetHint;
+  collaboration?: ISmartRouterCollaborationHint;
 }
 
 export interface ISmartRouterBudgetHint {
@@ -54,6 +58,20 @@ export interface ISmartRouterBudgetHint {
   confidenceThreshold?: number;
   source?: 'config' | 'metadata';
 }
+
+export interface ISmartRouterCollaborationHint {
+  mode: TSmartRouterCollaborationMode;
+  allowedModes: TSmartRouterCollaborationMode[];
+  confidenceThreshold?: number;
+  source: 'config' | 'metadata' | 'default';
+}
+
+const COLLABORATION_MODES: TSmartRouterCollaborationMode[] = [
+  'route_only',
+  'verify_only',
+  'compare_then_arbiter',
+  'cascade_on_evidence',
+];
 
 /**
  * SmartRouter Prompt 模板
@@ -161,6 +179,23 @@ export class SmartRouterSelector {
       );
     }
 
+    if (hint?.collaboration) {
+      sections.push(
+        'Collaboration mode policy:\n' +
+        [
+          `- default mode: ${hint.collaboration.mode}`,
+          `- allowed modes: ${hint.collaboration.allowedModes.join(', ')}`,
+          hint.collaboration.confidenceThreshold
+            ? `- collaboration confidence threshold: ${hint.collaboration.confidenceThreshold}`
+            : undefined,
+          `- source: ${hint.collaboration.source}`,
+          '- route_only means use one model only.',
+          '- verify_only means route to one model and ask downstream governance/verifier to pay extra attention.',
+          '- compare_then_arbiter and cascade_on_evidence are planning modes in this release; do not assume parallel execution unless explicitly enabled by future runtime support.',
+        ].filter(Boolean).join('\n')
+      );
+    }
+
     sections.push(
       `User request:\n"""\n${text}\n"""`,
       `Available models:\n${this.buildCandidatesList(candidates, hint?.routingAdvisor)}`,
@@ -169,6 +204,7 @@ export class SmartRouterSelector {
   "model": "<exact model identifier from the list>",
   "confidence": <0.0-1.0>,
   "routingMode": "balanced|quality|speed",
+  "collaborationMode": "route_only|verify_only|compare_then_arbiter|cascade_on_evidence",
   "reasoning": "<brief explanation>"
 }
 
@@ -224,16 +260,19 @@ Important:
       confidenceThreshold: config.routing_budget?.confidence_threshold,
       source: config.routing_budget ? 'config' as const : undefined,
     };
+    const collaboration = this.buildCollaborationHint(config, hint);
 
     const effectiveHint = routingAdvisor
       ? {
           ...(hint ?? {}),
           routingAdvisor,
           routingBudget,
+          collaboration,
         }
       : {
           ...(hint ?? {}),
           routingBudget,
+          collaboration,
         };
 
     const cacheKey = this.generateCacheKey(
@@ -241,7 +280,7 @@ Important:
       config.router_model,
       config.candidates,
       routingAdvisor?.signature,
-      this.buildBudgetSignature(routingBudget)
+      this.buildBudgetSignature(routingBudget, collaboration)
     );
     const cached = this.cache.get(cacheKey);
     if (cached) {
@@ -297,8 +336,9 @@ Important:
       const result = this.applyRoutingBudgetGuard({
         ...parsed,
         routingMode: parsed.routingMode ?? routingAdvisor?.routeMode,
+        collaborationMode: this.normalizeCollaborationMode(parsed.collaborationMode, collaboration),
         routingEvidence: routingAdvisor?.evidence.slice(0, 6),
-      }, routingAdvisor, routingBudget, validModels);
+      }, routingAdvisor, routingBudget, collaboration, validModels);
 
       this.cache.set(cacheKey, result, { ttl: config.cache_ttl ?? 600000 });
 
@@ -316,8 +356,11 @@ Important:
     this.cache.clear();
   }
 
-  private buildBudgetSignature(budget: ISmartRouterBudgetHint | undefined): string | undefined {
-    if (!budget?.latencyBudgetMs && !budget?.confidenceThreshold) {
+  private buildBudgetSignature(
+    budget: ISmartRouterBudgetHint | undefined,
+    collaboration: ISmartRouterCollaborationHint | undefined
+  ): string | undefined {
+    if (!budget?.latencyBudgetMs && !budget?.confidenceThreshold && !collaboration) {
       return undefined;
     }
 
@@ -325,74 +368,138 @@ Important:
       budget.latencyBudgetMs ?? '-',
       budget.confidenceThreshold ?? '-',
       budget.source ?? 'config',
+      collaboration?.mode ?? 'route_only',
+      collaboration?.allowedModes.join('+') ?? 'route_only',
     ].join(':');
+  }
+
+  private buildCollaborationHint(
+    config: ISmartRouterConfig,
+    hint?: ISmartRouterHintContext
+  ): ISmartRouterCollaborationHint {
+    const configured = config.collaboration;
+    const existing = hint?.collaboration;
+    if (existing) {
+      return existing;
+    }
+
+    const allowedModes = (configured?.allowed_modes?.length
+      ? configured.allowed_modes
+      : configured?.mode
+        ? [configured.mode]
+        : ['route_only']
+    ).filter((mode): mode is TSmartRouterCollaborationMode => COLLABORATION_MODES.includes(mode as TSmartRouterCollaborationMode));
+    const normalizedAllowedModes = allowedModes.length ? Array.from(new Set(allowedModes)) : ['route_only'];
+    const mode = configured?.mode && normalizedAllowedModes.includes(configured.mode)
+      ? configured.mode
+      : normalizedAllowedModes[0] ?? 'route_only';
+
+    return {
+      mode,
+      allowedModes: normalizedAllowedModes,
+      confidenceThreshold: configured?.confidence_threshold,
+      source: configured ? 'config' : 'default',
+    };
+  }
+
+  private normalizeCollaborationMode(
+    mode: unknown,
+    collaboration: ISmartRouterCollaborationHint | undefined
+  ): TSmartRouterCollaborationMode {
+    const requested = typeof mode === 'string' && COLLABORATION_MODES.includes(mode as TSmartRouterCollaborationMode)
+      ? mode as TSmartRouterCollaborationMode
+      : undefined;
+    if (requested && collaboration?.allowedModes.includes(requested)) {
+      return requested;
+    }
+    return collaboration?.mode ?? 'route_only';
   }
 
   private applyRoutingBudgetGuard(
     result: ISmartRouterResult,
     advisor: IRoutingAdvisorSummary | undefined,
     budget: ISmartRouterBudgetHint | undefined,
+    collaboration: ISmartRouterCollaborationHint | undefined,
     validModels: string[]
   ): ISmartRouterResult {
-    if (!advisor || (!budget?.latencyBudgetMs && !budget?.confidenceThreshold)) {
-      return result;
-    }
-
-    const profiles = new Map(advisor.candidateProfiles.map((profile) => [profile.model, profile]));
     const evidence = [...(result.routingEvidence ?? [])];
     let next = { ...result };
-    const selectedProfile = profiles.get(next.model);
-    const fastestProfile = advisor.fastestModel ? profiles.get(advisor.fastestModel) : undefined;
 
-    if (
-      budget.latencyBudgetMs &&
-      selectedProfile?.averageLatencyMs &&
-      selectedProfile.averageLatencyMs > budget.latencyBudgetMs &&
-      fastestProfile?.averageLatencyMs &&
-      fastestProfile.averageLatencyMs <= budget.latencyBudgetMs &&
-      validModels.includes(fastestProfile.model)
-    ) {
-      evidence.push(
-        `latency budget guard: ${selectedProfile.model} avg ${selectedProfile.averageLatencyMs}ms > ${budget.latencyBudgetMs}ms; using ${fastestProfile.model} avg ${fastestProfile.averageLatencyMs}ms`
-      );
-      next = {
-        ...next,
-        model: fastestProfile.model,
-        routingMode: 'speed',
-        reasoning: [
-          next.reasoning,
-          `Latency budget favored ${fastestProfile.model}.`,
-        ].filter(Boolean).join(' '),
-      };
-    }
+    if (advisor && (budget?.latencyBudgetMs || budget?.confidenceThreshold)) {
+      const profiles = new Map(advisor.candidateProfiles.map((profile) => [profile.model, profile]));
+      const selectedProfile = profiles.get(next.model);
+      const fastestProfile = advisor.fastestModel ? profiles.get(advisor.fastestModel) : undefined;
 
-    const confidenceThreshold = budget.confidenceThreshold;
-    const qualityProfile = advisor.qualityModel ? profiles.get(advisor.qualityModel) : undefined;
-    if (
-      confidenceThreshold &&
-      next.confidence < confidenceThreshold &&
-      qualityProfile &&
-      qualityProfile.model !== next.model &&
-      validModels.includes(qualityProfile.model)
-    ) {
-      evidence.push(
-        `confidence guard: ${next.confidence} < ${confidenceThreshold}; using quality-backed ${qualityProfile.model}`
-      );
-      next = {
-        ...next,
-        model: qualityProfile.model,
-        routingMode: 'quality',
-        reasoning: [
-          next.reasoning,
-          `Confidence threshold favored quality-backed ${qualityProfile.model}.`,
-        ].filter(Boolean).join(' '),
-      };
+      if (
+        budget.latencyBudgetMs &&
+        selectedProfile?.averageLatencyMs &&
+        selectedProfile.averageLatencyMs > budget.latencyBudgetMs &&
+        fastestProfile?.averageLatencyMs &&
+        fastestProfile.averageLatencyMs <= budget.latencyBudgetMs &&
+        validModels.includes(fastestProfile.model)
+      ) {
+        evidence.push(
+          `latency budget guard: ${selectedProfile.model} avg ${selectedProfile.averageLatencyMs}ms > ${budget.latencyBudgetMs}ms; using ${fastestProfile.model} avg ${fastestProfile.averageLatencyMs}ms`
+        );
+        next = {
+          ...next,
+          model: fastestProfile.model,
+          routingMode: 'speed',
+          reasoning: [
+            next.reasoning,
+            `Latency budget favored ${fastestProfile.model}.`,
+          ].filter(Boolean).join(' '),
+        };
+      }
+
+      const confidenceThreshold = budget.confidenceThreshold;
+      const qualityProfile = advisor.qualityModel ? profiles.get(advisor.qualityModel) : undefined;
+      if (
+        confidenceThreshold &&
+        next.confidence < confidenceThreshold &&
+        qualityProfile &&
+        qualityProfile.model !== next.model &&
+        validModels.includes(qualityProfile.model)
+      ) {
+        evidence.push(
+          `confidence guard: ${next.confidence} < ${confidenceThreshold}; using quality-backed ${qualityProfile.model}`
+        );
+        next = {
+          ...next,
+          model: qualityProfile.model,
+          routingMode: 'quality',
+          reasoning: [
+            next.reasoning,
+            `Confidence threshold favored quality-backed ${qualityProfile.model}.`,
+          ].filter(Boolean).join(' '),
+        };
+      }
     }
 
     return {
       ...next,
+      collaborationMode: this.applyCollaborationMode(next, collaboration, evidence),
       routingEvidence: evidence,
     };
+  }
+
+  private applyCollaborationMode(
+    result: ISmartRouterResult,
+    collaboration: ISmartRouterCollaborationHint | undefined,
+    evidence: string[]
+  ): TSmartRouterCollaborationMode {
+    const mode = this.normalizeCollaborationMode(result.collaborationMode, collaboration);
+    const threshold = collaboration?.confidenceThreshold;
+    if (
+      threshold &&
+      result.confidence < threshold &&
+      mode === 'route_only' &&
+      collaboration.allowedModes.includes('verify_only')
+    ) {
+      evidence.push(`collaboration guard: confidence ${result.confidence} < ${threshold}; using verify_only`);
+      return 'verify_only';
+    }
+    return mode;
   }
 }
 

@@ -145,6 +145,7 @@ export interface IGovernanceTrace {
     fallbackReason?: string;
     reasoning?: string;
     routingMode?: string;
+    collaborationMode?: string;
     routingEvidence?: string[];
   };
   handoffSummary?: {

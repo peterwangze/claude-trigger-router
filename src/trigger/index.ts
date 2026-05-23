@@ -126,6 +126,7 @@ export class TriggerRouter {
         model: result.model,
         reasoning: result.reasoning,
         routingMode: result.routingMode,
+        collaborationMode: result.collaborationMode,
         routingEvidence: result.routingEvidence,
         fallbackReason: result.matched
           ? undefined
@@ -142,6 +143,9 @@ export class TriggerRouter {
         appendTraceReason(req.governanceTrace, 'smart_router');
         if (result.routingMode) {
           appendTraceReason(req.governanceTrace, `smart_router_mode:${result.routingMode}`);
+        }
+        if (result.collaborationMode) {
+          appendTraceReason(req.governanceTrace, `smart_router_collaboration:${result.collaborationMode}`);
         }
         if (result.routingEvidence?.length) {
           appendTraceReason(req.governanceTrace, 'smart_router_adaptive_feedback');

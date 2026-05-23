@@ -1006,6 +1006,9 @@ describe('createServer /api/config', () => {
         source: 'smart_router',
         confidence: 0.91,
         model: 'opus',
+        routingMode: 'quality',
+        collaborationMode: 'verify_only',
+        routingEvidence: ['quality evidence'],
       },
       semanticIntent: 'architecture',
       stickyHit: false,
@@ -1041,6 +1044,8 @@ describe('createServer /api/config', () => {
       requestId: 'trace-2',
       source: 'smart_router',
       confidenceLabel: '91%',
+      routingMode: 'quality',
+      collaborationMode: 'verify_only',
       semanticIntent: 'architecture',
       headline: 'SmartRouter candidate selection selected opus with 91% confidence.',
     }));

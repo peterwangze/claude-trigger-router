@@ -429,12 +429,18 @@ describe('TriggerRouter', () => {
         analysisTime: 0,
         analyzedText: '帮我选一个模型',
         routeSource: 'smart_router',
+        routingMode: 'speed',
+        collaborationMode: 'verify_only',
+        routingEvidence: ['budget evidence'],
       });
 
       const result = await router.route(req as any);
 
       expect(result.routeSource).toBe('smart_router');
       expect(req.governanceTrace.routeReason).toContain('smart_router');
+      expect(req.governanceTrace.routeReason).toContain('smart_router_mode:speed');
+      expect(req.governanceTrace.routeReason).toContain('smart_router_collaboration:verify_only');
+      expect(req.governanceTrace.routeReason).toContain('smart_router_adaptive_feedback');
       expect(req.governanceTrace.routeReason).not.toContain('smart_decision');
       selectSpy.mockRestore();
     });

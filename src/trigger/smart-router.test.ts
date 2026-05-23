@@ -150,10 +150,11 @@ describe('SmartRouterSelector', () => {
           content: [
             {
               text: JSON.stringify({
-                model: 'provider,model-a',
-                confidence: 0.91,
-                routingMode: 'speed',
-                reasoning: 'Recent routing evidence favors model-a',
+              model: 'provider,model-a',
+              confidence: 0.91,
+              routingMode: 'speed',
+              collaborationMode: 'verify_only',
+              reasoning: 'Recent routing evidence favors model-a',
               }),
             },
           ],
@@ -168,6 +169,72 @@ describe('SmartRouterSelector', () => {
     expect(JSON.stringify(parsed)).toContain('provider,model-a');
     expect(result?.routingEvidence?.join('\n')).toContain('preferred candidate provider,model-a');
     expect(result?.routingMode).toBe('speed');
+    expect(result?.collaborationMode).toBe('route_only');
+  });
+
+  it('should honor configured collaboration mode when allowed', async () => {
+    let promptBody = '';
+    const mockFetch = async (_url: string, init?: RequestInit) => {
+      promptBody = String(init?.body ?? '');
+      return {
+        ok: true,
+        json: async () => ({
+          content: [
+            {
+              text: JSON.stringify({
+                model: 'provider,model-a',
+                confidence: 0.9,
+                collaborationMode: 'compare_then_arbiter',
+                reasoning: 'Compare mode requested',
+              }),
+            },
+          ],
+        }),
+      };
+    };
+    const config: ISmartRouterConfig = {
+      ...baseConfig,
+      collaboration: {
+        mode: 'verify_only',
+        allowed_modes: ['route_only', 'verify_only', 'compare_then_arbiter'],
+      },
+    };
+
+    const result = await selector.selectModel('写一段代码', config, 5678, mockFetch as any);
+
+    expect(JSON.stringify(JSON.parse(promptBody))).toContain('Collaboration mode policy');
+    expect(result?.collaborationMode).toBe('compare_then_arbiter');
+  });
+
+  it('should escalate to verify_only when collaboration confidence guard is configured', async () => {
+    const mockFetch = async () => ({
+      ok: true,
+      json: async () => ({
+        content: [
+          {
+            text: JSON.stringify({
+              model: 'provider,model-a',
+              confidence: 0.4,
+              collaborationMode: 'route_only',
+              reasoning: 'Low confidence route',
+            }),
+          },
+        ],
+      }),
+    });
+    const config: ISmartRouterConfig = {
+      ...baseConfig,
+      collaboration: {
+        mode: 'route_only',
+        allowed_modes: ['route_only', 'verify_only'],
+        confidence_threshold: 0.7,
+      },
+    };
+
+    const result = await selector.selectModel('模糊需求', config, 5678, mockFetch as any);
+
+    expect(result?.collaborationMode).toBe('verify_only');
+    expect(result?.routingEvidence?.join('\n')).toContain('collaboration guard');
   });
 
   it('should apply latency budget guard when historical profile shows a faster candidate', async () => {
