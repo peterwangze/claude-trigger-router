@@ -140,7 +140,7 @@ v1.7.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 
 优先级：中低。
 
-1. runtime pipeline 边界收口：把 `src/index.ts` 中远程转发、SmartRouter、agent/tool 注入、协议分发、stream 工具续写和响应治理定义为可测试阶段，补 hook 顺序 / bypass / error path contract，作为 handoff 与 guardrail 的前置看护。
+1. `[closed 2026-05-23]` runtime pipeline 边界收口：新增 `src/runtime/pipeline.ts` 定义 `auth -> remote_forward -> smart_router -> agent_tools -> router -> context_guard -> protocol_dispatch -> agent_stream -> response_governance` 阶段顺序、请求级记录和顺序断言；`src/index.ts` 已在现有 hooks 中记录 remote forward bypass、失败转发、SmartRouter、agent/tool、router、context guard、protocol dispatch 与 response governance 状态，并用 `src/runtime/pipeline.test.ts` / `src/index-startup.test.ts` 看护 hook 顺序、bypass 和 error path contract。
 2. 管理 API route/service facade 收口：把 `src/server.ts` 中 auth、service-info、models/pool-health、governance、benchmark、config save 等 route 按领域注册，统一权限、脱敏和错误返回 contract，避免 v1.8.0 新增 API 继续堆进单文件。
 3. UI 片段与脚本 contract 拆分：继续拆 `src/ui/workbench.ts`，至少把使用者配置 surface、维护者治理 surface、auth/pool/benchmark 片段和内联脚本 helper 拆到可单测单元，再承载 guardrail / trace span 视图。
 4. route handoff summary：在现有 governance trace 上记录路由交接摘要，说明请求从用户输入、SmartRouter、fallback、agent/tool、协议分发到上游的关键决策，不引入独立 agent 运行时。

@@ -491,6 +491,19 @@ describe('run startup wiring', () => {
     expect(reply.send).toHaveBeenCalledWith(expect.any(ReadableStream));
     expect(req.remoteForwarded).toBe(true);
     expect(req.responseGovernanceApplied).toBe(true);
+    expect(req.runtimePipeline).toEqual([
+      expect.objectContaining({
+        stage: 'remote_forward',
+        status: 'completed',
+      }),
+      expect.objectContaining({
+        stage: 'smart_router',
+        status: 'bypassed',
+        detail: {
+          reason: 'remote_forwarded',
+        },
+      }),
+    ]);
     expect(mockTriggerRoute).not.toHaveBeenCalled();
 
     vi.unstubAllGlobals();
@@ -525,7 +538,7 @@ describe('run startup wiring', () => {
       send: vi.fn(),
     };
 
-    await remoteForwardHook({
+    const req: any = {
       id: 'req-remote-fail',
       method: 'POST',
       url: '/v1/chat/completions',
@@ -536,7 +549,9 @@ describe('run startup wiring', () => {
         model: 'sonnet',
         messages: [{ role: 'user', content: 'hello' }],
       },
-    }, reply);
+    };
+
+    await remoteForwardHook(req, reply);
 
     expect(reply.code).toHaveBeenCalledWith(502);
     expect(reply.send).toHaveBeenCalledWith({
@@ -546,6 +561,12 @@ describe('run startup wiring', () => {
         remoteService: 'https://router.example.com',
       },
     });
+    expect(req.runtimePipeline).toEqual([
+      expect.objectContaining({
+        stage: 'remote_forward',
+        status: 'failed',
+      }),
+    ]);
 
     vi.unstubAllGlobals();
   });

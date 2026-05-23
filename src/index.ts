@@ -36,6 +36,7 @@ import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "
 import { modelPoolHealthStore } from "./models/pool-health";
 import { createModelPoolHealthPersistenceScheduler, loadPersistedModelPoolHealth } from "./models/pool-health-persistence";
 import { buildProviderDispatchRequest } from "./protocols";
+import { isRuntimeModelCallPath, recordRuntimePipelineStage } from "./runtime/pipeline";
 
 const event = new EventEmitter();
 
@@ -101,8 +102,7 @@ function isRemoteForwardEnabled(config: any): boolean {
 }
 
 function isModelCallPath(url: string | undefined): boolean {
-  const path = String(url ?? "").split("?")[0];
-  return path === "/v1/messages" || path === "/v1/chat/completions";
+  return isRuntimeModelCallPath(url);
 }
 
 function getRemoteForwardPath(url: string | undefined): string {
@@ -171,6 +171,7 @@ async function forwardModelCallToRemote(req: any, reply: any, config: any): Prom
     return true;
   } catch (error) {
     req.remoteForwarded = true;
+    req.remoteForwardFailed = true;
     req.responseGovernanceApplied = true;
     logWarn(`[RemoteForward] Failed to forward ${path}: ${error instanceof Error ? error.message : String(error)}`);
     reply.code(502);
@@ -343,18 +344,33 @@ async function run(options: RunOptions = {}) {
 
   // 认证中间件
   server.addHook("preHandler", async (req: any, reply: any) => {
-    return new Promise<void>((resolve, reject) => {
-      const done = (err?: Error) => {
-        if (err) reject(err);
-        else resolve();
-      };
-      authMiddleware(req, reply, done);
-    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const done = (err?: Error) => {
+          if (err) reject(err);
+          else resolve();
+        };
+        authMiddleware(req, reply, done);
+      });
+      recordRuntimePipelineStage(req, 'auth', 'completed');
+    } catch (error) {
+      recordRuntimePipelineStage(req, 'auth', 'failed', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   });
 
   server.addHook("preHandler", async (req: any, reply: any) => {
-    if (await forwardModelCallToRemote(req, reply, config)) {
+    const forwarded = await forwardModelCallToRemote(req, reply, config);
+    if (forwarded) {
+      recordRuntimePipelineStage(req, 'remote_forward', req.remoteForwardFailed ? 'failed' : 'completed');
       return reply;
+    }
+    if (isModelCallPath(req.url)) {
+      recordRuntimePipelineStage(req, 'remote_forward', 'skipped', {
+        reason: 'local_runtime',
+      });
     }
   });
 
@@ -365,6 +381,9 @@ async function run(options: RunOptions = {}) {
   // SmartRouter 统一路由中间件（在原有路由之前）
   server.addHook("preHandler", async (req: any, reply: any) => {
     if (req.remoteForwarded) {
+      recordRuntimePipelineStage(req, 'smart_router', 'bypassed', {
+        reason: 'remote_forwarded',
+      });
       return;
     }
     if (req.url.startsWith("/v1/messages")) {
@@ -387,6 +406,10 @@ async function run(options: RunOptions = {}) {
         ? { matched: false, confidence: 0, analysisTime: 0 }
         : await smartRouterRuntime.route(req);
       req.triggerResult = triggerResult;
+      recordRuntimePipelineStage(req, 'smart_router', bypassSmartRouter ? 'bypassed' : 'completed', {
+        matched: Boolean(triggerResult.matched),
+        model: triggerResult.model,
+      });
 
       if (!bypassSmartRouter && triggerResult.matched && triggerResult.model) {
           const previousSessionState = req.sessionId ? sessionStateStore.get(req.sessionId) : undefined;
@@ -462,6 +485,13 @@ async function run(options: RunOptions = {}) {
 
       if (useAgents.length) {
         req.agents = useAgents;
+        recordRuntimePipelineStage(req, 'agent_tools', 'completed', {
+          agents: useAgents,
+        });
+      } else {
+        recordRuntimePipelineStage(req, 'agent_tools', 'skipped', {
+          reason: 'no_matching_agent',
+        });
       }
 
       // 执行原有路由
@@ -469,8 +499,15 @@ async function run(options: RunOptions = {}) {
         config,
         event,
       });
+      recordRuntimePipelineStage(req, 'router', 'completed', {
+        model: req.body?.model,
+      });
 
       if (req.contextWindowExceeded) {
+        recordRuntimePipelineStage(req, 'context_guard', 'failed', {
+          code: req.contextWindowExceeded.code,
+          model: req.contextWindowExceeded.model,
+        });
         req.responseGovernanceApplied = true;
         req.localStructuredError = true;
         if (req.governanceTrace) {
@@ -488,6 +525,7 @@ async function run(options: RunOptions = {}) {
           },
         });
       }
+      recordRuntimePipelineStage(req, 'context_guard', 'completed');
 
       const compiledModel = getCompiledModelRef(config, req.body?.model);
       if (compiledModel?.interface && req.body?.messages) {
@@ -514,6 +552,14 @@ async function run(options: RunOptions = {}) {
           ...upstream.body,
           model: req.body.model,
         };
+        recordRuntimePipelineStage(req, 'protocol_dispatch', 'completed', {
+          interface: compiledModel.interface,
+          diagnostics: upstream.diagnostics.length,
+        });
+      } else {
+        recordRuntimePipelineStage(req, 'protocol_dispatch', 'skipped', {
+          reason: 'no_compiled_interface',
+        });
       }
     }
   });
@@ -536,6 +582,9 @@ async function run(options: RunOptions = {}) {
     if (req.sessionId && req.url.startsWith("/v1/messages")) {
       if (payload instanceof ReadableStream) {
         if (req.agents) {
+          recordRuntimePipelineStage(req, 'agent_stream', 'completed', {
+            agents: req.agents,
+          });
           const abortController = new AbortController();
           const sseParser = new SSEParserTransform();
           const eventStream = payload.pipeThrough(sseParser as any);
@@ -700,6 +749,9 @@ async function run(options: RunOptions = {}) {
           );
         }
 
+        recordRuntimePipelineStage(req, 'agent_stream', 'skipped', {
+          reason: 'no_agent_tools',
+        });
         return done(null, governStreamingResponse(payload, req, config, servicePort));
       }
       sessionUsageCache.put(req.sessionId, payload.usage);
@@ -742,6 +794,11 @@ async function run(options: RunOptions = {}) {
         payload,
         config,
         servicePort,
+      });
+      recordRuntimePipelineStage(req, 'response_governance', 'completed');
+    } else {
+      recordRuntimePipelineStage(req, 'response_governance', 'skipped', {
+        reason: 'already_applied',
       });
     }
 
