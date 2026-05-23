@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.8.0` minor release 的优先级是低侵入 agent/tool 增强与架构减压。发布检查需要同时保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 runtime pipeline、管理 API 权限矩阵、UI fragment contract、route handoff summary、tool capability guardrail、输入/输出 guardrail 和 trace spans。
+本次 `v1.9.0` minor release 的优先级是用户入口与远程客户端一致性收口。发布检查需要同时保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及远程客户端 thin proxy 文档、setup remote-client next steps、`ANTHROPIC_AUTH_TOKEN` 鉴权口径、受保护 `/ui` admin 入口指导和 README 新用户路径前置。
 
 ## 一次性准备
 
@@ -26,14 +26,14 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.8.0` 的发布边界以 `docs/release-notes-v1.8.0.md` 为准：主打低侵入 agent/tool 增强与架构减压，不宣称独立 agent 编排、完整工具平台、完整云端托管控制面或节点集群编排。
+   - 本次 `v1.9.0` 的发布边界以 `docs/release-notes-v1.9.0.md` 为准：主打用户入口与远程客户端一致性收口，不宣称完整云端托管控制面、节点集群编排或完整 UI auth 代理。
 2. 本地先执行发布包验证：
 
 ```bash
 npm run release:verify
 ```
 
-v1.8.0 期间建议在正式 `release:verify` 前额外跑一次 agent/tool 与架构 contract 专项：
+v1.9.0 期间建议在正式 `release:verify` 前额外跑一次用户入口与远程客户端一致性专项：
 
 ```bash
 npm test -- --run --coverage
@@ -80,7 +80,7 @@ npm run test:e2e:acceptance
 - 目标端口被非本服务占用时的安全提示与“无额外文件修改”边界
 - 残留 / 失效 PID 文件的安全清理
 - `release:stage` 生成的 `.release-stage\ctr-release-home.cmd` wrapper 是否真的指向隔离 `.release-home`
-- v1.8.0 agent/tool 与架构减压发布承诺的 runtime pipeline、管理 API route contract、UI fragment anchors、route handoff summary、tool capability guardrail、输入/输出 guardrail 和 trace spans
+- v1.9.0 用户入口与远程客户端一致性发布承诺的 remote-client setup next steps、README quick start、remote Claude Code auth guidance、protected `/ui` admin guidance 和文档资产检查
 
 只有这一步通过后，才继续正式发布，避免“发布后才发现包内容、CLI 启动或 setup 主流程有问题”。
 

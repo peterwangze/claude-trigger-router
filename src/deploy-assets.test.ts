@@ -53,33 +53,32 @@ describe('deployment assets', () => {
 
     const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
     expect(releasingGuide).toContain('Release');
-    expect(releasingGuide).toContain('docs/release-notes-v1.8.0.md');
-    expect(releasingGuide).toContain('v1.8.0 agent/tool');
+    expect(releasingGuide).toContain('docs/release-notes-v1.9.0.md');
+    expect(releasingGuide).toContain('v1.9.0 用户入口与远程客户端一致性');
   });
 
-  it('keeps v1.8.0 agent/tool architecture release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.8.0.md'), 'utf-8');
+  it('keeps v1.9.0 user entry release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.9.0.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('低侵入 agent/tool 增强与架构减压版');
-    expect(releaseNotes).toContain('src/runtime/pipeline.ts');
-    expect(releaseNotes).toContain('src/server/management-routes.ts');
-    expect(releaseNotes).toContain('src/ui/workbench-fragments.ts');
-    expect(releaseNotes).toContain('Tool capability guardrail');
-    expect(releaseNotes).toContain('governanceTrace.spans');
+    expect(releaseNotes).toContain('用户入口与远程客户端一致性收口版');
+    expect(releaseNotes).toContain('Runtime.remote_service.enabled');
+    expect(releaseNotes).toContain('ANTHROPIC_AUTH_TOKEN');
+    expect(releaseNotes).toContain('Authorization: Bearer <admin-key>');
+    expect(releaseNotes).toContain('5 分钟跑起来');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.8.0 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.8.0.md');
-    expect(readme).toContain('runtime pipeline');
-    expect(readme).toContain('trace spans');
+    expect(readme).toContain('## v1.9.0 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.9.0.md');
+    expect(readme).toContain('thin proxy');
+    expect(readme).toContain('ANTHROPIC_AUTH_TOKEN');
   });
 
   it('keeps README new-user quick start before release positioning', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
-    const releaseIndex = readme.indexOf('## v1.8.0 发布定位');
+    const releaseIndex = readme.indexOf('## v1.9.0 发布定位');
     const deployIndex = readme.indexOf('## 部署模式与边界');
 
     expect(quickStartIndex).toBeGreaterThan(0);

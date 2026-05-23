@@ -482,9 +482,10 @@
 - 修正动作：
   - 已在核心路由版本计划新增 `v1.9.0 用户入口与远程客户端一致性收口`
   - 已在统一进展基线新增同名 P1 主线，并把近期执行顺序调整为 v1.9.0 优先
-  - 后续按 v1.9.0 独立事项分别修正文档、setup 输出、鉴权口径、UI admin 入口和 README 信息架构
-- 当前状态：`open`
-- 闭环结论：该问题不回退 v1.5.0 入口稳定、v1.7.0 远程服务或 v1.8.0 架构减压的阶段闭环；它作为 v1.9.0 的 P1 版本主线承接，闭环前后续“按计划继续推进”默认先处理这一组用户入口一致性问题。
+  - 已按 v1.9.0 独立事项分别修正文档、setup 输出、鉴权口径、UI admin 入口和 README 信息架构
+  - 已新增 `docs/release-notes-v1.9.0.md`，并把 `package.json` / `package-lock.json` 更新到 `1.9.0`
+- 当前状态：`closed`
+- 闭环结论：该问题不回退 v1.5.0 入口稳定、v1.7.0 远程服务或 v1.8.0 架构减压的阶段闭环；它已通过 v1.9.0 阶段闭环承接：远程客户端 thin proxy 文档一致、setup remote-client next steps 指向 `ctr doctor/status -> ctr code`、Claude Code 远程鉴权推荐统一到 `ANTHROPIC_AUTH_TOKEN`、受保护 `/ui` admin 入口有可执行指导、README 新用户主路径已前置。后续若这些入口再次漂移，按 P1 重新前置。
 - 关联文档：
   - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
   - `docs/superpowers/plans/unified-progress-baseline.md`

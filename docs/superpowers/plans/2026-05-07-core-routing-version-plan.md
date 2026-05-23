@@ -180,11 +180,11 @@ v1.8.0 闭环验证：`npm run release:verify` 已通过，包含 build、常规
 5. `[closed 2026-05-23]` README 新用户路径前置：已把“5 分钟跑起来”提升到 README 前部，按 `ctr setup -> ctr status/doctor -> ctr code -> ctr ui` 组织；版本发布定位、部署和维护者说明保留但不阻断新用户主路径。
    - 闭环标准：README 首屏能直接给出本地日常使用路径；远程客户端、服务端部署和发布说明以清晰导航承接，避免新用户先进入低频维护者内容。
 
-v1.9.0 闭环验证：每个事项独立提交；至少执行 `git diff --check`、相关 setup/CLI/doc tests，以及受影响路径的 targeted tests。版本收口前执行 `npm run release:verify`，并新增 `docs/release-notes-v1.9.0.md` 固化发布边界。
+v1.9.0 闭环验证：五个事项已分别独立提交并逐项补 targeted 看护；`docs/release-notes-v1.9.0.md` 已固化发布边界，`package.json` / `package-lock.json` 已更新到 `1.9.0`。最终发布门禁以 `npm run release:verify` 为准。
 
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.8.0 已阶段闭环；后续默认先推进 v1.9.0 用户入口与远程客户端一致性收口，再回到更宽泛的配置产品化最终收口与 CLI/setup UX 重设计。除非出现安全风险、P0 主路径故障、入口回归、收益证据链回归、远程服务 / 模型池安全体验回归或 agent/tool trace contract 回归，不再回头扩展 v1.8.0 范围。
+2. v1.9.0 已阶段闭环；后续默认回到更宽泛的配置产品化最终收口与 CLI/setup UX 重设计。除非出现安全风险、P0 主路径故障、入口回归、收益证据链回归、远程服务 / 模型池安全体验回归、受保护 UI admin 入口回归或 agent/tool trace contract 回归，不再回头扩展 v1.9.0 范围。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。
