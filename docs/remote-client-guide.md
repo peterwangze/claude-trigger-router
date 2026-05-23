@@ -62,6 +62,8 @@ You can still point Claude Code directly at the remote server when you do not wa
 
 ```bash
 export ANTHROPIC_BASE_URL="https://router.example.com"
-export ANTHROPIC_API_KEY="$CTR_REMOTE_AUTH_TOKEN"
+export ANTHROPIC_AUTH_TOKEN="$CTR_REMOTE_AUTH_TOKEN"
 claude
 ```
+
+For raw HTTP clients, the server accepts the managed key through either `Authorization: Bearer <token>` or `x-api-key: <token>`. For Claude Code, keep using `ANTHROPIC_AUTH_TOKEN`; local `ctr code` also injects this variable and clears `ANTHROPIC_API_KEY` so stale provider keys do not bypass the local proxy.

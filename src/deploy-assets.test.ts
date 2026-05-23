@@ -76,6 +76,22 @@ describe('deployment assets', () => {
     expect(readme).toContain('trace spans');
   });
 
+  it('keeps remote Claude Code auth guidance on ANTHROPIC_AUTH_TOKEN', () => {
+    const remoteClientGuide = readFileSync(join(process.cwd(), 'docs', 'remote-client-guide.md'), 'utf-8');
+    const roleGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-roles.md'), 'utf-8');
+    const configurationGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-guide.md'), 'utf-8');
+    const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
+
+    for (const doc of [remoteClientGuide, roleGuide, configurationGuide, readme]) {
+      expect(doc).toContain('ANTHROPIC_AUTH_TOKEN');
+    }
+    expect(remoteClientGuide).toContain('Authorization: Bearer <token>');
+    expect(remoteClientGuide).toContain('x-api-key: <token>');
+    expect(remoteClientGuide).toContain('clears `ANTHROPIC_API_KEY`');
+    expect(roleGuide).not.toContain('ANTHROPIC_API_KEY');
+    expect(configurationGuide).not.toContain('ANTHROPIC_API_KEY');
+  });
+
   it('keeps release-stage server profile output out of the returned profile object', () => {
     const releaseScript = readFileSync(join(process.cwd(), 'scripts', 'release-package.ps1'), 'utf-8');
     expect(releaseScript).toContain('& $serverWrapperCmd deploy init --target server --force | Out-Host');

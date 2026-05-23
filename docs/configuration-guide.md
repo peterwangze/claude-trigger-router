@@ -269,7 +269,7 @@ Governance:
 - 本地使用时新建最小配置
 - 连接远程服务时写入 `Runtime.remote_service`，不要求先填写本地 provider/model
 - 部署为远程服务端时写入 `HOST: "0.0.0.0"`、bootstrap admin `APIKEY`、`Runtime.mode: "server"` 和可编辑的 `Models + Router.default` 起步模板，并且不会自动启动服务
-- 保存后按角色输出下一步：本地路径提示本地代理状态、`ctr code` 和路由模板；远程客户端路径提示 `ctr status`、远端 ready/status、本地代理转发和可选直连 `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_KEY`；服务端路径提示 `ctr doctor` 与 `ctr start --daemon`
+- 保存后按角色输出下一步：本地路径提示本地代理状态、`ctr code` 和路由模板；远程客户端路径提示 `ctr status`、远端 ready/status、本地代理转发和可选直连 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`；服务端路径提示 `ctr doctor` 与 `ctr start --daemon`
 - 在当前配置损坏时 repair / rebuild
 
 当前对用户主流程已经补了打包态 E2E，覆盖：

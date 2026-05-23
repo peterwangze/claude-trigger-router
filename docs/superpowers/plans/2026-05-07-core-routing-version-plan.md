@@ -173,7 +173,7 @@ v1.8.0 闭环验证：`npm run release:verify` 已通过，包含 build、常规
    - 闭环标准：文档中不再出现与当前 runtime 相反的“不会转发模型请求”口径；远程客户端指南能明确区分本地代理、直接远端调用、read-only registration 摘要和远端 managed key。
 2. `[closed 2026-05-23]` `ctr setup` remote-client next steps 收口：`printRemoteClientNextSteps` 已把下一步改为先用 `ctr doctor` / `ctr status` 验证远端，再通过本地 `ctr code` 进入 Claude Code；direct remote URL 和 token 只作为可选说明。
    - 闭环标准：setup 单测和 packaged CLI E2E 更新到新文案；fresh remote client setup 后不会让用户误以为本地 `ctr code` 无法走远端。
-3. `[planned]` Claude Code 远程鉴权环境变量口径统一：验证 `ANTHROPIC_AUTH_TOKEN` 与 `ANTHROPIC_API_KEY` 在本地代理和直接远端调用中的真实兼容边界，确定推荐变量，并在 README、configuration guide、remote client guide、doctor/setup 文案中统一。
+3. `[closed 2026-05-23]` Claude Code 远程鉴权环境变量口径统一：已验证并统一推荐 `ANTHROPIC_AUTH_TOKEN`：本地 `ctr code` 注入该变量并清理 `ANTHROPIC_API_KEY`，直接远端 Claude Code 也使用 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`；原始 HTTP 客户端仍可用 `Authorization: Bearer` 或 `x-api-key` 传 managed key。
    - 闭环标准：本地 `ctr code` 注入变量、远端 managed key、`Authorization: Bearer` / `x-api-key` 兼容说明一致；测试或文档检查能防止推荐变量再次漂移。
 4. `[planned]` `/ui` admin 鉴权入口可用性：最小闭环先补清晰可执行的 admin key 访问指导；若实现成本可控，继续评估 `ctr ui` 生成一次性本地访问 URL、loopback admin header 代理或其他不泄露长期 key 的入口。
    - 闭环标准：服务端开启鉴权后，维护者能按 README / server maintainer guide / UI auth guide 的步骤进入 `/ui`；若新增入口能力，必须补 auth/server/UI smoke。

@@ -159,7 +159,7 @@ ctr code
 
 `ctr code` 会带着本地代理环境启动 Claude Code。之后你在 Claude Code 里的请求会经过本地 Trigger Router。
 
-如果 setup 选择的是“连接远程服务”，它会生成远程服务连接配置；先用 `ctr doctor` / `ctr status` 检查远端 ready 状态，再运行 `ctr code`，Claude Code 会继续连接本地 `ctr`，由本地 `ctr` 把模型调用转发到远端 CTR。直接把 Claude Code 指向远端服务仍然可用，但属于可选路径。如果选择“部署为远程服务端”，setup 只生成配置，不会自动启动；请先编辑 `Models[].key` / `Models[].model`，再运行 `ctr doctor` 和 `ctr start --daemon`。
+如果 setup 选择的是“连接远程服务”，它会生成远程服务连接配置；先用 `ctr doctor` / `ctr status` 检查远端 ready 状态，再运行 `ctr code`，Claude Code 会继续连接本地 `ctr`，由本地 `ctr` 把模型调用转发到远端 CTR。直接把 Claude Code 指向远端服务仍然可用，但属于可选路径；这时使用 `ANTHROPIC_BASE_URL` 指向远端服务地址，并用 `ANTHROPIC_AUTH_TOKEN` 传服务维护者发放的 managed key。如果选择“部署为远程服务端”，setup 只生成配置，不会自动启动；请先编辑 `Models[].key` / `Models[].model`，再运行 `ctr doctor` 和 `ctr start --daemon`。
 
 ## 手动配置
 
