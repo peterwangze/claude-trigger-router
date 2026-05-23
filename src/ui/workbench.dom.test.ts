@@ -350,6 +350,8 @@ describe('workbench DOM smoke', () => {
     expect(renderSurfaceTabs()).toContain('userSurfaceTab');
     expect(renderSurfaceTabs()).toContain('maintainerSurfaceTab');
     expect(toInlineScriptJson({ text: '</script>' })).not.toContain('</script>');
+    expect(html).toContain('Authorization: Bearer &lt;admin-key&gt;');
+    expect(html).toContain('不要把 admin key 放进 URL');
 
     for (const fragment of WORKBENCH_FRAGMENT_CONTRACTS) {
       expect(dom.window.document.getElementById(fragment.rootId), `${fragment.name} root`).not.toBeNull();

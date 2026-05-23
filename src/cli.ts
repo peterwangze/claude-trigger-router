@@ -910,6 +910,7 @@ async function openUI() {
   if (!healthy) {
     console.log("⚠️  当前 UI 服务未就绪；如果页面无法打开，请先运行 ctr start 或 ctr start --daemon。");
   }
+  console.log("   如果服务启用了 APIKEY/managed key，/ui 需要 admin key。浏览器不会自动携带 Authorization header；请通过内网/本地隧道或反向代理注入 Authorization: Bearer <admin-key> 后访问，不要把 admin key 放进 URL。");
 
   if (process.env.CTR_UI_SKIP_OPEN === "1") {
     console.log("   Browser launch skipped by CTR_UI_SKIP_OPEN=1");

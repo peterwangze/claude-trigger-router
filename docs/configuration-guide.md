@@ -96,7 +96,7 @@ Router:
 ctr start --daemon
 ```
 
-如果配置了非本机 `HOST` 但没有配置 `APIKEY` 或 active managed key，运行时会强制回退到 `127.0.0.1`。远程客户端访问该服务时，`Runtime.remote_service.auth_token` 应填写服务端生成的 managed `client + read-only` key；bootstrap `APIKEY` 只建议服务所有者使用。日常维护可以发放 managed `operator` key，用于重启、治理快照、定时快照、异常阈值和归档删除，但不能读写配置或管理 auth。公网部署建议放在 HTTPS 反向代理后面。启用 `APIKEY` 或 managed key 后 `/ui` 也会受认证保护；远程浏览器访问 UI 时建议使用本地隧道、内网访问，或由反向代理处理认证。
+如果配置了非本机 `HOST` 但没有配置 `APIKEY` 或 active managed key，运行时会强制回退到 `127.0.0.1`。远程客户端访问该服务时，`Runtime.remote_service.auth_token` 应填写服务端生成的 managed `client + read-only` key；bootstrap `APIKEY` 只建议服务所有者使用。日常维护可以发放 managed `operator` key，用于重启、治理快照、定时快照、异常阈值和归档删除，但不能读写配置或管理 auth。公网部署建议放在 HTTPS 反向代理后面。启用 `APIKEY` 或 managed key 后 `/ui` 也会受认证保护；浏览器直接打开 `/ui` 不能自动携带 `Authorization` header，维护者应使用本地隧道、内网访问，或由反向代理在完成自身认证后注入 `Authorization: Bearer <admin-key>`，不要把 admin key 放进 URL。
 
 远程客户端配置是可选路径，不是默认路径。最小写法：
 

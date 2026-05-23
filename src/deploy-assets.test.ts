@@ -92,6 +92,22 @@ describe('deployment assets', () => {
     expect(configurationGuide).not.toContain('ANTHROPIC_API_KEY');
   });
 
+  it('documents protected UI admin access without URL secrets', () => {
+    const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
+    const maintainerGuide = readFileSync(join(process.cwd(), 'docs', 'server-maintainer-guide.md'), 'utf-8');
+    const configurationGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-guide.md'), 'utf-8');
+
+    for (const doc of [readme, maintainerGuide, configurationGuide]) {
+      expect(doc).toContain('/ui');
+      expect(doc).toContain('Authorization');
+      expect(doc).toContain('admin key');
+    }
+    expect(readme).toContain('不要把 admin key 放进 URL');
+    expect(configurationGuide).toContain('不要把 admin key 放进 URL');
+    expect(maintainerGuide).toContain('Do not put an admin key in the URL');
+    expect(maintainerGuide).toContain('curl -H "Authorization: Bearer $CTR_ADMIN_KEY"');
+  });
+
   it('keeps release-stage server profile output out of the returned profile object', () => {
     const releaseScript = readFileSync(join(process.cwd(), 'scripts', 'release-package.ps1'), 'utf-8');
     expect(releaseScript).toContain('& $serverWrapperCmd deploy init --target server --force | Out-Host');

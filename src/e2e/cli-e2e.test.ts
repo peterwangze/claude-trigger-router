@@ -1737,6 +1737,8 @@ describe('packaged CLI E2E', () => {
       expect(result.code).toBe(0);
       expect(result.stdout).toContain(`Opening UI at http://127.0.0.1:${port}/ui`);
       expect(result.stdout).toContain('当前 UI 服务未就绪');
+      expect(result.stdout).toContain('/ui 需要 admin key');
+      expect(result.stdout).toContain('Authorization: Bearer <admin-key>');
       expect(result.stdout).toContain('Browser launch skipped by CTR_UI_SKIP_OPEN=1');
       expect(result.stderr).toBe('');
 

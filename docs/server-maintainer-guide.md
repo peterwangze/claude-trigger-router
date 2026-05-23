@@ -96,4 +96,10 @@ ctr ui
 
 `ctr ui` opens the workbench. The maintainer area shows security status, auth scope guidance, quota usage, governance health and routing outcome summaries.
 
+When auth is enabled, `/ui` requires an admin key. A normal browser navigation cannot attach `Authorization: Bearer <admin-key>` by itself, so expose the UI through a private network, local tunnel or HTTPS reverse proxy that injects the admin header after its own authentication. Do not put an admin key in the URL. For a quick API smoke, use:
+
+```bash
+curl -H "Authorization: Bearer $CTR_ADMIN_KEY" http://127.0.0.1:5678/api/service-info
+```
+
 For model pools, use `GET /api/models/pool-health` for current health and `POST /api/models/pool-health/probe` for an operator-triggered lightweight reachability probe. The probe does not send a model request; it uses `HEAD` against enabled endpoints, records latency for reachable endpoints, and records failures into the existing cooldown/circuit breaker state.

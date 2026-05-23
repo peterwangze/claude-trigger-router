@@ -392,6 +392,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div><strong>client + read-only</strong><span class="muted">远程 token 同时需要 ready/status 探测与模型调用时使用该组合。</span></div>` +
     `</div>` +
     `<div class="muted" style="margin-top:.75rem">管理入口：用 admin key 调用 <code>GET /api/auth/keys</code> 查看列表，<code>POST /api/auth/keys</code> 生成 key，<code>POST /api/auth/keys/:id/rotate</code> 轮换 key，<code>POST /api/auth/keys/:id/revoke</code> 吊销 key；生成的 secret 只返回一次，请直接交给对应客户端保存。</div>` +
+    `<div class="muted" style="margin-top:.5rem">如果服务启用了鉴权，浏览器直接打开 <code>/ui</code> 不能自动携带 <code>Authorization</code> header；维护者应通过内网、本地隧道或反向代理注入 <code>Authorization: Bearer &lt;admin-key&gt;</code> 后访问，不要把 admin key 放进 URL。</div>` +
     `</div>` +
     `<div class="subpanel">` +
     `<div class="row"><strong>Auth quota</strong><span class="muted">按 managed key 查看模型调用配额、当前用量与窗口重置时间</span></div>` +

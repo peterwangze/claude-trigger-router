@@ -839,6 +839,9 @@ describe('runClaudeCode', () => {
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
     expect(output).toContain('Opening UI at http://127.0.0.1:5678/ui');
     expect(output).toContain('当前 UI 服务未就绪');
+    expect(output).toContain('/ui 需要 admin key');
+    expect(output).toContain('Authorization: Bearer <admin-key>');
+    expect(output).toContain('不要把 admin key 放进 URL');
 
     logSpy.mockRestore();
   });

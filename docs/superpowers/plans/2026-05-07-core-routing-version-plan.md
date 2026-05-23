@@ -175,7 +175,7 @@ v1.8.0 闭环验证：`npm run release:verify` 已通过，包含 build、常规
    - 闭环标准：setup 单测和 packaged CLI E2E 更新到新文案；fresh remote client setup 后不会让用户误以为本地 `ctr code` 无法走远端。
 3. `[closed 2026-05-23]` Claude Code 远程鉴权环境变量口径统一：已验证并统一推荐 `ANTHROPIC_AUTH_TOKEN`：本地 `ctr code` 注入该变量并清理 `ANTHROPIC_API_KEY`，直接远端 Claude Code 也使用 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`；原始 HTTP 客户端仍可用 `Authorization: Bearer` 或 `x-api-key` 传 managed key。
    - 闭环标准：本地 `ctr code` 注入变量、远端 managed key、`Authorization: Bearer` / `x-api-key` 兼容说明一致；测试或文档检查能防止推荐变量再次漂移。
-4. `[planned]` `/ui` admin 鉴权入口可用性：最小闭环先补清晰可执行的 admin key 访问指导；若实现成本可控，继续评估 `ctr ui` 生成一次性本地访问 URL、loopback admin header 代理或其他不泄露长期 key 的入口。
+4. `[closed 2026-05-23]` `/ui` admin 鉴权入口可用性：已完成最小闭环，`ctr ui` 输出、README、configuration guide、server maintainer guide 和 `/ui` Auth scope guide 均说明受保护 UI 需要 admin key，浏览器不会自动携带 Authorization header，应通过内网/本地隧道或反向代理注入 `Authorization: Bearer <admin-key>`，且不要把 admin key 放进 URL。
    - 闭环标准：服务端开启鉴权后，维护者能按 README / server maintainer guide / UI auth guide 的步骤进入 `/ui`；若新增入口能力，必须补 auth/server/UI smoke。
 5. `[planned]` README 新用户路径前置：把“5 分钟跑起来”提升到 README 前部，按 `ctr setup -> ctr status/doctor -> ctr code -> ctr ui` 组织；版本发布定位、部署和维护者说明保留但不阻断新用户主路径。
    - 闭环标准：README 首屏能直接给出本地日常使用路径；远程客户端、服务端部署和发布说明以清晰导航承接，避免新用户先进入低频维护者内容。
