@@ -137,6 +137,10 @@ export class ImageAgent implements IAgent {
         },
         required: ["imageId", "task"],
       },
+      capabilities: {
+        requiredModelCapabilities: ["tools"],
+        internalCall: true,
+      },
       handler: async (args, context) => {
         logDebug("analyzeImage args:", JSON.stringify(args, null, 2));
         const imageMessages = [];

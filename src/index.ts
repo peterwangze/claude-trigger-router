@@ -28,6 +28,7 @@ import { rewriteStream } from "./utils/rewriteStream";
 import JSON5 from "json5";
 import { IAgent } from "./agents/type";
 import agentsManager from "./agents";
+import { evaluateToolCapabilityGuardrail } from "./agents/guardrail";
 import { EventEmitter } from "node:events";
 import { triggerRouter as smartRouterRuntime } from "./trigger";
 import { createStream } from 'rotating-file-stream';
@@ -465,15 +466,35 @@ async function run(options: RunOptions = {}) {
 
       for (const agent of agentsManager.getAllAgents()) {
         if (agent.shouldHandle(req, config)) {
+          const compiledForTool = getCompiledModelRef(config, req.body?.model);
+          const allowedTools = Array.from(agent.tools.values()).filter((tool) => {
+            const decision = evaluateToolCapabilityGuardrail(agent, tool, compiledForTool);
+            req.toolCapabilityDecisions = Array.isArray(req.toolCapabilityDecisions)
+              ? req.toolCapabilityDecisions
+              : [];
+            req.toolCapabilityDecisions.push(decision);
+            if (req.governanceTrace) {
+              appendTraceReason(
+                req.governanceTrace,
+                `tool_guardrail_${decision.allowed ? 'allowed' : 'denied'}:${agent.name}:${tool.name}:${decision.reason}`
+              );
+            }
+            return decision.allowed;
+          });
+
+          if (agent.tools.size && !allowedTools.length) {
+            continue;
+          }
+
           useAgents.push(agent.name);
           agent.reqHandler(req, config);
 
-          if (agent.tools.size) {
+          if (allowedTools.length) {
             if (!req.body?.tools?.length) {
               req.body.tools = [];
             }
             req.body.tools.unshift(
-              ...Array.from(agent.tools.values()).map((item) => ({
+              ...allowedTools.map((item) => ({
                 name: item.name,
                 description: item.description,
                 input_schema: item.input_schema,

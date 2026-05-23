@@ -12,6 +12,7 @@ const mockTriggerIsEnabled = vi.fn().mockReturnValue(true);
 const mockTriggerRoute = vi.fn();
 const mockTriggerGetSmartRouterConfig = vi.fn();
 const mockSessionStateGet = vi.fn();
+const mockGetAllAgents = vi.fn().mockReturnValue([]);
 const mockApiKeyAuth = vi.fn().mockReturnValue((_req: unknown, _reply: unknown, done: (err?: Error) => void) => done());
 const mockFinalizeTrace = vi.fn((trace: unknown) => trace);
 const mockRecordGovernanceTrace = vi.fn();
@@ -81,7 +82,7 @@ vi.mock('./utils/rewriteStream', () => ({
 
 vi.mock('./agents', () => ({
   default: {
-    getAllAgents: vi.fn().mockReturnValue([]),
+    getAllAgents: mockGetAllAgents,
   },
 }));
 
@@ -102,6 +103,13 @@ vi.mock('./governance', () => ({
   sessionStateStore: {
     get: mockSessionStateGet,
   },
+  summarizeRouteHandoffTrace: vi.fn().mockReturnValue({
+    headline: 'handoff',
+    stages: [],
+    switched: false,
+    blocked: false,
+    action: 'none',
+  }),
 }));
 
 vi.mock('./models/compile', () => ({
@@ -422,6 +430,78 @@ describe('run startup wiring', () => {
     const payload = vi.mocked(reply.send).mock.calls[0][0];
     firstOnSendHook(req, reply, payload, done);
     expect(done).toHaveBeenCalledWith(null, payload);
+  });
+
+  it('denies agent tools when selected model capabilities do not satisfy tool requirements', async () => {
+    const reqHandler = vi.fn();
+    const tool = {
+      name: 'analyzeImage',
+      description: 'Analyze image',
+      input_schema: {},
+      capabilities: {
+        requiredModelCapabilities: ['tools'],
+      },
+      handler: vi.fn(),
+    };
+    mockGetAllAgents.mockReturnValueOnce([
+      {
+        name: 'image',
+        tools: new Map([[tool.name, tool]]),
+        shouldHandle: vi.fn().mockReturnValue(true),
+        reqHandler,
+      },
+    ]);
+    const { run } = await import('./index');
+    const { getCompiledModelRef } = await import('./models/compile');
+    const { appendTraceReason } = await import('./governance');
+
+    vi.mocked(getCompiledModelRef).mockReturnValue({
+      id: 'fast',
+      providerName: 'model__fast',
+      modelName: 'fast-model',
+      protocol: 'openai',
+      compatibilityProfile: 'openai-compatible-anthropic-dispatch',
+      dispatchFormat: 'anthropic_messages',
+      capabilities: {
+        tools: false,
+        images: true,
+        thinking: { supported: false },
+        systemMessageStyle: 'openai',
+      },
+      source: 'models',
+    });
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const smartRouterHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler').at(-1)?.[1];
+    const req: any = {
+      id: 'req-tool-guardrail',
+      url: '/v1/messages',
+      headers: {},
+      body: {
+        model: 'fast',
+        messages: [{ role: 'user', content: 'analyze image' }],
+      },
+    };
+
+    await smartRouterHook(req, {});
+
+    expect(reqHandler).not.toHaveBeenCalled();
+    expect(req.body.tools).toBeUndefined();
+    expect(req.toolCapabilityDecisions).toEqual([
+      expect.objectContaining({
+        agent: 'image',
+        tool: 'analyzeImage',
+        allowed: false,
+        reason: 'model_missing_tools',
+        modelId: 'fast',
+      }),
+    ]);
+    expect(appendTraceReason).toHaveBeenCalledWith(
+      expect.any(Object),
+      'tool_guardrail_denied:image:analyzeImage:model_missing_tools'
+    );
   });
 
   it('forwards local model calls to the configured remote service before local routing', async () => {

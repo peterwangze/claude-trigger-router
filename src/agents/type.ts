@@ -11,6 +11,10 @@ export interface ITool {
   name: string;
   description: string;
   input_schema: any;
+  capabilities?: {
+    requiredModelCapabilities?: Array<'tools' | 'images'>;
+    internalCall?: boolean;
+  };
   handler: (args: any, context: any) => Promise<string>;
 }
 
