@@ -467,3 +467,29 @@
   - `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md`
   - `docs/superpowers/plans/unified-progress-baseline.md`
   - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
+
+### PI-022：用户入口与远程客户端文档口径跟不上当前实现
+
+- 发现时间：2026-05-23
+- 严重级别：P1
+- 现象：用户视角复审发现，当前 runtime 已能在 `Runtime.remote_service.enabled` 时把本地 `/v1/messages` 与 `/v1/chat/completions` 转发到远端 CTR，但部分 README / configuration roles 文档仍保留旧的“远程服务配置不代表本地 ctr code 会转发请求”口径；`ctr setup` remote-client next steps 仍未把 `ctr doctor/status -> ctr code` 的本地代理主路径讲清；`ANTHROPIC_AUTH_TOKEN` 与 `ANTHROPIC_API_KEY` 的推荐口径分散；`/ui` admin 鉴权入口缺少可执行进入路径；README 新用户“5 分钟跑起来”位置偏后。
+- 影响范围：
+  - 新用户从 README 进入本地日常使用路径
+  - 远程客户端用户判断本地 `ctr code` 是否会走远端 CTR
+  - setup fresh remote-client 后的下一步操作
+  - Claude Code 本地代理与直接远端调用的鉴权变量理解
+  - 服务端开启鉴权后的 `/ui` 维护入口
+- 修正动作：
+  - 已在核心路由版本计划新增 `v1.9.0 用户入口与远程客户端一致性收口`
+  - 已在统一进展基线新增同名 P1 主线，并把近期执行顺序调整为 v1.9.0 优先
+  - 后续按 v1.9.0 独立事项分别修正文档、setup 输出、鉴权口径、UI admin 入口和 README 信息架构
+- 当前状态：`open`
+- 闭环结论：该问题不回退 v1.5.0 入口稳定、v1.7.0 远程服务或 v1.8.0 架构减压的阶段闭环；它作为 v1.9.0 的 P1 版本主线承接，闭环前后续“按计划继续推进”默认先处理这一组用户入口一致性问题。
+- 关联文档：
+  - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
+  - `docs/superpowers/plans/unified-progress-baseline.md`
+  - `README.md`
+  - `docs/remote-client-guide.md`
+  - `docs/configuration-roles.md`
+  - `docs/configuration-guide.md`
+  - `src/setup/index.ts`

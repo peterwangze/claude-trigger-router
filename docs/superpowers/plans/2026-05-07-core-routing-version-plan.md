@@ -64,6 +64,18 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 4. agent/tool 能力目前通过 `agents` 和 image agent 自回调进入 `/v1/messages`，可用但边界偏隐式；v1.8.0 的 tool capability guardrail 必须明确工具能力声明、允许/拒绝原因、内部调用鉴权和 trace 记录。
 5. 配置产品化和 setup/CLI 仍是目标一致性的关键基础。v1.8.0 新增 guardrail 配置时必须沿用现有 validation issue contract、doctor 提示、README/configuration guide 和 UI 草稿预览，不另开一套配置心智。
 
+### 2026-05-23 用户入口与文档一致性复审
+
+本轮从用户高频功能、入口易用性和用户文档一致性继续审查。结论是：v1.8.0 已把架构减压和 agent/tool 低侵入能力闭环，但远程客户端与新用户入口的叙事存在新的 P1 级漂移，必须作为 v1.9.0 独立版本收口，先于更宽泛的配置产品化和 CLI/setup UX 继续扩展。
+
+| 发现 | 影响 | 后续版本归档 |
+|---|---|---|
+| 远程客户端文档与实现不一致：运行时已能在 `Runtime.remote_service.enabled` 时把 `/v1/messages` 和 `/v1/chat/completions` 转发到远端 CTR，但 README 与 configuration roles 仍保留“不会转发请求”的旧口径。 | 用户会误判远程客户端只能看状态，无法知道本地 `ctr code` 已可作为远端 thin proxy 使用。 | v1.9.0 P1：统一 README、configuration roles、configuration guide 与 remote client guide 的远程代理心智。 |
+| `ctr setup` remote-client next steps 仍偏旧，只提示 status / direct remote use，没有把 `ctr doctor/status -> ctr code` 的本地代理主路径讲清。 | fresh setup 后用户不知道下一步应该在本机继续用 `ctr code`，也不知道 direct remote endpoint 只是可选路径。 | v1.9.0 P1：更新 setup 输出、CLI E2E 与 setup 单测。 |
+| 远程鉴权环境变量口径冲突：本地 `ctr code` 注入 `ANTHROPIC_AUTH_TOKEN`，部分文档仍指导 `ANTHROPIC_API_KEY`。 | 远程客户端、直接调用远端 CTR 和 Claude Code 本地代理三种路径容易混淆，导致鉴权失败或用户重复试错。 | v1.9.0 P1：验证兼容边界，明确推荐变量与兼容变量，并补文档/测试看护。 |
+| `/ui` 需要 admin scope，但 `ctr ui` 只能打开裸 URL，无法携带 Authorization header。 | 维护者知道有 UI，却没有顺滑方式进入受保护 UI，公网/服务端部署场景尤其容易卡住。 | v1.9.0 P1/P2：最小闭环先给出可执行 admin 访问指导，进一步评估一次性本地 token 或 loopback 授权入口。 |
+| README 的“5 分钟跑起来”位于版本和部署信息之后。 | 新用户首先看到发布和维护者信息，主路径 `setup -> status -> code` 不够靠前。 | v1.9.0 P1：调整 README 信息架构，把新用户路径前置，发布定位和维护者说明后移或链接化。 |
+
 ## 版本路线
 
 | 版本 | 用户目标 | 主要闭环事项 | 验收标准 |
@@ -75,6 +87,7 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 | v1.6.0 | 多模型组合收益运营化 | `ctr eval` 历史看板、人工校准表单、核心路由任务集默认样本、收益趋势、评测与真实 trace 对齐 | 维护者能用固定样本和真实 trace 判断路由配置是否真的提升质量/速度 |
 | v1.7.0 | 远程服务与模型池安全体验 | 服务端部署安全默认值、密钥轮换手册、主动 pool health、成本/速率元数据、更多调度策略 | 服务提供者能安全暴露服务，远程使用者能稳定接入，模型池能提升可用性而不放大风险 |
 | v1.8.0 | 低侵入 agent/tool 增强与架构减压 | runtime pipeline 边界、API route/service facade 收口、UI 片段拆分、handoff summary、tool capability guardrail、trace span 化、输入/输出 guardrail | 增强能力进入现有路由与治理体系，不扩张成平行 agent 平台；新增能力有清晰 hook 顺序、权限边界、trace span 和最小看护 |
+| v1.9.0 | 用户入口与远程客户端一致性收口 | 远程客户端代理文档、setup remote-client next steps、鉴权环境变量口径、`/ui` admin 入口、README 5 分钟路径前置 | 新用户、日常本地用户和远程客户端能从 README / setup / status / doctor / ui 获得一致且可执行的下一步；旧文档口径不再误导真实运行链路 |
 
 ## 待处理事项按用户优先级归档
 
@@ -150,9 +163,28 @@ v1.7.0 闭环验证：`npm run release:verify` 作为最终发布门禁；当前
 
 v1.8.0 闭环验证：`npm run release:verify` 已通过，包含 build、常规测试、packaged CLI entry smoke、完整 packaged CLI E2E、acceptance、pack dry-run、tarball 安装和 installed CLI smoke；`npm run release:stage` 已通过并已执行 `npm run release:clean` 清理 staging 产物；`package.json` / `package-lock.json` 已更新到 `1.8.0`。发布边界见 `docs/release-notes-v1.8.0.md`。
 
+### v1.9.0 用户入口与远程客户端一致性收口
+
+优先级：最高。
+
+用户目标：新用户、日常本地用户和远程客户端使用者能从 README、`ctr setup`、`ctr status`、`ctr doctor`、`ctr code` 和 `/ui` 获得一致且可执行的下一步，不再被远程转发、鉴权 token、UI admin 入口或发布定位信息打断。
+
+1. `[planned]` 远程客户端 proxy 心智统一：README、configuration roles、configuration guide 与 remote client guide 必须一致说明：当 `Runtime.mode: local` 且 `Runtime.remote_service.enabled` 时，本地 CTR 可作为远端 CTR 的 thin proxy 转发模型调用；direct remote endpoint 是可选高级路径，不是唯一用法。
+   - 闭环标准：文档中不再出现与当前 runtime 相反的“不会转发模型请求”口径；远程客户端指南能明确区分本地代理、直接远端调用、read-only registration 摘要和远端 managed key。
+2. `[planned]` `ctr setup` remote-client next steps 收口：`printRemoteClientNextSteps` 需要把下一步改为先用 `ctr doctor` / `ctr status` 验证远端，再通过本地 `ctr code` 进入 Claude Code；direct remote URL 和 token 只作为可选说明。
+   - 闭环标准：setup 单测和 packaged CLI E2E 更新到新文案；fresh remote client setup 后不会让用户误以为本地 `ctr code` 无法走远端。
+3. `[planned]` Claude Code 远程鉴权环境变量口径统一：验证 `ANTHROPIC_AUTH_TOKEN` 与 `ANTHROPIC_API_KEY` 在本地代理和直接远端调用中的真实兼容边界，确定推荐变量，并在 README、configuration guide、remote client guide、doctor/setup 文案中统一。
+   - 闭环标准：本地 `ctr code` 注入变量、远端 managed key、`Authorization: Bearer` / `x-api-key` 兼容说明一致；测试或文档检查能防止推荐变量再次漂移。
+4. `[planned]` `/ui` admin 鉴权入口可用性：最小闭环先补清晰可执行的 admin key 访问指导；若实现成本可控，继续评估 `ctr ui` 生成一次性本地访问 URL、loopback admin header 代理或其他不泄露长期 key 的入口。
+   - 闭环标准：服务端开启鉴权后，维护者能按 README / server maintainer guide / UI auth guide 的步骤进入 `/ui`；若新增入口能力，必须补 auth/server/UI smoke。
+5. `[planned]` README 新用户路径前置：把“5 分钟跑起来”提升到 README 前部，按 `ctr setup -> ctr status/doctor -> ctr code -> ctr ui` 组织；版本发布定位、部署和维护者说明保留但不阻断新用户主路径。
+   - 闭环标准：README 首屏能直接给出本地日常使用路径；远程客户端、服务端部署和发布说明以清晰导航承接，避免新用户先进入低频维护者内容。
+
+v1.9.0 闭环验证：每个事项独立提交；至少执行 `git diff --check`、相关 setup/CLI/doc tests，以及受影响路径的 targeted tests。版本收口前执行 `npm run release:verify`，并新增 `docs/release-notes-v1.9.0.md` 固化发布边界。
+
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.8.0 已阶段闭环；后续默认回到统一进展基线的下一优先级，先推进配置产品化最终收口与 CLI/setup UX 重设计，除非出现安全风险、P0 主路径故障、入口回归、收益证据链回归、远程服务 / 模型池安全体验回归或 agent/tool trace contract 回归，不再回头扩展 v1.8.0 范围。
+2. v1.8.0 已阶段闭环；后续默认先推进 v1.9.0 用户入口与远程客户端一致性收口，再回到更宽泛的配置产品化最终收口与 CLI/setup UX 重设计。除非出现安全风险、P0 主路径故障、入口回归、收益证据链回归、远程服务 / 模型池安全体验回归或 agent/tool trace contract 回归，不再回头扩展 v1.8.0 范围。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。
