@@ -9,19 +9,7 @@ import {
   renderWorkbenchDocumentStart,
   renderWorkbenchScriptStart,
 } from "./workbench-document";
-
-function toInlineScriptJson(value: unknown): string {
-  return JSON.stringify(value).replace(/</g, "\\u003c");
-}
-
-function escapeHtml(value: unknown): string {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+import { escapeHtml, renderSurfaceTabs, toInlineScriptJson } from "./workbench-fragments";
 
 export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds: any = {}): string {
   const initialConfig = rawInitialConfig ?? {};
@@ -183,10 +171,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `</div>` +
     `</div>` +
-    `<div class="surface-tabs" role="tablist" aria-label="工作台切换">` +
-    `<button id="userSurfaceTab" class="surface-tab active" type="button" role="tab" aria-selected="true" data-surface-target="user">使用者工作台</button>` +
-    `<button id="maintainerSurfaceTab" class="surface-tab" type="button" role="tab" aria-selected="false" data-surface-target="maintainer">维护者工作台</button>` +
-    `</div>` +
+    renderSurfaceTabs() +
     `<section id="userSurface" class="surface-panel" data-surface="user">` +
     `<div class="panel">` +
     `<div class="surface-heading"><strong>使用者工作台</strong><span class="muted">配置、模型、路由、服务状态与下一步保存动作。</span></div>` +

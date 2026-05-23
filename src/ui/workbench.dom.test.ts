@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { renderWorkbenchHtml } from './workbench';
 import { extractWorkbenchInlineScript } from './workbench-document';
+import { WORKBENCH_FRAGMENT_CONTRACTS, renderSurfaceTabs, toInlineScriptJson } from './workbench-fragments';
 
 const baseConfig = {
   HOST: '127.0.0.1',
@@ -340,6 +341,24 @@ describe('workbench DOM smoke', () => {
 
     expect(script.length).toBeGreaterThan(1000);
     expect(() => new Function(script)).not.toThrow();
+  });
+
+  it('keeps surface tabs and fragment anchors under a shared contract', () => {
+    const html = renderWorkbenchHtml(baseConfig);
+    const dom = new JSDOM(html);
+
+    expect(renderSurfaceTabs()).toContain('userSurfaceTab');
+    expect(renderSurfaceTabs()).toContain('maintainerSurfaceTab');
+    expect(toInlineScriptJson({ text: '</script>' })).not.toContain('</script>');
+
+    for (const fragment of WORKBENCH_FRAGMENT_CONTRACTS) {
+      expect(dom.window.document.getElementById(fragment.rootId), `${fragment.name} root`).not.toBeNull();
+      for (const anchor of fragment.requiredAnchors) {
+        expect(dom.window.document.getElementById(anchor), `${fragment.name}:${anchor}`).not.toBeNull();
+      }
+    }
+
+    dom.window.close();
   });
 
   it('loads current config and compiled models into the usable workspace', async () => {
