@@ -34,7 +34,7 @@ export const WORKBENCH_FRAGMENT_CONTRACTS: IWorkbenchFragmentContract[] = [
     surface: 'maintainer',
     name: 'governance-observability',
     rootId: 'maintainerSurface',
-    requiredAnchors: ['requestId', 'routeReason', 'metricsGrid', 'traceTable'],
+    requiredAnchors: ['requestId', 'routeReason', 'metricsGrid', 'routeHandoffSummaryList', 'traceTable'],
   },
   {
     surface: 'maintainer',

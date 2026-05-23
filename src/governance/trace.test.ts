@@ -9,6 +9,7 @@ import {
   GovernanceTraceStore,
   governanceTraceStore,
   recordGovernanceTrace,
+  summarizeRouteHandoffTrace,
   summarizeRouteDecisionTrace,
   summarizeSwitchContinuityTrace,
 } from './trace';
@@ -205,6 +206,57 @@ describe('governance trace', () => {
       finalModel: 'sonnet',
       headline: 'Sticky routing kept the request on sonnet.',
     }));
+  });
+
+  it('summarizes route handoff from runtime pipeline stages', () => {
+    const trace = createGovernanceTrace({
+      requestId: 'req-handoff',
+      initialModel: 'sonnet',
+      finalModel: 'opus',
+      routeReason: ['request_received', 'smart_router'],
+      routeDecision: {
+        source: 'smart_router',
+        model: 'opus',
+      },
+    });
+
+    expect(summarizeRouteHandoffTrace(trace, [
+      { stage: 'auth', status: 'completed' },
+      { stage: 'remote_forward', status: 'skipped' },
+      { stage: 'smart_router', status: 'completed' },
+      { stage: 'agent_tools', status: 'skipped' },
+      { stage: 'router', status: 'completed' },
+      { stage: 'context_guard', status: 'completed' },
+      { stage: 'protocol_dispatch', status: 'completed' },
+      { stage: 'response_governance', status: 'completed' },
+    ])).toEqual(expect.objectContaining({
+      initialModel: 'sonnet',
+      finalModel: 'opus',
+      switched: true,
+      blocked: false,
+      headline: expect.stringContaining('Route handoff completed for sonnet -> opus'),
+      stages: expect.arrayContaining([
+        { stage: 'smart_router', status: 'completed' },
+        { stage: 'protocol_dispatch', status: 'completed' },
+      ]),
+    }));
+  });
+
+  it('marks route handoff summaries as reviewable when a pipeline stage fails', () => {
+    const trace = createGovernanceTrace({
+      requestId: 'req-handoff-failed',
+      initialModel: 'sonnet',
+      finalModel: 'sonnet',
+      routeReason: ['request_received'],
+    });
+
+    const summary = summarizeRouteHandoffTrace(trace, [
+      { stage: 'auth', status: 'completed' },
+      { stage: 'context_guard', status: 'failed' },
+    ]);
+
+    expect(summary.blocked).toBe(true);
+    expect(summary.action).toContain('Review failed pipeline stages');
   });
 
   it('persists traces to disk and reloads them on restart', async () => {

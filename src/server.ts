@@ -1492,6 +1492,13 @@ export const createServer = (config: any): Server => {
       traces,
       routeDecisions: traces.map((trace) => summarizeRouteDecisionTrace(trace)),
       switchContinuity: traces.map((trace) => summarizeSwitchContinuityTrace(trace)),
+      routeHandoffs: traces
+        .map((trace) => trace.handoffSummary ? {
+          requestId: trace.requestId,
+          sessionKey: trace.sessionKey,
+          ...trace.handoffSummary,
+        } : undefined)
+        .filter(Boolean),
     };
   });
 
@@ -1693,6 +1700,7 @@ export const createServer = (config: any): Server => {
       ...trace,
       decisionSummary: summarizeRouteDecisionTrace(trace),
       switchSummary: summarizeSwitchContinuityTrace(trace),
+      handoffSummary: trace.handoffSummary,
     };
   });
 

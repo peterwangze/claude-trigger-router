@@ -539,6 +539,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="row"><strong>Recent switch continuity</strong><span class="muted">解释最近请求是否切换模型、是否补上下文，以及切换后是否触发 cascade。</span></div>` +
     `<ul id="switchContinuitySummaryList" class="mini-list"><li><span class="muted">Loading switch continuity</span><strong>-</strong></li></ul>` +
     `</div>` +
+    `<div class="subpanel">` +
+    `<div class="row"><strong>Route handoff</strong><span class="muted">跟踪请求从路由、agent/tool、协议分发到响应治理的交接链路。</span></div>` +
+    `<ul id="routeHandoffSummaryList" class="mini-list"><li><span class="muted">Loading route handoff</span><strong>-</strong></li></ul>` +
+    `</div>` +
     `<table id="traceTable">` +
     `<thead><tr><th>Request</th><th>Session</th><th>Final Model</th><th>Reasons</th><th>Latency</th><th>Inspect</th></tr></thead>` +
     `<tbody><tr><td colspan="6" class="muted">加载中...</td></tr></tbody>` +
@@ -680,6 +684,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const routingTuningList=document.getElementById('routingTuningList');` +
     `const routeDecisionSummaryList=document.getElementById('routeDecisionSummaryList');` +
     `const switchContinuitySummaryList=document.getElementById('switchContinuitySummaryList');` +
+    `const routeHandoffSummaryList=document.getElementById('routeHandoffSummaryList');` +
     `const qualityEvidenceSummary=document.getElementById('qualityEvidenceSummary');` +
     `const qualityEvidenceList=document.getElementById('qualityEvidenceList');` +
     `const taskComparisonSummary=document.getElementById('taskComparisonSummary');` +
@@ -1805,6 +1810,15 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    return '<li><span><span class="pill '+esc(cls)+'">'+esc(item.status || 'unknown')+'</span> <strong>'+esc(item.headline || item.requestId || '-')+'</strong><div class="muted">'+esc(meta)+'</div>'+action+'</span><button type="button" data-request="'+esc(item.requestId || '')+'">View</button></li>';` +
     `  }).join('');` +
     `}` +
+    `function renderRouteHandoffSummaries(items){` +
+    `  const handoffs=Array.isArray(items) ? items.slice(0,5) : [];` +
+    `  if(!handoffs.length){ routeHandoffSummaryList.innerHTML='<li><span class="muted">No recent route handoff</span><strong>0</strong></li>'; return; }` +
+    `  routeHandoffSummaryList.innerHTML=handoffs.map(item=>{` +
+    `    const stages=Array.isArray(item.stages) ? item.stages.map(stage=>stage.stage+':'+stage.status).join(' · ') : '';` +
+    `    const status=item.blocked ? 'watch' : 'ok';` +
+    `    return '<li><span><strong>'+esc(item.headline || item.requestId || '-')+'</strong><div class="muted">'+esc(stages || item.action || '-')+'</div></span><button type="button" data-request="'+esc(item.requestId || '')+'">'+esc(status)+'</button></li>';` +
+    `  }).join('');` +
+    `}` +
     `function renderAnomalies(anomalies,health){` +
     `  const status=health?.status || 'idle';` +
     `  const message=health?.message || 'No governance traces yet.';` +
@@ -1922,6 +1936,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const traces=data.traces || [];` +
     `  renderRouteDecisionSummaries(data.routeDecisions || traces.map(t=>t.decisionSummary).filter(Boolean));` +
     `  renderSwitchContinuitySummaries(data.switchContinuity || traces.map(t=>t.switchSummary).filter(Boolean));` +
+    `  renderRouteHandoffSummaries(data.routeHandoffs || traces.map(t=>t.handoffSummary ? { requestId:t.requestId, sessionKey:t.sessionKey, ...t.handoffSummary } : null).filter(Boolean));` +
     `  if(!traces.length){ tbody.innerHTML='<tr><td colspan="6" class="muted">暂无 trace</td></tr>'; return; }` +
     `  tbody.innerHTML=traces.map(t=>` +
     "    `<tr>`+" +
@@ -2012,6 +2027,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `document.getElementById('probeModelPoolBtn').addEventListener('click',probeModelPoolHealth);` +
     `routeDecisionSummaryList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn && btn.dataset.request){ loadDetail(btn.dataset.request); } });` +
     `switchContinuitySummaryList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn && btn.dataset.request){ loadDetail(btn.dataset.request); } });` +
+    `routeHandoffSummaryList.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn && btn.dataset.request){ loadDetail(btn.dataset.request); } });` +
     `tbody.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-request]'); if(btn){ loadDetail(btn.dataset.request); } });` +
     `renderDraftPresetGuide();` +
     `renderDraftPresetModeHint();` +

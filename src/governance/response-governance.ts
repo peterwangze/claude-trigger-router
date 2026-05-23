@@ -5,13 +5,14 @@
  */
 
 import { IAppConfig, IRequestContext } from '../trigger/types';
-import { appendTraceReason, finalizeTrace, recordGovernanceTrace } from './trace';
+import { appendTraceReason, finalizeTrace, recordGovernanceTrace, summarizeRouteHandoffTrace } from './trace';
 import { createTaskFingerprint, sessionStateStore } from './session-store';
 import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetry } from './cascade-gate';
 import { shadowSupervisor } from './shadow-supervisor';
 import { getModelPoolFallbackCandidate, resolveModelReference } from '../models/compile';
 import { extractApiKeyFromHeaders } from '../auth/api-keys';
 import { modelPoolHealthStore } from '../models/pool-health';
+import { getRuntimePipeline } from '../runtime/pipeline';
 
 export interface IResponseGovernanceDeps {
   decideCascadeEscalation?: typeof decideCascadeEscalation;
@@ -302,6 +303,10 @@ export async function applyResponseGovernance({
   }
 
   if (req.governanceTrace) {
+    req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
+      req.governanceTrace,
+      getRuntimePipeline(req)
+    );
     req.governanceTrace = finalizeTrace(req.governanceTrace, {
       finalModel: req.body?.model ?? req.governanceTrace.finalModel,
     });

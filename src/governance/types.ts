@@ -144,6 +144,18 @@ export interface IGovernanceTrace {
     model?: string;
     fallbackReason?: string;
   };
+  handoffSummary?: {
+    headline: string;
+    stages: Array<{
+      stage: string;
+      status: string;
+    }>;
+    initialModel?: string;
+    finalModel?: string;
+    switched: boolean;
+    blocked: boolean;
+    action: string;
+  };
   stickyHit: boolean;
   alignmentUsed: boolean;
   semanticIntent?: string;

@@ -7,9 +7,10 @@
 import { IAppConfig, IRequestContext } from '../trigger/types';
 import { sessionUsageCache } from '../router/cache';
 import { SSEParserTransform } from '../utils/SSEParser.transform';
-import { appendTraceReason, finalizeTrace, recordGovernanceTrace } from './trace';
+import { appendTraceReason, finalizeTrace, recordGovernanceTrace, summarizeRouteHandoffTrace } from './trace';
 import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetryStream } from './cascade-gate';
 import { resolveModelReference } from '../models/compile';
+import { getRuntimePipeline } from '../runtime/pipeline';
 
 interface ICollectedSSE {
   events: any[];
@@ -149,6 +150,10 @@ export function governStreamingResponse(
         }
 
         if (req.governanceTrace) {
+          req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
+            req.governanceTrace,
+            getRuntimePipeline(req)
+          );
           req.governanceTrace = finalizeTrace(req.governanceTrace, {
             finalModel: req.body?.model ?? req.governanceTrace.finalModel,
           });

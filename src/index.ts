@@ -31,12 +31,12 @@ import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
 import { triggerRouter as smartRouterRuntime } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, recordGovernanceTrace, sessionStateStore } from "./governance";
+import { appendTraceReason, applyResponseGovernance, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, recordGovernanceTrace, sessionStateStore, summarizeRouteHandoffTrace } from "./governance";
 import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
 import { modelPoolHealthStore } from "./models/pool-health";
 import { createModelPoolHealthPersistenceScheduler, loadPersistedModelPoolHealth } from "./models/pool-health-persistence";
 import { buildProviderDispatchRequest } from "./protocols";
-import { isRuntimeModelCallPath, recordRuntimePipelineStage } from "./runtime/pipeline";
+import { getRuntimePipeline, isRuntimeModelCallPath, recordRuntimePipelineStage } from "./runtime/pipeline";
 
 const event = new EventEmitter();
 
@@ -511,6 +511,10 @@ async function run(options: RunOptions = {}) {
         req.responseGovernanceApplied = true;
         req.localStructuredError = true;
         if (req.governanceTrace) {
+          req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
+            req.governanceTrace,
+            getRuntimePipeline(req)
+          );
           req.governanceTrace = finalizeTrace(req.governanceTrace, {
             finalModel: req.body?.model ?? req.governanceTrace.finalModel,
           });

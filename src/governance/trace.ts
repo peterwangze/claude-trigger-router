@@ -378,6 +378,10 @@ export function createGovernanceTrace(
     finalModel: input.finalModel,
     routeReason: input.routeReason ? [...input.routeReason] : [],
     routeDecision: input.routeDecision ? { ...input.routeDecision } : undefined,
+    handoffSummary: input.handoffSummary ? {
+      ...input.handoffSummary,
+      stages: input.handoffSummary.stages.map((stage) => ({ ...stage })),
+    } : undefined,
     stickyHit: input.stickyHit ?? false,
     alignmentUsed: input.alignmentUsed ?? false,
     semanticIntent: input.semanticIntent,
@@ -411,6 +415,51 @@ export function finalizeTrace(
     routeReason: overrides.routeReason ? [...overrides.routeReason] : [...trace.routeReason],
     completedAt,
     latencyMs: overrides.latencyMs ?? Math.max(0, completedAt - trace.startedAt),
+  };
+}
+
+export function summarizeRouteHandoffTrace(
+  trace: IGovernanceTrace,
+  pipelineEntries: Array<{ stage: string; status: string }> = []
+): NonNullable<IGovernanceTrace['handoffSummary']> {
+  const finalModel = trace.finalModel ?? trace.routeDecision?.model;
+  const switched = Boolean(trace.initialModel && finalModel && trace.initialModel !== finalModel);
+  const blocked = pipelineEntries.some((entry) => entry.status === 'failed')
+    || trace.routeReason.includes('context_window_exceeded')
+    || Boolean(trace.cascadeTriggered);
+  const stages = pipelineEntries.map((entry) => ({
+    stage: entry.stage,
+    status: entry.status,
+  }));
+  const completedStages = stages.filter((entry) => entry.status === 'completed').map((entry) => entry.stage);
+  const lastStage = stages.at(-1);
+  const stageText = completedStages.length
+    ? completedStages.join(' -> ')
+    : lastStage
+      ? `${lastStage.stage}:${lastStage.status}`
+      : 'trace-only';
+  const modelText = trace.initialModel && finalModel
+    ? switched
+      ? `${trace.initialModel} -> ${finalModel}`
+      : `${finalModel}`
+    : finalModel ?? trace.initialModel ?? 'unknown model';
+  const headline = blocked
+    ? `Route handoff needs review for ${modelText}; pipeline reached ${stageText}.`
+    : `Route handoff completed for ${modelText}; pipeline reached ${stageText}.`;
+  const action = blocked
+    ? 'Review failed pipeline stages, context guard, cascade, or fallback evidence before widening this route.'
+    : switched
+      ? 'Compare continuity and latency before making this switching path broader.'
+      : 'No handoff action needed unless this route should intentionally switch models.';
+
+  return {
+    headline,
+    stages,
+    initialModel: trace.initialModel,
+    finalModel,
+    switched,
+    blocked,
+    action,
   };
 }
 
