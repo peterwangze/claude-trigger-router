@@ -124,6 +124,9 @@ export class TriggerRouter {
         ruleName: result.rule?.name,
         confidence: result.confidence,
         model: result.model,
+        reasoning: result.reasoning,
+        routingMode: result.routingMode,
+        routingEvidence: result.routingEvidence,
         fallbackReason: result.matched
           ? undefined
           : 'SmartRouter did not match; request continued to the basic Router fallback path.',
@@ -137,6 +140,12 @@ export class TriggerRouter {
         appendTraceReason(req.governanceTrace, 'sticky_correction');
       } else if (result.routeSource === 'smart_router') {
         appendTraceReason(req.governanceTrace, 'smart_router');
+        if (result.routingMode) {
+          appendTraceReason(req.governanceTrace, `smart_router_mode:${result.routingMode}`);
+        }
+        if (result.routingEvidence?.length) {
+          appendTraceReason(req.governanceTrace, 'smart_router_adaptive_feedback');
+        }
       } else {
         appendTraceReason(req.governanceTrace, 'smart_router:no_match');
       }

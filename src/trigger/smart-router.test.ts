@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SmartRouterSelector } from './smart-router';
 import { ISmartRouterConfig } from './types';
+import { governanceTraceStore } from '../governance/trace';
 
 describe('SmartRouterSelector', () => {
   let selector: SmartRouterSelector;
@@ -20,6 +21,7 @@ describe('SmartRouterSelector', () => {
   beforeEach(() => {
     selector = new SmartRouterSelector();
     selector.clearCache();
+    governanceTraceStore.clear();
   });
 
   // ============ 禁用/无效配置 ============
@@ -110,6 +112,62 @@ describe('SmartRouterSelector', () => {
     expect(JSON.stringify(parsed)).toContain('Task summary');
     expect(JSON.stringify(parsed)).toContain('Pre-filtered route candidates');
     expect(JSON.stringify(parsed)).toContain('coding -> provider,model-a');
+  });
+
+  it('should include adaptive routing evidence from recent governance traces', async () => {
+    governanceTraceStore.hydrate([
+      {
+        requestId: 'trace-a',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        semanticIntent: 'coding',
+        finalModel: 'provider,model-a',
+        latencyMs: 120,
+        startedAt: Date.now(),
+      },
+      {
+        requestId: 'trace-b',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: true,
+        shadowChecked: false,
+        semanticIntent: 'coding',
+        finalModel: 'provider,model-b',
+        latencyMs: 900,
+        startedAt: Date.now(),
+      },
+    ]);
+    let promptBody = '';
+    const mockFetch = async (_url: string, init?: RequestInit) => {
+      promptBody = String(init?.body ?? '');
+      return {
+        ok: true,
+        json: async () => ({
+          content: [
+            {
+              text: JSON.stringify({
+                model: 'provider,model-a',
+                confidence: 0.91,
+                routingMode: 'speed',
+                reasoning: 'Recent routing evidence favors model-a',
+              }),
+            },
+          ],
+        }),
+      };
+    };
+
+    const result = await selector.selectModel('写一段代码', baseConfig, 5678, mockFetch as any);
+
+    const parsed = JSON.parse(promptBody);
+    expect(JSON.stringify(parsed)).toContain('Adaptive routing evidence');
+    expect(JSON.stringify(parsed)).toContain('provider,model-a');
+    expect(result?.routingEvidence?.join('\n')).toContain('preferred candidate provider,model-a');
+    expect(result?.routingMode).toBe('speed');
   });
 
   it('should pass AbortSignal timeout to internal smart router fetch when configured', async () => {

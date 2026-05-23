@@ -10,6 +10,12 @@ import { DEFAULT_CONFIG } from '../constants';
 import { logError, logWarn } from '../utils/log';
 import { createSingleUserTextIR } from '../protocols/message-ir';
 import { toAnthropicMessagesRequest } from '../protocols/anthropic';
+import {
+  buildRoutingAdvisorSummary,
+  formatRoutingAdvisorPromptSection,
+  IRoutingAdvisorSummary,
+  orderCandidatesByRoutingAdvisor,
+} from '../governance/routing-advisor';
 
 /**
  * SmartRouter 选择结果
@@ -23,6 +29,12 @@ export interface ISmartRouterResult {
 
   /** LLM 的选择理由 */
   reasoning?: string;
+
+  /** 自适应路由模式 */
+  routingMode?: string;
+
+  /** 用于本次选择的历史收益/能力画像证据 */
+  routingEvidence?: string[];
 }
 
 export interface ISmartRouterHintContext {
@@ -33,6 +45,7 @@ export interface ISmartRouterHintContext {
     description?: string;
     confidence?: number;
   }>;
+  routingAdvisor?: IRoutingAdvisorSummary;
 }
 
 /**
@@ -55,8 +68,13 @@ export class SmartRouterSelector {
    * 生成缓存 key（基于请求文本 + router_model + 候选模型列表）
    * 注意：包含 router_model 以防止切换路由模型后命中旧缓存
    */
-  private generateCacheKey(text: string, routerModel: string, candidates: ISmartRouterConfig['candidates']): string {
-    const content = `${text}:${routerModel}:${candidates.map(c => c.model).join(',')}`;
+  private generateCacheKey(
+    text: string,
+    routerModel: string,
+    candidates: ISmartRouterConfig['candidates'],
+    advisorSignature?: string
+  ): string {
+    const content = `${text}:${routerModel}:${candidates.map(c => c.model).join(',')}:${advisorSignature ?? 'static'}`;
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
       const char = content.charCodeAt(i);
@@ -69,16 +87,27 @@ export class SmartRouterSelector {
   /**
    * 构建候选模型列表字符串
    */
-  private buildCandidatesList(candidates: ISmartRouterConfig['candidates']): string {
-    return candidates
-      .map((c, i) => `${i + 1}. ${c.model} - ${c.description}`)
+  private buildCandidatesList(candidates: ISmartRouterConfig['candidates'], advisor?: IRoutingAdvisorSummary): string {
+    const profiles = new Map(advisor?.candidateProfiles.map((profile) => [profile.model, profile]));
+    return orderCandidatesByRoutingAdvisor(candidates, advisor)
+      .map((c, i) => {
+        const profile = profiles.get(c.model);
+        const evidence = profile?.profileSource === 'history' && profile.evidence.length
+          ? ` | recent profile: ${profile.evidence.join('; ')}`
+          : '';
+        return `${i + 1}. ${c.model} - ${c.description}${evidence}`;
+      })
       .join('\n');
   }
 
   /**
    * 构建完整 prompt
    */
-  private buildPrompt(text: string, candidates: ISmartRouterConfig['candidates'], hint?: ISmartRouterHintContext): string {
+  private buildPrompt(
+    text: string,
+    candidates: ISmartRouterConfig['candidates'],
+    hint?: ISmartRouterHintContext
+  ): string {
     const sections = [
       'You are a model routing assistant. Your job is to select the most appropriate AI model from the given candidates to handle the user\'s request.',
     ];
@@ -100,18 +129,27 @@ export class SmartRouterSelector {
       );
     }
 
+    if (hint?.routingAdvisor) {
+      sections.push(
+        'Adaptive routing evidence from recent governance traces:\n' +
+        formatRoutingAdvisorPromptSection(hint.routingAdvisor)
+      );
+    }
+
     sections.push(
       `User request:\n"""\n${text}\n"""`,
-      `Available models:\n${this.buildCandidatesList(candidates)}`,
+      `Available models:\n${this.buildCandidatesList(candidates, hint?.routingAdvisor)}`,
       `Select the most appropriate model and respond in the following JSON format ONLY:
 {
   "model": "<exact model identifier from the list>",
   "confidence": <0.0-1.0>,
+  "routingMode": "balanced|quality|speed",
   "reasoning": "<brief explanation>"
 }
 
 Important:
 - The "model" field MUST be one of the exact identifiers listed above
+- If adaptive evidence is present, use it to balance user intent, recent quality, recent latency, and reliability
 - Respond ONLY with the JSON, no additional text`
     );
 
@@ -150,7 +188,26 @@ Important:
     }
 
     // 检查缓存
-    const cacheKey = this.generateCacheKey(text, config.router_model, config.candidates);
+    const routingAdvisor = config.adaptive?.enabled === false
+      ? undefined
+      : hint?.routingAdvisor ?? buildRoutingAdvisorSummary({
+          candidates: config.candidates,
+          historyLimit: config.adaptive?.history_limit,
+        });
+
+    const effectiveHint = routingAdvisor
+      ? {
+          ...(hint ?? {}),
+          routingAdvisor,
+        }
+      : hint;
+
+    const cacheKey = this.generateCacheKey(
+      text,
+      config.router_model,
+      config.candidates,
+      routingAdvisor?.signature
+    );
     const cached = this.cache.get(cacheKey);
     if (cached) {
       return cached;
@@ -158,7 +215,7 @@ Important:
 
     try {
       const fetchImpl = fetchFn || fetch;
-      const prompt = this.buildPrompt(text, config.candidates, hint);
+      const prompt = this.buildPrompt(text, config.candidates, effectiveHint);
 
       const response = await fetchImpl(`http://127.0.0.1:${port}/v1/messages`, {
         method: 'POST',
@@ -202,9 +259,15 @@ Important:
       }
 
       // 缓存结果（使用配置的 TTL 进行按条目覆盖）
-      this.cache.set(cacheKey, parsed, { ttl: config.cache_ttl ?? 600000 });
+      const result: ISmartRouterResult = {
+        ...parsed,
+        routingMode: parsed.routingMode ?? routingAdvisor?.routeMode,
+        routingEvidence: routingAdvisor?.evidence.slice(0, 6),
+      };
 
-      return parsed;
+      this.cache.set(cacheKey, result, { ttl: config.cache_ttl ?? 600000 });
+
+      return result;
     } catch (error) {
       logError('[SmartRouter] Error selecting model:', error);
       return null;

@@ -143,6 +143,9 @@ export interface IGovernanceTrace {
     confidence?: number;
     model?: string;
     fallbackReason?: string;
+    reasoning?: string;
+    routingMode?: string;
+    routingEvidence?: string[];
   };
   handoffSummary?: {
     headline: string;

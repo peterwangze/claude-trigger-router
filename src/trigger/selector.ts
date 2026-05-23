@@ -383,6 +383,9 @@ export class ModelSelector {
             analysisTime: Date.now() - startTime,
             analyzedText: text,
             routeSource: 'smart_router',
+            routingMode: smartResult.routingMode,
+            reasoning: smartResult.reasoning,
+            routingEvidence: smartResult.routingEvidence,
           };
           return this.applyStickyCorrection(smartSelection, stickyCorrection, appConfig) ?? smartSelection;
         }

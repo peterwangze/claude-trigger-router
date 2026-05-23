@@ -108,6 +108,15 @@ export interface IAnalysisResult {
 
   /** 路由来源 */
   routeSource?: 'smart_rule' | 'semantic_match' | 'smart_router' | 'sticky_correction';
+
+  /** SmartRouter 自适应/协作模式，用于 trace 和 UI 解释 */
+  routingMode?: string;
+
+  /** SmartRouter 选择理由 */
+  reasoning?: string;
+
+  /** 用于本次路由的历史收益或能力画像证据 */
+  routingEvidence?: string[];
 }
 
 /**
@@ -416,6 +425,12 @@ export interface ISmartRouterConfig {
   router_hint?: {
     include_task_summary?: boolean;
     include_top_route_candidates?: boolean;
+  };
+
+  /** 自适应路由证据输入，基于 governance trace / benchmark history 做候选模型画像 */
+  adaptive?: {
+    enabled?: boolean;
+    history_limit?: number;
   };
 }
 

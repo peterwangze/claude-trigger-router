@@ -202,8 +202,8 @@ v1.9.0 闭环验证：五个事项已分别独立提交并逐项补 targeted 看
 
 用户目标：用户开启 SmartRouter 后，不只是“被路由到某个模型”，而是能在常见复杂任务中感知到多模型分工带来的质量、速度和稳定性收益；维护者能看到收益证据，并让这些证据反哺下一轮路由策略。
 
-1. `[planned]` outcome-driven routing feedback：把真实 trace 的 `taskComparison`、`qualityEvidence`、latency、cascade、shadow、人工校准和 benchmark history 汇总为可消费的 route outcome signal。
-   - 闭环标准：SmartRouter 选择时能读取近期 outcome signal；同一任务类型下，低失败率、低延迟或人工校准更高的模型会被提高优先级；信号不足时明确回退到现有规则/semantic/LLM 选择。
+1. `[closed 2026-05-23]` outcome-driven routing feedback：已新增 routing advisor，把真实 trace 的 `taskComparison`、`qualityEvidence`、latency、cascade 和 shadow 信号汇总为候选模型画像，并注入 SmartRouter prompt、候选排序和缓存 key。
+   - 闭环标准：SmartRouter 选择时能读取近期 outcome signal；同一任务类型下，低失败率、低延迟或人工校准更高的模型会被提高优先级；信号不足时明确回退到现有规则/semantic/LLM 选择。当前已通过 `src/governance/routing-advisor.test.ts`、`src/trigger/smart-router.test.ts` 和 `src/trigger/trigger-router.test.ts` 看护。
 2. `[planned]` 模型能力画像自动刷新：为每个候选模型生成结构化 profile，覆盖任务类型表现、平均延迟、失败模式、上下文能力、工具/图片能力、成本/速率和样本可信度。
    - 闭环标准：`/api/models/compiled` 或治理 API 能返回用于路由的 profile 摘要；profile 来源、样本量和更新时间可解释；人工 description 仍可作为冷启动输入但不再是唯一依据。
 3. `[planned]` confidence + latency budget 策略：在请求级别区分 fast path、deep path、long-context path、review/verify path，并基于置信度、上下文规模和 latency budget 决定是否升级、降级或保留默认模型。
