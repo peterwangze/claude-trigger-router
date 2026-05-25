@@ -53,33 +53,32 @@ describe('deployment assets', () => {
 
     const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
     expect(releasingGuide).toContain('Release');
-    expect(releasingGuide).toContain('docs/release-notes-v1.10.0.md');
-    expect(releasingGuide).toContain('v1.10.0 智能路由自适应与多模型协同');
+    expect(releasingGuide).toContain('docs/release-notes-v1.11.0.md');
+    expect(releasingGuide).toContain('v1.11.0');
+    expect(releasingGuide).toContain('基础路由流式稳定性');
   });
 
-  it('keeps v1.10.0 SmartRouter collaboration release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.10.0.md'), 'utf-8');
+  it('keeps v1.11.0 stream stability release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.11.0.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('智能路由自适应与多模型协同增强版');
-    expect(releaseNotes).toContain('outcome-driven routing feedback');
-    expect(releaseNotes).toContain('GET /api/governance/routing-advisor');
-    expect(releaseNotes).toContain('SmartRouter.routing_budget.latency_budget_ms');
-    expect(releaseNotes).toContain('SmartRouter.collaboration.mode');
-    expect(releaseNotes).toContain('routingEvidence');
+    expect(releaseNotes).toContain('基础路由流式稳定性与 socket 错误修复版');
+    expect(releaseNotes).toContain('默认 `stream_guard` 未开启时改为边转发原始 chunk');
+    expect(releaseNotes).toContain('The socket connection was closed unexpectedly');
+    expect(releaseNotes).toContain('SSE parser');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.10.0 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.10.0.md');
-    expect(readme).toContain('confidence threshold');
-    expect(readme).toContain('latency budget');
+    expect(readme).toContain('## v1.11.0 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.11.0.md');
+    expect(readme).toContain('基础路由流式稳定性');
+    expect(readme).toContain('socket-level hook error');
   });
 
   it('keeps README new-user quick start before release positioning', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
-    const releaseIndex = readme.indexOf('## v1.10.0 发布定位');
+    const releaseIndex = readme.indexOf('## v1.11.0 发布定位');
     const docsIndex = readme.indexOf('## 文档入口');
 
     expect(quickStartIndex).toBeGreaterThan(0);

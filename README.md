@@ -218,14 +218,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.10.0.md](docs/release-notes-v1.10.0.md)
+- 发布说明：[docs/release-notes-v1.11.0.md](docs/release-notes-v1.11.0.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.10.0 发布定位
+## v1.11.0 发布定位
 
-`v1.10.0` 是智能路由自适应与多模型协同增强版。它把真实 trace 里的质量、失败、延迟、cascade、shadow 和人工校准证据反哺 SmartRouter，让路由不只依赖静态描述，而是能基于候选模型画像、confidence threshold 和 latency budget 选择更合适的 fast/deep/verify/cascade 路径。
+`v1.11.0` 是基础路由流式稳定性与 socket 错误修复版。它修复 `v1.8.0` 之后流式 response governance 默认全量缓冲导致的基础路由输出中断，并让上游结构化 API error 稳定返回，不再被转换成 socket-level hook error。
 
-这个版本不声明完整自动化多 agent 编排、全量任务拆解执行器、跨请求在线学习系统或完整云端模型调度平台；`compare_then_arbiter` / `cascade_on_evidence` 先作为可配置协作 contract 和可观测策略入口收口。完整发布边界见 [docs/release-notes-v1.10.0.md](docs/release-notes-v1.10.0.md)。
+这个版本不新增 SmartRouter 协作模式、不改变远程客户端配置心智；`v1.10.0` 的 routing advisor、confidence threshold、latency budget 和 collaboration contract 继续保留。完整发布边界见 [docs/release-notes-v1.11.0.md](docs/release-notes-v1.11.0.md)。
 
 ## License
 

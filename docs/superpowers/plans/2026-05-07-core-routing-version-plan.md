@@ -215,9 +215,20 @@ v1.9.0 闭环验证：五个事项已分别独立提交并逐项补 targeted 看
 6. `[closed 2026-05-23]` 看护与版本闭环：已补 routing advisor、SmartRouter budget/collaboration、selector、trigger runtime、server API contract、UI DOM smoke、部署资产文档测试和 `docs/release-notes-v1.10.0.md`；`package.json` / `package-lock.json` 已更新到 `1.10.0`。
    - 闭环标准：`npm run release:verify` 作为最终发布门禁；每个事项独立提交，且每轮修改后检查是否满足“证据进入路由、路由进入 trace、trace 进入 UI/health、失败可回退”的闭环标准。当前六项已分别独立提交并逐项补 targeted 看护；最终发布门禁以 `npm run release:verify` 为准。
 
+### v1.11.0 基础路由流式稳定性与 socket 错误修复
+
+优先级：最高（P0/P1 可用性修复）。
+
+用户目标：恢复基础路由和 Claude Code 日常会话的可靠流式输出，避免普通 API error 被转换成 socket 断连，并补齐 `v1.8.0` 之后 runtime pipeline / stream governance / SSE parser 的回归看护。
+
+1. `[closed 2026-05-25]` 基础路由流式输出中断修复：复审 `v1.8.0` runtime pipeline 与 response governance 后确认，`governStreamingResponse` 对所有流式响应执行全量 `collectSSE`，即使未开启 `stream_guard` 也会等上游结束后才输出，导致长回复期间 Claude Code 客户端收不到增量 token。已改为默认边转发原始 chunk、边旁路收集文本/usage 用于 trace 和 output guardrail；只有显式开启 `Governance.cascade.stream_guard` 时才保留 buffer-and-retry。
+2. `[closed 2026-05-25]` socket-level API error 修复：复审 `onSend` 错误处理后确认，上游 `{ error: ... }` payload 会被 `done(error, null)` 当成 Fastify hook error，客户端可能看到 `The socket connection was closed unexpectedly`。已改为返回结构化错误 payload；model pool fallback 失败后也不再把普通 API error 升级为传输层异常。
+3. `[closed 2026-05-25]` SSE parser 跨 chunk 修复：复审流式工具和 stream guard 链路时发现 `SSEParserTransform` 的 current event 状态无法跨 chunk 保存，`event:` / `data:` / 空行被网络拆分时可能丢事件。已改为跨 chunk 保留事件状态，并支持 flush 无尾随空行的最终事件。
+4. `[closed 2026-05-25]` v1.11.0 看护归档：新增 `docs/release-notes-v1.11.0.md`，补 `stream-response-governance` 即时透传测试、`SSEParserTransform` 跨 chunk 测试和 upstream API error payload 不触发 hook error 的启动链路测试。
+
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.10.0 已阶段闭环；后续默认回到配置产品化最终收口与 CLI/setup UX 重设计，但要继续确保新增路由策略能被用户配置、理解和诊断。
+2. v1.11.0 作为 `v1.8.0` 之后 runtime/stream 回归修复版优先闭环；后续默认回到配置产品化最终收口与 CLI/setup UX 重设计，但要继续确保新增路由策略能被用户配置、理解和诊断。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。

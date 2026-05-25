@@ -6,6 +6,7 @@
 
 export class SSEParserTransform {
   private buffer: string = "";
+  private currentEvent: any = {};
 
   constructor() {
     const transformStream = new TransformStream({
@@ -20,7 +21,9 @@ export class SSEParserTransform {
       },
       flush: (controller) => {
         if (this.buffer.trim()) {
-          this.parseBuffer(controller);
+          this.parseBuffer(controller, true);
+        } else if (Object.keys(this.currentEvent).length > 0) {
+          this.parseBuffer(controller, true);
         }
       },
     });
@@ -33,26 +36,30 @@ export class SSEParserTransform {
   readable: ReadableStream<any>;
   writable: WritableStream<any>;
 
-  private parseBuffer(controller: TransformStreamDefaultController<any>) {
-    const lines = this.buffer.split("\n");
-    this.buffer = lines.pop() || "";
+  private parseBuffer(controller: TransformStreamDefaultController<any>, flush = false) {
+    const lines = this.buffer.split(/\r?\n/);
+    this.buffer = flush ? "" : (lines.pop() || "");
 
-    let currentEvent: any = {};
-
-    for (const line of lines) {
+    for (const rawLine of lines) {
+      const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
       if (line.startsWith("event:")) {
-        currentEvent.event = line.slice(6).trim();
+        this.currentEvent.event = line.slice(6).trim();
       } else if (line.startsWith("data:")) {
         const dataStr = line.slice(5).trim();
         try {
-          currentEvent.data = JSON.parse(dataStr);
+          this.currentEvent.data = JSON.parse(dataStr);
         } catch {
-          currentEvent.data = dataStr;
+          this.currentEvent.data = dataStr;
         }
-      } else if (line === "" && Object.keys(currentEvent).length > 0) {
-        controller.enqueue(currentEvent);
-        currentEvent = {};
+      } else if (line === "" && Object.keys(this.currentEvent).length > 0) {
+        controller.enqueue(this.currentEvent);
+        this.currentEvent = {};
       }
+    }
+
+    if (flush && Object.keys(this.currentEvent).length > 0) {
+      controller.enqueue(this.currentEvent);
+      this.currentEvent = {};
     }
   }
 }

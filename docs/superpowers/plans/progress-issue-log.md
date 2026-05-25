@@ -46,6 +46,7 @@
 | PI-011 | `ctr ui` 第一屏闭环证据与真实启动路径不一致 | 2026-04-26 | closed | P1-2 复审发现 `/ui` 首屏测试使用完整 `initialConfig`，但生产启动只传 providers/HOST/PORT/LOG_FILE，导致真实首屏可能显示 `Models=0` 与 `Router.default=-`；已改为把完整运行配置传入 `createServer.initialConfig`，并补齐生产形状 initialConfig 与 HTML escape 回归测试 | `src/index.ts` ; `src/server.ts` ; `src/server.test.ts` ; `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` |
 | PI-012 | validation issue contract 在纯 warning 字符串路径丢失 info 级别 | 2026-04-26 | closed | P1-3 复审发现 setup/doctor/server save 只拿到 warning 字符串时，会把 `supports_tools` / `supports_images` 这类非阻断 capability info 误归为 warning；已按 warning 文案恢复 info 级别，并补充 contract 与 server save 回归测试 | `src/utils/validation-contract.ts` ; `src/utils/validation-contract.test.ts` ; `src/server.test.ts` |
 | PI-013 | 并发 agent 场景下中转请求路径存在同步持久化与重复配置读取放大 | 2026-04-30 | closed | 多 agent 并行请求时，复审确认中转侧确实存在可放大的性能风险：治理 trace 每次请求结束同步写盘，鉴权每次请求重新读取配置；已将 trace 持久化改为异步串行队列并补 flush，看护 `add()` 不同步写盘，同时把鉴权配置刷新改为并发合并 + 1 秒短缓存 | `src/governance/trace.ts` ; `src/governance/trace.test.ts` ; `src/index.ts` ; `src/index-startup.test.ts` |
+| PI-023 | v1.8.0 输出治理默认缓冲破坏基础路由流式输出并放大 socket 错误 | 2026-05-25 | closed | 已通过 v1.11.0 阶段闭环：默认未开启 `Governance.cascade.stream_guard` 时恢复即时 chunk 转发，结构化 API error 不再被发送钩子提升为 hook error，SSE parser 补齐跨 chunk 状态与 flush 回归 | `src/governance/stream-response-governance.ts` ; `src/index.ts` ; `src/utils/SSEParser.transform.ts` ; `docs/release-notes-v1.11.0.md` |
 
 ## 问题详细记录
 
@@ -494,3 +495,29 @@
   - `docs/configuration-roles.md`
   - `docs/configuration-guide.md`
   - `src/setup/index.ts`
+
+### PI-023：v1.8.0 输出治理默认缓冲破坏基础路由流式输出并放大 socket 错误
+
+- 发现时间：2026-05-25
+- 严重级别：P0
+- 现象：用户反馈完成 v1.6.0 到 v1.10.0 演进后，基础路由每次对话都会出现输出中断，基本功能不可用；交互过程中还会出现 `The socket connection was closed unexpectedly`。复审 v1.5.0 后修改后确认，v1.8.0 引入的 stream response governance 在默认路径会先完整 `collectSSE()` 后再返回响应，破坏 Claude Code 依赖的即时 SSE chunk；同时 `onSend` 钩子会把 `{ error: ... }` payload 传给 `done(error)`，让结构化 API 错误退化成 socket/hook 级错误。
+- 影响范围：
+  - 基础路由 `/v1/messages` 流式输出首包和持续输出体感
+  - Claude Code 对话中的长回答、工具调用结果和普通文本输出
+  - 上游 API 返回结构化错误时的客户端错误表现
+  - SSE 跨 chunk 解析、trace 记录和输出治理观察链路
+- 修正动作：
+  - v1.11.0 将默认 stream response governance 改为边转发原始 chunk、边旁路观测 trace；只有显式开启 `Governance.cascade.stream_guard` 时才走完整缓冲治理
+  - `onSend` 遇到结构化 error payload 时保留响应体返回，不再转成 Fastify hook error
+  - `SSEParserTransform` 保留跨 chunk event 状态，并在 flush 时补发没有尾随空行的最后事件
+  - 新增基础流式即时转发、结构化 API error 返回、SSE 跨 chunk 和无尾随空行 flush 回归测试
+  - 新增 `docs/release-notes-v1.11.0.md`，并同步统一基线、版本计划、发布指南和 README 发布定位
+- 当前状态：`closed`
+- 闭环结论：该问题不回退 v1.8.0 架构减压和输出治理的原始阶段结论，但明确追加 v1.11.0 P0 修复版：默认请求链路的即时流式输出是基础功能底线，后续治理、agent/tool 或 trace 增强不得以默认完整缓冲为代价；结构化 API error 必须保留可读响应体，不应表现为 socket 断连。
+- 关联文档：
+  - `src/governance/stream-response-governance.ts`
+  - `src/index.ts`
+  - `src/utils/SSEParser.transform.ts`
+  - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
+  - `docs/superpowers/plans/unified-progress-baseline.md`
+  - `docs/release-notes-v1.11.0.md`

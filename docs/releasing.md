@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.10.0` minor release 的优先级是智能路由自适应与多模型协同增强。发布检查需要同时保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 outcome-driven routing feedback、模型能力画像、confidence/latency budget、多模型协作模式、SmartRouter trace metadata 和 `/ui` 协作证据入口。
+本次 `v1.11.0` minor release 的优先级是基础路由流式稳定性与 socket 错误修复。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 `/v1/messages` 流式即时透传、SSE 跨 chunk 解析、结构化 API error 返回和 v1.10.0 SmartRouter 协作能力不回退。
 
 ## 一次性准备
 
@@ -26,16 +26,17 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.10.0` 的发布边界以 `docs/release-notes-v1.10.0.md` 为准：主打 SmartRouter 自适应反馈和最小多模型协作 contract，不宣称完整自动化多 agent 编排、全量任务拆解执行器、跨请求在线学习系统或完整云端模型调度平台。
+   - 本次 `v1.11.0` 的发布边界以 `docs/release-notes-v1.11.0.md` 为准：主打基础路由流式稳定性、socket 错误修复和 SSE parser 可靠性，不新增 SmartRouter 协作模式或远程客户端配置心智。
 2. 本地先执行发布包验证：
 
 ```bash
 npm run release:verify
 ```
 
-v1.10.0 期间建议在正式 `release:verify` 前额外跑一次智能路由协作专项：
+v1.11.0 期间建议在正式 `release:verify` 前额外跑一次流式稳定专项：
 
 ```bash
+npm test -- --run src/governance/stream-response-governance.test.ts src/utils/SSEParser.transform.test.ts src/index-startup.test.ts
 npm test -- --run --coverage
 npm run test:ui
 npm run test:e2e:cli:entry
@@ -80,7 +81,7 @@ npm run test:e2e:acceptance
 - 目标端口被非本服务占用时的安全提示与“无额外文件修改”边界
 - 残留 / 失效 PID 文件的安全清理
 - `release:stage` 生成的 `.release-stage\ctr-release-home.cmd` wrapper 是否真的指向隔离 `.release-home`
-- v1.10.0 智能路由自适应与多模型协同发布承诺的 routing advisor、SmartRouter budget/collaboration guard、server routing-advisor API、trace metadata、`/ui` route decision evidence 和文档资产检查
+- v1.11.0 基础路由流式稳定性发布承诺的 stream governance 即时透传、SSE parser 跨 chunk、结构化 API error 返回，以及 v1.10.0 routing advisor / SmartRouter collaboration 不回退检查
 
 只有这一步通过后，才继续正式发布，避免“发布后才发现包内容、CLI 启动或 setup 主流程有问题”。
 

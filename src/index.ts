@@ -40,6 +40,40 @@ import { buildProviderDispatchRequest } from "./protocols";
 import { getRuntimePipeline, isRuntimeModelCallPath, recordRuntimePipelineStage } from "./runtime/pipeline";
 
 const event = new EventEmitter();
+const SHUTDOWN_SIGNAL_HANDLERS_KEY = Symbol.for("claude-trigger-router.shutdownSignalHandlers");
+const SHUTDOWN_SIGNALS = ["SIGINT", "SIGTERM"] as const;
+
+type ShutdownSignal = typeof SHUTDOWN_SIGNALS[number];
+type ShutdownSignalHandler = {
+  signal: ShutdownSignal;
+  handler: () => void;
+};
+
+function getShutdownSignalHandlers(): ShutdownSignalHandler[] {
+  const store = globalThis as typeof globalThis & {
+    [SHUTDOWN_SIGNAL_HANDLERS_KEY]?: ShutdownSignalHandler[];
+  };
+
+  if (!store[SHUTDOWN_SIGNAL_HANDLERS_KEY]) {
+    store[SHUTDOWN_SIGNAL_HANDLERS_KEY] = [];
+  }
+
+  return store[SHUTDOWN_SIGNAL_HANDLERS_KEY];
+}
+
+function registerShutdownSignalHandlers(shutdown: (signal: ShutdownSignal) => void) {
+  const handlers = getShutdownSignalHandlers();
+  for (const { signal, handler } of handlers) {
+    process.off(signal, handler);
+  }
+  handlers.length = 0;
+
+  for (const signal of SHUTDOWN_SIGNALS) {
+    const handler = () => shutdown(signal);
+    process.on(signal, handler);
+    handlers.push({ signal, handler });
+  }
+}
 
 function cloneRequestBody<T>(value: T): T {
   if (typeof structuredClone === "function") {
@@ -236,7 +270,7 @@ async function run(options: RunOptions = {}) {
   savePid(process.pid, port);
 
   // 处理退出信号
-  const shutdown = (signal: string) => {
+  const shutdown = (signal: ShutdownSignal) => {
     log(`Received ${signal}, cleaning up...`);
     cleanupPidFile();
     const forceExit = setTimeout(() => process.exit(0), 500);
@@ -250,9 +284,7 @@ async function run(options: RunOptions = {}) {
     });
   };
 
-  process.on("SIGINT", () => shutdown("SIGINT"));
-
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  registerShutdownSignalHandlers(shutdown);
 
   const servicePort = process.env.SERVICE_PORT
     ? parseInt(process.env.SERVICE_PORT)
@@ -803,7 +835,7 @@ async function run(options: RunOptions = {}) {
         }).then((governedPayload) => {
           req.responseGovernanceApplied = true;
           if (governedPayload && typeof governedPayload === "object" && governedPayload.error) {
-            return done(governedPayload.error, null);
+            return done(null, governedPayload);
           }
           if (req.sessionId && governedPayload?.usage) {
             sessionUsageCache.put(req.sessionId, governedPayload.usage);
@@ -812,7 +844,7 @@ async function run(options: RunOptions = {}) {
         }).catch((error) => done(error, null));
         return;
       }
-      return done(payload.error, null);
+      return done(null, payload);
     }
     done(null, payload);
   });

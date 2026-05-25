@@ -149,6 +149,55 @@ describe('governStreamingResponse', () => {
     expect(req.governanceTrace.routeReason).not.toContain('cascade_gate_stream');
   });
 
+  it('emits streamed chunks before the upstream stream closes when stream_guard is disabled', async () => {
+    let releaseSecondChunk: (() => void) | undefined;
+    const secondChunkReady = new Promise<void>((resolve) => {
+      releaseSecondChunk = resolve;
+    });
+    const encoder = new TextEncoder();
+    const req: any = {
+      body: {
+        model: 'provider,model-a',
+        metadata: {},
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-stream-live' }),
+    };
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"first"}}\n\n'));
+        await secondChunkReady;
+        controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"second"}}\n\n'));
+        controller.close();
+      },
+    });
+
+    const result = governStreamingResponse(
+      stream,
+      req,
+      {
+        Governance: {
+          enabled: true,
+          cascade: {
+            enabled: true,
+            stream_guard: false,
+          },
+        },
+      } as any,
+      5678
+    );
+
+    const reader = result.getReader();
+    const firstRead = await reader.read();
+
+    expect(firstRead.done).toBe(false);
+    expect(new TextDecoder().decode(firstRead.value)).toContain('first');
+
+    releaseSecondChunk?.();
+    const secondRead = await reader.read();
+    expect(new TextDecoder().decode(secondRead.value)).toContain('second');
+    expect((await reader.read()).done).toBe(true);
+  });
+
   it('retries with upgraded model when stream_guard detects failure evidence', async () => {
     governanceTraceStore.clear();
 

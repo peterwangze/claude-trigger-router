@@ -223,6 +223,19 @@ describe('run startup wiring', () => {
     expect(generated).not.toContain('logs/');
   });
 
+  it('replaces shutdown signal handlers when startup is initialized repeatedly', async () => {
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+    const sigintAfterFirstRun = process.listenerCount('SIGINT');
+    const sigtermAfterFirstRun = process.listenerCount('SIGTERM');
+
+    await run({ port: 6789 });
+
+    expect(process.listenerCount('SIGINT')).toBe(sigintAfterFirstRun);
+    expect(process.listenerCount('SIGTERM')).toBe(sigtermAfterFirstRun);
+  });
+
   it('coalesces concurrent auth config refreshes behind a short cache', async () => {
     const { run } = await import('./index');
 
@@ -654,5 +667,35 @@ describe('run startup wiring', () => {
     ]);
 
     vi.unstubAllGlobals();
+  });
+
+  it('returns upstream error payloads instead of turning them into socket-level hook errors', async () => {
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const firstOnSendHook = addHook.mock.calls.filter(([name]: [string]) => name === 'onSend')[0]?.[1];
+    const done = vi.fn();
+    const payload = {
+      error: {
+        type: 'api_error',
+        message: 'The upstream API returned an error.',
+      },
+    };
+
+    firstOnSendHook(
+      {
+        url: '/v1/messages',
+        body: {
+          model: 'sonnet',
+        },
+      },
+      {},
+      payload,
+      done
+    );
+
+    expect(done).toHaveBeenCalledWith(null, payload);
   });
 });

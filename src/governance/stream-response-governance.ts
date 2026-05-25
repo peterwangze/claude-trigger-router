@@ -20,6 +20,12 @@ interface ICollectedSSE {
   sawText: boolean;
 }
 
+interface IStreamObservation {
+  text: string;
+  usage?: any;
+  sawText: boolean;
+}
+
 export interface IStreamGovernanceDeps {
   executeCascadeRetryStream?: typeof executeCascadeRetryStream;
   detectFailureEvidence?: typeof detectFailureEvidence;
@@ -36,6 +42,123 @@ function serializeEvent(event: any): Uint8Array {
   }
   output += '\n';
   return new TextEncoder().encode(output);
+}
+
+function parseSSEBlock(block: string): any | null {
+  const event: any = {};
+  const dataLines: string[] = [];
+
+  for (const rawLine of block.split(/\r?\n/)) {
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+    if (line.startsWith('event:')) {
+      event.event = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trim());
+    }
+  }
+
+  if (dataLines.length > 0) {
+    const dataStr = dataLines.join('\n');
+    try {
+      event.data = JSON.parse(dataStr);
+    } catch {
+      event.data = dataStr;
+    }
+  }
+
+  return Object.keys(event).length > 0 ? event : null;
+}
+
+function collectEventObservation(event: any, observation: IStreamObservation) {
+  const deltaText = event?.data?.delta?.text;
+  if (typeof deltaText === 'string') {
+    observation.sawText = true;
+    observation.text += deltaText;
+  }
+
+  if (event?.event === 'message_delta' && event?.data?.usage) {
+    observation.usage = event.data.usage;
+  }
+}
+
+function observeSSEChunk(buffer: string, chunkText: string, observation: IStreamObservation): string {
+  let nextBuffer = buffer + chunkText;
+
+  while (true) {
+    const match = /\r?\n\r?\n/.exec(nextBuffer);
+    if (!match || match.index < 0) {
+      break;
+    }
+
+    const block = nextBuffer.slice(0, match.index);
+    nextBuffer = nextBuffer.slice(match.index + match[0].length);
+    const event = parseSSEBlock(block);
+    if (event) {
+      collectEventObservation(event, observation);
+    }
+  }
+
+  return nextBuffer;
+}
+
+function finalizeStreamingTrace(
+  req: IRequestContext & Record<string, any>,
+  observation: IStreamObservation
+) {
+  if (req.sessionId && observation.usage) {
+    sessionUsageCache.put(req.sessionId, observation.usage);
+  }
+
+  if (!req.governanceTrace) {
+    return;
+  }
+
+  const outputGuardrail = inspectOutputGuardrail(observation.text);
+  req.governanceTrace.outputGuardrail = outputGuardrail;
+  for (const finding of outputGuardrail.findings) {
+    appendTraceReason(req.governanceTrace, `output_guardrail:${finding.code}`);
+  }
+  req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
+    req.governanceTrace,
+    getRuntimePipeline(req)
+  );
+  req.governanceTrace.spans = buildTraceSpansFromPipeline(
+    req.governanceTrace,
+    getRuntimePipeline(req)
+  );
+  req.governanceTrace = finalizeTrace(req.governanceTrace, {
+    finalModel: req.body?.model ?? req.governanceTrace.finalModel,
+  });
+  recordGovernanceTrace(req.governanceTrace);
+}
+
+function passThroughStreamingResponse(
+  stream: ReadableStream<Uint8Array>,
+  req: IRequestContext & Record<string, any>
+): ReadableStream<Uint8Array> {
+  const decoder = new TextDecoder();
+  const observation: IStreamObservation = { text: '', sawText: false };
+  let buffer = '';
+
+  return stream.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      controller.enqueue(chunk);
+      buffer = observeSSEChunk(buffer, decoder.decode(chunk, { stream: true }), observation);
+    },
+    flush() {
+      const remaining = decoder.decode();
+      if (remaining) {
+        buffer = observeSSEChunk(buffer, remaining, observation);
+      }
+      if (buffer.trim()) {
+        const event = parseSSEBlock(buffer);
+        if (event) {
+          collectEventObservation(event, observation);
+        }
+      }
+      finalizeStreamingTrace(req, observation);
+    },
+  }));
 }
 
 async function collectSSE(stream: ReadableStream<Uint8Array>): Promise<ICollectedSSE> {
@@ -90,6 +213,16 @@ export function governStreamingResponse(
         })),
       }
     : undefined;
+  const shouldBufferForStreamGuard = Boolean(
+    config.Governance?.enabled &&
+    resolvedCascadeConfig?.enabled &&
+    resolvedCascadeConfig.stream_guard &&
+    req.governanceTrace
+  );
+
+  if (!shouldBufferForStreamGuard) {
+    return passThroughStreamingResponse(stream, req);
+  }
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
