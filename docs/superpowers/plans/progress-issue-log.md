@@ -48,6 +48,7 @@
 | PI-013 | 并发 agent 场景下中转请求路径存在同步持久化与重复配置读取放大 | 2026-04-30 | closed | 多 agent 并行请求时，复审确认中转侧确实存在可放大的性能风险：治理 trace 每次请求结束同步写盘，鉴权每次请求重新读取配置；已将 trace 持久化改为异步串行队列并补 flush，看护 `add()` 不同步写盘，同时把鉴权配置刷新改为并发合并 + 1 秒短缓存 | `src/governance/trace.ts` ; `src/governance/trace.test.ts` ; `src/index.ts` ; `src/index-startup.test.ts` |
 | PI-023 | v1.8.0 输出治理默认缓冲破坏基础路由流式输出并放大 socket 错误 | 2026-05-25 | closed | v1.11.0 已完成首轮止血：默认未开启 `Governance.cascade.stream_guard` 时恢复即时 chunk 转发，结构化 API error 不再被发送钩子提升为 hook error，SSE parser 补齐跨 chunk 状态与 flush 回归；2026-06-05 用户确认 v1.11.0 仍复现 socket 异常和中转卡顿，已新增 PI-024 / v1.12.0 承接第二层传输韧性修复 | `src/governance/stream-response-governance.ts` ; `src/index.ts` ; `src/utils/SSEParser.transform.ts` ; `docs/release-notes-v1.11.0.md` |
 | PI-024 | v1.11.0 仍复现 socket 断连和中转卡顿，缺少上游断流与远程取消防线 | 2026-06-05 | closed | 已通过 v1.12.0 阶段闭环：默认透传捕获上游 stream read error 并追加可读 SSE error event；远程中转将客户端 close 绑定到上游 fetch abort，远端 SSE 响应进入同一套流式治理包装；SSE parser 持续复用 TextDecoder 修复多字节跨 chunk 解码；发布边界由 v1.12.0 release notes 和 targeted tests 看护 | `src/governance/stream-response-governance.ts` ; `src/index.ts` ; `src/utils/SSEParser.transform.ts` ; `docs/release-notes-v1.12.0.md` |
+| PI-026 | `/ui` 功能可达但第一屏缺少角色化入口，用户难以判断从哪里开始 | 2026-06-05 | closed | 已通过 v1.16.0 用户视角复审阶段闭环：`/ui` 第一屏新增本地使用者、远程客户端、服务维护者和路由设计辅助入口，补任务路径和 UX 诊断面板，并用 fragment contract 与 DOM 跳转测试看护 | `src/ui/workbench.ts` ; `src/ui/workbench-fragments.ts` ; `src/ui/workbench.dom.test.ts` ; `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` |
 
 ## 问题详细记录
 
@@ -547,3 +548,28 @@
   - `src/trigger/selector.ts`
   - `src/trigger/smart-router.ts`
   - `config/trigger.smart-router.yaml`
+
+### PI-026：`/ui` 功能可达但第一屏缺少角色化入口，用户难以判断从哪里开始
+
+- 发现时间：2026-06-05
+- 严重级别：P1
+- 现象：用户反馈当前软件 UI “完全没有设计”，也没有考虑不同角色用户的易用性。v1.16.0 用户视角复审确认，`/ui` 虽然已经具备使用者/维护者 surface、配置草稿、compiled preview、trace、metrics、auth 和 pool health 等能力，但第一屏仍偏功能集合页：新用户、远程客户端、服务维护者很难第一眼判断自己应该从哪里开始，UI 也缺少辅助后续设计实现的入口检查工具。
+- 影响范围：
+  - 本地日常用户判断服务是否 ready、配置是否可用、下一步是否应该编辑配置或进入 Claude Code
+  - 远程客户端判断远端连接、token 和注册摘要是否正常
+  - 服务维护者判断鉴权、安全、模型池健康和治理观测入口
+  - 后续 UI 继续叠加配置产品化、trace span 和治理观测时的入口复杂度
+- 修正动作：
+  - `/ui` 第一屏新增本地使用者、远程客户端、服务维护者和路由设计辅助四类入口
+  - 新增任务路径和 UX 诊断面板，把角色入口、主路径、维护边界和响应式作为页面内设计辅助检查项
+  - 视觉系统收紧为更适合运营工具的低噪声布局，并限制宽表格在面板内横向滚动，避免整页横向溢出
+  - `WORKBENCH_FRAGMENT_CONTRACTS` 新增 role-aware entry contract
+  - `workbench.dom.test.ts` 新增角色卡跳转测试，确认第一屏入口能切到对应使用者/维护者工作台
+- 当前状态：`closed`
+- 闭环结论：该问题作为 v1.16.0 用户视角复审发现的入口易用性缺口已阶段闭环；v1.17.0 后续继续推进 UI 片段拆分、CSS/JS helper、trace span 视图和真实浏览器 smoke，不再重复承接“第一屏缺少角色入口”本身。
+- 关联文档：
+  - `src/ui/workbench.ts`
+  - `src/ui/workbench-fragments.ts`
+  - `src/ui/workbench.dom.test.ts`
+  - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
+  - `docs/superpowers/plans/unified-progress-baseline.md`

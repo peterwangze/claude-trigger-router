@@ -312,9 +312,10 @@ v1.15.0 闭环验证：四个事项已分别独立提交并逐项补 targeted �
 
 用户目标：在 v1.14/v1.15 收口后，从真实用户视角重新检查项目目标、入口路径、核心路由、远程接入、配置保存和发布门禁，确保新增能力没有再次压过日常体验。
 
-1. `[planned]` 项目目标与实现一致性复审：复查 README、配置指南、setup、doctor、UI 和 runtime 是否仍围绕 Claude Code 路由代理目标。
+1. `[closed 2026-06-05]` 项目目标与实现一致性复审：已复查 README、配置指南、setup、doctor、UI 和 runtime，当前实现仍围绕 Claude Code 本地/远程路由代理目标；Models/Router、SmartRouter、remote thin proxy、doctor route preview、UI 配置/观测入口和 release gate 仍服务于“把 Claude Code 请求送到合适模型并可解释/可看护”。
    - 闭环标准：发现的偏差必须落入后续版本或 issue log，不能停留在审查结论。
-   - 已发现并闭环：`/ui` 虽已有使用者/维护者 surface，但第一屏仍偏功能堆叠，缺少按本地使用者、远程客户端、服务维护者和路由设计辅助组织的入口。已通过 `882f379` 新增角色化第一屏、任务路径和 UX 诊断面板，并把角色入口纳入 fragment contract 与 DOM 跳转看护。
+   - 闭环结果：发现 `/ui` 虽已有使用者/维护者 surface，但第一屏仍偏功能堆叠，缺少按本地使用者、远程客户端、服务维护者和路由设计辅助组织的入口。已通过 `882f379` 新增角色化第一屏、任务路径和 UX 诊断面板，并把角色入口纳入 fragment contract 与 DOM 跳转看护；已新增 PI-026 记录该问题。
+   - 验证：`npm run test:ui` 已覆盖 role-aware entry anchors 和角色卡跳转。
 2. `[planned]` 高频入口体验复审：重点复查 fresh setup、legacy migration、remote client、server profile、route preview、结构化 API error 和发布验证。
    - 闭环标准：每条 P0/P1 风险都有现有看护证据或新增版本计划承接。
 3. `[planned]` 已闭环事项抽样校准：抽查 v1.9-v1.15 之间的 closed 事项是否与当前代码、文档和测试仍一致。
