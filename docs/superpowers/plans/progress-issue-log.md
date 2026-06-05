@@ -522,3 +522,27 @@
   - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
   - `docs/superpowers/plans/unified-progress-baseline.md`
   - `docs/release-notes-v1.11.0.md`
+
+### PI-025：核心路由看护缺少用户体感切片，基础路由和 SmartRouter 易用性风险仍会漏检
+
+- 发现时间：2026-06-05
+- 严重级别：P1
+- 现象：连续复审和用户反馈显示，当前测试与文档看护偏模块行为和发布入口，仍缺少从普通用户视角验证“请求会走哪个模型、为什么、是否会慢、错误是否可读、模板是否容易起步”的完整切片。v1.11.0/v1.12.0 已修复流式与中转的明确故障，但复审发现基础路由触发顺序、SmartRouter 起步模板、协作模式真实能力和首包/持续输出体验仍没有形成同一套用户可验证闭环。
+- 影响范围：
+  - 基础路由 `Router.default/think/longContext/background/webSearch` 的真实命中和用户理解
+  - SmartRouter 规则、语义、候选和 sticky correction 的可预期性
+  - `compare_then_arbiter` / `cascade_on_evidence` 等协作 contract 与真实执行能力的用户期待
+  - 发布前对首包延迟、上游中途断流、远程中转、结构化错误和错路由的回归拦截
+- 修正动作：
+  - 已在核心路由版本计划新增 `v1.13.0 核心路由用户体感与看护补强`
+  - 已在统一进展基线新增同名 P1 主线，并把近期执行顺序调整为 v1.13.0 优先
+  - v1.13.0 将按独立事项推进 route preview、基础路由触发解释、SmartRouter 起步模板、协作口径校准、用户体感 E2E 和发布质量检视
+- 当前状态：`in_progress`
+- 闭环结论：历史 v1.3/v1.4/v1.10 的阶段闭环不回退，但新增 v1.13.0 承接“能力已在但用户体感不可预演、不可诊断、不可稳定看护”的增量缺口；v1.13.0 闭环前，后续不应继续扩展低频能力抢占主路径用户体验修复。
+- 关联文档：
+  - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
+  - `docs/superpowers/plans/unified-progress-baseline.md`
+  - `src/router/index.ts`
+  - `src/trigger/selector.ts`
+  - `src/trigger/smart-router.ts`
+  - `config/trigger.smart-router.yaml`

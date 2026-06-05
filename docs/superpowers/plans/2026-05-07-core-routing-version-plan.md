@@ -102,6 +102,7 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 | v1.8.0 | 低侵入 agent/tool 增强与架构减压 | runtime pipeline 边界、API route/service facade 收口、UI 片段拆分、handoff summary、tool capability guardrail、trace span 化、输入/输出 guardrail | 增强能力进入现有路由与治理体系，不扩张成平行 agent 平台；新增能力有清晰 hook 顺序、权限边界、trace span 和最小看护 |
 | v1.9.0 | 用户入口与远程客户端一致性收口 | 远程客户端代理文档、setup remote-client next steps、鉴权环境变量口径、`/ui` admin 入口、README 5 分钟路径前置 | 新用户、日常本地用户和远程客户端能从 README / setup / status / doctor / ui 获得一致且可执行的下一步；旧文档口径不再误导真实运行链路 |
 | v1.10.0 | 智能路由自适应与多模型协同增强 | outcome-driven routing feedback、模型能力画像、confidence/latency budget、多模型协作模式、协作收益证据 | SmartRouter 不再只停留在“选一个模型”，而是能基于真实质量/速度证据选择 fast/deep/verify/compare 等协作路径，并向用户解释收益与代价 |
+| v1.13.0 | 核心路由用户体感与看护补强 | 路由预演、基础路由触发解释、SmartRouter 起步模板收口、协作口径校准、首包/错误/选模用户流看护 | 用户能在运行前预判请求会走哪个模型、为什么、是否可能变慢；发布门禁能拦截基础路由和 SmartRouter 的慢、卡、错路由、不可读错误回归 |
 
 ## 待处理事项按用户优先级归档
 
@@ -239,9 +240,28 @@ v1.9.0 闭环验证：五个事项已分别独立提交并逐项补 targeted 看
 3. `[closed 2026-06-05]` SSE 多字节跨 chunk 解码：`SSEParserTransform` 持续复用同一个 `TextDecoder` 并在 flush 时收尾，避免中文等多字节字符被拆包后 JSON 解析失败；新增 parser 回归测试。
 4. `[closed 2026-06-05]` v1.12.0 看护归档：新增 `docs/release-notes-v1.12.0.md`，同步 README、release guide、deploy assets test、统一基线和问题台账。
 
+### v1.13.0 核心路由用户体感与看护补强
+
+优先级：最高（P1 主路径体验；若再次复现默认请求不可用或 socket 硬断，按 P0 前置处理）。
+
+用户目标：普通用户不需要读源码也能判断一条请求会走哪个模型、为什么、是否会引入 SmartRouter 额外等待；维护者能在发布前用贴近真实使用的 E2E 看护拦截“慢、卡、错路由、错误不可读”的回归。
+
+1. `[planned]` 路由预演入口：新增 `ctr doctor --route-preview`，读取当前配置后用用户输入或内置样例预演基础路由与 SmartRouter 决策，输出最终模型、route source、命中规则/槽位、SmartRouter 额外耗时风险、fallback 和修正建议。
+   - 闭环标准：无需真实调用上游模型即可解释 `Router.default/think/longContext/background/webSearch` 与 SmartRouter 规则/语义/候选的预计路径；doctor 单测和 packaged CLI smoke 覆盖。
+2. `[planned]` 基础路由触发解释收口：把 `longContext` 优先级、`thinking/webSearch/background` 触发条件、显式模型绕过槽位和 context guard fallback 写入 README/configuration guide/setup next steps，并让 route preview 明确展示。
+   - 闭环标准：用户能知道为什么配置了 think/webSearch/background 但本次没有命中；文档、doctor 输出和测试用例口径一致。
+3. `[planned]` SmartRouter 起步模板收口：把 `config/trigger.smart-router.yaml` 从“一次复制高级组合”改成低心智成本起步模板，并新增高级模板承接 semantic/sticky/governance、本地 fast model 和多候选调优。
+   - 闭环标准：新用户复制默认 SmartRouter 模板只需要默认模型和复杂任务模型即可起步；高级能力仍有可复制入口；模板解析、引用和文档资产测试覆盖。
+4. `[planned]` SmartRouter 协作口径校准：README、configuration guide、release guide 和 SmartRouter prompt 对齐当前真实能力，明确默认是 `route_only` 单模型选择，`verify_only/compare_then_arbiter/cascade_on_evidence` 当前是策略 contract 或治理信号，不默认并发执行额外模型。
+   - 闭环标准：用户不会把 v1.10.0 contract 误解为默认多模型并发执行；trace/UI 仍展示 collaborationMode，但说明收益证据与代价。
+5. `[planned]` 用户体感 E2E 看护：新增贴近真实请求的 packaged/user-flow 测试切片，覆盖五槽位选模、SmartRouter 规则/候选、首包即时输出、上游中途断流可读 error、远程中转取消和结构化错误。
+   - 闭环标准：`npm run release:verify` 前能单独运行核心路由体感专项；每个 slice 断言用户可感知结果，而不只断言内部函数返回。
+6. `[planned]` v1.13.0 发布质量检视与归档：新增 release notes，更新版本号、README 发布定位、releasing 检查清单、统一基线和问题台账；发布前完成 targeted tests、核心路由体感专项和 `npm run release:verify`。
+   - 闭环标准：每个事项一个独立 commit；发布质量检视通过后才打 `v1.13.0` tag 并推送。
+
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.12.0 作为 `v1.11.0` 后用户复现的 runtime/stream 二次修复版优先闭环；后续默认回到配置产品化最终收口与 CLI/setup UX 重设计，但要继续确保新增路由策略能被用户配置、理解和诊断。
+2. v1.13.0 优先承接本轮用户体验复审发现的核心路由体感和看护缺口；完成后再回到配置产品化最终收口与 CLI/setup UX 重设计。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。
