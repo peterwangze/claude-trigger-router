@@ -390,6 +390,29 @@ describe('workbench DOM smoke', () => {
     dom.window.close();
   });
 
+  it('switches workspaces from the role-aware entry cards', async () => {
+    const { dom } = await createWorkbenchDom();
+    const document = dom.window.document;
+
+    document.querySelector<HTMLButtonElement>('#maintainerRoleCard [data-surface-jump="maintainer"]')?.click();
+
+    await waitFor(() => {
+      expect(document.getElementById('maintainerSurface')?.hidden).toBe(false);
+      expect(document.getElementById('userSurface')?.hidden).toBe(true);
+      expect(document.getElementById('maintainerSurfaceTab')?.getAttribute('aria-selected')).toBe('true');
+    });
+
+    document.querySelector<HTMLButtonElement>('#localUserRoleCard [data-surface-jump="user"]')?.click();
+
+    await waitFor(() => {
+      expect(document.getElementById('userSurface')?.hidden).toBe(false);
+      expect(document.getElementById('maintainerSurface')?.hidden).toBe(true);
+      expect(document.getElementById('userSurfaceTab')?.getAttribute('aria-selected')).toBe('true');
+    });
+
+    dom.window.close();
+  });
+
   it('submits human calibration from the workbench', async () => {
     const { dom, fetchCalls } = await createWorkbenchDom();
     const document = dom.window.document;

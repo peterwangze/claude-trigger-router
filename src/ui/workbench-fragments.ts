@@ -42,6 +42,12 @@ export const WORKBENCH_FRAGMENT_CONTRACTS: IWorkbenchFragmentContract[] = [
     rootId: 'maintainerSurface',
     requiredAnchors: ['benchmarkHistorySummary', 'benchmarkHistoryList', 'saveCalibrationBtn'],
   },
+  {
+    surface: 'user',
+    name: 'role-aware-entry',
+    rootId: 'uiDesignAssistantPanel',
+    requiredAnchors: ['localUserRoleCard', 'remoteClientRoleCard', 'maintainerRoleCard', 'routingDesignerRoleCard'],
+  },
 ];
 
 export function toInlineScriptJson(value: unknown): string {

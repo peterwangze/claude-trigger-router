@@ -325,6 +325,9 @@ v1.15.0 闭环验证：四个事项已分别独立提交并逐项补 targeted �
 
 用户目标：`/ui` 保持使用者配置入口与维护者观测入口分层清晰，继续降低大型 HTML/CSS/内联 JS 的维护压力，让配置产品化、trace span 和治理观测能稳妥进入 UI。
 
+0. `[closed 2026-06-05]` 角色化 UI 入口与设计辅助面板：`/ui` 第一屏新增本地使用者、远程客户端、服务维护者和路由设计辅助四类任务入口，并新增 UX 诊断检查面板；视觉系统收紧为更适合运营工具的低噪声布局，移动端改为单列入口与横向表格滚动。
+   - 闭环标准：第一屏能按角色给出可执行入口；角色卡点击能进入对应使用者/维护者工作台；UI DOM smoke 固定角色入口锚点和跳转行为；真实浏览器 smoke 检查桌面/移动布局。
+   - 闭环结果：`src/ui/workbench.ts` 已新增角色入口、任务路径和 UX 诊断面板；`src/ui/workbench-fragments.ts` 已把 role-aware entry 纳入 fragment contract；`src/ui/workbench.dom.test.ts` 已覆盖角色卡跳转。
 1. `[planned]` 使用者/维护者渲染片段继续拆分：在现有 fragment contract 上拆出更稳定的 UI 片段、CSS/JS helper 和数据注入边界。
    - 闭环标准：新增 UI 能力有 fragment anchor、DOM smoke 和脚本语法看护。
 2. `[planned]` trace span 与路由证据视图收敛：把 runtime pipeline、route preview、routing evidence、handoff summary 等信息用清晰维护者视图承接。

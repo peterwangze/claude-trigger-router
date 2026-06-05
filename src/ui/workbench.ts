@@ -79,79 +79,112 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const escapedCascadeWarnRate = escapeHtml(configuredThresholds.cascade_warn_rate ?? 0.4);
   const escapedShadowWarnRate = escapeHtml(configuredThresholds.shadow_warn_rate ?? 0.5);
   const escapedLatencyWarnMs = escapeHtml(configuredThresholds.latency_warn_ms ?? 1500);
+  const userReadinessTone = modelsCount > 0 && routerDefault !== '-' && securitySummary !== 'critical'
+    ? 'ready'
+    : securitySummary === 'critical'
+      ? 'critical'
+      : 'watch';
+  const routeSetupTone = modelsCount > 0 && routerDefault !== '-' ? 'ready' : 'watch';
+  const maintainerTone = securitySummary === 'critical' ? 'critical' : (runtimeMode === 'local' ? 'ready' : 'watch');
+  const remoteTone = runtimeMode === 'local' && !remoteService.enabled ? 'muted' : (remoteService.enabled ? 'watch' : 'ready');
+  const escapedUserReadinessTone = escapeHtml(userReadinessTone);
+  const escapedRouteSetupTone = escapeHtml(routeSetupTone);
+  const escapedMaintainerTone = escapeHtml(maintainerTone);
+  const escapedRemoteTone = escapeHtml(remoteTone);
 
   return (
     renderWorkbenchDocumentStart() +
-    `body{font-family:ui-sans-serif,system-ui,sans-serif;padding:2rem;max-width:1100px;margin:0 auto;background:#f7f7f5;color:#1f2328}` +
-    `.panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem}` +
-    `.muted{color:#6b7280}` +
-    `.hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);gap:1rem;align-items:stretch;margin-bottom:1rem}` +
-    `.hero h2{margin:.2rem 0 .5rem;font-size:1.55rem}` +
-    `.hero-copy{display:flex;flex-direction:column;justify-content:center}` +
-    `.status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}` +
-    `.status-tile{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:.75rem;min-width:0}` +
-    `.status-tile strong{display:block;margin-top:.2rem;word-break:break-word}` +
-    `@media (max-width:760px){.hero{grid-template-columns:1fr}.status-grid{grid-template-columns:1fr}}` +
+    `:root{color-scheme:light;--bg:#f4f6f8;--panel:#ffffff;--panel-soft:#f9fafb;--line:#d9dee7;--line-soft:#e7ebf0;--text:#172033;--muted:#647084;--brand:#0f766e;--brand-strong:#115e59;--accent:#2563eb;--warn:#b45309;--critical:#b91c1c;--ok:#047857;--shadow:0 12px 32px rgba(15,23,42,.08)}` +
+    `*{box-sizing:border-box}` +
+    `body{font-family:ui-sans-serif,system-ui,sans-serif;padding:1.5rem;max-width:1280px;margin:0 auto;background:var(--bg);color:var(--text);line-height:1.45}` +
+    `.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem;box-shadow:0 1px 0 rgba(15,23,42,.03);max-width:100%;overflow-x:auto}` +
+    `.muted{color:var(--muted)}` +
+    `.app-shell{display:grid;gap:1rem}` +
+    `.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.62fr);gap:1rem;align-items:stretch;margin-bottom:1rem}` +
+    `.hero h1{margin:0;font-size:1.7rem;line-height:1.2;letter-spacing:0}` +
+    `.hero-copy{display:flex;flex-direction:column;justify-content:space-between;gap:1rem}` +
+    `.eyebrow{font-size:.78rem;font-weight:700;text-transform:uppercase;color:var(--brand);letter-spacing:.08em}` +
+    `.hero-summary{max-width:62rem;margin:.5rem 0 0;color:var(--muted)}` +
+    `.hero-actions{display:flex;gap:.65rem;flex-wrap:wrap;align-items:center}` +
+    `.status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}` +
+    `.status-tile{background:var(--panel-soft);border:1px solid var(--line-soft);border-radius:8px;padding:.75rem;min-width:0}` +
+    `.status-tile strong{display:block;margin-top:.2rem;word-break:break-word;color:var(--text)}` +
+    `.role-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}` +
+    `.role-card{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:8px;padding:1rem;min-width:0;display:flex;flex-direction:column;gap:.75rem;box-shadow:0 1px 0 rgba(15,23,42,.03)}` +
+    `.role-card[data-tone="watch"]{border-left-color:var(--warn)}.role-card[data-tone="critical"]{border-left-color:var(--critical)}.role-card[data-tone="ready"]{border-left-color:var(--ok)}.role-card[data-tone="muted"]{border-left-color:#94a3b8}` +
+    `.role-card h2{font-size:1rem;margin:0}.role-card p{margin:0;color:var(--muted);font-size:.92rem}` +
+    `.role-meta{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:auto}` +
+    `.task-map{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:1rem;margin-bottom:1rem}` +
+    `.ux-checklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}` +
+    `.ux-check{background:var(--panel-soft);border:1px solid var(--line-soft);border-radius:8px;padding:.75rem;min-width:0}` +
+    `.ux-check strong{display:block;margin-bottom:.25rem}.ux-check[data-state="ready"] strong{color:var(--ok)}.ux-check[data-state="watch"] strong{color:var(--warn)}.ux-check[data-state="critical"] strong{color:var(--critical)}` +
+    `@media (max-width:980px){.hero,.task-map{grid-template-columns:1fr}.role-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}` +
+    `@media (max-width:760px){body{padding:.75rem}.role-grid,.ux-checklist,.status-grid{grid-template-columns:1fr}.hero-actions,.action-row,.row{align-items:stretch}.hero-actions button,.action-row button,.surface-tab{width:100%}.management-table,.trend-table,table{display:block;overflow-x:auto;white-space:nowrap}.panel{padding:.9rem}}` +
     `.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
-    `.stat{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:.85rem}` +
+    `.stat{background:var(--panel-soft);border:1px solid var(--line-soft);border-radius:8px;padding:.85rem}` +
     `.stat strong{display:block;font-size:1.1rem;margin-top:.25rem}` +
-    `.subpanel{margin-top:1rem;padding-top:1rem;border-top:1px solid #e5e7eb}` +
+    `.subpanel{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line-soft)}` +
     `.bucket-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-top:.75rem}` +
     `.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:1rem}` +
     `.mini-list{list-style:none;padding:0;margin:.75rem 0 0}` +
-    `.mini-list li{display:flex;justify-content:space-between;gap:.75rem 1rem;flex-wrap:wrap;align-items:flex-start;padding:.45rem 0;border-bottom:1px dashed #e5e7eb}` +
+    `.mini-list li{display:flex;justify-content:space-between;gap:.75rem 1rem;flex-wrap:wrap;align-items:flex-start;padding:.45rem 0;border-bottom:1px dashed var(--line-soft)}` +
     `.mini-list li:last-child{border-bottom:none}` +
     `.action-row{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-top:.75rem}` +
     `.management-table{width:100%;margin-top:.75rem}` +
-    `.management-table th,.management-table td{padding:.5rem;border-bottom:1px solid #e5e7eb;font-size:.92rem;vertical-align:top}` +
+    `.management-table th,.management-table td{padding:.5rem;border-bottom:1px solid var(--line-soft);font-size:.92rem;vertical-align:top}` +
     `.scope-guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.75rem;margin-top:.75rem}` +
-    `.scope-guide div{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:.75rem}` +
+    `.scope-guide div{background:var(--panel-soft);border:1px solid var(--line-soft);border-radius:8px;padding:.75rem}` +
     `.scope-guide strong{display:block;margin-bottom:.35rem}` +
     `.alert-list{display:grid;gap:.75rem;margin-top:1rem}` +
-    `.alert{border-radius:12px;padding:.85rem 1rem;border:1px solid}` +
+    `.alert{border-radius:8px;padding:.85rem 1rem;border:1px solid}` +
     `.alert.warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}` +
     `.alert.critical{background:#fef2f2;border-color:#fca5a5;color:#991b1b}` +
     `.alert.info{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}` +
     `.diff-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.75rem;margin-top:.75rem}` +
-    `.diff-chip{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:.75rem}` +
+    `.diff-chip{background:var(--panel-soft);border:1px solid var(--line-soft);border-radius:8px;padding:.75rem}` +
     `.diff-chip strong{display:block;font-size:1rem;margin-top:.2rem}` +
     `.models-form-grid{display:grid;gap:.75rem;margin-top:.75rem}` +
-    `.model-card{border:1px solid #e5e7eb;border-radius:12px;padding:1rem;background:#fcfcfd}` +
+    `.model-card{border:1px solid var(--line-soft);border-radius:8px;padding:1rem;background:#fcfcfd}` +
     `.model-card-header{display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:.75rem}` +
     `.model-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem}` +
     `.model-card-grid textarea{min-height:84px;resize:vertical}` +
     `.list-editor{display:grid;gap:.75rem;margin-top:.75rem}` +
-    `.list-item{border:1px solid #e5e7eb;border-radius:12px;padding:.85rem;background:#fcfcfd}` +
+    `.list-item{border:1px solid var(--line-soft);border-radius:8px;padding:.85rem;background:#fcfcfd}` +
     `.list-item-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem}` +
     `.jump-highlight{outline:3px solid #f59e0b;box-shadow:0 0 0 6px rgba(245,158,11,.15);transition:box-shadow .25s ease,outline-color .25s ease}` +
     `.control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
-    `.control-grid label{display:block;font-size:.85rem;color:#6b7280;margin-bottom:.35rem}` +
+    `.control-grid label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:.35rem}` +
     `.trend-table{width:100%;margin-top:.75rem}` +
-    `.trend-table th,.trend-table td{padding:.45rem;border-bottom:1px solid #e5e7eb;font-size:.92rem}` +
+    `.trend-table th,.trend-table td{padding:.45rem;border-bottom:1px solid var(--line-soft);font-size:.92rem}` +
     `.row{display:flex;gap:1rem;flex-wrap:wrap;align-items:center}` +
-    `input,select,button{font:inherit;padding:.55rem .75rem;border-radius:8px;border:1px solid #d1d5db}` +
-    `button{background:#111827;color:#fff;border-color:#111827;cursor:pointer}` +
-    `table{width:100%;border-collapse:collapse;margin-top:1rem}` +
-    `th,td{text-align:left;padding:.65rem .5rem;border-bottom:1px solid #e5e7eb;vertical-align:top}` +
+    `input,select,textarea,button{font:inherit;padding:.55rem .75rem;border-radius:8px;border:1px solid #cbd5e1;max-width:100%}` +
+    `input,select,textarea{background:#fff;color:var(--text)}` +
+    `button{background:var(--brand);color:#fff;border-color:var(--brand);cursor:pointer;font-weight:650}` +
+    `button:hover{background:var(--brand-strong);border-color:var(--brand-strong)}` +
+    `button.secondary{background:#fff;color:var(--text);border-color:#cbd5e1}` +
+    `button.secondary:hover{background:#f8fafc;border-color:#94a3b8}` +
+    `table{width:100%;max-width:100%;border-collapse:collapse;margin-top:1rem}` +
+    `th,td{text-align:left;padding:.65rem .5rem;border-bottom:1px solid var(--line-soft);vertical-align:top}` +
     `code,pre{font-family:ui-monospace,SFMono-Regular,monospace}` +
-    `pre{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:12px;overflow:auto}` +
-    `.pill{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:.8rem}` +
+    `pre{white-space:pre-wrap;background:#172033;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto}` +
+    `.pill{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:.8rem;font-weight:650}` +
     `.pill.info{background:#eff6ff;color:#1d4ed8}.pill.warn{background:#fff7ed;color:#9a3412}.pill.critical{background:#fef2f2;color:#991b1b}` +
-    `.surface-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}` +
-    `.surface-tab{background:#fff;color:#1f2328;border-color:#d1d5db}` +
-    `.surface-tab.active{background:#111827;color:#fff;border-color:#111827}` +
+    `.surface-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0;position:sticky;top:.5rem;z-index:4;background:rgba(244,246,248,.9);backdrop-filter:blur(8px);padding:.4rem;border:1px solid var(--line-soft);border-radius:8px}` +
+    `.surface-tab{background:#fff;color:var(--text);border-color:#cbd5e1}` +
+    `.surface-tab.active{background:#172033;color:#fff;border-color:#172033}` +
     `.surface-panel[hidden]{display:none}` +
     `.surface-heading{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem}` +
     `</style></head>` +
     `<body>` +
+    `<main class="app-shell">` +
     `<div class="hero">` +
     `<div class="panel hero-copy">` +
-    `<h2>配置与状态工作台</h2>` +
-    `<p class="muted">查看当前路由服务、模型配置和默认去向；需要排查时，下方维护者区域可继续查看 Governance Trace、metrics 和归档。</p>` +
-    `<div class="action-row">` +
+    `<div><div class="eyebrow">Claude Trigger Router UI</div><h1>角色化路由工作台</h1>` +
+    `<p class="hero-summary">按使用者、远程客户端和维护者的任务组织入口：先确认服务是否可用，再编辑模型与路由，最后用观测面板定位质量、速度和安全问题。</p></div>` +
+    `<div class="hero-actions">` +
     `<button id="loadConfigDraftHeroBtn" type="button">载入当前配置</button>` +
     `<button id="previewConfigDraftHeroBtn" type="button">预览 compiled models</button>` +
-    `<button id="refreshStatusHeroBtn" type="button">刷新状态</button>` +
+    `<button id="refreshStatusHeroBtn" class="secondary" type="button">刷新状态</button>` +
     `</div>` +
     `</div>` +
     `<div class="panel">` +
@@ -171,6 +204,44 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `</div>` +
     `</div>` +
+    `<section class="role-grid" aria-label="角色任务入口">` +
+    `<article class="role-card" data-tone="${escapedUserReadinessTone}" id="localUserRoleCard">` +
+    `<div><h2>本地使用者</h2><p>日常入口是确认 ready、调整 Models / Router，然后进入 Claude Code。</p></div>` +
+    `<div class="role-meta"><span class="pill info">高频</span><button class="secondary" type="button" data-surface-jump="user">编辑配置</button></div>` +
+    `</article>` +
+    `<article class="role-card" data-tone="${escapedRemoteTone}" id="remoteClientRoleCard">` +
+    `<div><h2>远程客户端</h2><p>关注远端 base URL、read-only/client token 和注册模型摘要。</p></div>` +
+    `<div class="role-meta"><span class="pill info">${escapedRemoteSummary}</span><button class="secondary" type="button" data-surface-jump="maintainer">查看连接</button></div>` +
+    `</article>` +
+    `<article class="role-card" data-tone="${escapedMaintainerTone}" id="maintainerRoleCard">` +
+    `<div><h2>服务维护者</h2><p>关注鉴权、安全、模型池健康、trace、异常趋势和归档。</p></div>` +
+    `<div class="role-meta"><span class="pill ${securitySummary === 'critical' ? 'critical' : 'info'}">${escapedSecuritySummary}</span><button class="secondary" type="button" data-surface-jump="maintainer">进入观测</button></div>` +
+    `</article>` +
+    `<article class="role-card" data-tone="${escapedRouteSetupTone}" id="routingDesignerRoleCard">` +
+    `<div><h2>路由设计辅助</h2><p>用预览、warning、路由解释和 SmartRouter 证据检查入口是否容易用。</p></div>` +
+    `<div class="role-meta"><span class="pill info">UX tool</span><button class="secondary" type="button" data-surface-jump="user">开始诊断</button></div>` +
+    `</article>` +
+    `</section>` +
+    `<section class="task-map" aria-label="UI 设计辅助面板">` +
+    `<div class="panel">` +
+    `<div class="surface-heading"><strong>任务路径</strong><span class="muted">把 UI 优先服务的用户动作摆在第一屏。</span></div>` +
+    `<ul class="mini-list">` +
+    `<li><span><strong>1. 看服务</strong><div class="muted">ready、port、mode、auth、security 先给结论。</div></span><strong>${escapedSecuritySummary}</strong></li>` +
+    `<li><span><strong>2. 改配置</strong><div class="muted">Models、Router.default、warning、preview、save 聚合到使用者工作台。</div></span><strong>${escapedModelsCount} models</strong></li>` +
+    `<li><span><strong>3. 查路由</strong><div class="muted">基础槽位与 SmartRouter explanation 帮用户判断是否生效。</div></span><strong>${escapedRouterDefault}</strong></li>` +
+    `<li><span><strong>4. 做维护</strong><div class="muted">trace、metrics、pool health、auth quota 留在维护者工作台。</div></span><strong>${escapedRuntimeMode}</strong></li>` +
+    `</ul>` +
+    `</div>` +
+    `<div class="panel" id="uiDesignAssistantPanel">` +
+    `<div class="surface-heading"><strong>UX 诊断</strong><span class="muted">辅助 UI 设计与实现的最小检查清单。</span></div>` +
+    `<div class="ux-checklist">` +
+    `<div class="ux-check" data-state="${escapedUserReadinessTone}"><strong>角色入口</strong><span class="muted">本地使用者、远程客户端、维护者和路由设计辅助已分开。</span></div>` +
+    `<div class="ux-check" data-state="${escapedRouteSetupTone}"><strong>主路径</strong><span class="muted">配置、预览、保存和路由解释在默认使用者入口。</span></div>` +
+    `<div class="ux-check" data-state="${escapedMaintainerTone}"><strong>维护边界</strong><span class="muted">安全、auth、pool health、trace 和归档独立承接。</span></div>` +
+    `<div class="ux-check" data-state="ready"><strong>响应式</strong><span class="muted">小屏使用单列和横向表格，不让状态文字挤压操作入口。</span></div>` +
+    `</div>` +
+    `</div>` +
+    `</section>` +
     renderSurfaceTabs() +
     `<section id="userSurface" class="surface-panel" data-surface="user">` +
     `<div class="panel">` +
@@ -709,6 +780,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const archiveTableBody=document.querySelector('#archiveTable tbody');` +
     `const trendTableBody=document.querySelector('#trendTable tbody');` +
     `const surfaceTabs=Array.from(document.querySelectorAll('[data-surface-target]'));` +
+    `const surfaceJumpButtons=Array.from(document.querySelectorAll('[data-surface-jump]'));` +
     `const surfacePanels=Array.from(document.querySelectorAll('[data-surface]'));` +
     `let currentDraftConfig={};` +
     `let knownModelIds=[];` +
@@ -788,6 +860,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  surfacePanels.forEach((panel)=>{ panel.hidden=panel.dataset.surface !== surfaceName; });` +
     `  surfaceTabs.forEach((tab)=>{ const active=tab.dataset.surfaceTarget === surfaceName; tab.classList.toggle('active',active); tab.setAttribute('aria-selected', active ? 'true' : 'false'); });` +
     `}` +
+    `function jumpToSurface(surfaceName){ setActiveSurface(surfaceName); const panel=surfacePanels.find((item)=>item.dataset.surface===surfaceName); if(panel){ panel.scrollIntoView({ behavior:'smooth', block:'start' }); } }` +
     `function inferProviderTemplateKey(model){` +
     `  const explicit=String(model?.provider_template || '').trim();` +
     `  if(explicit && modelProviderTemplates[explicit]){ return explicit; }` +
@@ -1652,6 +1725,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
     `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
     `surfaceTabs.forEach((tab)=>tab.addEventListener('click',()=>setActiveSurface(tab.dataset.surfaceTarget || 'user')));` +
+    `surfaceJumpButtons.forEach((button)=>button.addEventListener('click',()=>jumpToSurface(button.dataset.surfaceJump || 'user')));` +
     `setActiveSurface('user');` +
     `function renderMetrics(metrics,health,outcome){` +
     `  metricsGrid.innerHTML=[` +
@@ -2047,6 +2121,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `loadArchives();` +
     `loadTraces();` +
     `</script>` +
+    `</main>` +
     renderWorkbenchDocumentEnd()
   );
 }
