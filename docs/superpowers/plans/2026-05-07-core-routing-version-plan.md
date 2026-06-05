@@ -325,7 +325,7 @@ v1.15.0 闭环验证：四个事项已分别独立提交并逐项补 targeted �
    - 抽样结果：v1.9 远程客户端 thin proxy、`ANTHROPIC_AUTH_TOKEN` 和受保护 UI admin 指导仍由 README / configuration guide / remote client guide / deploy assets test 看护；v1.10 SmartRouter collaboration 仍明确为 contract 与 trace/UI 信号，不默认多模型并发；v1.11/v1.12 流式即时透传、上游断流可读 SSE error、远程中转取消和结构化 error 由 `test:route-ux` 看护；v1.13 route preview、基础路由触发解释和 SmartRouter 起步模板仍由 README、configuration guide、模板和 route UX 门禁看护；v1.14 `id/api/key/interface/model` 字段心智仍由 README、configuration guide、setup/UI/server/doctor 测试看护；v1.15 migration-first、model-id-first、SmartRouter 起步引导和三类 setup completion next steps 仍由 `test:e2e:cli:entry` 看护。
    - 验证：已复核 release notes v1.9.0-v1.15.0、README、configuration guide、remote client guide、相关配置模板和 targeted test anchors；未新增 issue log。
 
-v1.16.0 闭环验证：三个事项已分别独立提交并逐项补复审证据；本轮新增 UI 角色入口已通过 `npm run test:ui`，高频入口复审已通过 `npm run test:e2e:cli:entry` 与 `npm run test:route-ux`。最终发布门禁以 `npm run release:verify` 为准。
+v1.16.0 闭环验证：三个事项已分别独立提交并逐项补复审证据；本轮新增 UI 角色入口已通过 `npm run test:ui`，高频入口复审已通过 `npm run test:e2e:cli:entry` 与 `npm run test:route-ux`；`docs/release-notes-v1.16.0.md`、README 发布定位、发布指南和 `package.json` / `package-lock.json` 已同步到 `1.16.0`。最终发布门禁以 `npm run release:verify` 为准。
 
 ### v1.17.0 UI 双层工作台收敛
 
@@ -383,6 +383,6 @@ v1.16.0 闭环验证：三个事项已分别独立提交并逐项补复审证据
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；后续默认按 v1.16.0 用户视角复审与入口一致性校准推进。
+2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；后续默认按 v1.17.0 UI 双层工作台收敛推进。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。

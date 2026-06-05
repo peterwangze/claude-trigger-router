@@ -2924,7 +2924,10 @@ describe('createServer /api/config', () => {
     const html = await handler({}, reply);
 
     expect(reply.header).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
-    expect(html).toContain('配置与状态工作台');
+    expect(html).toContain('角色化路由工作台');
+    expect(html).toContain('角色任务入口');
+    expect(html).toContain('uiDesignAssistantPanel');
+    expect(html).toContain('UX 诊断');
     expect(html).toContain('serviceReadyStatus');
     expect(html).toContain('servicePortStatus');
     expect(html).toContain('modelCountStatus');

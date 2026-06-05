@@ -224,14 +224,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.15.0.md](docs/release-notes-v1.15.0.md)
+- 发布说明：[docs/release-notes-v1.16.0.md](docs/release-notes-v1.16.0.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.15.0 发布定位
+## v1.16.0 发布定位
 
-`v1.15.0` 是 CLI/setup UX 重设计收口版。它把重点放在用户第一次和日常最容易遇到的入口：`ctr setup` 继续先复用或迁移配置，fresh setup 才按 `Models[].id` 创建默认模型和 `Router.default`，并能在最小配置后引导复杂任务模型、`Router.think/longContext` 和 SmartRouter 起步模板。
+`v1.16.0` 是用户视角复审与入口一致性校准版。它不新增运行时路由策略，而是从项目目标、用户高频入口和已发布事项回归三个角度确认：CTR 仍应聚焦本地/远程 Claude Code 路由代理，fresh setup、远程转发、配置保存、鉴权、route preview、结构化错误和发布门禁继续作为主路径底线。
 
-本地、远程客户端和服务端部署三类完成页都明确下一步，短入口 smoke 也纳入 packaged help 文案，避免 help、setup next steps 和 README 主路径再次漂移。完整发布边界见 [docs/release-notes-v1.15.0.md](docs/release-notes-v1.15.0.md)。
+这一版补齐 `/ui` 第一屏角色入口和 UX 诊断面板，让本地使用者、远程客户端、服务维护者和路由设计辅助路径不再混在功能集合页里；同时用 `test:ui`、`test:e2e:cli:entry` 和 `test:route-ux` 复核入口与核心路由体感。完整发布边界见 [docs/release-notes-v1.16.0.md](docs/release-notes-v1.16.0.md)。
 
 ## License
 
