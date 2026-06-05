@@ -104,6 +104,7 @@ describe('route preview', () => {
     expect(result.source).toBe('basic_long_context');
     expect(result.finalModel).toBe('model__long,claude-long-context');
     expect(formatRoutePreview(result).join('\n')).toContain('tokenCount 120 > threshold 100');
+    expect(formatRoutePreview(result).join('\n')).toContain('基础路由顺序：显式上游模型 -> longContext -> background -> think -> webSearch -> default');
   });
 
   it('explains thinking route when longContext threshold is not crossed', () => {

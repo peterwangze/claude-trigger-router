@@ -336,6 +336,7 @@ export function previewRoute(config: IAppConfig, input: IRoutePreviewRequest): I
 export function formatRoutePreview(result: IRoutePreviewResult): string[] {
   const lines = [
     `路由预演：${result.input.text || '<empty>'}`,
+    '基础路由顺序：显式上游模型 -> longContext -> background -> think -> webSearch -> default',
     `预计来源：${result.source}${result.ruleName ? ` (${result.ruleName})` : ''}`,
     `预计模型：${result.finalModelRef ?? '-'}${result.finalModel ? ` -> ${result.finalModel}` : ''}`,
   ];

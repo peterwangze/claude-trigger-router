@@ -419,6 +419,8 @@ Models:
 
 基础路由排查时先记住当前判断顺序：显式 `provider,model` 上游引用会直接使用；随后才是 `Router.longContext` 阈值、`Router.background`、`Router.think`、`Router.webSearch` 和 `Router.default`。这意味着长上下文可能先于 thinking / webSearch 命中；`Router.background` 目前依赖 Claude Code 请求模型以 `claude-3-5-haiku` 开头；最终定模后还会按模型 metadata 执行 context window guard，必要时切到 `Router.longContext`。可用 `ctr doctor --route-preview --route-text "你的请求"` 先预演，不会调用上游模型。
 
+要逐个验证槽位，可以在 route preview 中加参数：`--route-thinking` 验证 `Router.think`，`--route-web-search` 验证 `Router.webSearch`，`--route-tokens 120000` 验证 `Router.longContext`，`--route-model claude-3-5-haiku` 验证 `Router.background`。基础路由可从 `config/trigger.routing.yaml` 复制，SmartRouter 起步建议先用 `config/trigger.smart-router.yaml`，再按需升级到 `config/trigger.smart-router.advanced.yaml`。
+
 这样排查问题最简单，也最符合当前文档和测试覆盖的主路径。
 
 ## 12. 参考文件

@@ -310,12 +310,18 @@ describe('runSetupCli', () => {
       '  - 基础路由顺序：显式上游模型 -> longContext -> background -> think -> webSearch -> default'
     );
     expect(io.info).toHaveBeenCalledWith(
+      '  - 基础路由模板：复制 config/trigger.routing.yaml 中的 Router.default/think/longContext/background/webSearch，再把值改成你的 Models[].id'
+    );
+    expect(io.info).toHaveBeenCalledWith(
+      '  - 槽位验证：用 --route-thinking、--route-web-search、--route-tokens 和 --route-model 分别预演 think、webSearch、longContext 和 background'
+    );
+    expect(io.info).toHaveBeenCalledWith(
       '  - SmartRouter.rules：适合高确定性任务，把架构设计、代码审查等请求固定切到指定模型'
     );
     expect(io.info).toHaveBeenCalledWith(
       '  - SmartRouter candidates：适合模糊任务，在候选模型之间自动选择更合适的模型'
     );
-    expect(io.info).toHaveBeenCalledWith('  - 配置模板参考：config/trigger.advanced.yaml');
+    expect(io.info).toHaveBeenCalledWith('  - SmartRouter 起步模板：config/trigger.smart-router.yaml；多候选高级模板：config/trigger.smart-router.advanced.yaml');
     expect(io.info).toHaveBeenCalledWith('为避免 setup 结束后接管当前终端，请手动运行：ctr code');
     expect(io.info).toHaveBeenCalledWith(
       '如果你明确需要 setup 结束后自动进入 Claude Code，可设置环境变量 CTR_SETUP_AUTO_ENTER_CODE=1'

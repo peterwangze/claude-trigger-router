@@ -344,6 +344,8 @@ describe('runDoctorCli', () => {
     });
 
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('基础路由体检'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('基础路由顺序：显式上游模型 -> longContext -> background -> think -> webSearch -> default'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('验证入口：运行 ctr doctor --route-preview --route-text "你的请求"'));
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('路由槽位：Router.default（默认）-> sonnet'));
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('路由槽位：Router.think（思考）-> reasoner'));
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('思考路由提示：Router.think 指向 reasoner'));

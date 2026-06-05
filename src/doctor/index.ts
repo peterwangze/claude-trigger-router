@@ -781,6 +781,8 @@ function reportRouterSlotSummary(config: IAppConfig, registry: ICompiledModelReg
   const resolvedSlots = new Map<TRouterSlotKey, ICompiledModelRef>();
 
   deps.io.info('基础路由体检：检查 Router 槽位是否能解析为可用模型。');
+  deps.io.info('基础路由顺序：显式上游模型 -> longContext -> background -> think -> webSearch -> default。');
+  deps.io.info('验证入口：运行 ctr doctor --route-preview --route-text "你的请求"；可加 --route-thinking、--route-web-search、--route-tokens 或 --route-model 分别验证 think/webSearch/longContext/background。');
 
   for (const slot of ROUTER_SLOT_DIAGNOSTICS) {
     const ref = getRouterSlotRef(config, slot.key);
