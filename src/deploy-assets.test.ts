@@ -61,6 +61,8 @@ describe('deployment assets', () => {
 
     const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
     expect(releasingGuide).toContain('Release');
+    expect(releasingGuide).toContain('npm run test:route-ux');
+    expect(releasingGuide).toContain('核心路由用户体感专项');
     expect(releasingGuide).toContain('docs/release-notes-v1.12.0.md');
     expect(releasingGuide).toContain('v1.12.0');
     expect(releasingGuide).toContain('流式传输韧性');

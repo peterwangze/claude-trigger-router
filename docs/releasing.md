@@ -33,6 +33,14 @@
 npm run release:verify
 ```
 
+v1.13.0 期间建议在正式 `release:verify` 前额外跑一次核心路由用户体感专项：
+
+```bash
+npm run test:route-ux
+```
+
+这条专项把 route preview、doctor 可读输出、基础路由触发解释、SmartRouter 规则/候选选模、首包即时输出、上游中途断流可读 SSE error、远程中转取消上游和结构化 API error 串成同一个发布前门禁。它关注用户能直接感知的“选了谁、为什么、是否变慢、断流时是否可读、远程中转是否能停住”，不是只检查内部函数返回。
+
 v1.12.0 期间建议在正式 `release:verify` 前额外跑一次流式稳定专项：
 
 ```bash

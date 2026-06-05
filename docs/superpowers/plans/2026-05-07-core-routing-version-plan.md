@@ -254,8 +254,8 @@ v1.9.0 闭环验证：五个事项已分别独立提交并逐项补 targeted 看
    - 闭环标准：新用户复制默认 SmartRouter 模板只需要默认模型和复杂任务模型即可起步；高级能力仍有可复制入口；模板解析、引用和文档资产测试覆盖。
 4. `[planned]` SmartRouter 协作口径校准：README、configuration guide、release guide 和 SmartRouter prompt 对齐当前真实能力，明确默认是 `route_only` 单模型选择，`verify_only/compare_then_arbiter/cascade_on_evidence` 当前是策略 contract 或治理信号，不默认并发执行额外模型。
    - 闭环标准：用户不会把 v1.10.0 contract 误解为默认多模型并发执行；trace/UI 仍展示 collaborationMode，但说明收益证据与代价。
-5. `[planned]` 用户体感 E2E 看护：新增贴近真实请求的 packaged/user-flow 测试切片，覆盖五槽位选模、SmartRouter 规则/候选、首包即时输出、上游中途断流可读 error、远程中转取消和结构化错误。
-   - 闭环标准：`npm run release:verify` 前能单独运行核心路由体感专项；每个 slice 断言用户可感知结果，而不只断言内部函数返回。
+5. `[closed 2026-06-05]` 用户体感 E2E 看护：新增 `npm run test:route-ux`，把 route preview、doctor 可读输出、基础路由触发解释、SmartRouter 规则/候选选模、首包即时输出、上游中途断流可读 error、远程中转取消和结构化错误串成发布前专项门禁。
+   - 闭环标准：`npm run release:verify` 前能单独运行核心路由体感专项；每个 slice 断言用户可感知结果，而不只断言内部函数返回。当前专项会执行 route preview/doctor/stream governance/index startup/packaged SmartRouter slices，并已进入 `docs/releasing.md`。
 6. `[planned]` v1.13.0 发布质量检视与归档：新增 release notes，更新版本号、README 发布定位、releasing 检查清单、统一基线和问题台账；发布前完成 targeted tests、核心路由体感专项和 `npm run release:verify`。
    - 闭环标准：每个事项一个独立 commit；发布质量检视通过后才打 `v1.13.0` tag 并推送。
 
