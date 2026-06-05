@@ -226,9 +226,22 @@ v1.9.0 闭环验证：五个事项已分别独立提交并逐项补 targeted 看
 3. `[closed 2026-05-25]` SSE parser 跨 chunk 修复：复审流式工具和 stream guard 链路时发现 `SSEParserTransform` 的 current event 状态无法跨 chunk 保存，`event:` / `data:` / 空行被网络拆分时可能丢事件。已改为跨 chunk 保留事件状态，并支持 flush 无尾随空行的最终事件。
 4. `[closed 2026-05-25]` v1.11.0 看护归档：新增 `docs/release-notes-v1.11.0.md`，补 `stream-response-governance` 即时透传测试、`SSEParserTransform` 跨 chunk 测试和 upstream API error payload 不触发 hook error 的启动链路测试。
 
+复核校准：2026-06-05 用户确认在 `v1.11.0` 上仍复现 socket 异常和中转卡顿。当前结论调整为：`v1.11.0` 是首轮止血，解决默认全量缓冲和结构化 error hook 两个问题，但没有完全覆盖上游 body 中途断流、远程中转客户端断开取消上游和多字节跨 chunk 解码，因此追加 `v1.12.0` 作为二次修复版。
+
+### v1.12.0 流式传输韧性与远程中转稳定性修复
+
+优先级：最高（P0 用户复现故障）。
+
+用户目标：在 `v1.11.0` 仍复现 socket 断连和中转卡顿时，继续补齐流式传输链路的韧性：上游中途断流要返回可读 SSE error，远程中转在客户端断开时要取消上游，SSE parser 要稳定处理多字节跨 chunk。
+
+1. `[closed 2026-06-05]` 上游流式中途断开不再硬断 socket：默认透传路径捕获上游 stream read error，保留已输出 chunk，并追加 `event: error` / `type: upstream_stream_error` 的可读 SSE 事件后关闭流；新增 `stream-response-governance` 回归测试。
+2. `[closed 2026-06-05]` 远程中转取消上游：`Runtime.remote_service` thin proxy 使用 `AbortController`，将 `reply.raw close` 绑定到上游 abort，远端 SSE 响应进入同一套流式治理包装，非 SSE 响应保持原始 body 透传；新增 `index-startup` 回归测试。
+3. `[closed 2026-06-05]` SSE 多字节跨 chunk 解码：`SSEParserTransform` 持续复用同一个 `TextDecoder` 并在 flush 时收尾，避免中文等多字节字符被拆包后 JSON 解析失败；新增 parser 回归测试。
+4. `[closed 2026-06-05]` v1.12.0 看护归档：新增 `docs/release-notes-v1.12.0.md`，同步 README、release guide、deploy assets test、统一基线和问题台账。
+
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.11.0 作为 `v1.8.0` 之后 runtime/stream 回归修复版优先闭环；后续默认回到配置产品化最终收口与 CLI/setup UX 重设计，但要继续确保新增路由策略能被用户配置、理解和诊断。
+2. v1.12.0 作为 `v1.11.0` 后用户复现的 runtime/stream 二次修复版优先闭环；后续默认回到配置产品化最终收口与 CLI/setup UX 重设计，但要继续确保新增路由策略能被用户配置、理解和诊断。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。

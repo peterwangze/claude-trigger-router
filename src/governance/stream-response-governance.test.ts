@@ -198,6 +198,44 @@ describe('governStreamingResponse', () => {
     expect((await reader.read()).done).toBe(true);
   });
 
+  it('closes with a readable SSE error event when upstream stream fails mid-flight', async () => {
+    const encoder = new TextEncoder();
+    const req: any = {
+      body: {
+        model: 'provider,model-a',
+        metadata: {},
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-stream-error' }),
+    };
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"first"}}\n\n'));
+        controller.error(new Error('upstream socket closed'));
+      },
+    });
+
+    const result = governStreamingResponse(
+      stream,
+      req,
+      {
+        Governance: {
+          enabled: true,
+          cascade: {
+            enabled: true,
+            stream_guard: false,
+          },
+        },
+      } as any,
+      5678
+    );
+
+    const output = await readAll(result);
+    expect(output).toContain('first');
+    expect(output).toContain('event: error');
+    expect(output).toContain('upstream_stream_error');
+    expect(output).toContain('The upstream stream closed before completion.');
+  });
+
   it('retries with upgraded model when stream_guard detects failure evidence', async () => {
     governanceTraceStore.clear();
 

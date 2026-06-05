@@ -24,6 +24,7 @@ interface IStreamObservation {
   text: string;
   usage?: any;
   sawText: boolean;
+  streamError?: string;
 }
 
 export interface IStreamGovernanceDeps {
@@ -42,6 +43,16 @@ function serializeEvent(event: any): Uint8Array {
   }
   output += '\n';
   return new TextEncoder().encode(output);
+}
+
+function serializeStreamErrorEvent(message: string): Uint8Array {
+  return serializeEvent({
+    event: 'error',
+    data: {
+      type: 'upstream_stream_error',
+      message,
+    },
+  });
 }
 
 function parseSSEBlock(block: string): any | null {
@@ -118,6 +129,9 @@ function finalizeStreamingTrace(
   for (const finding of outputGuardrail.findings) {
     appendTraceReason(req.governanceTrace, `output_guardrail:${finding.code}`);
   }
+  if (observation.streamError) {
+    appendTraceReason(req.governanceTrace, 'upstream_stream_error');
+  }
   req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
     req.governanceTrace,
     getRuntimePipeline(req)
@@ -139,26 +153,47 @@ function passThroughStreamingResponse(
   const decoder = new TextDecoder();
   const observation: IStreamObservation = { text: '', sawText: false };
   let buffer = '';
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
-  return stream.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      controller.enqueue(chunk);
-      buffer = observeSSEChunk(buffer, decoder.decode(chunk, { stream: true }), observation);
-    },
-    flush() {
-      const remaining = decoder.decode();
-      if (remaining) {
-        buffer = observeSSEChunk(buffer, remaining, observation);
-      }
-      if (buffer.trim()) {
-        const event = parseSSEBlock(buffer);
-        if (event) {
-          collectEventObservation(event, observation);
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      reader = stream.getReader();
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
+          }
+          controller.enqueue(value);
+          buffer = observeSSEChunk(buffer, decoder.decode(value, { stream: true }), observation);
         }
+      } catch (error) {
+        const message = error instanceof Error && error.message
+          ? error.message
+          : 'The upstream stream closed before completion.';
+        observation.streamError = message;
+        controller.enqueue(serializeStreamErrorEvent('The upstream stream closed before completion.'));
+      } finally {
+        const remaining = decoder.decode();
+        if (remaining) {
+          buffer = observeSSEChunk(buffer, remaining, observation);
+        }
+        if (buffer.trim()) {
+          const event = parseSSEBlock(buffer);
+          if (event) {
+            collectEventObservation(event, observation);
+          }
+        }
+        finalizeStreamingTrace(req, observation);
+        reader.releaseLock();
+        reader = undefined;
+        controller.close();
       }
-      finalizeStreamingTrace(req, observation);
     },
-  }));
+    cancel(reason) {
+      return reader?.cancel(reason);
+    },
+  });
 }
 
 async function collectSSE(stream: ReadableStream<Uint8Array>): Promise<ICollectedSSE> {

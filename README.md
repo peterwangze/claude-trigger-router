@@ -218,14 +218,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.11.0.md](docs/release-notes-v1.11.0.md)
+- 发布说明：[docs/release-notes-v1.12.0.md](docs/release-notes-v1.12.0.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.11.0 发布定位
+## v1.12.0 发布定位
 
-`v1.11.0` 是基础路由流式稳定性与 socket 错误修复版。它修复 `v1.8.0` 之后流式 response governance 默认全量缓冲导致的基础路由输出中断，并让上游结构化 API error 稳定返回，不再被转换成 socket-level hook error。
+`v1.12.0` 是流式传输韧性与远程中转稳定性修复版。它在 `v1.11.0` 首轮止血基础上继续修复用户复现的 socket 断连和中转卡顿：上游流式中途断开时返回可读 SSE error event，远程中转会在客户端断开时主动取消上游请求，并修复 SSE parser 在多字节字符跨 chunk 时的解析风险。
 
-这个版本不新增 SmartRouter 协作模式、不改变远程客户端配置心智；`v1.10.0` 的 routing advisor、confidence threshold、latency budget 和 collaboration contract 继续保留。完整发布边界见 [docs/release-notes-v1.11.0.md](docs/release-notes-v1.11.0.md)。
+这个版本不新增 SmartRouter 协作模式、不改变远程客户端配置心智；`v1.10.0` 的 routing advisor、confidence threshold、latency budget 和 collaboration contract 继续保留。完整发布边界见 [docs/release-notes-v1.12.0.md](docs/release-notes-v1.12.0.md)。
 
 ## License
 

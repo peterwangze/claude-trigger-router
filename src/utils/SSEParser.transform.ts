@@ -7,6 +7,7 @@
 export class SSEParserTransform {
   private buffer: string = "";
   private currentEvent: any = {};
+  private decoder = new TextDecoder();
 
   constructor() {
     const transformStream = new TransformStream({
@@ -14,12 +15,16 @@ export class SSEParserTransform {
         // Initialization if needed
       },
       transform: (chunk: Uint8Array, controller) => {
-        const text = new TextDecoder().decode(chunk);
+        const text = this.decoder.decode(chunk, { stream: true });
         this.buffer += text;
 
         this.parseBuffer(controller);
       },
       flush: (controller) => {
+        const remaining = this.decoder.decode();
+        if (remaining) {
+          this.buffer += remaining;
+        }
         if (this.buffer.trim()) {
           this.parseBuffer(controller, true);
         } else if (Object.keys(this.currentEvent).length > 0) {

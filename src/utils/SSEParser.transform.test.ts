@@ -65,4 +65,37 @@ describe('SSEParserTransform', () => {
       },
     ]);
   });
+
+  it('decodes multibyte text split across chunks', async () => {
+    const parser = new SSEParserTransform();
+    const bytes = new TextEncoder().encode('event: content_block_delta\ndata: {"delta":{"text":"你好"}}\n\n');
+    const source = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes.slice(0, 48));
+        controller.enqueue(bytes.slice(48));
+        controller.close();
+      },
+    });
+    const reader = source.pipeThrough(parser as any).getReader();
+    const events: any[] = [];
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+      events.push(value);
+    }
+
+    expect(events).toEqual([
+      {
+        event: 'content_block_delta',
+        data: {
+          delta: {
+            text: '你好',
+          },
+        },
+      },
+    ]);
+  });
 });
