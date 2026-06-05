@@ -283,6 +283,8 @@ v1.13.0 闭环验证：六个事项已分别独立提交并逐项补 targeted �
 4. `[closed 2026-06-05]` 配置保存与预览一致性看护：补齐配置写回、setup 保存、UI 草稿读取、compiled preview 和 validation issue contract 的回归切片。保存 API 成功/失败现在都返回 `capabilityWarnings` 与统一 `issueReport`，成功保存返回 canonical `normalizedConfig` 供 `/ui` 刷新草稿；保存写回继续通过 `buildPersistedConfig` / `writeConfigFile` 输出推荐字段；新增回归测试覆盖 preview/save warning report 一致和旧别名写回 canonical。
    - 闭环标准：`npm run release:verify` 前有 targeted tests 覆盖配置产品化主路径；保存失败和修复建议可读。
 
+v1.14.0 闭环验证：四个事项已分别独立提交并逐项补 targeted 看护；配置产品化专项覆盖 doctor 修复写回、setup 字段提示、server 保存/预览、UI 草稿保存、route preview、文档资产和 validation issue contract；`docs/release-notes-v1.14.0.md` 已固化发布边界，`package.json` / `package-lock.json` 已更新到 `1.14.0`。最终发布门禁以 `npm run release:verify` 为准。
+
 ### v1.15.0 CLI/setup UX 重设计收口
 
 优先级：高（P1 主路径易用性）。

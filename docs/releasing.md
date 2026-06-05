@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.13.0` minor release 的优先级是核心路由用户体感与看护补强。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 route preview 可读解释、基础路由触发顺序、SmartRouter 起步模板、协作模式真实口径、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回和 v1.10.0 SmartRouter 协作 contract 不回退。
+本次 `v1.14.0` minor release 的优先级是配置产品化最终收口。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 `Models[].id/api/key/interface/model/thinking/metadata` 字段心智、doctor 修复写回、路由槽位诊断、capability warning action、UI 保存/预览 warning contract、配置写回 canonical 字段、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游和结构化 API error 返回不回退。
 
 ## 一次性准备
 
@@ -26,20 +26,20 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.13.0` 的发布边界以 `docs/release-notes-v1.13.0.md` 为准：主打路由预演、基础路由触发解释、SmartRouter 起步模板收口、协作口径校准和核心路由用户体感专项门禁，不新增默认多模型并发执行。
+   - 本次 `v1.14.0` 的发布边界以 `docs/release-notes-v1.14.0.md` 为准：主打 Models 字段心智统一、路由槽位配置产品化、capability warning action 一致和配置保存/预览 contract 收口。
 2. 本地先执行发布包验证：
 
 ```bash
 npm run release:verify
 ```
 
-v1.13.0 期间建议在正式 `release:verify` 前额外跑一次核心路由用户体感专项：
+v1.14.0 期间建议在正式 `release:verify` 前额外跑一次配置产品化专项：
 
 ```bash
-npm run test:route-ux
+npx vitest --run src/doctor/index.test.ts src/setup/index.test.ts src/setup/setup.test.ts src/server.test.ts src/ui/workbench.dom.test.ts src/router/route-preview.test.ts src/deploy-assets.test.ts src/utils/validation-contract.test.ts
 ```
 
-这条专项把 route preview、doctor 可读输出、基础路由触发解释、SmartRouter 规则/候选选模、首包即时输出、上游中途断流可读 SSE error、远程中转取消上游和结构化 API error 串成同一个发布前门禁。它关注用户能直接感知的“选了谁、为什么、是否变慢、断流时是否可读、远程中转是否能停住”，不是只检查内部函数返回。
+这条专项把 doctor 修复写回、setup 字段提示、server 保存/预览、UI 草稿保存、route preview、文档资产和 validation issue contract 串成同一个发布前门禁。它关注用户能直接感知的“该填哪些字段、哪个槽位生效、warning 怎么修、保存后看到的配置是否一致”，不是只检查内部函数返回。
 
 v1.12.0 期间建议在正式 `release:verify` 前额外跑一次流式稳定专项：
 

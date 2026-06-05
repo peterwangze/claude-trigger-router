@@ -224,14 +224,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.13.0.md](docs/release-notes-v1.13.0.md)
+- 发布说明：[docs/release-notes-v1.14.0.md](docs/release-notes-v1.14.0.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.13.0 发布定位
+## v1.14.0 发布定位
 
-`v1.13.0` 是核心路由用户体感与看护补强版。它把重点放回基础路由和 SmartRouter 的日常体验：用户可以用 `ctr doctor --route-preview --route-text "..."` 在不调用上游模型的情况下预演请求会走哪个模型、为什么、是否可能因为 SmartRouter 候选选择增加首包等待。
+`v1.14.0` 是配置产品化最终收口版。它把重点放在用户每天会接触的配置入口：README、配置指南、setup、doctor、`/ui`、保存 API 和 compiled preview 都统一到 `Models[].id/api/key/interface/model/thinking/metadata` 字段心智。
 
-这个版本还收口了 SmartRouter 两模型起步模板、基础路由触发顺序说明和协作模式口径：默认仍是单模型 `route_only`，不默认并发调用多个模型。完整发布边界见 [docs/release-notes-v1.13.0.md](docs/release-notes-v1.13.0.md)。
+旧字段 `api_base_url/api_key/protocol` 继续兼容读取，但 doctor 修复、UI 保存和配置写回会回到推荐字段。这个版本还让路由槽位、capability warning、保存/预览 warning contract 在 CLI 和 UI 中保持一致。完整发布边界见 [docs/release-notes-v1.14.0.md](docs/release-notes-v1.14.0.md)。
 
 ## License
 

@@ -21,7 +21,7 @@
 
 截至 2026-06-05，项目当前状态统一定义为：
 
-> 项目已经完成治理主链首轮能力落地，v1.3.0 基础路由常用体验、v1.4.0 SmartRouter 常用体验、v1.5.0 入口基础功能稳定、v1.6.0 多模型收益运营化、v1.7.0 远程服务 / 模型池安全体验、v1.8.0 低侵入 agent/tool 增强与架构减压、v1.9.0 用户入口与远程客户端一致性收口、v1.10.0 智能路由自适应与多模型协同增强、v1.11.0 基础路由流式稳定性首轮止血、v1.12.0 流式传输韧性与远程中转稳定性修复，以及 v1.13.0 核心路由用户体感与看护补强已阶段闭环。2026-06-05 已将当前所有未完成主线规划到后续版本：v1.14.0 配置产品化最终收口、v1.15.0 CLI/setup UX 重设计收口、v1.16.0 用户视角复审与入口一致性校准、v1.17.0 UI 双层工作台收敛、v1.18.0 治理观测运营化增强、v1.19.0 部署形态与远程接入收敛、v1.20.0 发布与进展治理可持续化。入口稳定、基础路由即时流式输出、上游中途断流可读错误、远程中转取消上游、结构化 API error、发布看护、UI 基础交互、收益证据链、远程服务安全、受保护 UI admin 入口、route preview 和 agent/tool trace contract 继续作为回归底线。
+> 项目已经完成治理主链首轮能力落地，v1.3.0 基础路由常用体验、v1.4.0 SmartRouter 常用体验、v1.5.0 入口基础功能稳定、v1.6.0 多模型收益运营化、v1.7.0 远程服务 / 模型池安全体验、v1.8.0 低侵入 agent/tool 增强与架构减压、v1.9.0 用户入口与远程客户端一致性收口、v1.10.0 智能路由自适应与多模型协同增强、v1.11.0 基础路由流式稳定性首轮止血、v1.12.0 流式传输韧性与远程中转稳定性修复、v1.13.0 核心路由用户体感与看护补强，以及 v1.14.0 配置产品化最终收口已阶段闭环。2026-06-05 已将当前所有未完成主线规划到后续版本：v1.15.0 CLI/setup UX 重设计收口、v1.16.0 用户视角复审与入口一致性校准、v1.17.0 UI 双层工作台收敛、v1.18.0 治理观测运营化增强、v1.19.0 部署形态与远程接入收敛、v1.20.0 发布与进展治理可持续化。入口稳定、基础路由即时流式输出、上游中途断流可读错误、远程中转取消上游、结构化 API error、发布看护、UI 基础交互、收益证据链、远程服务安全、受保护 UI admin 入口、route preview 和 agent/tool trace contract 继续作为回归底线。
 
 这一定义用于替代历史文档中分散、彼此可能滞后的阶段描述。
 
@@ -83,7 +83,7 @@
 | SmartRouter 早期专项计划 | 历史专项 | archived | archived | SmartRouter 已不再是独立新增主线，当前闭环结论是“历史计划价值保留，但后续演进应纳入统一 Router 心智与配置产品化体系” | `docs/superpowers/plans/2026-03-22-smart-router.md` |
 | `ctr setup` 早期实施计划 | 历史专项 | archived | archived | setup 已完成从早期 checklist 到产品入口的阶段跃迁，当前闭环结论是“原始计划归档，后续演进转由 setup UX 与配置产品化文档承接” | `docs/superpowers/plans/2026-04-02-ctr-setup.md` ; `docs/superpowers/specs/2026-04-02-setup-usability-design.md` |
 | OpenAI-compatible 主路径兼容补强 | 持续演进特性 | closed | closed | 已补上 `ctr code` 新环境默认代理凭证注入，以及 OpenAI-compatible / Anthropic endpoint 的 base url 自动归一；并补齐 fresh setup -> code、doctor bare endpoint probe、runtime bare endpoint dispatch、legacy migration bare endpoint runtime、手填接口显式 interface 选择、Anthropic bare endpoint 用户流，以及 bare anthropic host 的 doctor / migration / schema 推断一致性回归。当前闭环结论是“这轮复审后新增的 P0 兼容裂缝已完成首轮真实用户流补强，默认请求链路、兼容链路与迁移链路已不再因这些 endpoint / 环境变量问题阻塞；后续剩余工作转入 CLI 稳定性与发布工程、配置产品化和持续复审校准，不再作为独立未闭环 P0 事项维护”。 | `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/specs/2026-04-12-cli-e2e-test-design.md` ; `docs/superpowers/plans/progress-issue-log.md` |
-| 配置产品化最终收口 | 持续演进特性 | in_progress | P1-主路径易用性 | `Models` 抽象、message IR、setup、`/ui` 与 warning 通道已建立基础闭环，并已补齐 setup 侧 warning 快捷修正模板、`/ui` 草稿模型字段归一、setup/fresh/repair/migration 草稿模型字段归一、`/ui` 字段说明 / JSON 草稿提示和 setup 问答字段说明；当前闭环结论是“统一入口已形成，UI 与 CLI 的 capability warning 修正心智已完成首轮对齐，配置文件写回、setup 保存、UI 草稿读取和编译预览已继续收敛到 `api/key/interface` 入口字段，但最终产品心智与文案一致性仍需继续收口” | `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` |
+| 配置产品化最终收口 | 持续演进特性 | closed | closed | `Models` 抽象、message IR、setup、`/ui` 与 warning 通道已建立基础闭环。当前闭环结论是“v1.14.0 已阶段闭环：README、configuration guide、setup、doctor、`/ui`、保存 API 与 compiled preview 已统一到 `id/api/key/interface/model/thinking/metadata` 字段心智；旧别名继续兼容读取但不作为写回入口；路由槽位配置路径、capability warning action、保存/预览 warning contract 和 canonical 写回均已用 targeted tests 看护”。 | `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` ; `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` ; `docs/release-notes-v1.14.0.md` |
 | OpenAI-compatible 兼容差异内化 | 持续演进特性 | closed | closed | 行为型 compatibility contract、复杂消息块转换、capability 降级、runtime diagnostics 与 doctor/CLI 回归已形成首轮闭环，当前闭环结论是“默认 OpenAI-compatible 主路径已可按统一 contract 运行，后续剩余工作转入 migration / unified router / 产品入口收口，不再作为独立未闭环 P0 主线维护” | `docs/superpowers/specs/2026-04-06-unified-model-config-design.md` ; `docs/superpowers/specs/2026-04-11-legacy-config-migration-design.md` ; `docs/superpowers/plans/2026-04-06-config-productization-phase-2.md` |
 | legacy config migration 收敛 | 持续演进特性 | closed | closed | 真实 `.claude-code-router/config.json` 样本、宽松 JSON 读取、module id 稳定映射、supported 顶层字段与 Router 槽位迁移、skippedFields 提示、setup/doctor/packaged CLI 回归已形成首轮闭环，当前闭环结论是“legacy 迁移主路径已不再作为独立未闭环 P0 主线维护，后续剩余事项并入统一 Router 与配置产品化收口” | `docs/superpowers/specs/2026-04-11-legacy-config-migration-design.md` |
 | 统一 Router 运行时收敛 | 持续演进特性 | closed | closed | `smart_rule -> semantic_match -> smart_router -> sticky_correction` 决策链、统一 route-source/trace、structured smart hint、unified Router schema 双读与 runtime normalize 已完成首轮闭环；同时已补齐 unified `Router.defaults` 对治理层的真实启用与 mixed config + model id 引用兼容，当前闭环结论是“运行时底座已可作为后续 setup/UI/docs 收口前提，剩余工作转入对外心智与产品入口主线” | `docs/superpowers/specs/2026-04-09-unified-router-evolution-design.md` ; `docs/superpowers/plans/2026-04-09-unified-router-evolution-implementation.md` |
@@ -422,8 +422,8 @@
 
 | 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
 |---|---|---|---|---|
-| 1 | 配置产品化最终收口 | P1-主路径易用性 | 推进 v1.14.0：统一 `id/api/key/interface/model/thinking/metadata` 字段心智、路由槽位和 capability warning 在 README / configuration guide / UI / setup / doctor 中的一致性 | v1.13.0 已补齐核心路由用户体感看护，下一步应回到配置心智统一；配置心智不统一仍会直接破坏 setup、doctor、UI save 和日常修配置体验 |
-| 2 | CLI / setup UX 重设计 | P1-主路径易用性 | 推进 v1.15.0：让 setup 的本地使用主路径优先引导默认模型、复杂任务模型、长上下文模型、SmartRouter 起步模板和已闭环的 server/remote next steps | setup 是入口主路径的第一站，需要继续跟随后续能力演进保持叙事一致 |
+| 1 | CLI / setup UX 重设计 | P1-主路径易用性 | 推进 v1.15.0：让 setup 的本地使用主路径优先引导默认模型、复杂任务模型、长上下文模型、SmartRouter 起步模板和已闭环的 server/remote next steps | setup 是入口主路径的第一站，需要继续跟随后续能力演进保持叙事一致 |
+| 2 | 配置产品化最终收口 | closed | v1.14.0 已完成字段心智、路由槽位、capability warning 和保存/预览 contract 收口 | 作为回归底线维护；若 setup、doctor、UI save 或配置写回再次出现字段心智漂移，按 P1 重新前置 |
 | 3 | 项目目标与用户使用视角复审 | P1-主路径易用性 | 推进 v1.16.0：作为校准主线归档新增事项和顺序调整，尤其看护基础路由流式输出、上游中途断流、远程中转取消、结构化 API error、route preview 和发布门禁 | v1.11.0/v1.12.0/v1.13.0 说明 closed 事项仍可能暴露真实主路径回归，复审必须持续把低频扩展让位给用户高频基础能力 |
 | 4 | 核心路由用户体感与看护补强 | closed | v1.13.0 已完成 route preview、基础路由触发解释、SmartRouter 起步模板、协作口径校准、用户体感 E2E 和发布质量归档 | 作为回归底线维护；若慢、卡、错路由、错误不可读或入口模板过重再次复现，按 P1/P0 重新前置 |
 | 5 | UI 双层工作台收敛 | P2-能力扩展与体验增强 | 推进 v1.17.0：继续拆分使用者/维护者渲染片段、CSS/JS helper、trace span 视图，并评估真实浏览器 smoke | UI 已是用户入口的一部分，v1.9.0 已处理 admin 鉴权入口，后续叠配置产品化和治理观测时仍要继续降低单文件维护压力 |
@@ -462,7 +462,7 @@
 | v1.19.0 | 部署形态与远程接入收敛 | 继续补服务发现、节点边界和远程服务模式，同时保持安全鉴权和角色心智 |
 | v1.20.0 | 发布与进展治理可持续化 | 发布门禁、closed 事项复审、统一基线和 issue log 形成可持续机制 |
 
-执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；v1.13.0 已闭环后，当前默认从 v1.14.0 配置产品化最终收口开始。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / 受保护 UI admin 入口 / agent-tool trace contract 再次退化，则重新前置处理。
+执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；v1.14.0 已闭环后，当前默认从 v1.15.0 CLI/setup UX 重设计收口开始。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / 受保护 UI admin 入口 / agent-tool trace contract 再次退化，则重新前置处理。
 
 ### 8. v1.2.0 发布闭环边界
 
