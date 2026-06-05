@@ -16,6 +16,7 @@ import { collectCapabilityWarnings } from '../models/compile';
 import { backupConfigFile, normalizeAndValidateConfig, writeConfigFile } from '../utils';
 import { buildValidationIssueReport, formatValidationIssueReport } from '../utils/validation-contract';
 import { isServiceRunning, killProcess, readServiceInfo, waitForProcessExit } from '../utils/processCheck';
+import { toExternalModelConfig } from '../models/schema';
 import { decideServiceAction, applyServiceAction } from './service';
 import { getRepairFields } from './repair';
 import { migrateLegacyConfig } from './migrate';
@@ -1020,6 +1021,15 @@ function isRemoteServiceClientConfig(config: ISetupConfigDraft): boolean {
   return config.Runtime?.mode === 'local' && Boolean(config.Runtime.remote_service?.enabled);
 }
 
+function toSetupPersistedConfig(config: any): any {
+  return {
+    ...config,
+    Models: Array.isArray(config.Models)
+      ? config.Models.map((item: any) => toExternalModelConfig(item))
+      : config.Models,
+  };
+}
+
 export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promise<void> {
   const defaults = createDefaultDeps(customDeps?.io);
   const deps = { ...defaults, ...customDeps } as IRunSetupCliDeps;
@@ -1097,7 +1107,7 @@ export async function runSetupCli(customDeps?: Partial<IRunSetupCliDeps>): Promi
           }
         }
         const persisted = await persistSetupConfig({
-          config: normalized.config,
+          config: toSetupPersistedConfig(normalized.config),
           currentConfigPath,
           hasExistingConfig,
           validateConfig: (inputConfig) => normalizeAndValidateConfig(inputConfig).errors,

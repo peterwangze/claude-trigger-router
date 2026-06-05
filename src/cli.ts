@@ -146,7 +146,7 @@ Claude Trigger Router - 智能触发路由器
 用法：ctr <命令> [选项]
 
 命令：
-  setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置
+  setup       复用或迁移配置；首次使用按 Models[].id 创建默认路由
   doctor      诊断并修复当前配置，按需探测模型可用性
   eval        离线评测固定任务集输出（--input / --tasks / --run / --judge-model）
   init        初始化最小配置模板
@@ -167,7 +167,7 @@ Claude Trigger Router - 智能触发路由器
   --force       强制覆盖已有配置（配合 init/deploy init 使用）
 
 使用示例：
-  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置
+  ctr setup                # 复用/迁移优先；首次按 Models[].id 创建默认路由
   ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性
   ctr doctor --route-preview --route-text "请做架构设计"  # 预演当前请求会走哪个模型
   ctr eval --tasks         # 查看固定评测任务、prompt 和 rubric

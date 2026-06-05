@@ -6,6 +6,17 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { readLegacyConfig, runSetupCli } from './index';
 
+function expectCanonicalWrittenModels(writeConfig: any) {
+  const config = writeConfig.mock.calls.at(-1)?.[0];
+  const models = config?.Models ?? [];
+  for (const model of models) {
+    expect(model).not.toHaveProperty('api_key');
+    expect(model).not.toHaveProperty('api_base_url');
+    expect(model).not.toHaveProperty('protocol');
+  }
+  return models;
+}
+
 describe('readLegacyConfig', () => {
   it('detects legacy config from the claude-code-router path when ccr config is absent', async () => {
     const previousOverride = process.env.CTR_SETUP_LEGACY_CONFIG_PATH;
@@ -277,10 +288,10 @@ describe('runSetupCli', () => {
         Models: [
           expect.objectContaining({
             id: 'sonnet',
-            api_key: 'sk-test',
-            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            key: 'sk-test',
+            api: 'https://openrouter.ai/api/v1/chat/completions',
             model: 'anthropic/claude-sonnet-4',
-            protocol: 'openai',
+            interface: 'openai',
           }),
         ],
         Router: {
@@ -288,6 +299,7 @@ describe('runSetupCli', () => {
         },
       })
     );
+    expectCanonicalWrittenModels(writeConfig);
     expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
     expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用、连接远程服务，还是部署为远程服务端？', ['本地使用（推荐）', '连接远程服务', '部署为远程服务端']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
@@ -685,10 +697,9 @@ describe('runSetupCli', () => {
         Models: [
           expect.objectContaining({
             id: 'sonnet',
-            api_key: 'sk-ant',
-            api_base_url: 'https://api.anthropic.com/v1/messages',
+            key: 'sk-ant',
+            api: 'https://api.anthropic.com/v1/messages',
             model: 'claude-sonnet-4-5',
-            protocol: 'anthropic',
             interface: 'anthropic',
           }),
         ],
@@ -697,6 +708,7 @@ describe('runSetupCli', () => {
         },
       })
     );
+    expectCanonicalWrittenModels(writeConfig);
     expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用、连接远程服务，还是部署为远程服务端？', ['本地使用（推荐）', '连接远程服务', '部署为远程服务端']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
     expect(io.choose).toHaveBeenNthCalledWith(3, '选择接入预设', expect.any(Array));
@@ -754,13 +766,13 @@ describe('runSetupCli', () => {
           expect.objectContaining({
             id: 'local_model',
             api: 'http://127.0.0.1:11434/v1/chat/completions',
-            api_base_url: 'http://127.0.0.1:11434/v1/chat/completions',
             interface: 'openai',
             model: 'gpt-4.1',
           }),
         ],
       })
     );
+    expectCanonicalWrittenModels(writeConfig);
     expect(io.choose).toHaveBeenNthCalledWith(3, '接口类型（写入 Models[].interface）', ['openai', 'anthropic']);
     expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
     expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 Models[].id）', 'provider');
@@ -813,13 +825,13 @@ describe('runSetupCli', () => {
           expect.objectContaining({
             id: 'claude_local',
             api: 'https://api.anthropic.com/v1/messages',
-            api_base_url: 'https://api.anthropic.com/v1/messages',
             interface: 'anthropic',
             model: 'claude-sonnet-4-5',
           }),
         ],
       })
     );
+    expectCanonicalWrittenModels(writeConfig);
     expect(io.choose).toHaveBeenNthCalledWith(3, '接口类型（写入 Models[].interface）', ['openai', 'anthropic']);
     expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
     expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 Models[].id）', 'provider');
@@ -940,8 +952,8 @@ describe('runSetupCli', () => {
         Models: [
           expect.objectContaining({
             id: 'sonnet',
-            api_key: 'sk-test',
-            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            key: 'sk-test',
+            api: 'https://openrouter.ai/api/v1/chat/completions',
             model: 'anthropic/claude-sonnet-4',
           }),
         ],
@@ -950,6 +962,7 @@ describe('runSetupCli', () => {
         },
       })
     );
+    expectCanonicalWrittenModels(writeConfig);
     expect(executeStart).not.toHaveBeenCalled();
     expect(executeReload).not.toHaveBeenCalled();
     expect(verifyHealth).toHaveBeenCalledTimes(1);
@@ -1027,8 +1040,8 @@ describe('runSetupCli', () => {
         Models: [
           expect.objectContaining({
             id: 'gpt90_gpt_5_4',
-            api_key: 'sk-test',
-            api_base_url: 'https://example.com/openai/v1/chat/completions',
+            key: 'sk-test',
+            api: 'https://example.com/openai/v1/chat/completions',
             model: 'gpt-5.4',
           }),
         ],
@@ -1037,6 +1050,7 @@ describe('runSetupCli', () => {
         },
       })
     );
+    expectCanonicalWrittenModels(writeConfig);
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).not.toHaveBeenCalled();
   });

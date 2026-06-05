@@ -121,14 +121,14 @@ describe('runClaudeCode', () => {
     printHelp();
 
     const output = logSpy.mock.calls.map(([line]) => String(line)).join('\n');
-    expect(output).toContain('setup       检测并复用已有配置，必要时迁移旧配置或新建最小配置');
+    expect(output).toContain('setup       复用或迁移配置；首次使用按 Models[].id 创建默认路由');
     expect(output).toContain('doctor      诊断并修复当前配置，按需探测模型可用性');
     expect(output).toContain('eval        离线评测固定任务集输出');
     expect(output).toContain('deploy      生成部署入口配置');
     expect(output).toContain('--force       强制覆盖已有配置（配合 init/deploy init 使用）');
     expect(output).toContain('version     查看当前安装版本与包信息');
     expect(output).toContain('upgrade     查看升级到最新 npm 版本的指引');
-    expect(output).toContain('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置');
+    expect(output).toContain('  ctr setup                # 复用/迁移优先；首次按 Models[].id 创建默认路由');
     expect(output).toContain('  ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性');
     expect(output).toContain('  ctr eval --tasks         # 查看固定评测任务、prompt 和 rubric');
     expect(output).toContain('  ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果');
@@ -138,7 +138,7 @@ describe('runClaudeCode', () => {
     expect(output).toContain('  ctr version              # 查看当前安装版本');
     expect(output).toContain('  ctr upgrade              # 查看升级到最新版本的命令');
     expect(output).toContain('ctr restart 当前默认按后台模式重启');
-    expect(output.indexOf('  ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置')).toBeLessThan(
+    expect(output.indexOf('  ctr setup                # 复用/迁移优先；首次按 Models[].id 创建默认路由')).toBeLessThan(
       output.indexOf('  ctr init                 # 初始化最小配置模板')
     );
 

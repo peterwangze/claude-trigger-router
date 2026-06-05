@@ -47,7 +47,7 @@ ctr code
 ctr ui
 ```
 
-第一次使用时，`ctr setup` 会尽量替你处理选择题：复用已有配置、迁移旧 `claude-code-router` 配置、创建本地配置、连接远程服务，或生成服务端部署 profile。
+第一次使用时，`ctr setup` 会先复用当前配置或迁移旧 `claude-code-router` 配置；确实需要新建时，再按 `Models[].id` 创建默认模型和 `Router.default`。它也能连接远程服务，或生成服务端部署 profile。
 
 ## 最小配置长什么样
 
