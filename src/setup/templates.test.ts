@@ -406,7 +406,7 @@ describe('setup templates', () => {
       );
     });
 
-    it('keeps config/trigger.smart-router.yaml usable for common SmartRouter rules', () => {
+    it('keeps config/trigger.smart-router.yaml usable as a two-model SmartRouter starter', () => {
       const smartRouterPath = join(process.cwd(), 'config', 'trigger.smart-router.yaml');
       const smartRouterConfig = yaml.load(readFileSync(smartRouterPath, 'utf-8')) as any;
       const normalized = normalizeAndValidateConfig(smartRouterConfig);
@@ -419,6 +419,41 @@ describe('setup templates', () => {
         router_model: 'sonnet',
       }));
 
+      const ruleNames = normalized.config.SmartRouter?.rules?.map((rule) => rule.name) ?? [];
+      expect(ruleNames).toEqual(['architecture', 'review']);
+
+      const registry = buildModelRegistry(normalized.config);
+      for (const rule of normalized.config.SmartRouter?.rules ?? []) {
+        expect(registry.modelMap[rule.model]).toBeDefined();
+      }
+      for (const candidate of normalized.config.SmartRouter?.candidates ?? []) {
+        expect(registry.modelMap[candidate.model]).toBeDefined();
+      }
+
+      const router = new TriggerRouter();
+      router.init(normalized.config);
+      const legacyRef = (modelId: string) => {
+        const compiled = registry.modelMap[modelId];
+        return `${compiled.providerName},${compiled.modelName}`;
+      };
+
+      const route = (content: string) => router.routeSync({
+        body: {
+          messages: [{ role: 'user', content }],
+        },
+      } as any);
+
+      expect(route('请做 code review 并指出回归风险').model).toBe(legacyRef('reasoner'));
+      expect(route('请做系统设计和架构设计').model).toBe(legacyRef('reasoner'));
+    });
+
+    it('keeps config/trigger.smart-router.advanced.yaml usable for common SmartRouter rules', () => {
+      const smartRouterPath = join(process.cwd(), 'config', 'trigger.smart-router.advanced.yaml');
+      const smartRouterConfig = yaml.load(readFileSync(smartRouterPath, 'utf-8')) as any;
+      const normalized = normalizeAndValidateConfig(smartRouterConfig);
+
+      expect(normalized.errors).toEqual([]);
+      expect(normalized.warnings).toEqual([]);
       const ruleNames = normalized.config.SmartRouter?.rules?.map((rule) => rule.name) ?? [];
       expect(ruleNames).toEqual(['long_context', 'architecture', 'review', 'coding', 'fast_reply']);
 

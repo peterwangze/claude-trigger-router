@@ -116,7 +116,8 @@ Router:
 
 - [config/trigger.example.yaml](config/trigger.example.yaml)：最小配置
 - [config/trigger.routing.yaml](config/trigger.routing.yaml)：基础路由五槽位
-- [config/trigger.smart-router.yaml](config/trigger.smart-router.yaml)：SmartRouter 常用规则
+- [config/trigger.smart-router.yaml](config/trigger.smart-router.yaml)：SmartRouter 两模型起步模板
+- [config/trigger.smart-router.advanced.yaml](config/trigger.smart-router.advanced.yaml)：SmartRouter 多候选高级模板
 - [config/trigger.advanced.yaml](config/trigger.advanced.yaml)：高级治理示例
 
 ## SmartRouter
@@ -140,7 +141,7 @@ SmartRouter:
 - `SmartRouter.rules` 负责能被关键词稳定识别的任务。
 - `SmartRouter.candidates` 负责规则未命中时的智能兜底。
 - `SmartRouter.routing_budget.latency_budget_ms` 和 `confidence_threshold` 用来控制速度/质量取舍。
-- `SmartRouter.collaboration.mode` 可表达 `route_only`、`verify_only`、`compare_then_arbiter`、`cascade_on_evidence` 这类协作路径。
+- `SmartRouter.collaboration.mode` 可表达 `route_only`、`verify_only`、`compare_then_arbiter`、`cascade_on_evidence` 这类策略 contract；当前默认仍是单模型 `route_only`，不会默认并发调用多个模型。
 
 从 `v1.10.0` 开始，SmartRouter 会把真实 trace 中的质量、失败、延迟、cascade、shadow 和人工校准证据纳入候选模型画像，并在 route decision 中展示 `routingMode`、`collaborationMode` 和 `routingEvidence`。
 

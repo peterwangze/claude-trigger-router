@@ -213,7 +213,9 @@ SmartRouter:
       description: "复杂推理"
 ```
 
-如果想直接从常用规则起步，可以复制 `config/trigger.smart-router.yaml`。模板已经覆盖 `coding`、`review`、`architecture`、`long_context`、`fast_reply` 五类高频任务，并把每条规则引用的模型都写在 `Models[]` 中，便于 `ctr doctor` 和 `/ui` 做一致校验。
+如果想直接从常用规则起步，可以复制 `config/trigger.smart-router.yaml`。默认模板只需要默认模型和复杂任务模型，先覆盖 `architecture` / `review` 这类高确定性任务；更多候选、`coding` / `long_context` / `fast_reply`、semantic/sticky/governance 和本地 fast model 放在 `config/trigger.smart-router.advanced.yaml`，避免新用户第一步就被高级能力压住。
+
+`SmartRouter.collaboration.mode` 当前是策略 contract 和 trace/UI 解释信号。默认 `route_only` 仍只选择一个模型；`verify_only` 会提示后续治理更加关注低置信结果；`compare_then_arbiter` 和 `cascade_on_evidence` 不代表当前默认会并发调用多个模型，只有后续 runtime 明确支持或你显式接入额外治理链路时才会产生额外模型调用。
 
 默认情况下，`SmartRouter` 会启用语义增强和 sticky 稳定性修正，但不会自动启用 `sticky.alignment` 上下文摘要注入。Claude Code 会在每次请求里携带已有会话上下文；只有在你明确需要跨模型切换交接摘要，并接受额外一次 summarizer 调用带来的首包等待时，才建议显式开启：
 
@@ -422,7 +424,8 @@ Models:
 - 主入口：`README.md`
 - 最小示例：`config/trigger.example.yaml`
 - 基础路由五槽位示例：`config/trigger.routing.yaml`
-- SmartRouter 常用规则示例：`config/trigger.smart-router.yaml`
+- SmartRouter 两模型起步示例：`config/trigger.smart-router.yaml`
+- SmartRouter 多候选高级示例：`config/trigger.smart-router.advanced.yaml`
 - 完整高级示例：`config/trigger.advanced.yaml`
 - 旧配置迁移：`docs/models-migration-guide.md`
 - 发布验证：`docs/releasing.md`

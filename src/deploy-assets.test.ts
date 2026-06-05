@@ -41,14 +41,20 @@ describe('deployment assets', () => {
     expect(configurationGuide).toContain('配置指南');
     expect(configurationGuide).toContain('ctr doctor --route-preview --route-text');
     expect(configurationGuide).toContain('显式 `provider,model` 上游引用会直接使用');
+    expect(configurationGuide).toContain('config/trigger.smart-router.advanced.yaml');
 
     const smartRouterTemplate = readFileSync(join(process.cwd(), 'config', 'trigger.smart-router.yaml'), 'utf-8');
     expect(smartRouterTemplate).toContain('SmartRouter:');
-    expect(smartRouterTemplate).toContain('coding');
-    expect(smartRouterTemplate).toContain('review');
     expect(smartRouterTemplate).toContain('architecture');
-    expect(smartRouterTemplate).toContain('long_context');
-    expect(smartRouterTemplate).toContain('fast_reply');
+    expect(smartRouterTemplate).toContain('review');
+    expect(smartRouterTemplate).toContain('router_model: "sonnet"');
+    expect(smartRouterTemplate).not.toContain('fast_background');
+
+    const advancedSmartRouterTemplate = readFileSync(join(process.cwd(), 'config', 'trigger.smart-router.advanced.yaml'), 'utf-8');
+    expect(advancedSmartRouterTemplate).toContain('coding');
+    expect(advancedSmartRouterTemplate).toContain('long_context');
+    expect(advancedSmartRouterTemplate).toContain('fast_reply');
+    expect(advancedSmartRouterTemplate).toContain('fast_background');
 
     const migrationGuide = readFileSync(join(process.cwd(), 'docs', 'models-migration-guide.md'), 'utf-8');
     expect(migrationGuide).toContain('Models');
