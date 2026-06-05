@@ -489,6 +489,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `<div class="panel">` +
     `<div class="row"><strong>Trace Detail</strong><span id="detailHint" class="muted">点击上表中的 View 查看详情</span></div>` +
+    `<div id="traceEvidenceDetail" class="alert-list">` +
+    `<div class="alert info"><strong>Route evidence</strong><div class="muted">点击 View 后会在这里汇总路由决策、模型切换、handoff 阶段和 trace spans。</div></div>` +
+    `</div>` +
     `<pre id="traceDetail">{}</pre>` +
     `</div>` +
     `<div class="panel">` +
@@ -544,6 +547,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const tbody=document.querySelector('#traceTable tbody');` +
     `const detail=document.getElementById('traceDetail');` +
     `const detailHint=document.getElementById('detailHint');` +
+    `const traceEvidenceDetail=document.getElementById('traceEvidenceDetail');` +
     `const draftPreviewStatus=document.getElementById('draftPreviewStatus');` +
     `const draftPresetMode=document.getElementById('draftPresetMode');` +
     `const draftPresetModeHint=document.getElementById('draftPresetModeHint');` +
@@ -1767,6 +1771,24 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    return '<li><span><strong>'+esc(item.headline || item.requestId || '-')+'</strong><div class="muted">'+esc(stages || item.action || '-')+'</div></span><button type="button" data-request="'+esc(item.requestId || '')+'">'+esc(status)+'</button></li>';` +
     `  }).join('');` +
     `}` +
+    `function renderTraceEvidenceDetail(data){` +
+    `  if(!data || data.success===false){ traceEvidenceDetail.innerHTML='<div class="alert warn"><strong>Trace unavailable</strong><div class="muted">'+esc(data?.message || 'No trace detail loaded')+'</div></div>'; return; }` +
+    `  const decision=data.decisionSummary || {};` +
+    `  const sw=data.switchSummary || {};` +
+    `  const handoff=data.handoffSummary || {};` +
+    `  const spans=Array.isArray(data.spans) ? data.spans : [];` +
+    `  const evidence=Array.isArray(decision.routingEvidence) ? decision.routingEvidence : [];` +
+    `  const spanRows=spans.length ? spans.slice(0,8).map(span=>'<li><span><strong>'+esc(span.name || '-')+'</strong><div class="muted">'+esc(span.status || '-')+' · '+esc(span.durationMs !== undefined ? (fmt(span.durationMs)+' ms') : 'duration n/a')+'</div></span><strong>'+esc(span.startOffsetMs !== undefined ? ('+'+fmt(span.startOffsetMs)+' ms') : '-').replace('.00 ms',' ms')+'</strong></li>').join('') : '<li><span class="muted">No trace spans recorded</span><strong>0</strong></li>';` +
+    `  const stageRows=Array.isArray(handoff.stages) && handoff.stages.length ? handoff.stages.map(stage=>'<span class="pill '+esc(stage.status === 'failed' || stage.status === 'blocked' ? 'critical' : (stage.status === 'skipped' ? 'warn' : 'info'))+'">'+esc(stage.stage)+': '+esc(stage.status)+'</span>').join(' ') : '<span class="muted">No handoff stages</span>';` +
+    `  const evidenceRows=evidence.length ? evidence.slice(0,4).map(item=>'<li><span>'+esc(item)+'</span><strong>evidence</strong></li>').join('') : '<li><span class="muted">No routing evidence attached</span><strong>0</strong></li>';` +
+    `  const statusClass=sw.status === 'critical' ? 'critical' : (sw.status === 'watch' ? 'warn' : 'info');` +
+    `  traceEvidenceDetail.innerHTML=` +
+    `    '<div class="alert info"><strong>'+esc(decision.headline || 'Route decision unavailable')+'</strong><div class="muted">'+esc([decision.sourceLabel || decision.source, decision.ruleName ? ('rule '+decision.ruleName) : '', decision.semanticIntent ? ('intent '+decision.semanticIntent) : '', decision.routingMode ? ('mode '+decision.routingMode) : '', decision.collaborationMode ? ('collab '+decision.collaborationMode) : '', decision.confidenceLabel || ''].filter(Boolean).join(' · ') || 'No route metadata')+'</div></div>' +` +
+    `    '<div class="alert '+statusClass+'"><strong>'+esc(sw.headline || 'Switch continuity unavailable')+'</strong><div class="muted">'+esc(sw.action || 'No suggested action')+'</div></div>' +` +
+    `    '<div class="alert '+(handoff.blocked ? 'warn' : 'info')+'"><strong>'+esc(handoff.headline || 'Route handoff unavailable')+'</strong><div class="muted">'+stageRows+'</div><div class="muted">'+esc(handoff.action || '')+'</div></div>' +` +
+    `    '<div class="subpanel"><div class="row"><strong>Routing evidence</strong><span class="muted">SmartRouter budget、confidence、quality 和 fallback 证据</span></div><ul class="mini-list">'+evidenceRows+'</ul></div>' +` +
+    `    '<div class="subpanel"><div class="row"><strong>Trace spans</strong><span class="muted">runtime pipeline / guardrail / pool fallback 片段</span></div><ul class="mini-list">'+spanRows+'</ul></div>';` +
+    `}` +
     `function renderAnomalies(anomalies,health){` +
     `  const status=health?.status || 'idle';` +
     `  const message=health?.message || 'No governance traces yet.';` +
@@ -1901,6 +1923,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const res=await fetch('/api/governance/traces/'+encodeURIComponent(requestId));` +
     `  const data=await res.json();` +
     `  detailHint.textContent='当前查看：'+requestId;` +
+    `  renderTraceEvidenceDetail(data);` +
     `  detail.textContent=JSON.stringify(data,null,2);` +
     `}` +
     `async function loadExports(){` +

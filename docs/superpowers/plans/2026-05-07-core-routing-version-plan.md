@@ -337,8 +337,9 @@ v1.16.0 闭环验证：三个事项已分别独立提交并逐项补复审证据
 1. `[closed 2026-06-06]` 使用者/维护者渲染片段继续拆分：已在现有 fragment contract 上拆出 `workbench-styles.ts` CSS helper 与 `workbench-view-model.ts` 首屏状态派生 helper，让角色入口、服务状态、远程摘要、鉴权摘要和响应式样式不再直接堆在 `renderWorkbenchHtml()` 开头。
    - 闭环标准：新增 helper 已有 DOM smoke 和 contract 看护：`renderWorkbenchStyles()` 固定 role-grid、surface-tabs 与小屏横向表格约束；`deriveWorkbenchViewModel()` 固定 local/server、public listener、remote/client 摘要和 readiness tone；内联脚本语法 smoke 继续通过。
    - 验证：`npm run test:ui`；`npm run build`。
-2. `[planned]` trace span 与路由证据视图收敛：把 runtime pipeline、route preview、routing evidence、handoff summary 等信息用清晰维护者视图承接。
-   - 闭环标准：维护者能从 UI 看懂一次请求的路由、切换、错误和建议动作。
+2. `[closed 2026-06-06]` trace span 与路由证据视图收敛：已在维护者 Trace Detail 区新增 `traceEvidenceDetail` 可读证据面板，点击任意 trace 后先展示 route decision、switch continuity、handoff stages、routing evidence 和 trace spans，再保留原始 JSON 作为深挖入口。
+   - 闭环标准：维护者能从 UI 看懂一次请求的路由、切换、错误和建议动作；新面板复用 detail payload 中已有 `decisionSummary`、`switchSummary`、`handoffSummary` 和 `spans`，不新增平行观测结构。
+   - 验证：`npm run test:ui`；`npm run build`。
 3. `[planned]` 真实浏览器 smoke 评估：在 jsdom smoke 之外补最小浏览器级验证，防止布局、脚本和鉴权入口只在源码测试中成立。
    - 闭环标准：发布前至少有可重复的 UI smoke 验证入口。
 

@@ -145,6 +145,41 @@ async function createWorkbenchDom(options: {
         fetchCalls.push({ url, init });
 
         if (url.startsWith('/api/governance/traces')) {
+          if (url.startsWith('/api/governance/traces/')) {
+            return jsonResponse({
+              requestId: 'route-1',
+              routeReason: ['smart_router'],
+              finalModel: 'sonnet',
+              decisionSummary: {
+                requestId: 'route-1',
+                headline: 'SmartRouter candidate selection selected sonnet with 86% confidence.',
+                sourceLabel: 'SmartRouter candidate selection',
+                routingMode: 'speed',
+                collaborationMode: 'verify_only',
+                confidenceLabel: '86%',
+                routingEvidence: ['latency budget guard: deep avg 900ms > 300ms; using sonnet avg 100ms'],
+              },
+              switchSummary: {
+                requestId: 'route-1',
+                status: 'watch',
+                headline: 'Model switched opus -> sonnet without context alignment.',
+                action: 'Enable or tune Governance.sticky.alignment.',
+              },
+              handoffSummary: {
+                headline: 'Route handoff completed with protocol dispatch.',
+                blocked: false,
+                action: 'No action needed.',
+                stages: [
+                  { stage: 'route', status: 'completed' },
+                  { stage: 'protocol_dispatch', status: 'completed' },
+                ],
+              },
+              spans: [
+                { name: 'runtime.route', status: 'completed', startOffsetMs: 0, durationMs: 12 },
+                { name: 'protocol.dispatch', status: 'completed', startOffsetMs: 12, durationMs: 24 },
+              ],
+            }) as any;
+          }
           lastTraceUrl = url;
           return jsonResponse({
             traces: [],
@@ -574,6 +609,29 @@ describe('workbench DOM smoke', () => {
       expect(text).toContain('mode speed');
       expect(text).toContain('collab verify_only');
       expect(text).toContain('latency budget guard');
+    });
+
+    dom.window.close();
+  });
+
+  it('renders trace detail as readable route evidence instead of raw JSON only', async () => {
+    const { dom } = await createWorkbenchDom();
+    const document = dom.window.document;
+
+    await waitFor(() => {
+      expect(document.querySelector('#routeDecisionSummaryList button[data-request]')).not.toBeNull();
+    });
+
+    document.querySelector<HTMLButtonElement>('#routeDecisionSummaryList button[data-request]')?.click();
+
+    await waitFor(() => {
+      const evidence = document.getElementById('traceEvidenceDetail')?.textContent ?? '';
+      expect(evidence).toContain('SmartRouter candidate selection selected sonnet');
+      expect(evidence).toContain('latency budget guard');
+      expect(evidence).toContain('Enable or tune Governance.sticky.alignment');
+      expect(evidence).toContain('runtime.route');
+      expect(evidence).toContain('protocol.dispatch');
+      expect(document.getElementById('traceDetail')?.textContent).toContain('"spans"');
     });
 
     dom.window.close();
