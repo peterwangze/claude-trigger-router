@@ -413,6 +413,8 @@ Models:
 4. 再加 `SmartRouter.router_model / candidates`
 5. 最后再加 `Governance` 的 cascade / shadow / observability
 
+基础路由排查时先记住当前判断顺序：显式 `provider,model` 上游引用会直接使用；随后才是 `Router.longContext` 阈值、`Router.background`、`Router.think`、`Router.webSearch` 和 `Router.default`。这意味着长上下文可能先于 thinking / webSearch 命中；`Router.background` 目前依赖 Claude Code 请求模型以 `claude-3-5-haiku` 开头；最终定模后还会按模型 metadata 执行 context window guard，必要时切到 `Router.longContext`。可用 `ctr doctor --route-preview --route-text "你的请求"` 先预演，不会调用上游模型。
+
 这样排查问题最简单，也最符合当前文档和测试覆盖的主路径。
 
 ## 12. 参考文件

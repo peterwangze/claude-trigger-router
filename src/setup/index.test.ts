@@ -304,6 +304,12 @@ describe('runSetupCli', () => {
     expect(io.info).toHaveBeenCalledWith('本地代理已启动并通过健康检查。日常使用运行：ctr code');
     expect(io.info).toHaveBeenCalledWith('你可以按需继续配置路由能力：');
     expect(io.info).toHaveBeenCalledWith(
+      '  - 先运行 ctr doctor --route-preview --route-text "你的请求"，确认本次会命中哪个槽位或 SmartRouter 路径'
+    );
+    expect(io.info).toHaveBeenCalledWith(
+      '  - 基础路由顺序：显式上游模型 -> longContext -> background -> think -> webSearch -> default'
+    );
+    expect(io.info).toHaveBeenCalledWith(
       '  - SmartRouter.rules：适合高确定性任务，把架构设计、代码审查等请求固定切到指定模型'
     );
     expect(io.info).toHaveBeenCalledWith(

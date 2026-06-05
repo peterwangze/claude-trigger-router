@@ -981,6 +981,8 @@ function createDefaultDeps(io = createConsoleIO()): IRunSetupCliDeps {
 
 function printRoutingNextSteps(io: ISetupIO): void {
   io.info('你可以按需继续配置路由能力：');
+  io.info('  - 先运行 ctr doctor --route-preview --route-text "你的请求"，确认本次会命中哪个槽位或 SmartRouter 路径');
+  io.info('  - 基础路由顺序：显式上游模型 -> longContext -> background -> think -> webSearch -> default');
   io.info('  - SmartRouter.rules：适合高确定性任务，把架构设计、代码审查等请求固定切到指定模型');
   io.info('  - SmartRouter candidates：适合模糊任务，在候选模型之间自动选择更合适的模型');
   io.info('  - 配置模板参考：config/trigger.advanced.yaml');

@@ -39,6 +39,8 @@ describe('deployment assets', () => {
 
     const configurationGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-guide.md'), 'utf-8');
     expect(configurationGuide).toContain('配置指南');
+    expect(configurationGuide).toContain('ctr doctor --route-preview --route-text');
+    expect(configurationGuide).toContain('显式 `provider,model` 上游引用会直接使用');
 
     const smartRouterTemplate = readFileSync(join(process.cwd(), 'config', 'trigger.smart-router.yaml'), 'utf-8');
     expect(smartRouterTemplate).toContain('SmartRouter:');
@@ -75,6 +77,8 @@ describe('deployment assets', () => {
     expect(readme).toContain('docs/release-notes-v1.12.0.md');
     expect(readme).toContain('流式传输韧性');
     expect(readme).toContain('SSE error event');
+    expect(readme).toContain('ctr doctor --route-preview --route-text');
+    expect(readme).toContain('基础路由的实际判断顺序');
   });
 
   it('keeps README new-user quick start before release positioning', () => {

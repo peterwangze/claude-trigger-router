@@ -110,6 +110,8 @@ Router:
 | `background` | Claude Code 轻量后台请求 |
 | `webSearch` | 带 web search 工具的请求 |
 
+基础路由的实际判断顺序是：显式上游模型 -> `longContext` 阈值 -> `background` -> `think` -> `webSearch` -> `default`。因此超长输入会先进入长上下文槽位；`background` 当前只识别 Claude Code 发出的 `claude-3-5-haiku*` 后台模型请求；如果请求模型已经是 `provider,model` 这类上游引用，基础槽位不会再覆盖。最终定模后还会执行 context window guard，如果已选模型放不下，会优先 fallback 到 `Router.longContext`。
+
 可复制模板：
 
 - [config/trigger.example.yaml](config/trigger.example.yaml)：最小配置
@@ -146,10 +148,11 @@ SmartRouter:
 
 ```bash
 ctr doctor
+ctr doctor --route-preview --route-text "请做架构设计"
 ctr ui
 ```
 
-`ctr doctor` 用来检查配置、服务启动、模型引用、上下文窗口、鉴权状态和可选模型探测。模型探测会消耗少量额度，所以会先征求确认。
+`ctr doctor` 用来检查配置、服务启动、模型引用、上下文窗口、鉴权状态和可选模型探测。`--route-preview` 可以在不调用上游模型、不消耗额度的情况下预演当前请求会命中哪个槽位或 SmartRouter 路径；模型探测会消耗少量额度，所以会先征求确认。
 
 `ctr ui` 默认打开：
 
