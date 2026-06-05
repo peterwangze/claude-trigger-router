@@ -320,8 +320,12 @@ v1.15.0 闭环验证：四个事项已分别独立提交并逐项补 targeted �
    - 闭环标准：每条 P0/P1 风险都有现有看护证据或新增版本计划承接。
    - 闭环结果：`test:e2e:cli:entry` 覆盖 help、init、doctor、start/status/stop、setup fresh、setup remote client、setup server profile、code 和 ui；`test:route-ux` 覆盖 route preview、doctor 可读输出、基础路由槽位摘要、即时流式 chunk、上游断流可读 SSE error、远程中转、结构化 502、upstream error payload 和 SmartRouter 选择切片。
    - 验证：`npm run test:e2e:cli:entry` 通过 9 个入口用例；`npm run test:route-ux` 通过 14 个用户体感用例。测试过程中 Node shell args deprecation warning 属于发布工程观察项，不影响当前入口闭环，后续纳入 v1.20.0 发布与进展治理可持续化继续评估。
-3. `[planned]` 已闭环事项抽样校准：抽查 v1.9-v1.15 之间的 closed 事项是否与当前代码、文档和测试仍一致。
+3. `[closed 2026-06-05]` 已闭环事项抽样校准：已抽查 v1.9-v1.15 之间的 closed 事项是否与当前代码、文档和测试仍一致；当前未发现需要回退历史 closed 结论的新漂移。
    - 闭环标准：不回退历史 closed 结论；发现漂移时新增事项并更新 progress issue log。
+   - 抽样结果：v1.9 远程客户端 thin proxy、`ANTHROPIC_AUTH_TOKEN` 和受保护 UI admin 指导仍由 README / configuration guide / remote client guide / deploy assets test 看护；v1.10 SmartRouter collaboration 仍明确为 contract 与 trace/UI 信号，不默认多模型并发；v1.11/v1.12 流式即时透传、上游断流可读 SSE error、远程中转取消和结构化 error 由 `test:route-ux` 看护；v1.13 route preview、基础路由触发解释和 SmartRouter 起步模板仍由 README、configuration guide、模板和 route UX 门禁看护；v1.14 `id/api/key/interface/model` 字段心智仍由 README、configuration guide、setup/UI/server/doctor 测试看护；v1.15 migration-first、model-id-first、SmartRouter 起步引导和三类 setup completion next steps 仍由 `test:e2e:cli:entry` 看护。
+   - 验证：已复核 release notes v1.9.0-v1.15.0、README、configuration guide、remote client guide、相关配置模板和 targeted test anchors；未新增 issue log。
+
+v1.16.0 闭环验证：三个事项已分别独立提交并逐项补复审证据；本轮新增 UI 角色入口已通过 `npm run test:ui`，高频入口复审已通过 `npm run test:e2e:cli:entry` 与 `npm run test:route-ux`。最终发布门禁以 `npm run release:verify` 为准。
 
 ### v1.17.0 UI 双层工作台收敛
 
