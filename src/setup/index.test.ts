@@ -313,7 +313,8 @@ describe('runSetupCli', () => {
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).not.toHaveBeenCalled();
-    expect(io.info).toHaveBeenCalledWith('本地代理已启动并通过健康检查。日常使用运行：ctr code');
+    expect(io.info).toHaveBeenCalledWith('本地代理已启动并通过健康检查。下一步：运行 ctr doctor 或 ctr status 确认本地代理状态。');
+    expect(io.info).toHaveBeenCalledWith('日常使用：运行 ctr code 进入 Claude Code；需要查看配置、路由原因或健康状态时运行 ctr ui。');
     expect(io.info).toHaveBeenCalledWith('你可以按需继续配置路由能力：');
     expect(io.info).toHaveBeenCalledWith(
       '  - 先运行 ctr doctor --route-preview --route-text "你的请求"，确认本次会命中哪个槽位或 SmartRouter 路径'

@@ -1884,6 +1884,8 @@ describe('packaged CLI E2E', () => {
       expect(configText).toContain('id: sonnet');
       expect(configText).toContain('key: sk-first-use');
       expect(configText).toContain('default: sonnet');
+      expect(result.stdout).toContain('下一步：运行 ctr doctor 或 ctr status 确认本地代理状态。');
+      expect(result.stdout).toContain('日常使用：运行 ctr code 进入 Claude Code；需要查看配置、路由原因或健康状态时运行 ctr ui。');
       expect(result.stdout).toContain('你可以按需继续配置路由能力：');
       expect(result.stdout).toContain('SmartRouter');
       expect(result.stdout).toContain('config/trigger.routing.yaml');

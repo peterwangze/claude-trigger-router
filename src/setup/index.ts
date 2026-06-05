@@ -1048,7 +1048,8 @@ function printRemoteClientNextSteps(io: ISetupIO, action: 'reuse' | 'start' | 'r
 }
 
 function printLocalClientNextSteps(io: ISetupIO, action: 'reuse' | 'start' | 'reload' | 'restart'): void {
-  io.info(`${formatSetupServiceReadyMessage(action)}日常使用运行：ctr code`);
+  io.info(`${formatSetupServiceReadyMessage(action)}下一步：运行 ctr doctor 或 ctr status 确认本地代理状态。`);
+  io.info('日常使用：运行 ctr code 进入 Claude Code；需要查看配置、路由原因或健康状态时运行 ctr ui。');
   printRoutingNextSteps(io);
 }
 

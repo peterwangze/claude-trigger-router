@@ -335,6 +335,8 @@ describe('isolated packaged CLI acceptance', () => {
       expectNoTerminalCorruption(`${setupResult.stdout}\n${setupResult.stderr}`);
       expect(setupResult.stdout).toContain('当前要本地使用、连接远程服务，还是部署为远程服务端？');
       expect(setupResult.stdout).toContain('我们先创建一份最小可用配置。');
+      expect(setupResult.stdout).toContain('下一步：运行 ctr doctor 或 ctr status 确认本地代理状态。');
+      expect(setupResult.stdout).toContain('日常使用：运行 ctr code 进入 Claude Code；需要查看配置、路由原因或健康状态时运行 ctr ui。');
       expect(setupResult.stdout).toContain('为避免 setup 结束后接管当前终端，请手动运行：ctr code');
       const configPathCandidates = [
         join(env.homeDir, '.claude-trigger-router', 'config.yaml'),
