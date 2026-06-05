@@ -3,6 +3,8 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { renderWorkbenchHtml } from './workbench';
 import { extractWorkbenchInlineScript } from './workbench-document';
 import { WORKBENCH_FRAGMENT_CONTRACTS, renderSurfaceTabs, toInlineScriptJson } from './workbench-fragments';
+import { renderWorkbenchStyles } from './workbench-styles';
+import { deriveWorkbenchViewModel } from './workbench-view-model';
 
 const baseConfig = {
   HOST: '127.0.0.1',
@@ -376,6 +378,39 @@ describe('workbench DOM smoke', () => {
     }
 
     dom.window.close();
+  });
+
+  it('keeps workbench style helper anchored to the responsive two-surface layout', () => {
+    const styles = renderWorkbenchStyles();
+
+    expect(styles).toContain('.role-grid');
+    expect(styles).toContain('.surface-tabs');
+    expect(styles).toContain('@media (max-width:760px)');
+    expect(styles).toContain('.management-table,.trend-table,table{display:block;overflow-x:auto;white-space:nowrap}');
+  });
+
+  it('derives first-screen UI state from runtime config before rendering', () => {
+    const localView = deriveWorkbenchViewModel(baseConfig);
+
+    expect(localView.modelsCount).toBe(1);
+    expect(localView.routerDefault).toBe('sonnet');
+    expect(localView.listenerSummary).toBe('127.0.0.1:5678 (local)');
+    expect(localView.userReadinessTone).toBe('ready');
+    expect(localView.remoteTone).toBe('muted');
+
+    const serverView = deriveWorkbenchViewModel({
+      Runtime: { mode: 'server' },
+      HOST: '0.0.0.0',
+      PORT: 6789,
+      Models: [],
+      Router: {},
+    });
+
+    expect(serverView.serviceRole).toBe('router_service');
+    expect(serverView.securitySummary).toBe('critical');
+    expect(serverView.userReadinessTone).toBe('critical');
+    expect(serverView.listenerSummary).toBe('0.0.0.0:6789 (public)');
+    expect(serverView.clientConnectionSummary).toContain('http://<server-host>:6789');
   });
 
   it('loads current config and compiled models into the usable workspace', async () => {

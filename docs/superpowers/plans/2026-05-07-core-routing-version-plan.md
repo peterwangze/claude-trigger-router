@@ -334,8 +334,9 @@ v1.16.0 闭环验证：三个事项已分别独立提交并逐项补复审证据
 用户目标：`/ui` 保持使用者配置入口与维护者观测入口分层清晰，继续降低大型 HTML/CSS/内联 JS 的维护压力，让配置产品化、trace span 和治理观测能稳妥进入 UI。
 
 0. `[closed 2026-06-05 via v1.16.0]` 角色化 UI 入口与设计辅助面板：作为 v1.16.0 用户视角复审发现的入口易用性缺口，已先补第一屏角色入口、任务路径和 UX 诊断面板。v1.17.0 后续不重复承接该问题，只在此基础上继续工程化拆分和浏览器 smoke。
-1. `[planned]` 使用者/维护者渲染片段继续拆分：在现有 fragment contract 上拆出更稳定的 UI 片段、CSS/JS helper 和数据注入边界。
-   - 闭环标准：新增 UI 能力有 fragment anchor、DOM smoke 和脚本语法看护。
+1. `[closed 2026-06-06]` 使用者/维护者渲染片段继续拆分：已在现有 fragment contract 上拆出 `workbench-styles.ts` CSS helper 与 `workbench-view-model.ts` 首屏状态派生 helper，让角色入口、服务状态、远程摘要、鉴权摘要和响应式样式不再直接堆在 `renderWorkbenchHtml()` 开头。
+   - 闭环标准：新增 helper 已有 DOM smoke 和 contract 看护：`renderWorkbenchStyles()` 固定 role-grid、surface-tabs 与小屏横向表格约束；`deriveWorkbenchViewModel()` 固定 local/server、public listener、remote/client 摘要和 readiness tone；内联脚本语法 smoke 继续通过。
+   - 验证：`npm run test:ui`；`npm run build`。
 2. `[planned]` trace span 与路由证据视图收敛：把 runtime pipeline、route preview、routing evidence、handoff summary 等信息用清晰维护者视图承接。
    - 闭环标准：维护者能从 UI 看懂一次请求的路由、切换、错误和建议动作。
 3. `[planned]` 真实浏览器 smoke 评估：在 jsdom smoke 之外补最小浏览器级验证，防止布局、脚本和鉴权入口只在源码测试中成立。

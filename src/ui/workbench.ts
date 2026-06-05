@@ -10,68 +10,22 @@ import {
   renderWorkbenchScriptStart,
 } from "./workbench-document";
 import { escapeHtml, renderSurfaceTabs, toInlineScriptJson } from "./workbench-fragments";
+import { renderWorkbenchStyles } from "./workbench-styles";
+import { deriveWorkbenchViewModel } from "./workbench-view-model";
 
 export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds: any = {}): string {
-  const initialConfig = rawInitialConfig ?? {};
-  const modelsCount = Array.isArray(initialConfig.Models)
-    ? initialConfig.Models.length
-    : 0;
-  const routerDefault = initialConfig.Router?.default ?? '-';
-  const displayPort = initialConfig.PORT ?? '-';
-  const runtimeMode = initialConfig.Runtime?.mode ?? 'local';
-  const serviceRole = runtimeMode === 'local' ? 'local_agent' : 'router_service';
-  const remoteService = initialConfig.Runtime?.remote_service ?? {};
-  const remoteBaseUrl = typeof remoteService.base_url === 'string'
-    ? remoteService.base_url.trim().replace(/\/+$/, '')
-    : '';
-  const remoteSummary = remoteService.enabled
-    ? `${remoteBaseUrl || '-'} (checking)`
-    : 'disabled';
-  const configuredHost = String(initialConfig.HOST ?? '127.0.0.1').trim() || '127.0.0.1';
-  const publicHost = ['0.0.0.0', '::', '[::]'].includes(configuredHost);
-  const advertisedUrl = publicHost
-    ? `http://<server-host>:${displayPort}`
-    : `http://${configuredHost}:${displayPort}`;
-  const clientConnectionSummary = runtimeMode === 'local' && remoteService.enabled
-    ? `${remoteBaseUrl || '-'} · client + read-only token`
-    : runtimeMode === 'local'
-      ? `local only · http://127.0.0.1:${displayPort}`
-      : `${advertisedUrl} · client + read-only token`;
-  const registration = initialConfig.Registration ?? {};
-  const registrationModels = Array.isArray(registration.models) ? registration.models.length : 0;
-  const registrationUpstreamServices = Array.isArray(registration.upstream_services) ? registration.upstream_services.length : 0;
-  const registrationSummary = registration.enabled
-    ? `${registrationModels} models / ${registrationUpstreamServices} upstream`
-    : 'disabled';
-  const initialManagedKeys = Array.isArray(initialConfig.Auth?.managed_keys) ? initialConfig.Auth.managed_keys : [];
-  const nowMs = Date.now();
-  const initialActiveManagedKeys = initialManagedKeys.filter((record: any) => {
-    if (record?.revoked_at) {
-      return false;
-    }
-    if (!record?.expires_at) {
-      return true;
-    }
-    const expiresAt = Date.parse(record.expires_at);
-    return !Number.isFinite(expiresAt) || expiresAt > nowMs;
-  }).length;
-  const authSummary = initialConfig.APIKEY || initialManagedKeys.length > 0 ? `configured · ${initialActiveManagedKeys} active` : 'not configured';
-  const securitySummary = (!initialConfig.APIKEY && initialManagedKeys.length === 0 && (runtimeMode !== 'local' || publicHost))
-    ? 'critical'
-    : (!initialConfig.APIKEY && initialManagedKeys.length > 0 && initialActiveManagedKeys === 0)
-      ? 'warning'
-    : 'ok';
-  const escapedDisplayPort = escapeHtml(displayPort);
-  const escapedModelsCount = escapeHtml(modelsCount);
-  const escapedRouterDefault = escapeHtml(routerDefault);
-  const escapedRuntimeMode = escapeHtml(runtimeMode);
-  const escapedServiceRole = escapeHtml(serviceRole);
-  const escapedListenerSummary = escapeHtml(`${configuredHost}:${displayPort}${publicHost ? ' (public)' : ' (local)'}`);
-  const escapedClientConnectionSummary = escapeHtml(clientConnectionSummary);
-  const escapedRemoteSummary = escapeHtml(remoteSummary);
-  const escapedRegistrationSummary = escapeHtml(registrationSummary);
-  const escapedAuthSummary = escapeHtml(authSummary);
-  const escapedSecuritySummary = escapeHtml(securitySummary);
+  const viewModel = deriveWorkbenchViewModel(rawInitialConfig);
+  const escapedDisplayPort = escapeHtml(viewModel.displayPort);
+  const escapedModelsCount = escapeHtml(viewModel.modelsCount);
+  const escapedRouterDefault = escapeHtml(viewModel.routerDefault);
+  const escapedRuntimeMode = escapeHtml(viewModel.runtimeMode);
+  const escapedServiceRole = escapeHtml(viewModel.serviceRole);
+  const escapedListenerSummary = escapeHtml(viewModel.listenerSummary);
+  const escapedClientConnectionSummary = escapeHtml(viewModel.clientConnectionSummary);
+  const escapedRemoteSummary = escapeHtml(viewModel.remoteSummary);
+  const escapedRegistrationSummary = escapeHtml(viewModel.registrationSummary);
+  const escapedAuthSummary = escapeHtml(viewModel.authSummary);
+  const escapedSecuritySummary = escapeHtml(viewModel.securitySummary);
   const escapedLocalUserRoleGuide = escapeHtml(LOCAL_USER_ROLE_GUIDE);
   const escapedServerMaintainerRoleGuide = escapeHtml(SERVER_MAINTAINER_ROLE_GUIDE);
   const escapedRemoteClientRoleGuide = escapeHtml(REMOTE_CLIENT_ROLE_GUIDE);
@@ -79,101 +33,14 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const escapedCascadeWarnRate = escapeHtml(configuredThresholds.cascade_warn_rate ?? 0.4);
   const escapedShadowWarnRate = escapeHtml(configuredThresholds.shadow_warn_rate ?? 0.5);
   const escapedLatencyWarnMs = escapeHtml(configuredThresholds.latency_warn_ms ?? 1500);
-  const userReadinessTone = modelsCount > 0 && routerDefault !== '-' && securitySummary !== 'critical'
-    ? 'ready'
-    : securitySummary === 'critical'
-      ? 'critical'
-      : 'watch';
-  const routeSetupTone = modelsCount > 0 && routerDefault !== '-' ? 'ready' : 'watch';
-  const maintainerTone = securitySummary === 'critical' ? 'critical' : (runtimeMode === 'local' ? 'ready' : 'watch');
-  const remoteTone = runtimeMode === 'local' && !remoteService.enabled ? 'muted' : (remoteService.enabled ? 'watch' : 'ready');
-  const escapedUserReadinessTone = escapeHtml(userReadinessTone);
-  const escapedRouteSetupTone = escapeHtml(routeSetupTone);
-  const escapedMaintainerTone = escapeHtml(maintainerTone);
-  const escapedRemoteTone = escapeHtml(remoteTone);
+  const escapedUserReadinessTone = escapeHtml(viewModel.userReadinessTone);
+  const escapedRouteSetupTone = escapeHtml(viewModel.routeSetupTone);
+  const escapedMaintainerTone = escapeHtml(viewModel.maintainerTone);
+  const escapedRemoteTone = escapeHtml(viewModel.remoteTone);
 
   return (
     renderWorkbenchDocumentStart() +
-    `:root{color-scheme:light;--bg:#f4f6f8;--panel:#ffffff;--panel-soft:#f9fafb;--line:#d9dee7;--line-soft:#e7ebf0;--text:#172033;--muted:#647084;--brand:#0f766e;--brand-strong:#115e59;--accent:#2563eb;--warn:#b45309;--critical:#b91c1c;--ok:#047857;--shadow:0 12px 32px rgba(15,23,42,.08)}` +
-    `*{box-sizing:border-box}` +
-    `body{font-family:ui-sans-serif,system-ui,sans-serif;padding:1.5rem;max-width:1280px;margin:0 auto;background:var(--bg);color:var(--text);line-height:1.45}` +
-    `.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem;box-shadow:0 1px 0 rgba(15,23,42,.03);max-width:100%;overflow-x:auto}` +
-    `.muted{color:var(--muted)}` +
-    `.app-shell{display:grid;gap:1rem}` +
-    `.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.62fr);gap:1rem;align-items:stretch;margin-bottom:1rem}` +
-    `.hero h1{margin:0;font-size:1.7rem;line-height:1.2;letter-spacing:0}` +
-    `.hero-copy{display:flex;flex-direction:column;justify-content:space-between;gap:1rem}` +
-    `.eyebrow{font-size:.78rem;font-weight:700;text-transform:uppercase;color:var(--brand);letter-spacing:.08em}` +
-    `.hero-summary{max-width:62rem;margin:.5rem 0 0;color:var(--muted)}` +
-    `.hero-actions{display:flex;gap:.65rem;flex-wrap:wrap;align-items:center}` +
-    `.status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}` +
-    `.status-tile{background:var(--panel-soft);border:1px solid var(--line-soft);border-radius:8px;padding:.75rem;min-width:0}` +
-    `.status-tile strong{display:block;margin-top:.2rem;word-break:break-word;color:var(--text)}` +
-    `.role-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}` +
-    `.role-card{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--brand);border-radius:8px;padding:1rem;min-width:0;display:flex;flex-direction:column;gap:.75rem;box-shadow:0 1px 0 rgba(15,23,42,.03)}` +
-    `.role-card[data-tone="watch"]{border-left-color:var(--warn)}.role-card[data-tone="critical"]{border-left-color:var(--critical)}.role-card[data-tone="ready"]{border-left-color:var(--ok)}.role-card[data-tone="muted"]{border-left-color:#94a3b8}` +
-    `.role-card h2{font-size:1rem;margin:0}.role-card p{margin:0;color:var(--muted);font-size:.92rem}` +
-    `.role-meta{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:auto}` +
-    `.task-map{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:1rem;margin-bottom:1rem}` +
-    `.ux-checklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}` +
-    `.ux-check{background:var(--panel-soft);border:1px solid var(--line-soft);border-radius:8px;padding:.75rem;min-width:0}` +
-    `.ux-check strong{display:block;margin-bottom:.25rem}.ux-check[data-state="ready"] strong{color:var(--ok)}.ux-check[data-state="watch"] strong{color:var(--warn)}.ux-check[data-state="critical"] strong{color:var(--critical)}` +
-    `@media (max-width:980px){.hero,.task-map{grid-template-columns:1fr}.role-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}` +
-    `@media (max-width:760px){body{padding:.75rem}.role-grid,.ux-checklist,.status-grid{grid-template-columns:1fr}.hero-actions,.action-row,.row{align-items:stretch}.hero-actions button,.action-row button,.surface-tab{width:100%}.management-table,.trend-table,table{display:block;overflow-x:auto;white-space:nowrap}.panel{padding:.9rem}}` +
-    `.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
-    `.stat{background:var(--panel-soft);border:1px solid var(--line-soft);border-radius:8px;padding:.85rem}` +
-    `.stat strong{display:block;font-size:1.1rem;margin-top:.25rem}` +
-    `.subpanel{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line-soft)}` +
-    `.bucket-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-top:.75rem}` +
-    `.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:1rem}` +
-    `.mini-list{list-style:none;padding:0;margin:.75rem 0 0}` +
-    `.mini-list li{display:flex;justify-content:space-between;gap:.75rem 1rem;flex-wrap:wrap;align-items:flex-start;padding:.45rem 0;border-bottom:1px dashed var(--line-soft)}` +
-    `.mini-list li:last-child{border-bottom:none}` +
-    `.action-row{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-top:.75rem}` +
-    `.management-table{width:100%;margin-top:.75rem}` +
-    `.management-table th,.management-table td{padding:.5rem;border-bottom:1px solid var(--line-soft);font-size:.92rem;vertical-align:top}` +
-    `.scope-guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.75rem;margin-top:.75rem}` +
-    `.scope-guide div{background:var(--panel-soft);border:1px solid var(--line-soft);border-radius:8px;padding:.75rem}` +
-    `.scope-guide strong{display:block;margin-bottom:.35rem}` +
-    `.alert-list{display:grid;gap:.75rem;margin-top:1rem}` +
-    `.alert{border-radius:8px;padding:.85rem 1rem;border:1px solid}` +
-    `.alert.warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}` +
-    `.alert.critical{background:#fef2f2;border-color:#fca5a5;color:#991b1b}` +
-    `.alert.info{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}` +
-    `.diff-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.75rem;margin-top:.75rem}` +
-    `.diff-chip{background:var(--panel-soft);border:1px solid var(--line-soft);border-radius:8px;padding:.75rem}` +
-    `.diff-chip strong{display:block;font-size:1rem;margin-top:.2rem}` +
-    `.models-form-grid{display:grid;gap:.75rem;margin-top:.75rem}` +
-    `.model-card{border:1px solid var(--line-soft);border-radius:8px;padding:1rem;background:#fcfcfd}` +
-    `.model-card-header{display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:.75rem}` +
-    `.model-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem}` +
-    `.model-card-grid textarea{min-height:84px;resize:vertical}` +
-    `.list-editor{display:grid;gap:.75rem;margin-top:.75rem}` +
-    `.list-item{border:1px solid var(--line-soft);border-radius:8px;padding:.85rem;background:#fcfcfd}` +
-    `.list-item-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem}` +
-    `.jump-highlight{outline:3px solid #f59e0b;box-shadow:0 0 0 6px rgba(245,158,11,.15);transition:box-shadow .25s ease,outline-color .25s ease}` +
-    `.control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-top:1rem}` +
-    `.control-grid label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:.35rem}` +
-    `.trend-table{width:100%;margin-top:.75rem}` +
-    `.trend-table th,.trend-table td{padding:.45rem;border-bottom:1px solid var(--line-soft);font-size:.92rem}` +
-    `.row{display:flex;gap:1rem;flex-wrap:wrap;align-items:center}` +
-    `input,select,textarea,button{font:inherit;padding:.55rem .75rem;border-radius:8px;border:1px solid #cbd5e1;max-width:100%}` +
-    `input,select,textarea{background:#fff;color:var(--text)}` +
-    `button{background:var(--brand);color:#fff;border-color:var(--brand);cursor:pointer;font-weight:650}` +
-    `button:hover{background:var(--brand-strong);border-color:var(--brand-strong)}` +
-    `button.secondary{background:#fff;color:var(--text);border-color:#cbd5e1}` +
-    `button.secondary:hover{background:#f8fafc;border-color:#94a3b8}` +
-    `table{width:100%;max-width:100%;border-collapse:collapse;margin-top:1rem}` +
-    `th,td{text-align:left;padding:.65rem .5rem;border-bottom:1px solid var(--line-soft);vertical-align:top}` +
-    `code,pre{font-family:ui-monospace,SFMono-Regular,monospace}` +
-    `pre{white-space:pre-wrap;background:#172033;color:#e2e8f0;padding:1rem;border-radius:8px;overflow:auto}` +
-    `.pill{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:.8rem;font-weight:650}` +
-    `.pill.info{background:#eff6ff;color:#1d4ed8}.pill.warn{background:#fff7ed;color:#9a3412}.pill.critical{background:#fef2f2;color:#991b1b}` +
-    `.surface-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0;position:sticky;top:.5rem;z-index:4;background:rgba(244,246,248,.9);backdrop-filter:blur(8px);padding:.4rem;border:1px solid var(--line-soft);border-radius:8px}` +
-    `.surface-tab{background:#fff;color:var(--text);border-color:#cbd5e1}` +
-    `.surface-tab.active{background:#172033;color:#fff;border-color:#172033}` +
-    `.surface-panel[hidden]{display:none}` +
-    `.surface-heading{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:.75rem}` +
+    renderWorkbenchStyles() +
     `</style></head>` +
     `<body>` +
     `<main class="app-shell">` +
@@ -215,7 +82,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</article>` +
     `<article class="role-card" data-tone="${escapedMaintainerTone}" id="maintainerRoleCard">` +
     `<div><h2>服务维护者</h2><p>关注鉴权、安全、模型池健康、trace、异常趋势和归档。</p></div>` +
-    `<div class="role-meta"><span class="pill ${securitySummary === 'critical' ? 'critical' : 'info'}">${escapedSecuritySummary}</span><button class="secondary" type="button" data-surface-jump="maintainer">进入观测</button></div>` +
+    `<div class="role-meta"><span class="pill ${viewModel.securitySummary === 'critical' ? 'critical' : 'info'}">${escapedSecuritySummary}</span><button class="secondary" type="button" data-surface-jump="maintainer">进入观测</button></div>` +
     `</article>` +
     `<article class="role-card" data-tone="${escapedRouteSetupTone}" id="routingDesignerRoleCard">` +
     `<div><h2>路由设计辅助</h2><p>用预览、warning、路由解释和 SmartRouter 证据检查入口是否容易用。</p></div>` +
