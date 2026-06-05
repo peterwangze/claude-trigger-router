@@ -7,7 +7,7 @@ Claude Trigger Router 是给 Claude Code 用的本地模型路由代理。Claude
 ## 你会得到什么
 
 - 一个本地 Claude Code 代理：默认监听 `127.0.0.1:5678`。
-- 一份统一模型配置：用 `Models[]` 管供应商、接口、API key 和模型名。
+- 一份统一模型配置：用 `Models[].id/api/key/interface/model` 管模型接入。
 - 基础路由：用 `Router.default`、`think`、`longContext`、`background`、`webSearch` 覆盖高频场景。
 - SmartRouter：用规则、语义匹配、候选模型画像和 LLM 路由选择更合适的模型。
 - 治理与 UI：通过 `ctr doctor` 和 `ctr ui` 看配置、健康状态、路由原因、trace 和协作证据。
@@ -75,6 +75,8 @@ Router:
 ```
 
 `interface` 表示上游接口协议，不是厂商名。OpenRouter、DeepSeek 和大多数 OpenAI-compatible 服务通常用 `openai`；Anthropic 官方接口用 `anthropic`。
+
+新配置只推荐写 `id/api/key/interface/model/thinking/metadata`。旧字段 `api_base_url/api_key/protocol` 只作为历史配置兼容读取，不作为新配置入口。
 
 ## 配多个模型
 

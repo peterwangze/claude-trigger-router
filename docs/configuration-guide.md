@@ -27,6 +27,8 @@ ctr setup
 
 默认部署模式是 `Runtime.mode: local`，也就是本机运行本地代理服务。只有当你明确要连接已经存在的远程 Trigger Router 服务时，才需要配置 `Runtime.remote_service`。
 
+新配置统一只写 `id/api/key/interface/model/thinking/metadata`。旧 `Providers` 结构和 `api_base_url/api_key/protocol` 字段只作为历史配置兼容读取；setup、doctor、UI 保存和配置写回都应回到这套推荐字段。
+
 最小可用示例：
 
 ```yaml

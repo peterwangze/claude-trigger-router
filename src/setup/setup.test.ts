@@ -397,7 +397,7 @@ describe('runSetup', () => {
     expect(deps.ensureServiceReady).not.toHaveBeenCalled();
     expect(deps.enterClaudeCode).not.toHaveBeenCalled();
     expect(deps.io.info).toHaveBeenCalledWith('当前配置是 server 部署配置；setup 不会自动启动远程服务。');
-    expect(deps.io.info).toHaveBeenCalledWith('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+    expect(deps.io.info).toHaveBeenCalledWith('下一步：确认 Models[].id/api/key/interface/model，按需补 thinking/metadata；然后运行 ctr doctor && ctr start --daemon。');
   });
 
   it('reuses a valid current cloud config without treating it as a local Claude Code setup', async () => {
@@ -432,7 +432,7 @@ describe('runSetup', () => {
     expect(deps.ensureServiceReady).not.toHaveBeenCalled();
     expect(deps.enterClaudeCode).not.toHaveBeenCalled();
     expect(deps.io.info).toHaveBeenCalledWith('当前配置是 cloud 部署配置；setup 不会自动启动远程服务。');
-    expect(deps.io.info).toHaveBeenCalledWith('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+    expect(deps.io.info).toHaveBeenCalledWith('下一步：确认 Models[].id/api/key/interface/model，按需补 thinking/metadata；然后运行 ctr doctor && ctr start --daemon。');
   });
 
   it('repairs an invalid current config by mapping missing fields and persisting the completed draft', async () => {

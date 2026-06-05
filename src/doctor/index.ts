@@ -13,7 +13,7 @@ import { buildValidationIssueReport, formatValidationIssueReport } from '../util
 import { migrateLegacyConfig } from '../setup/migrate';
 import { readLegacyConfig } from '../setup';
 import { IAppConfig, IModelEndpointConfig } from '../trigger/types';
-import { getModelApi, getModelInterface, getModelKey, inferInterfaceFromApiEndpoint } from '../models/schema';
+import { getModelApi, getModelInterface, getModelKey, inferInterfaceFromApiEndpoint, toExternalModelConfig } from '../models/schema';
 import {
   buildModelRegistry,
   describeCompatibilityProfile,
@@ -395,15 +395,13 @@ function repairDeterministicConfig(config: Partial<IAppConfig>): { config: Parti
         changes.push(`已归一 Models[${index}].key`);
       }
 
+      const { api_base_url: _legacyApi, api_key: _legacyKey, protocol: _legacyProtocol, ...canonicalItem } = item as Partial<IModelEndpointConfig>;
       return {
-        ...item,
+        ...canonicalItem,
         id,
         api: api || undefined,
-        api_base_url: api || undefined,
         key: key || undefined,
-        api_key: key || undefined,
         interface: inferredInterface,
-        protocol: inferredInterface,
       };
     });
 
@@ -464,19 +462,16 @@ async function completeMissingModelFields(
     if (!getModelApi(model)) {
       const api = await io.input(`补全 ${label} 的 API Base URL`);
       model.api = api;
-      model.api_base_url = api;
       changes.push(`已补全 ${label} 的 API Base URL`);
     }
     if (!getModelKey(model)) {
       const key = await io.input(`补全 ${label} 的 API Key`);
       model.key = key;
-      model.api_key = key;
       changes.push(`已补全 ${label} 的 API Key`);
     }
     if (!getModelInterface(model)) {
       const interfaceChoice = await io.choose(`补全 ${label} 的接口类型`, ['openai', 'anthropic']);
       model.interface = interfaceChoice as 'openai' | 'anthropic';
-      model.protocol = model.interface;
       changes.push(`已补全 ${label} 的接口类型 -> ${model.interface}`);
     }
     if (!model.model?.trim()) {
@@ -1007,7 +1002,10 @@ export async function runDoctorCli(customDeps?: Partial<IDoctorDeps>): Promise<v
           deps.io.info(`已备份当前配置：${backupPath}`);
         }
       }
-      await deps.writeConfig(normalized.config);
+      await deps.writeConfig({
+        ...normalized.config,
+        Models: normalized.config.Models?.map((item) => toExternalModelConfig(item)),
+      });
       deps.io.info(`已写回修复后的配置：${current.path}`);
       configChanged = true;
     }

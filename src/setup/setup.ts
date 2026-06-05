@@ -91,7 +91,7 @@ function printRouterServiceDeploymentNextSteps(
   message = '已生成 {mode} 部署配置；setup 不会自动启动远程服务。'
 ): void {
   io.info(message.replace('{mode}', getRouterServiceDeploymentLabel(draft)));
-  io.info('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+  io.info('下一步：确认 Models[].id/api/key/interface/model，按需补 thinking/metadata；然后运行 ctr doctor && ctr start --daemon。');
 }
 
 export async function runSetup(deps: IRunSetupDeps): Promise<void> {

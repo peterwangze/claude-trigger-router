@@ -302,7 +302,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `</div>` +
     `</div>` +
-    `<div class="alert info"><strong>Models field guide</strong><div class="muted">新配置请使用入口字段：id / api / key / interface / model / thinking / metadata；api_key / api_base_url / protocol 仅作为旧配置兼容读取。</div></div>` +
+    `<div class="alert info"><strong>Models field guide</strong><div class="muted">新配置请使用入口字段：id/api/key/interface/model/thinking/metadata；api_key / api_base_url / protocol 仅作为旧配置兼容读取。</div></div>` +
     `<div id="modelsFormGrid" class="models-form-grid">` +
     `<div class="panel" style="margin-bottom:0"><span class="muted">No draft models loaded yet</span></div>` +
     `</div>` +

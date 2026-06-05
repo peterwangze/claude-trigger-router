@@ -88,6 +88,20 @@ describe('deployment assets', () => {
     expect(readme).toContain('基础路由的实际判断顺序');
   });
 
+  it('keeps the recommended Models field contract canonical for user-facing entry points', () => {
+    const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
+    const configurationGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-guide.md'), 'utf-8');
+    const workbench = readFileSync(join(process.cwd(), 'src', 'ui', 'workbench.ts'), 'utf-8');
+
+    for (const doc of [readme, configurationGuide, workbench]) {
+      expect(doc).toContain('id/api/key/interface/model');
+    }
+    expect(readme).toContain('api_base_url/api_key/protocol');
+    expect(readme).toContain('只作为历史配置兼容读取');
+    expect(configurationGuide).toContain('setup、doctor、UI 保存和配置写回都应回到这套推荐字段');
+    expect(workbench).toContain('api_key / api_base_url / protocol 仅作为旧配置兼容读取');
+  });
+
   it('keeps README new-user quick start before release positioning', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');

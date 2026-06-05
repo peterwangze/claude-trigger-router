@@ -72,6 +72,9 @@ describe('runDoctorCli', () => {
       key: 'sk-test',
       interface: 'openai',
     }));
+    expect(writeConfig.mock.calls[0][0].Models?.[0]).not.toHaveProperty('api_base_url');
+    expect(writeConfig.mock.calls[0][0].Models?.[0]).not.toHaveProperty('api_key');
+    expect(writeConfig.mock.calls[0][0].Models?.[0]).not.toHaveProperty('protocol');
     expect(writeConfig.mock.calls[0][0].Router.default).toBe('anthropic_claude_sonnet_4');
     expect(startDaemon).toHaveBeenCalledTimes(1);
     expect(io.confirm).toHaveBeenCalled();
@@ -513,11 +516,11 @@ describe('runDoctorCli', () => {
           expect.objectContaining({
             api: 'https://api.anthropic.com/v1/messages',
             interface: 'anthropic',
-            protocol: 'anthropic',
           }),
         ],
       })
     );
+    expect(writeConfig.mock.calls[0][0].Models?.[0]).not.toHaveProperty('protocol');
   });
 
   it('reports remote service context separately from local config checks', async () => {

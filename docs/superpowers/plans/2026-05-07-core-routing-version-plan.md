@@ -274,7 +274,7 @@ v1.13.0 闭环验证：六个事项已分别独立提交并逐项补 targeted �
 
 用户目标：用户只需要理解一套配置字段，就能完成模型接入、路由槽位、能力提示、诊断修复和 UI 保存；不再在 README、configuration guide、setup、doctor 和 `/ui` 之间切换不同心智。
 
-1. `[planned]` `Models` 字段心智统一：继续把 `id/api/key/interface/model/thinking/metadata` 作为唯一推荐入口，清理或降级旧的 provider-centric 叙事。
+1. `[closed 2026-06-05]` `Models` 字段心智统一：继续把 `id/api/key/interface/model/thinking/metadata` 作为唯一推荐入口，清理或降级旧的 provider-centric 叙事。README 与 configuration guide 已明确新配置字段；setup 问答与部署完成提示改为 `Models[].id/api/key/interface/model` 口径；doctor 仍兼容读取 `api_base_url/api_key/protocol`，但修复写回只输出推荐字段；文档资产测试与 doctor/setup targeted tests 已锁定该行为。
    - 闭环标准：README、configuration guide、setup 问答、doctor 提示和 `/ui` 字段说明都使用同一套字段口径；文档资产测试防止旧字段心智回流。
 2. `[planned]` 路由槽位配置产品化：把 `Router.default/think/longContext/background/webSearch` 与 SmartRouter 起步模板继续收敛到可复制、可解释、可诊断的配置路径。
    - 闭环标准：用户能从配置文件、setup next steps、doctor 和 route preview 看懂每个槽位是否生效。

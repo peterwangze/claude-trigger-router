@@ -291,9 +291,9 @@ describe('runSetupCli', () => {
     expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
     expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用、连接远程服务，还是部署为远程服务端？', ['本地使用（推荐）', '连接远程服务', '部署为远程服务端']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
-    expect(io.choose).toHaveBeenNthCalledWith(3, '选择 provider 预设', expect.any(Array));
+    expect(io.choose).toHaveBeenNthCalledWith(3, '选择接入预设', expect.any(Array));
     expect(io.choose).toHaveBeenNthCalledWith(4, '现在要不要继续添加一个“复杂任务专用模型”？', ['先不添加', '添加一个复杂任务专用模型']);
-    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 model id）', 'openrouter');
+    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 Models[].id）', 'openrouter');
     expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（留空使用预设，写入 Models[].api）', '');
     expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
     expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', 'anthropic/claude-sonnet-4');
@@ -444,7 +444,7 @@ describe('runSetupCli', () => {
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('服务维护者：用 ctr deploy init --target server 生成 server 配置'));
     expect(io.info).toHaveBeenCalledWith('setup 将生成 server profile 和 bootstrap admin APIKEY，但不会自动启动服务。');
     expect(io.info).toHaveBeenCalledWith('已生成 server 部署配置；setup 不会自动启动远程服务。');
-    expect(io.info).toHaveBeenCalledWith('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+    expect(io.info).toHaveBeenCalledWith('下一步：确认 Models[].id/api/key/interface/model，按需补 thinking/metadata；然后运行 ctr doctor && ctr start --daemon。');
     expect(executeStart).not.toHaveBeenCalled();
     expect(verifyHealth).not.toHaveBeenCalled();
     expect(enterClaudeCode).not.toHaveBeenCalled();
@@ -693,9 +693,9 @@ describe('runSetupCli', () => {
     );
     expect(io.choose).toHaveBeenNthCalledWith(1, '当前要本地使用、连接远程服务，还是部署为远程服务端？', ['本地使用（推荐）', '连接远程服务', '部署为远程服务端']);
     expect(io.choose).toHaveBeenNthCalledWith(2, '这个模型接到哪里？', ['使用常见接入模板', '手动填写接口']);
-    expect(io.choose).toHaveBeenNthCalledWith(3, '选择 provider 预设', expect.any(Array));
+    expect(io.choose).toHaveBeenNthCalledWith(3, '选择接入预设', expect.any(Array));
     expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
-    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 model id）', 'anthropic');
+    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 Models[].id）', 'anthropic');
     expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（留空使用预设，写入 Models[].api）', '');
     expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
     expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', 'claude-sonnet-4-5');
@@ -757,7 +757,7 @@ describe('runSetupCli', () => {
     );
     expect(io.choose).toHaveBeenNthCalledWith(3, '接口类型（写入 Models[].interface）', ['openai', 'anthropic']);
     expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
-    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 model id）', 'provider');
+    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 Models[].id）', 'provider');
     expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（写入 Models[].api）');
     expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
     expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', '');
@@ -816,7 +816,7 @@ describe('runSetupCli', () => {
     );
     expect(io.choose).toHaveBeenNthCalledWith(3, '接口类型（写入 Models[].interface）', ['openai', 'anthropic']);
     expect(io.input).toHaveBeenNthCalledWith(1, '默认模型的 model id（Router.default 会引用它）', 'sonnet');
-    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 model id）', 'provider');
+    expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 Models[].id）', 'provider');
     expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（写入 Models[].api）');
     expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
     expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', '');

@@ -1970,7 +1970,7 @@ describe('packaged CLI E2E', () => {
       expect(result.stdout).toContain('当前要本地使用、连接远程服务，还是部署为远程服务端？');
       expect(result.stdout).toContain('setup 将生成 server profile 和 bootstrap admin APIKEY，但不会自动启动服务。');
       expect(result.stdout).toContain('已生成 server 部署配置；setup 不会自动启动远程服务。');
-      expect(result.stdout).toContain('下一步：编辑 Models[].key / Models[].model，运行 ctr doctor，然后运行 ctr start --daemon。');
+      expect(result.stdout).toContain('下一步：确认 Models[].id/api/key/interface/model，按需补 thinking/metadata；然后运行 ctr doctor && ctr start --daemon。');
       expect(configText).toContain('HOST: 0.0.0.0');
       expect(configText).toContain('mode: server');
       expect(configText).toContain('Router:');

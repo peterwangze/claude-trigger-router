@@ -812,13 +812,13 @@ async function promptModelConnection(
 
   if (connectMode === '使用常见接入模板') {
     const presetOptions = listProviderPresetKeys('setup');
-    preset = await io.choose('选择 provider 预设', presetOptions) as ProviderPresetKey;
-    providerName = await io.input('接入名称（用于预设识别，不是 model id）', preset);
+    preset = await io.choose('选择接入预设', presetOptions) as ProviderPresetKey;
+    providerName = await io.input('接入名称（用于预设识别，不是 Models[].id）', preset);
     apiBaseUrl = preset === 'custom'
       ? await io.input('API URL（写入 Models[].api）')
       : await io.input('API URL（留空使用预设，写入 Models[].api）', '');
   } else {
-    providerName = await io.input('接入名称（用于预设识别，不是 model id）', 'provider');
+    providerName = await io.input('接入名称（用于预设识别，不是 Models[].id）', 'provider');
     apiBaseUrl = await io.input('API URL（写入 Models[].api）');
   }
 
