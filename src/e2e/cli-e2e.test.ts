@@ -1886,7 +1886,9 @@ describe('packaged CLI E2E', () => {
       expect(configText).toContain('default: sonnet');
       expect(result.stdout).toContain('你可以按需继续配置路由能力：');
       expect(result.stdout).toContain('SmartRouter');
-      expect(result.stdout).toContain('config/trigger.advanced.yaml');
+      expect(result.stdout).toContain('config/trigger.routing.yaml');
+      expect(result.stdout).toContain('config/trigger.smart-router.yaml');
+      expect(result.stdout).toContain('config/trigger.smart-router.advanced.yaml');
       assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
 
       const statusResult = await runCtr(cliPath, ['status'], env);
