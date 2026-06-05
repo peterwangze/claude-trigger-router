@@ -1605,13 +1605,18 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  draftPreviewStatus.textContent='保存配置中...';` +
     `  const res=await fetch('/api/config',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });` +
     `  const data=await res.json();` +
-    `  renderDraftValidation(data.errors || [], data.warnings || [], data.issueReport);` +
     `  if(!res.ok){` +
+    `    renderDraftValidation(data.errors || [], data.warnings || [], data.issueReport);` +
+    `    renderCapabilityWarnings(data.capabilityWarnings);` +
     `    draftPreviewStatus.textContent='保存失败：'+((data.errors || []).join('; ') || data.message || 'unknown error');` +
     `    return;` +
     `  }` +
-    `  currentDraftConfig=payload;` +
+    `  currentDraftConfig=data.normalizedConfig || payload;` +
+    `  renderModelsForm(currentDraftConfig.Models || []);` +
+    `  configDraftEditor.value=JSON.stringify(currentDraftConfig,null,2);` +
     `  await loadCompiledModels();` +
+    `  renderDraftValidation(data.errors || [], data.warnings || [], data.issueReport);` +
+    `  renderCapabilityWarnings(data.capabilityWarnings);` +
     `  draftPreviewStatus.textContent='已保存配置'+((data.warnings || []).length ? ('（含 '+data.warnings.length+' 条 warning）') : '');` +
     `}` +
     `function addDraftModel(){` +

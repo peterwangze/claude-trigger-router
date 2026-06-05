@@ -280,7 +280,7 @@ v1.13.0 闭环验证：六个事项已分别独立提交并逐项补 targeted �
    - 闭环标准：用户能从配置文件、setup next steps、doctor 和 route preview 看懂每个槽位是否生效。
 3. `[closed 2026-06-05]` capability warning 修正闭环：继续让 CLI、doctor、setup 和 `/ui` 对 thinking/tools/images/context window 等 warning 给出一致修复建议。`collectCapabilityWarnings` 已把 `context_window_tokens` / `safe_input_tokens` 缺失纳入统一 capability warning report，级别为 info；validation issue contract 为 thinking/tools/images/context window/safe input 五类提示提供同一 action；configuration guide 明确 warning/info 语义，server preview/save、doctor/setup 和 `/ui` 继续复用同一 issueReport。
    - 闭环标准：同一 warning 不会出现 UI 可修、CLI 只能提示、文档没有解释的分叉。
-4. `[planned]` 配置保存与预览一致性看护：补齐配置写回、setup 保存、UI 草稿读取、compiled preview 和 validation issue contract 的回归切片。
+4. `[closed 2026-06-05]` 配置保存与预览一致性看护：补齐配置写回、setup 保存、UI 草稿读取、compiled preview 和 validation issue contract 的回归切片。保存 API 成功/失败现在都返回 `capabilityWarnings` 与统一 `issueReport`，成功保存返回 canonical `normalizedConfig` 供 `/ui` 刷新草稿；保存写回继续通过 `buildPersistedConfig` / `writeConfigFile` 输出推荐字段；新增回归测试覆盖 preview/save warning report 一致和旧别名写回 canonical。
    - 闭环标准：`npm run release:verify` 前有 targeted tests 覆盖配置产品化主路径；保存失败和修复建议可读。
 
 ### v1.15.0 CLI/setup UX 重设计收口

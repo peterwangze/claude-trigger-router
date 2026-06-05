@@ -3452,10 +3452,18 @@ describe('createServer /api/config', () => {
     const persisted = mockWriteConfigFile.mock.calls.at(-1)?.[0] as any;
     expect(persisted.Runtime).toBeUndefined();
     expect(persisted.Registration).toBeUndefined();
-    expect(result).toEqual({
+    expect(result).toEqual(expect.objectContaining({
       success: true,
       message: 'Config saved successfully',
       warnings: [],
+      capabilityWarnings: {
+        entries: [],
+        summary: {
+          total: 0,
+          warn: 0,
+          info: 0,
+        },
+      },
       issueReport: {
         issues: [],
         summary: {
@@ -3465,7 +3473,7 @@ describe('createServer /api/config', () => {
           info: 0,
         },
       },
-    });
+    }));
   });
 
   it('does not overwrite an existing config when backup fails during UI save', async () => {
@@ -3665,6 +3673,67 @@ describe('createServer /api/config', () => {
         action: expect.stringContaining('Remove the thinking setting'),
       }),
     ]);
+    expect(result.capabilityWarnings.entries).toEqual([
+      expect.objectContaining({
+        level: 'warn',
+        code: 'thinking_ignored',
+        path: 'Models[0].thinking',
+      }),
+    ]);
+  });
+
+  it('keeps compiled preview and save warning contracts aligned while writing canonical Models fields', async () => {
+    const server = createServer({});
+    const previewHandler = server.app.routes.get('POST /api/models/compiled/preview');
+    const saveHandler = server.app.routes.get('POST /api/config');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const draft = {
+      Router: { default: 'restricted' },
+      Models: [
+        {
+          id: 'restricted',
+          api_base_url: 'https://api.example.com/v1/chat/completions',
+          api_key: 'sk-test',
+          protocol: 'openai',
+          model: 'vendor/text-only',
+          thinking: 'high',
+          metadata: {
+            supports_reasoning: false,
+          },
+        },
+      ],
+    };
+
+    const preview = await previewHandler({ body: draft }, reply);
+    const saved = await saveHandler({ body: draft }, reply);
+
+    expect(preview.success).toBe(true);
+    expect(saved.success).toBe(true);
+    expect(saved.capabilityWarnings).toEqual(preview.capabilityWarnings);
+    expect(saved.issueReport).toEqual(preview.issueReport);
+    expect(saved.normalizedConfig.Models[0]).toEqual(expect.objectContaining({
+      id: 'restricted',
+      api: 'https://api.example.com/v1/chat/completions',
+      key: 'sk-test',
+      interface: 'openai',
+      model: 'vendor/text-only',
+    }));
+    expect(saved.normalizedConfig.Models[0]).not.toHaveProperty('api_base_url');
+    expect(saved.normalizedConfig.Models[0]).not.toHaveProperty('api_key');
+    expect(saved.normalizedConfig.Models[0]).not.toHaveProperty('protocol');
+
+    const persisted = mockWriteConfigFile.mock.calls.at(-1)?.[0] as any;
+    expect(persisted.Models[0]).toEqual(expect.objectContaining({
+      api: 'https://api.example.com/v1/chat/completions',
+      key: 'sk-test',
+      interface: 'openai',
+    }));
+    expect(persisted.Models[0]).not.toHaveProperty('api_base_url');
+    expect(persisted.Models[0]).not.toHaveProperty('api_key');
+    expect(persisted.Models[0]).not.toHaveProperty('protocol');
   });
 
   it('keeps info severity for non-blocking capability hints when saving config', async () => {
@@ -3712,6 +3781,11 @@ describe('createServer /api/config', () => {
         }),
       ])
     );
+    expect(result.capabilityWarnings.summary).toEqual({
+      total: 2,
+      warn: 0,
+      info: 2,
+    });
   });
 
   it('does not persist TriggerRouter when user did not configure it', async () => {

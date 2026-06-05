@@ -445,6 +445,53 @@ describe('workbench DOM smoke', () => {
     dom.window.close();
   });
 
+  it('refreshes capability warnings after a successful save', async () => {
+    const { dom } = await createWorkbenchDom({
+      saveStatus: 200,
+      saveBody: {
+        success: true,
+        message: 'Config saved successfully',
+        normalizedConfig: baseConfig,
+        warnings: [
+          'Models[0].thinking is configured, but model "sonnet" disables reasoning. Runtime requests will ignore thinking.',
+        ],
+        capabilityWarnings: {
+          summary: { total: 1, warn: 1, info: 0 },
+          entries: [
+            {
+              path: 'Models[0].thinking',
+              modelId: 'sonnet',
+              level: 'warn',
+              code: 'thinking_ignored',
+              message: 'Models[0].thinking is configured, but model "sonnet" disables reasoning. Runtime requests will ignore thinking.',
+            },
+          ],
+        },
+        issueReport: {
+          issues: [
+            {
+              severity: 'warning',
+              path: 'Models[0].thinking',
+              message: 'Models[0].thinking is configured, but model "sonnet" disables reasoning. Runtime requests will ignore thinking.',
+              action: 'Remove the thinking setting',
+            },
+          ],
+        },
+      },
+    });
+    const document = dom.window.document;
+
+    document.getElementById('saveConfigDraftBtn')?.click();
+
+    await waitFor(() => {
+      expect(document.getElementById('draftPreviewStatus')?.textContent).toContain('已保存配置');
+      expect(document.getElementById('capabilityWarningsList')?.textContent).toContain('thinking_ignored');
+      expect(document.getElementById('draftValidationList')?.textContent).toContain('Remove the thinking setting');
+    });
+
+    dom.window.close();
+  });
+
   it('applies Health actions to trace filters', async () => {
     const smoke = await createWorkbenchDom();
     const document = smoke.dom.window.document;

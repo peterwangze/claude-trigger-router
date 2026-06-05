@@ -784,7 +784,9 @@ function buildPersistedConfig(rawConfig: any, normalizedConfig: any) {
     PROXY_URL: normalizedConfig.PROXY_URL,
     CUSTOM_ROUTER_PATH: normalizedConfig.CUSTOM_ROUTER_PATH,
     Providers: normalizedConfig.Providers,
-    Models: normalizedConfig.Models,
+    Models: Array.isArray(normalizedConfig.Models)
+      ? normalizedConfig.Models.map((item: any) => toExternalModelConfig(item))
+      : normalizedConfig.Models,
     Router: normalizedConfig.Router,
   } as Record<string, unknown>;
 
@@ -1787,6 +1789,9 @@ export const createServer = (config: any): Server => {
   // 保存配置 API
   server.app.post("/api/config", async (req: any, reply: any) => {
     const result = normalizeAndValidateConfig(req.body ?? {});
+    const capabilityWarnings = result.errors.length === 0
+      ? collectCapabilityWarnings(result.config)
+      : collectCapabilityWarnings(req.body ?? {});
 
     if (result.errors.length > 0) {
       reply.code(400);
@@ -1795,9 +1800,11 @@ export const createServer = (config: any): Server => {
         message: "Invalid configuration",
         errors: result.errors,
         warnings: result.warnings,
+        capabilityWarnings,
         issueReport: buildValidationIssueReport({
           errors: result.errors,
           warnings: result.warnings,
+          capabilityWarnings,
         }),
       };
     }
@@ -1811,8 +1818,13 @@ export const createServer = (config: any): Server => {
     return {
       success: true,
       message: "Config saved successfully",
+      normalizedConfig: buildDraftConfigView(result.config),
+      capabilityWarnings,
       warnings: result.warnings,
-      issueReport: buildValidationIssueReport({ warnings: result.warnings }),
+      issueReport: buildValidationIssueReport({
+        warnings: result.warnings,
+        capabilityWarnings,
+      }),
     };
   });
 
