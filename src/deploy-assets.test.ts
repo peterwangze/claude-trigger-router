@@ -63,28 +63,27 @@ describe('deployment assets', () => {
     expect(releasingGuide).toContain('Release');
     expect(releasingGuide).toContain('npm run test:route-ux');
     expect(releasingGuide).toContain('核心路由用户体感专项');
-    expect(releasingGuide).toContain('docs/release-notes-v1.12.0.md');
-    expect(releasingGuide).toContain('v1.12.0');
-    expect(releasingGuide).toContain('流式传输韧性');
+    expect(releasingGuide).toContain('docs/release-notes-v1.13.0.md');
+    expect(releasingGuide).toContain('v1.13.0');
+    expect(releasingGuide).toContain('核心路由用户体感');
   });
 
-  it('keeps v1.12.0 stream resilience release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.12.0.md'), 'utf-8');
+  it('keeps v1.13.0 routing UX release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.13.0.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('流式传输韧性与远程中转稳定性修复版');
-    expect(releaseNotes).toContain('v1.11.0');
-    expect(releaseNotes).toContain('The socket connection was closed unexpectedly');
-    expect(releaseNotes).toContain('upstream_stream_error');
-    expect(releaseNotes).toContain('客户端断开');
-    expect(releaseNotes).toContain('TextDecoder');
+    expect(releaseNotes).toContain('核心路由用户体感与看护补强版');
+    expect(releaseNotes).toContain('ctr doctor --route-preview');
+    expect(releaseNotes).toContain('config/trigger.smart-router.advanced.yaml');
+    expect(releaseNotes).toContain('route_only');
+    expect(releaseNotes).toContain('npm run test:route-ux');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.12.0 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.12.0.md');
-    expect(readme).toContain('流式传输韧性');
-    expect(readme).toContain('SSE error event');
+    expect(readme).toContain('## v1.13.0 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.13.0.md');
+    expect(readme).toContain('核心路由用户体感');
+    expect(readme).toContain('route_only');
     expect(readme).toContain('ctr doctor --route-preview --route-text');
     expect(readme).toContain('基础路由的实际判断顺序');
   });
@@ -92,7 +91,7 @@ describe('deployment assets', () => {
   it('keeps README new-user quick start before release positioning', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
-    const releaseIndex = readme.indexOf('## v1.12.0 发布定位');
+    const releaseIndex = readme.indexOf('## v1.13.0 发布定位');
     const docsIndex = readme.indexOf('## 文档入口');
 
     expect(quickStartIndex).toBeGreaterThan(0);

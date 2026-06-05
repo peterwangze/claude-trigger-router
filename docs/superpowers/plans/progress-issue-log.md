@@ -536,9 +536,10 @@
 - 修正动作：
   - 已在核心路由版本计划新增 `v1.13.0 核心路由用户体感与看护补强`
   - 已在统一进展基线新增同名 P1 主线，并把近期执行顺序调整为 v1.13.0 优先
-  - v1.13.0 将按独立事项推进 route preview、基础路由触发解释、SmartRouter 起步模板、协作口径校准、用户体感 E2E 和发布质量检视
-- 当前状态：`in_progress`
-- 闭环结论：历史 v1.3/v1.4/v1.10 的阶段闭环不回退，但新增 v1.13.0 承接“能力已在但用户体感不可预演、不可诊断、不可稳定看护”的增量缺口；v1.13.0 闭环前，后续不应继续扩展低频能力抢占主路径用户体验修复。
+  - v1.13.0 已按独立事项推进并闭环 route preview、基础路由触发解释、SmartRouter 起步模板、协作口径校准、用户体感 E2E 和发布质量检视
+  - 已新增 `npm run test:route-ux`，把 route preview、doctor 可读输出、SmartRouter packaged slices、首包即时输出、上游断流可读 error、远程中转取消和结构化错误纳入同一专项门禁
+- 当前状态：`closed`
+- 闭环结论：历史 v1.3/v1.4/v1.10 的阶段闭环不回退；v1.13.0 已承接并闭环“能力已在但用户体感不可预演、不可诊断、不可稳定看护”的增量缺口。后续默认回到配置产品化最终收口与 CLI/setup UX 重设计；若基础路由即时流式输出、上游断流可读错误、远程中转取消、结构化 API error、route preview 或 SmartRouter 起步模板再次退化，按 P0/P1 重新前置。
 - 关联文档：
   - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
   - `docs/superpowers/plans/unified-progress-baseline.md`

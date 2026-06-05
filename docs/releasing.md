@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.12.0` minor release 的优先级是流式传输韧性与远程中转稳定性修复。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 `/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、SSE 多字节跨 chunk 解析、结构化 API error 返回和 v1.10.0 SmartRouter 协作能力不回退。
+本次 `v1.13.0` minor release 的优先级是核心路由用户体感与看护补强。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 route preview 可读解释、基础路由触发顺序、SmartRouter 起步模板、协作模式真实口径、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回和 v1.10.0 SmartRouter 协作 contract 不回退。
 
 ## 一次性准备
 
@@ -26,7 +26,7 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.12.0` 的发布边界以 `docs/release-notes-v1.12.0.md` 为准：主打流式传输韧性、远程中转取消上游、上游中途断流可读错误和 SSE parser 可靠性，不新增 SmartRouter 协作模式或远程客户端配置心智。
+   - 本次 `v1.13.0` 的发布边界以 `docs/release-notes-v1.13.0.md` 为准：主打路由预演、基础路由触发解释、SmartRouter 起步模板收口、协作口径校准和核心路由用户体感专项门禁，不新增默认多模型并发执行。
 2. 本地先执行发布包验证：
 
 ```bash

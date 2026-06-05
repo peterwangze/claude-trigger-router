@@ -222,14 +222,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.12.0.md](docs/release-notes-v1.12.0.md)
+- 发布说明：[docs/release-notes-v1.13.0.md](docs/release-notes-v1.13.0.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.12.0 发布定位
+## v1.13.0 发布定位
 
-`v1.12.0` 是流式传输韧性与远程中转稳定性修复版。它在 `v1.11.0` 首轮止血基础上继续修复用户复现的 socket 断连和中转卡顿：上游流式中途断开时返回可读 SSE error event，远程中转会在客户端断开时主动取消上游请求，并修复 SSE parser 在多字节字符跨 chunk 时的解析风险。
+`v1.13.0` 是核心路由用户体感与看护补强版。它把重点放回基础路由和 SmartRouter 的日常体验：用户可以用 `ctr doctor --route-preview --route-text "..."` 在不调用上游模型的情况下预演请求会走哪个模型、为什么、是否可能因为 SmartRouter 候选选择增加首包等待。
 
-这个版本不新增 SmartRouter 协作模式、不改变远程客户端配置心智；`v1.10.0` 的 routing advisor、confidence threshold、latency budget 和 collaboration contract 继续保留。完整发布边界见 [docs/release-notes-v1.12.0.md](docs/release-notes-v1.12.0.md)。
+这个版本还收口了 SmartRouter 两模型起步模板、基础路由触发顺序说明和协作模式口径：默认仍是单模型 `route_only`，不默认并发调用多个模型。完整发布边界见 [docs/release-notes-v1.13.0.md](docs/release-notes-v1.13.0.md)。
 
 ## License
 
