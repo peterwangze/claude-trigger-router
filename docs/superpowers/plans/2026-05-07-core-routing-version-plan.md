@@ -316,8 +316,10 @@ v1.15.0 闭环验证：四个事项已分别独立提交并逐项补 targeted �
    - 闭环标准：发现的偏差必须落入后续版本或 issue log，不能停留在审查结论。
    - 闭环结果：发现 `/ui` 虽已有使用者/维护者 surface，但第一屏仍偏功能堆叠，缺少按本地使用者、远程客户端、服务维护者和路由设计辅助组织的入口。已通过 `882f379` 新增角色化第一屏、任务路径和 UX 诊断面板，并把角色入口纳入 fragment contract 与 DOM 跳转看护；已新增 PI-026 记录该问题。
    - 验证：`npm run test:ui` 已覆盖 role-aware entry anchors 和角色卡跳转。
-2. `[planned]` 高频入口体验复审：重点复查 fresh setup、legacy migration、remote client、server profile、route preview、结构化 API error 和发布验证。
+2. `[closed 2026-06-05]` 高频入口体验复审：已复查 fresh setup、legacy migration、remote client、server profile、route preview、结构化 API error、流式上游断流、远程中转取消和 `/ui` 打开入口；当前未发现新的 P0/P1 主路径缺口。
    - 闭环标准：每条 P0/P1 风险都有现有看护证据或新增版本计划承接。
+   - 闭环结果：`test:e2e:cli:entry` 覆盖 help、init、doctor、start/status/stop、setup fresh、setup remote client、setup server profile、code 和 ui；`test:route-ux` 覆盖 route preview、doctor 可读输出、基础路由槽位摘要、即时流式 chunk、上游断流可读 SSE error、远程中转、结构化 502、upstream error payload 和 SmartRouter 选择切片。
+   - 验证：`npm run test:e2e:cli:entry` 通过 9 个入口用例；`npm run test:route-ux` 通过 14 个用户体感用例。测试过程中 Node shell args deprecation warning 属于发布工程观察项，不影响当前入口闭环，后续纳入 v1.20.0 发布与进展治理可持续化继续评估。
 3. `[planned]` 已闭环事项抽样校准：抽查 v1.9-v1.15 之间的 closed 事项是否与当前代码、文档和测试仍一致。
    - 闭环标准：不回退历史 closed 结论；发现漂移时新增事项并更新 progress issue log。
 
