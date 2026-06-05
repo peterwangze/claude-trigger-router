@@ -314,6 +314,7 @@ v1.15.0 闭环验证：四个事项已分别独立提交并逐项补 targeted �
 
 1. `[planned]` 项目目标与实现一致性复审：复查 README、配置指南、setup、doctor、UI 和 runtime 是否仍围绕 Claude Code 路由代理目标。
    - 闭环标准：发现的偏差必须落入后续版本或 issue log，不能停留在审查结论。
+   - 已发现并闭环：`/ui` 虽已有使用者/维护者 surface，但第一屏仍偏功能堆叠，缺少按本地使用者、远程客户端、服务维护者和路由设计辅助组织的入口。已通过 `882f379` 新增角色化第一屏、任务路径和 UX 诊断面板，并把角色入口纳入 fragment contract 与 DOM 跳转看护。
 2. `[planned]` 高频入口体验复审：重点复查 fresh setup、legacy migration、remote client、server profile、route preview、结构化 API error 和发布验证。
    - 闭环标准：每条 P0/P1 风险都有现有看护证据或新增版本计划承接。
 3. `[planned]` 已闭环事项抽样校准：抽查 v1.9-v1.15 之间的 closed 事项是否与当前代码、文档和测试仍一致。
@@ -325,9 +326,7 @@ v1.15.0 闭环验证：四个事项已分别独立提交并逐项补 targeted �
 
 用户目标：`/ui` 保持使用者配置入口与维护者观测入口分层清晰，继续降低大型 HTML/CSS/内联 JS 的维护压力，让配置产品化、trace span 和治理观测能稳妥进入 UI。
 
-0. `[closed 2026-06-05]` 角色化 UI 入口与设计辅助面板：`/ui` 第一屏新增本地使用者、远程客户端、服务维护者和路由设计辅助四类任务入口，并新增 UX 诊断检查面板；视觉系统收紧为更适合运营工具的低噪声布局，移动端改为单列入口与横向表格滚动。
-   - 闭环标准：第一屏能按角色给出可执行入口；角色卡点击能进入对应使用者/维护者工作台；UI DOM smoke 固定角色入口锚点和跳转行为；真实浏览器 smoke 检查桌面/移动布局。
-   - 闭环结果：`src/ui/workbench.ts` 已新增角色入口、任务路径和 UX 诊断面板；`src/ui/workbench-fragments.ts` 已把 role-aware entry 纳入 fragment contract；`src/ui/workbench.dom.test.ts` 已覆盖角色卡跳转。
+0. `[closed 2026-06-05 via v1.16.0]` 角色化 UI 入口与设计辅助面板：作为 v1.16.0 用户视角复审发现的入口易用性缺口，已先补第一屏角色入口、任务路径和 UX 诊断面板。v1.17.0 后续不重复承接该问题，只在此基础上继续工程化拆分和浏览器 smoke。
 1. `[planned]` 使用者/维护者渲染片段继续拆分：在现有 fragment contract 上拆出更稳定的 UI 片段、CSS/JS helper 和数据注入边界。
    - 闭环标准：新增 UI 能力有 fragment anchor、DOM smoke 和脚本语法看护。
 2. `[planned]` trace span 与路由证据视图收敛：把 runtime pipeline、route preview、routing evidence、handoff summary 等信息用清晰维护者视图承接。
