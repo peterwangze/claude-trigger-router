@@ -26,6 +26,7 @@ import { isServiceRunning, killProcess, readServiceInfo } from '../utils/process
 import { isTcpPortOccupied, probeRemoteServiceStatus, probeServiceHealth, waitForService } from '../service-health';
 import { buildUsableMinimalTemplateConfig } from '../setup/templates';
 import { managedApiKeySummary } from '../auth/api-keys';
+import { formatRoutePreview, IRoutePreviewRequest, previewRoute } from '../router/route-preview';
 
 interface IDoctorIO {
   info(message: string): void;
@@ -184,6 +185,19 @@ function collectCompatibilityPreviewDiagnostics(model: IModelEndpointConfig) {
 
 function hasArg(flag: string): boolean {
   return process.argv.slice(2).includes(flag);
+}
+
+function readArgValue(flag: string): string | undefined {
+  const args = process.argv.slice(2);
+  const index = args.indexOf(flag);
+  if (index < 0) {
+    return undefined;
+  }
+  const value = args[index + 1];
+  if (!value || value.startsWith('--')) {
+    return undefined;
+  }
+  return value;
 }
 
 function createConsoleIO(): IDoctorIO {
@@ -840,6 +854,60 @@ function reportRouterSlotSummary(config: IAppConfig, registry: ICompiledModelReg
   }
 }
 
+function buildDoctorRoutePreviewInputs(): IRoutePreviewRequest[] {
+  const customText = readArgValue('--route-text');
+  if (customText) {
+    return [{
+      text: customText,
+      model: readArgValue('--route-model') ?? 'claude-3-5-sonnet',
+      thinking: hasArg('--route-thinking'),
+      webSearch: hasArg('--route-web-search'),
+      tokenCount: Number(readArgValue('--route-tokens')) || undefined,
+    }];
+  }
+
+  return [
+    {
+      text: '日常代码修改和解释',
+      model: 'claude-3-5-sonnet',
+      tokenCount: 1000,
+    },
+    {
+      text: '请深入分析这个复杂设计问题',
+      model: 'claude-3-5-sonnet',
+      thinking: true,
+      tokenCount: 1000,
+    },
+    {
+      text: '长文档全文总结',
+      model: 'claude-3-5-sonnet',
+      tokenCount: 120000,
+    },
+    {
+      text: '需要联网搜索资料',
+      model: 'claude-3-5-sonnet',
+      webSearch: true,
+      tokenCount: 1000,
+    },
+    {
+      text: '后台轻量任务',
+      model: 'claude-3-5-haiku',
+      tokenCount: 1000,
+    },
+  ];
+}
+
+function reportRoutePreview(config: IAppConfig, deps: IDoctorDeps): void {
+  deps.io.info('路由预演：根据当前配置预估请求会命中哪个模型；不会调用上游模型或 SmartRouter LLM。');
+  for (const input of buildDoctorRoutePreviewInputs()) {
+    const result = previewRoute(config, input);
+    for (const line of formatRoutePreview(result)) {
+      deps.io.info(line);
+    }
+  }
+  deps.io.info('路由预演提示：真实运行仍会在最终定模后执行 context window guard、模型池 fallback、远程中转和流式治理。');
+}
+
 function createDefaultDeps(io = createConsoleIO()): IDoctorDeps {
   return {
     readLegacyConfig,
@@ -908,6 +976,9 @@ export async function runDoctorCli(customDeps?: Partial<IDoctorDeps>): Promise<v
 
     const registry = buildModelRegistry(normalized.config);
     reportRouterSlotSummary(normalized.config, registry, deps);
+    if (hasArg('--route-preview')) {
+      reportRoutePreview(normalized.config, deps);
+    }
     for (const model of normalized.config.Models ?? []) {
       const compiledModel = registry.modelMap[model.id];
       if (!compiledModel) {

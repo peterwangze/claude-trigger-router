@@ -13,9 +13,12 @@ function createIo(overrides: Record<string, unknown> = {}) {
 }
 
 describe('runDoctorCli', () => {
+  const originalArgv = process.argv;
+
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    process.argv = [...originalArgv];
   });
 
   it('repairs deterministic config issues, writes config, and skips model probe when user declines', async () => {
@@ -343,6 +346,75 @@ describe('runDoctorCli', () => {
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('思考路由提示：Router.think 指向 reasoner'));
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('上下文窗口提示：Router.longContext -> long 未声明 metadata.context_window_tokens'));
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('上下文保护提示：Router.longContext -> long 未声明 metadata.safe_input_tokens'));
+  });
+
+  it('previews route decisions without probing upstream models', async () => {
+    process.argv = ['node', 'ctr', 'doctor', '--route-preview', '--route-text', '请做架构设计', '--route-model', 'claude-3-5-sonnet'];
+    const io = createIo({
+      confirm: vi.fn().mockResolvedValue(false),
+    });
+
+    vi.doMock('fs', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('fs')>();
+      return {
+        ...actual,
+        existsSync: vi.fn((filePath: string) => String(filePath).endsWith('config.yaml')),
+        readFileSync: vi.fn((filePath: string) => {
+          if (String(filePath).endsWith('config.yaml')) {
+            return [
+              'HOST: "127.0.0.1"',
+              'PORT: 5678',
+              'Models:',
+              '  - id: sonnet',
+              '    api: "https://api.example.com/v1/messages"',
+              '    key: "sk-test"',
+              '    interface: "anthropic"',
+              '    model: "claude-sonnet-4-5"',
+              '  - id: architect',
+              '    api: "https://api.example.com/v1/chat/completions"',
+              '    key: "sk-test"',
+              '    interface: "openai"',
+              '    model: "deepseek-reasoner"',
+              'Router:',
+              '  default: "sonnet"',
+              'SmartRouter:',
+              '  enabled: true',
+              '  analysis_scope: "last_message"',
+              '  rules:',
+              '    - name: "architecture"',
+              '      priority: 90',
+              '      enabled: true',
+              '      patterns:',
+              '        - type: exact',
+              '          keywords: ["架构设计"]',
+              '      model: "architect"',
+            ].join('\n');
+          }
+          return '';
+        }),
+      };
+    });
+
+    const { runDoctorCli } = await import('./index');
+    await runDoctorCli({
+      io: io as any,
+      readLegacyConfig: vi.fn().mockResolvedValue({ kind: 'missing' }),
+      backupCurrentConfig: vi.fn().mockResolvedValue(null),
+      writeConfig: vi.fn().mockResolvedValue(undefined),
+      isServiceRunning: vi.fn().mockReturnValue(true),
+      readServiceInfo: vi.fn().mockReturnValue({ pid: 123, port: 5678, startTime: '' }),
+      killProcess: vi.fn(),
+      probeServiceHealth: vi.fn().mockResolvedValue(true),
+      isTcpPortOccupied: vi.fn().mockResolvedValue(true),
+      waitForService: vi.fn().mockResolvedValue(true),
+      startDaemon: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('路由预演：根据当前配置预估请求会命中哪个模型'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('预计来源：smart_rule (architecture)'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('预计模型：architect -> model__architect,deepseek-reasoner'));
+    expect(io.info).toHaveBeenCalledWith(expect.stringContaining('SmartRouter.rules'));
+    expect(io.confirm).toHaveBeenCalledWith(expect.stringContaining('是否继续探测 2 个模型的可用性'), false);
   });
 
   it('reports unresolved router slot references', async () => {

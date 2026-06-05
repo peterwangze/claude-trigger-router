@@ -169,6 +169,7 @@ Claude Trigger Router - 智能触发路由器
 使用示例：
   ctr setup                # 复用当前配置 / 迁移旧配置 / 新建最小配置
   ctr doctor               # 诊断配置 / 修复格式问题 / 按需探测模型可用性
+  ctr doctor --route-preview --route-text "请做架构设计"  # 预演当前请求会走哪个模型
   ctr eval --tasks         # 查看固定评测任务、prompt 和 rubric
   ctr eval --input results.json  # 用固定任务集 rubric 评测多模型输出结果
   ctr eval --run --models "sonnet;haiku"  # 自动调用 CTR /v1/messages 后评测
