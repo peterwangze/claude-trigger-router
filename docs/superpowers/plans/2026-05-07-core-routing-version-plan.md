@@ -291,14 +291,20 @@ v1.14.0 闭环验证：四个事项已分别独立提交并逐项补 targeted �
 
 用户目标：fresh setup、legacy migration、remote client、server profile 和 SmartRouter 起步引导都能按用户下一步自然推进，不需要用户猜“现在该运行哪个命令”。
 
-1. `[planned]` migration-first 与 model-id-first 主路径收口：继续巩固先迁移/复用、再生成最小可用配置的顺序，fresh setup 继续以模型 ID 和默认模型为中心。
+1. `[closed 2026-06-05]` migration-first 与 model-id-first 主路径收口：继续巩固先迁移/复用、再生成最小可用配置的顺序，fresh setup 继续以模型 ID 和默认模型为中心。
    - 闭环标准：setup 问答、help、README quick start 和配置模板不再回到 provider-centric 旧叙事。
-2. `[planned]` 多模型与 SmartRouter 起步引导：setup 在最小配置后自然引导复杂任务模型、长上下文模型和 SmartRouter 起步模板。
+   - 闭环结果：setup 持久化边界写出 canonical `Models[].id/api/key/interface/model`，help 和 README quick start 已同步“复用/迁移优先；首次按 Models[].id 创建默认路由”。
+2. `[closed 2026-06-05]` 多模型与 SmartRouter 起步引导：setup 在最小配置后自然引导复杂任务模型、长上下文模型和 SmartRouter 起步模板。
    - 闭环标准：新用户可以从 setup 直接得到可运行且可解释的多模型/SmartRouter 起步配置。
-3. `[planned]` 完成页 next steps 一致性：本地、远程客户端、服务端部署三类完成页都明确 `doctor/status -> start/code/ui` 或对应维护者路径。
+   - 闭环结果：添加复杂任务模型后可直接接到 `Router.think` 或 `Router.think + Router.longContext`，并可继续生成 SmartRouter rules / candidates 起步配置。
+3. `[closed 2026-06-05]` 完成页 next steps 一致性：本地、远程客户端、服务端部署三类完成页都明确 `doctor/status -> start/code/ui` 或对应维护者路径。
    - 闭环标准：packaged CLI E2E 覆盖主要 setup profile 的完成提示和副作用边界。
-4. `[planned]` CLI 帮助与入口 smoke 补强：让 `ctr help/setup/doctor/code/ui` 的文案、示例和 README 保持一致。
+   - 闭环结果：本地完成页明确 `doctor/status -> code/ui`，远程客户端和服务端部署完成页继续由 packaged CLI E2E 看护。
+4. `[closed 2026-06-05]` CLI 帮助与入口 smoke 补强：让 `ctr help/setup/doctor/code/ui` 的文案、示例和 README 保持一致。
    - 闭环标准：短入口 smoke 能拦截帮助文案、next steps 和配置主路径漂移。
+   - 闭环结果：packaged help e2e 断言 setup/doctor/code/ui 与 route preview 示例，`npm run test:e2e:cli:entry` 已纳入 help smoke。
+
+v1.15.0 闭环验证：四个事项已分别独立提交并逐项补 targeted 看护；专项覆盖 setup canonical 写回、复杂任务模型基础槽位引导、SmartRouter 起步配置、本地/远程/服务端 setup 完成页、packaged help 和短入口 smoke；`docs/release-notes-v1.15.0.md` 已固化发布边界，`package.json` / `package-lock.json` 已更新到 `1.15.0`。最终发布门禁以 `npm run release:verify` 为准。
 
 ### v1.16.0 用户视角复审与入口一致性校准
 
@@ -368,6 +374,6 @@ v1.14.0 闭环验证：四个事项已分别独立提交并逐项补 targeted �
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；后续默认按 v1.14.0 配置产品化最终收口、v1.15.0 CLI/setup UX 重设计收口、v1.16.0 用户视角复审与入口一致性校准的顺序推进。
+2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；后续默认按 v1.16.0 用户视角复审与入口一致性校准推进。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。

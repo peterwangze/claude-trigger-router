@@ -224,14 +224,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.14.0.md](docs/release-notes-v1.14.0.md)
+- 发布说明：[docs/release-notes-v1.15.0.md](docs/release-notes-v1.15.0.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.14.0 发布定位
+## v1.15.0 发布定位
 
-`v1.14.0` 是配置产品化最终收口版。它把重点放在用户每天会接触的配置入口：README、配置指南、setup、doctor、`/ui`、保存 API 和 compiled preview 都统一到 `Models[].id/api/key/interface/model/thinking/metadata` 字段心智。
+`v1.15.0` 是 CLI/setup UX 重设计收口版。它把重点放在用户第一次和日常最容易遇到的入口：`ctr setup` 继续先复用或迁移配置，fresh setup 才按 `Models[].id` 创建默认模型和 `Router.default`，并能在最小配置后引导复杂任务模型、`Router.think/longContext` 和 SmartRouter 起步模板。
 
-旧字段 `api_base_url/api_key/protocol` 继续兼容读取，但 doctor 修复、UI 保存和配置写回会回到推荐字段。这个版本还让路由槽位、capability warning、保存/预览 warning contract 在 CLI 和 UI 中保持一致。完整发布边界见 [docs/release-notes-v1.14.0.md](docs/release-notes-v1.14.0.md)。
+本地、远程客户端和服务端部署三类完成页都明确下一步，短入口 smoke 也纳入 packaged help 文案，避免 help、setup next steps 和 README 主路径再次漂移。完整发布边界见 [docs/release-notes-v1.15.0.md](docs/release-notes-v1.15.0.md)。
 
 ## License
 

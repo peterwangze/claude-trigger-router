@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.14.0` minor release 的优先级是配置产品化最终收口。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 `Models[].id/api/key/interface/model/thinking/metadata` 字段心智、doctor 修复写回、路由槽位诊断、capability warning action、UI 保存/预览 warning contract、配置写回 canonical 字段、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游和结构化 API error 返回不回退。
+本次 `v1.15.0` minor release 的优先级是 CLI/setup UX 重设计收口。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 migration-first、model-id-first、setup canonical 写回、多模型基础槽位引导、SmartRouter 起步模板、三类 setup profile next steps、packaged help smoke、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游和结构化 API error 返回不回退。
 
 ## 一次性准备
 
@@ -26,20 +26,21 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.14.0` 的发布边界以 `docs/release-notes-v1.14.0.md` 为准：主打 Models 字段心智统一、路由槽位配置产品化、capability warning action 一致和配置保存/预览 contract 收口。
+   - 本次 `v1.15.0` 的发布边界以 `docs/release-notes-v1.15.0.md` 为准：主打 CLI/setup UX 重设计收口、migration-first 与 model-id-first 主路径、多模型/SmartRouter 起步引导、三类完成页 next steps 和短入口 smoke 补强。
 2. 本地先执行发布包验证：
 
 ```bash
 npm run release:verify
 ```
 
-v1.14.0 期间建议在正式 `release:verify` 前额外跑一次配置产品化专项：
+v1.15.0 期间建议在正式 `release:verify` 前额外跑一次 CLI/setup UX 专项：
 
 ```bash
-npx vitest --run src/doctor/index.test.ts src/setup/index.test.ts src/setup/setup.test.ts src/server.test.ts src/ui/workbench.dom.test.ts src/router/route-preview.test.ts src/deploy-assets.test.ts src/utils/validation-contract.test.ts
+npx vitest --run src/setup/index.test.ts src/setup/setup.test.ts src/setup/templates.test.ts src/cli-run.test.ts src/build-script.test.ts src/deploy-assets.test.ts
+npm run test:e2e:cli:entry
 ```
 
-这条专项把 doctor 修复写回、setup 字段提示、server 保存/预览、UI 草稿保存、route preview、文档资产和 validation issue contract 串成同一个发布前门禁。它关注用户能直接感知的“该填哪些字段、哪个槽位生效、warning 怎么修、保存后看到的配置是否一致”，不是只检查内部函数返回。
+这条专项把 setup 问答、canonical 写回、help 文案、README/配置指南入口、packaged help、setup fresh、remote client、server deployment、code 和 ui 串成同一个发布前门禁。它关注用户能直接感知的“现在该运行哪个命令、默认模型 ID 怎么引用、第二个模型会不会接到槽位、完成页是否讲清下一步”，不是只检查内部函数返回。
 
 v1.12.0 期间建议在正式 `release:verify` 前额外跑一次流式稳定专项：
 
@@ -52,7 +53,7 @@ npm run test:e2e:cli
 npm run test:e2e:acceptance
 ```
 
-其中 coverage 口径已经从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链；`test:ui` 是源码侧 `/ui` DOM smoke，用于保护配置载入、compiled preview、保存失败提示、Health action、benchmark history 和人工校准表单这类基础交互；`test:e2e:cli:entry` 是较短的打包后入口 smoke，用于先保护 init、doctor、start/status/stop、setup fresh、setup remote client、setup server deployment、code 和 ui；后续新增入口功能时，先补对应看护再扩展低频能力。
+其中 coverage 口径已经从早期 `src/trigger/**/*.ts` 扩展到 setup、config、models、protocols、governance、server、auth、doctor、cli 主链；`test:ui` 是源码侧 `/ui` DOM smoke，用于保护配置载入、compiled preview、保存失败提示、Health action、benchmark history 和人工校准表单这类基础交互；`test:e2e:cli:entry` 是较短的打包后入口 smoke，用于先保护 help、init、doctor、start/status/stop、setup fresh、setup remote client、setup server deployment、code 和 ui；后续新增入口功能时，先补对应看护再扩展低频能力。
 
 这一步会依次执行：
 
@@ -69,7 +70,7 @@ npm run test:e2e:acceptance
 
 其中两层打包后验证分别承担不同职责：
 
-- `npm run test:e2e:cli:entry`：覆盖打包后 CLI 的入口 smoke，优先保护 init、doctor、start/status/stop、setup fresh、setup remote client、setup server deployment、code 和 ui
+- `npm run test:e2e:cli:entry`：覆盖打包后 CLI 的入口 smoke，优先保护 help、init、doctor、start/status/stop、setup fresh、setup remote client、setup server deployment、code 和 ui
 - `npm run test:e2e:cli`：覆盖打包后 CLI 的主要命令、选择路径与文件副作用边界；当前 Windows 本地完整运行约 3-4 分钟
 - `npm run test:e2e:acceptance`：通过真实 shell / 全局 wrapper / 隔离 HOME 做更贴近人工验收的主路径看护
 

@@ -61,31 +61,32 @@ describe('deployment assets', () => {
 
     const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
     expect(releasingGuide).toContain('Release');
-    expect(releasingGuide).toContain('src/server.test.ts src/ui/workbench.dom.test.ts');
-    expect(releasingGuide).toContain('配置产品化专项');
-    expect(releasingGuide).toContain('docs/release-notes-v1.14.0.md');
-    expect(releasingGuide).toContain('v1.14.0');
-    expect(releasingGuide).toContain('配置产品化最终收口');
+    expect(releasingGuide).toContain('src/setup/index.test.ts src/setup/setup.test.ts');
+    expect(releasingGuide).toContain('CLI/setup UX 专项');
+    expect(releasingGuide).toContain('docs/release-notes-v1.15.0.md');
+    expect(releasingGuide).toContain('v1.15.0');
+    expect(releasingGuide).toContain('CLI/setup UX 重设计收口');
+    expect(releasingGuide).toContain('help、init、doctor、start/status/stop');
   });
 
-  it('keeps v1.14.0 config productization release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.14.0.md'), 'utf-8');
+  it('keeps v1.15.0 setup UX release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.15.0.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('配置产品化最终收口版');
-    expect(releaseNotes).toContain('id/api/key/interface/model/thinking/metadata');
-    expect(releaseNotes).toContain('capabilityWarnings');
-    expect(releaseNotes).toContain('context_window_hint_missing');
-    expect(releaseNotes).toContain('src/server.test.ts');
+    expect(releaseNotes).toContain('CLI/setup UX 重设计收口版');
+    expect(releaseNotes).toContain('migration-first');
+    expect(releaseNotes).toContain('Router.think + Router.longContext');
+    expect(releaseNotes).toContain('setup can create a remote-service client config');
+    expect(releaseNotes).toContain('npm run test:e2e:cli:entry');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.14.0 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.14.0.md');
-    expect(readme).toContain('配置产品化最终收口');
-    expect(readme).toContain('id/api/key/interface/model/thinking/metadata');
-    expect(readme).toContain('api_base_url/api_key/protocol');
-    expect(readme).toContain('保存和配置写回');
+    expect(readme).toContain('## v1.15.0 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.15.0.md');
+    expect(readme).toContain('CLI/setup UX 重设计收口');
+    expect(readme).toContain('复用或迁移配置');
+    expect(readme).toContain('Router.think/longContext');
+    expect(readme).toContain('packaged help');
   });
 
   it('keeps the recommended Models field contract canonical for user-facing entry points', () => {
@@ -105,7 +106,7 @@ describe('deployment assets', () => {
   it('keeps README new-user quick start before release positioning', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
-    const releaseIndex = readme.indexOf('## v1.14.0 发布定位');
+    const releaseIndex = readme.indexOf('## v1.15.0 发布定位');
     const docsIndex = readme.indexOf('## 文档入口');
 
     expect(quickStartIndex).toBeGreaterThan(0);
