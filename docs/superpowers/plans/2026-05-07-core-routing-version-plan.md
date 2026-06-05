@@ -103,6 +103,13 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 | v1.9.0 | 用户入口与远程客户端一致性收口 | 远程客户端代理文档、setup remote-client next steps、鉴权环境变量口径、`/ui` admin 入口、README 5 分钟路径前置 | 新用户、日常本地用户和远程客户端能从 README / setup / status / doctor / ui 获得一致且可执行的下一步；旧文档口径不再误导真实运行链路 |
 | v1.10.0 | 智能路由自适应与多模型协同增强 | outcome-driven routing feedback、模型能力画像、confidence/latency budget、多模型协作模式、协作收益证据 | SmartRouter 不再只停留在“选一个模型”，而是能基于真实质量/速度证据选择 fast/deep/verify/compare 等协作路径，并向用户解释收益与代价 |
 | v1.13.0 | 核心路由用户体感与看护补强 | 路由预演、基础路由触发解释、SmartRouter 起步模板收口、协作口径校准、首包/错误/选模用户流看护 | 用户能在运行前预判请求会走哪个模型、为什么、是否可能变慢；发布门禁能拦截基础路由和 SmartRouter 的慢、卡、错路由、不可读错误回归 |
+| v1.14.0 | 配置产品化最终收口 | `Models` 字段心智、路由槽位、capability warning、README/configuration guide/UI/setup 一致性 | 用户能用同一套 `id/api/key/interface/model/thinking/metadata` 心智完成配置、诊断、保存和修复；CLI/UI/文档不再各说一套 |
+| v1.15.0 | CLI/setup UX 重设计收口 | migration-first、model-id-first、fresh setup 主路径、SmartRouter 起步引导、完成页 next steps | 新用户能按 setup 问答稳定生成本地可用配置，并知道下一步如何 doctor/start/code/ui；旧 provider-centric 叙事不再回流 |
+| v1.16.0 | 用户视角复审与入口一致性校准 | 项目目标复审、入口可用性巡检、已发布版本用户体验回归、问题归档机制 | 每次复审发现的问题都能落入明确版本；fresh setup、远程转发、配置保存、鉴权、route preview 和发布门禁回归能被及时前置 |
+| v1.17.0 | UI 双层工作台收敛 | 使用者/维护者渲染片段拆分、CSS/JS helper、trace span 视图、真实浏览器 smoke | `/ui` 继续保持使用者入口清晰、维护者观测独立，新增视图不再堆回大型内联脚本 |
+| v1.18.0 | 治理观测运营化增强 | routing outcome、pool health、key audit、输入侧优化、导出/归档/异常趋势 | 维护者能用稳定入口判断路由质量、异常趋势和建议动作；治理观测与 UI、trace、metrics 形成可运营闭环 |
+| v1.19.0 | 部署形态与远程接入收敛 | 服务发现、节点/集群编排边界、远程服务模式、remote status/registration 可观测性 | 远程接入在安全鉴权和清晰角色边界下继续演进，不把托管/cloud 能力误宣称为已完成 |
+| v1.20.0 | 发布与进展治理可持续化 | packaged CLI 用户流、release verify slice、closed 事项复审、统一基线和 issue log 维护 | 发布门禁能持续覆盖真实用户流；进展台账和问题记录不再依赖临时会话记忆 |
 
 ## 待处理事项按用户优先级归档
 
@@ -261,9 +268,104 @@ v1.9.0 闭环验证：五个事项已分别独立提交并逐项补 targeted 看
 
 v1.13.0 闭环验证：六个事项已分别独立提交并逐项补 targeted 看护；`npm run test:route-ux` 已作为核心路由用户体感专项门禁；`docs/release-notes-v1.13.0.md` 已固化发布边界，`package.json` / `package-lock.json` 已更新到 `1.13.0`。最终发布门禁以 `npm run release:verify` 为准。
 
+### v1.14.0 配置产品化最终收口
+
+优先级：最高（P1 主路径易用性）。
+
+用户目标：用户只需要理解一套配置字段，就能完成模型接入、路由槽位、能力提示、诊断修复和 UI 保存；不再在 README、configuration guide、setup、doctor 和 `/ui` 之间切换不同心智。
+
+1. `[planned]` `Models` 字段心智统一：继续把 `id/api/key/interface/model/thinking/metadata` 作为唯一推荐入口，清理或降级旧的 provider-centric 叙事。
+   - 闭环标准：README、configuration guide、setup 问答、doctor 提示和 `/ui` 字段说明都使用同一套字段口径；文档资产测试防止旧字段心智回流。
+2. `[planned]` 路由槽位配置产品化：把 `Router.default/think/longContext/background/webSearch` 与 SmartRouter 起步模板继续收敛到可复制、可解释、可诊断的配置路径。
+   - 闭环标准：用户能从配置文件、setup next steps、doctor 和 route preview 看懂每个槽位是否生效。
+3. `[planned]` capability warning 修正闭环：继续让 CLI、doctor、setup 和 `/ui` 对 thinking/tools/images/context window 等 warning 给出一致修复建议。
+   - 闭环标准：同一 warning 不会出现 UI 可修、CLI 只能提示、文档没有解释的分叉。
+4. `[planned]` 配置保存与预览一致性看护：补齐配置写回、setup 保存、UI 草稿读取、compiled preview 和 validation issue contract 的回归切片。
+   - 闭环标准：`npm run release:verify` 前有 targeted tests 覆盖配置产品化主路径；保存失败和修复建议可读。
+
+### v1.15.0 CLI/setup UX 重设计收口
+
+优先级：高（P1 主路径易用性）。
+
+用户目标：fresh setup、legacy migration、remote client、server profile 和 SmartRouter 起步引导都能按用户下一步自然推进，不需要用户猜“现在该运行哪个命令”。
+
+1. `[planned]` migration-first 与 model-id-first 主路径收口：继续巩固先迁移/复用、再生成最小可用配置的顺序，fresh setup 继续以模型 ID 和默认模型为中心。
+   - 闭环标准：setup 问答、help、README quick start 和配置模板不再回到 provider-centric 旧叙事。
+2. `[planned]` 多模型与 SmartRouter 起步引导：setup 在最小配置后自然引导复杂任务模型、长上下文模型和 SmartRouter 起步模板。
+   - 闭环标准：新用户可以从 setup 直接得到可运行且可解释的多模型/SmartRouter 起步配置。
+3. `[planned]` 完成页 next steps 一致性：本地、远程客户端、服务端部署三类完成页都明确 `doctor/status -> start/code/ui` 或对应维护者路径。
+   - 闭环标准：packaged CLI E2E 覆盖主要 setup profile 的完成提示和副作用边界。
+4. `[planned]` CLI 帮助与入口 smoke 补强：让 `ctr help/setup/doctor/code/ui` 的文案、示例和 README 保持一致。
+   - 闭环标准：短入口 smoke 能拦截帮助文案、next steps 和配置主路径漂移。
+
+### v1.16.0 用户视角复审与入口一致性校准
+
+优先级：高（P1 主路径易用性，伴随型复审版本）。
+
+用户目标：在 v1.14/v1.15 收口后，从真实用户视角重新检查项目目标、入口路径、核心路由、远程接入、配置保存和发布门禁，确保新增能力没有再次压过日常体验。
+
+1. `[planned]` 项目目标与实现一致性复审：复查 README、配置指南、setup、doctor、UI 和 runtime 是否仍围绕 Claude Code 路由代理目标。
+   - 闭环标准：发现的偏差必须落入后续版本或 issue log，不能停留在审查结论。
+2. `[planned]` 高频入口体验复审：重点复查 fresh setup、legacy migration、remote client、server profile、route preview、结构化 API error 和发布验证。
+   - 闭环标准：每条 P0/P1 风险都有现有看护证据或新增版本计划承接。
+3. `[planned]` 已闭环事项抽样校准：抽查 v1.9-v1.15 之间的 closed 事项是否与当前代码、文档和测试仍一致。
+   - 闭环标准：不回退历史 closed 结论；发现漂移时新增事项并更新 progress issue log。
+
+### v1.17.0 UI 双层工作台收敛
+
+优先级：中（P2 能力扩展与体验增强）。
+
+用户目标：`/ui` 保持使用者配置入口与维护者观测入口分层清晰，继续降低大型 HTML/CSS/内联 JS 的维护压力，让配置产品化、trace span 和治理观测能稳妥进入 UI。
+
+1. `[planned]` 使用者/维护者渲染片段继续拆分：在现有 fragment contract 上拆出更稳定的 UI 片段、CSS/JS helper 和数据注入边界。
+   - 闭环标准：新增 UI 能力有 fragment anchor、DOM smoke 和脚本语法看护。
+2. `[planned]` trace span 与路由证据视图收敛：把 runtime pipeline、route preview、routing evidence、handoff summary 等信息用清晰维护者视图承接。
+   - 闭环标准：维护者能从 UI 看懂一次请求的路由、切换、错误和建议动作。
+3. `[planned]` 真实浏览器 smoke 评估：在 jsdom smoke 之外补最小浏览器级验证，防止布局、脚本和鉴权入口只在源码测试中成立。
+   - 闭环标准：发布前至少有可重复的 UI smoke 验证入口。
+
+### v1.18.0 治理观测运营化增强
+
+优先级：中（P2 能力扩展与体验增强）。
+
+用户目标：维护者能稳定运营路由质量、异常趋势、pool health、key audit 和输入侧优化，而不是只在调试时临时查看 trace。
+
+1. `[planned]` routing outcome 与建议动作运营化：把质量、速度、失败、cascade、shadow 和人工校准证据继续收敛为 health/metrics/UI 中的建议动作。
+   - 闭环标准：维护者能知道“该改哪个规则、候选、预算或模型池配置”。
+2. `[planned]` pool health 与 key audit 汇入治理视图：把模型池健康、成本/速率、key 用量和异常告警纳入同一运营入口。
+   - 闭环标准：远程服务和模型池问题不会只散落在不同 API 或日志中。
+3. `[planned]` 输入侧优化进入统一 trace/metrics：Prompt / Intent Optimization 等治理增强必须复用现有 trace、metrics 和 UI contract。
+   - 闭环标准：不新增平行观测结构；异常和收益证据可追溯。
+
+### v1.19.0 部署形态与远程接入收敛
+
+优先级：中（P2 能力扩展与体验增强）。
+
+用户目标：在现有本地/远程 thin proxy 和 server profile 基础上，继续补服务发现、节点/集群编排边界和更完整服务模式，同时保持安全鉴权和角色心智清晰。
+
+1. `[planned]` 远程服务发现与节点边界：评估并补齐服务发现、节点摘要、远端状态同步和失败提示。
+   - 闭环标准：不宣称完整 cloud/托管控制面；新增远程能力必须有安全边界和可观测入口。
+2. `[planned]` remote status/registration 运营化：继续增强远端注册摘要、upstream 服务数、模型可用性和客户端下一步提示。
+   - 闭环标准：远程客户端能判断远端是否 ready、可用模型是否符合预期、失败后该找谁处理。
+3. `[planned]` server/client 文档和 setup profile 一致性：保持 README、server maintainer guide、remote client guide、setup 和 doctor 的角色口径一致。
+   - 闭环标准：远程接入不再因为角色叙事漂移导致误配置。
+
+### v1.20.0 发布与进展治理可持续化
+
+优先级：中低（P3 治理支撑与持续维护）。
+
+用户目标：发布质量门槛、进展基线、closed 事项复审和问题记录形成可持续机制，减少“已经闭环但真实用户又踩中”的情况。
+
+1. `[planned]` packaged CLI 用户流门禁继续补强：继续扩展 release verify、packaged E2E 和 acceptance 的真实用户流 slice。
+   - 闭环标准：help、init、setup、start/stop/status、doctor、code、ui、route preview 和 remote profile 的副作用边界可被发布前拦截。
+2. `[planned]` closed 事项复审校准机制化：按统一基线顺序持续抽查 closed 事项，发现漂移时新增事项承接。
+   - 闭环标准：不靠临时记忆判断闭环；每个漂移都有 issue log 记录。
+3. `[planned]` 进展文档体系治理：维护统一基线、版本路线、执行顺序和问题修改记录的一致性。
+   - 闭环标准：后续新增事项必须先进入统一入口，再下沉到具体计划；避免多入口互相打架。
+
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；后续默认回到配置产品化最终收口与 CLI/setup UX 重设计。
+2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；后续默认按 v1.14.0 配置产品化最终收口、v1.15.0 CLI/setup UX 重设计收口、v1.16.0 用户视角复审与入口一致性校准的顺序推进。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。
