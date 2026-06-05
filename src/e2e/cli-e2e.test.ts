@@ -407,9 +407,12 @@ describe('packaged CLI E2E', () => {
       const after = await snapshotTree(env.homeDir);
 
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain('setup');
-      expect(result.stdout).toContain('start');
-      expect(result.stdout).toContain('status');
+      expect(result.stdout).toContain('setup       复用或迁移配置；首次使用按 Models[].id 创建默认路由');
+      expect(result.stdout).toContain('doctor      诊断并修复当前配置，按需探测模型可用性');
+      expect(result.stdout).toContain('code        通过路由器运行 Claude Code（需先启动服务）');
+      expect(result.stdout).toContain('ui          打开本地管理页（配置预览与调试）');
+      expect(result.stdout).toContain('ctr setup                # 复用/迁移优先；首次按 Models[].id 创建默认路由');
+      expect(result.stdout).toContain('ctr doctor --route-preview --route-text "请做架构设计"');
       expect(result.stderr).toBe('');
 
       const diff = diffSnapshots(before, after);
