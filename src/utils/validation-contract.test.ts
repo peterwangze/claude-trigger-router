@@ -82,14 +82,16 @@ describe('validation issue contract', () => {
       warnings: [
         'Models[0].metadata.supports_tools disables tools for model "restricted". Tool definitions and tool call/result blocks will fall back to plain text.',
         'Models[0].metadata.supports_images disables image input for model "restricted". Image blocks will fall back to plain text descriptions.',
+        'Models[0].metadata.context_window_tokens is not set for model "restricted". Context guard cannot compare this model\'s full window before fallback.',
+        'Models[0].metadata.safe_input_tokens is not set for model "restricted". Context guard cannot proactively switch oversized input to Router.longContext.',
       ],
     });
 
     expect(report.summary).toEqual({
-      total: 2,
+      total: 4,
       error: 0,
       warning: 0,
-      info: 2,
+      info: 4,
     });
     expect(report.issues).toEqual([
       expect.objectContaining({
@@ -99,6 +101,16 @@ describe('validation issue contract', () => {
       expect.objectContaining({
         severity: 'info',
         path: 'Models[0].metadata.supports_images',
+      }),
+      expect.objectContaining({
+        severity: 'info',
+        path: 'Models[0].metadata.context_window_tokens',
+        action: expect.stringContaining('context window'),
+      }),
+      expect.objectContaining({
+        severity: 'info',
+        path: 'Models[0].metadata.safe_input_tokens',
+        action: expect.stringContaining('safe input budget'),
       }),
     ]);
   });

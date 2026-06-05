@@ -278,7 +278,7 @@ v1.13.0 闭环验证：六个事项已分别独立提交并逐项补 targeted �
    - 闭环标准：README、configuration guide、setup 问答、doctor 提示和 `/ui` 字段说明都使用同一套字段口径；文档资产测试防止旧字段心智回流。
 2. `[closed 2026-06-05]` 路由槽位配置产品化：把 `Router.default/think/longContext/background/webSearch` 与 SmartRouter 起步模板继续收敛到可复制、可解释、可诊断的配置路径。setup 完成提示已给出基础路由模板、SmartRouter 起步/高级模板和逐槽位 route preview 参数；doctor 槽位体检会输出基础路由顺序与验证命令；route preview 输出固定展示判断顺序；配置指南补齐逐槽位验证方法。
    - 闭环标准：用户能从配置文件、setup next steps、doctor 和 route preview 看懂每个槽位是否生效。
-3. `[planned]` capability warning 修正闭环：继续让 CLI、doctor、setup 和 `/ui` 对 thinking/tools/images/context window 等 warning 给出一致修复建议。
+3. `[closed 2026-06-05]` capability warning 修正闭环：继续让 CLI、doctor、setup 和 `/ui` 对 thinking/tools/images/context window 等 warning 给出一致修复建议。`collectCapabilityWarnings` 已把 `context_window_tokens` / `safe_input_tokens` 缺失纳入统一 capability warning report，级别为 info；validation issue contract 为 thinking/tools/images/context window/safe input 五类提示提供同一 action；configuration guide 明确 warning/info 语义，server preview/save、doctor/setup 和 `/ui` 继续复用同一 issueReport。
    - 闭环标准：同一 warning 不会出现 UI 可修、CLI 只能提示、文档没有解释的分叉。
 4. `[planned]` 配置保存与预览一致性看护：补齐配置写回、setup 保存、UI 草稿读取、compiled preview 和 validation issue contract 的回归切片。
    - 闭环标准：`npm run release:verify` 前有 targeted tests 覆盖配置产品化主路径；保存失败和修复建议可读。

@@ -707,6 +707,16 @@ export function collectCapabilityWarnings(
   const entries: ICompiledCapabilityWarningEntry[] = [];
   const models = Array.isArray(config?.Models) ? config.Models : [];
   const resolvedRegistry = registry ?? buildModelRegistry(config as IAppConfig);
+  const router = config?.Router;
+  const contextRelevantModelIds = new Set<string>();
+  if (router?.longContext) {
+    if (router.default && !router.default.includes(',')) {
+      contextRelevantModelIds.add(router.default);
+    }
+    if (!router.longContext.includes(',')) {
+      contextRelevantModelIds.add(router.longContext);
+    }
+  }
 
   models.forEach((model, index) => {
     const modelId = typeof model?.id === 'string' ? model.id.trim() : '';
@@ -746,6 +756,26 @@ export function collectCapabilityWarnings(
         level: 'info',
         code: 'images_text_fallback',
         message: `Models[${index}].metadata.supports_images disables image input for model "${modelId}". Image blocks will fall back to plain text descriptions.`,
+      });
+    }
+
+    if (contextRelevantModelIds.has(modelId) && !compiledModel.capabilities?.contextWindowTokens) {
+      entries.push({
+        path: `Models[${index}].metadata.context_window_tokens`,
+        modelId,
+        level: 'info',
+        code: 'context_window_hint_missing',
+        message: `Models[${index}].metadata.context_window_tokens is not set for model "${modelId}". Context guard cannot compare this model's full window before fallback.`,
+      });
+    }
+
+    if (contextRelevantModelIds.has(modelId) && !compiledModel.capabilities?.safeInputTokens) {
+      entries.push({
+        path: `Models[${index}].metadata.safe_input_tokens`,
+        modelId,
+        level: 'info',
+        code: 'safe_input_hint_missing',
+        message: `Models[${index}].metadata.safe_input_tokens is not set for model "${modelId}". Context guard cannot proactively switch oversized input to Router.longContext.`,
       });
     }
   });

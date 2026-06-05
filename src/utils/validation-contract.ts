@@ -65,13 +65,21 @@ function inferCapabilityAction(code: string | undefined, message: string): strin
   if (code === 'images_text_fallback' || /^Models\[\d+\]\.metadata\.supports_images/.test(message)) {
     return 'Accept text fallback behavior, or set metadata.supports_images to true only for an image-capable endpoint.';
   }
+  if (code === 'context_window_hint_missing' || /^Models\[\d+\]\.metadata\.context_window_tokens is not set/.test(message)) {
+    return 'Set metadata.context_window_tokens to the endpoint context window, or accept that context guard cannot compare full model capacity.';
+  }
+  if (code === 'safe_input_hint_missing' || /^Models\[\d+\]\.metadata\.safe_input_tokens is not set/.test(message)) {
+    return 'Set metadata.safe_input_tokens to the safe input budget, especially when Router.longContext is configured for fallback.';
+  }
   return 'Review the capability hint and decide whether the fallback behavior is acceptable.';
 }
 
 function inferCapabilitySeverity(message: string): ValidationIssueSeverity {
   if (
     /^Models\[\d+\]\.metadata\.supports_tools disables tools/.test(message) ||
-    /^Models\[\d+\]\.metadata\.supports_images disables image input/.test(message)
+    /^Models\[\d+\]\.metadata\.supports_images disables image input/.test(message) ||
+    /^Models\[\d+\]\.metadata\.context_window_tokens is not set/.test(message) ||
+    /^Models\[\d+\]\.metadata\.safe_input_tokens is not set/.test(message)
   ) {
     return 'info';
   }

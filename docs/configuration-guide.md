@@ -407,6 +407,8 @@ Models:
 
 多模型上下文大小差异明显时，建议同时配置小窗口模型和长上下文模型的上下文 metadata，并设置 `Router.longContext`。如果所有候选模型都放不下，运行时会在发往上游前返回明确的 context window 错误，避免让小模型隐性截断或质量劣化。如果你不确定，不建议一开始就配太多 capability hint，先让模型跑通主路径。
 
+capability warning 在 CLI、doctor、setup、保存 API 和 `/ui` 中共用同一套语义：`thinking_ignored` 是 warning，需要移除 `thinking` 或确认模型真实支持 reasoning；`tools_text_fallback` / `images_text_fallback` / `context_window_hint_missing` / `safe_input_hint_missing` 是 info，表示可接受的降级或缺少容量提示，但会给出同一条修复 action。
+
 ## 11. 建议的配置演进顺序
 
 最稳的顺序是：

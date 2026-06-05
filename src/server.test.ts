@@ -2044,6 +2044,60 @@ describe('createServer /api/config', () => {
     ]);
   });
 
+  it('reports context metadata hints only when longContext routing needs them', async () => {
+    const server = createServer({});
+    const handler = server.app.routes.get('POST /api/models/compiled/preview');
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+    };
+
+    const result = await handler({
+      body: {
+        Models: [
+          {
+            id: 'default_model',
+            api: 'https://api.example.com/v1/chat/completions',
+            key: 'sk-default',
+            interface: 'openai',
+            model: 'vendor/default',
+          },
+          {
+            id: 'long_model',
+            api: 'https://api.example.com/v1/messages',
+            key: 'sk-long',
+            interface: 'anthropic',
+            model: 'vendor/long',
+          },
+        ],
+        Router: {
+          default: 'default_model',
+          longContext: 'long_model',
+        },
+      },
+    }, reply);
+
+    expect(reply.code).not.toHaveBeenCalled();
+    expect(result.capabilityWarnings.summary).toEqual({
+      total: 4,
+      warn: 0,
+      info: 4,
+    });
+    expect(result.issueReport.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: 'info',
+          path: 'Models[0].metadata.context_window_tokens',
+          action: expect.stringContaining('context window'),
+        }),
+        expect.objectContaining({
+          severity: 'info',
+          path: 'Models[1].metadata.safe_input_tokens',
+          action: expect.stringContaining('safe input budget'),
+        }),
+      ])
+    );
+  });
+
   it('rejects invalid compiled Models draft preview', async () => {
     const server = createServer({});
     const handler = server.app.routes.get('POST /api/models/compiled/preview');
@@ -3044,7 +3098,7 @@ describe('createServer /api/config', () => {
     expect(html).toContain('addModelDraftBtn');
     expect(html).toContain('syncDraftJsonBtn');
     expect(html).toContain('Models field guide');
-    expect(html).toContain('id / api / key / interface / model / thinking / metadata');
+    expect(html).toContain('id/api/key/interface/model/thinking/metadata');
     expect(html).toContain('api_key / api_base_url / protocol 仅作为旧配置兼容读取');
     expect(html).toContain('JSON 草稿同样建议只写入口字段');
     expect(html).toContain('旧字段别名无需手动补充');
