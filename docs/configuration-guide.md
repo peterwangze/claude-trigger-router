@@ -270,7 +270,7 @@ Governance:
 - 复用当前可用配置
 - 迁移旧 `claude-code-router` 配置
 - 在没有可用配置时先询问“本地使用”、“连接远程服务”或“部署为远程服务端”
-- 本地使用时新建最小配置
+- 本地使用时先新建 `Models[].id + Router.default` 最小配置；如果继续添加复杂任务模型，可直接把它接到 `Router.think` / `Router.longContext`，并可生成 SmartRouter 规则或候选兜底
 - 连接远程服务时写入 `Runtime.remote_service`，不要求先填写本地 provider/model
 - 部署为远程服务端时写入 `HOST: "0.0.0.0"`、bootstrap admin `APIKEY`、`Runtime.mode: "server"` 和可编辑的 `Models + Router.default` 起步模板，并且不会自动启动服务
 - 保存后按角色输出下一步：本地路径提示本地代理状态、`ctr code` 和路由模板；远程客户端路径提示 `ctr status`、远端 ready/status、本地代理转发和可选直连 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN`；服务端路径提示 `ctr doctor` 与 `ctr start --daemon`

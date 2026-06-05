@@ -594,6 +594,7 @@ describe('runSetupCli', () => {
         .mockResolvedValueOnce('添加一个复杂任务专用模型')
         .mockResolvedValueOnce('使用常见接入模板')
         .mockResolvedValueOnce('deepseek')
+        .mockResolvedValueOnce('设为 Router.think + Router.longContext')
         .mockResolvedValueOnce('开启复杂任务规则 + 智能兜底')
         .mockResolvedValueOnce('保持默认'),
       input: vi
@@ -633,6 +634,9 @@ describe('runSetupCli', () => {
         ],
         Router: {
           default: 'sonnet',
+          think: 'reasoner',
+          longContext: 'reasoner',
+          longContextThreshold: 60000,
         },
         SmartRouter: expect.objectContaining({
           enabled: true,
@@ -648,6 +652,9 @@ describe('runSetupCli', () => {
           ]),
         }),
       })
+    );
+    expect(io.info).toHaveBeenCalledWith(
+      '已把 reasoner 写入 Router.think 和 Router.longContext，默认模型仍是 sonnet。'
     );
     expect(io.info).toHaveBeenCalledWith(
       '已为你生成 SmartRouter 路由模板，默认模型仍是 sonnet，复杂任务会优先使用 reasoner。'

@@ -40,6 +40,7 @@ interface ISetupIO {
 
 type TCapabilityChoice = '默认' | '支持' | '禁用';
 type TCapabilityEditChoice = '保持当前值' | '编辑 capability';
+type TRoutingSlotBootstrapChoice = '先不设置基础槽位' | '设为 Router.think' | '设为 Router.think + Router.longContext';
 type TRoutingBootstrapChoice = '先保持最小配置' | '开启复杂任务规则模板' | '开启复杂任务规则 + 智能兜底';
 type TSetupEntryChoice = '本地使用（推荐）' | '连接远程服务' | '部署为远程服务端';
 
@@ -788,6 +789,29 @@ function applyRoutingBootstrap(
   return nextDraft;
 }
 
+function applyRoutingSlotBootstrap(
+  draft: ISetupConfigDraft,
+  choice: TRoutingSlotBootstrapChoice,
+  modelId: string
+): ISetupConfigDraft {
+  if (choice === '先不设置基础槽位') {
+    return draft;
+  }
+
+  const nextDraft: ISetupConfigDraft = {
+    ...draft,
+    Router: { ...(draft.Router ?? {}) },
+  };
+
+  nextDraft.Router.think = modelId;
+  if (choice === '设为 Router.think + Router.longContext') {
+    nextDraft.Router.longContext = modelId;
+    nextDraft.Router.longContextThreshold = nextDraft.Router.longContextThreshold ?? 60000;
+  }
+
+  return nextDraft;
+}
+
 function createSetupBootstrapApiKey(): string {
   return `ctr_bootstrap_${randomBytes(24).toString('base64url')}`;
 }
@@ -891,6 +915,17 @@ async function buildFreshConfig(io: ISetupIO): Promise<ISetupConfigDraft> {
       suggestedModelId: suggestedSecondModelId,
     });
     draft = appendModelToDraft(draft, specializedModel);
+
+    const slotChoice = await io.choose('这个模型要不要同时接到基础路由槽位？', [
+      '先不设置基础槽位',
+      '设为 Router.think',
+      '设为 Router.think + Router.longContext',
+    ]) as TRoutingSlotBootstrapChoice;
+
+    draft = applyRoutingSlotBootstrap(draft, slotChoice, specializedModel.model_id);
+    if (slotChoice !== '先不设置基础槽位') {
+      io.info(`已把 ${specializedModel.model_id} 写入 ${slotChoice === '设为 Router.think' ? 'Router.think' : 'Router.think 和 Router.longContext'}，默认模型仍是 ${primaryModel.model_id}。`);
+    }
 
     const routingChoice = await io.choose('现在要不要开启高级路由？', [
       '先保持最小配置',
