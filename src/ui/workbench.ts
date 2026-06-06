@@ -387,6 +387,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `</div>` +
     `<div class="subpanel">` +
+    `<div class="row"><strong>Guardrail summary</strong><span class="muted">输入侧 prompt / secret 风险与输出侧占位、工具错误汇总</span></div>` +
+    `<ul id="guardrailSummaryList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="subpanel">` +
     `<div class="row"><strong>Routing tuning</strong><span class="muted">基于 outcome 证据给出 SmartRouter 调优建议</span></div>` +
     `<ul id="routingTuningList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
@@ -632,6 +636,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const modelOutcomeRanking=document.getElementById('modelOutcomeRanking');` +
     `const intentOutcomeRanking=document.getElementById('intentOutcomeRanking');` +
     `const healthSummary=document.getElementById('healthSummary');` +
+    `const guardrailSummaryList=document.getElementById('guardrailSummaryList');` +
     `const routingTuningList=document.getElementById('routingTuningList');` +
     `const outcomeScorecardList=document.getElementById('outcomeScorecardList');` +
     `const routeDecisionSummaryList=document.getElementById('routeDecisionSummaryList');` +
@@ -1831,6 +1836,17 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(!anomalies || !anomalies.length){ anomalyList.innerHTML='<div class="alert info"><strong>No active alerts</strong><div class="muted">当前窗口未发现明显治理异常</div></div>'; return; }` +
     `  anomalyList.innerHTML=anomalies.map(item=>'<div class="alert '+esc(item.severity || 'info')+'"><strong>'+esc(item.type)+'</strong><div>'+esc(item.message)+'</div></div>').join('');` +
     `}` +
+    `function renderGuardrails(guardrails){` +
+    `  const rows=[];` +
+    `  const addRows=(direction,summary)=>{` +
+    `    const items=Array.isArray(summary?.byCode) ? summary.byCode : [];` +
+    `    if(!items.length){ rows.push('<li><span><strong>'+esc(direction)+'</strong><div class="muted">No guardrail findings</div></span><strong>'+esc(summary?.status || 'ok')+'</strong></li>'); return; }` +
+    `    items.forEach(item=>{ const cls=item.severity === 'critical' ? 'critical' : (item.severity === 'warn' ? 'warn' : 'info'); rows.push('<li><span><span class="pill '+esc(cls)+'">'+esc(direction)+'</span> <strong>'+esc(item.code || '-')+'</strong><div class="muted">'+esc(item.count || 0)+' findings · '+esc(pct(item.rate || 0))+'</div></span><strong>'+esc(item.action || '')+'</strong></li>'); });` +
+    `  };` +
+    `  addRows('input',guardrails?.input || {});` +
+    `  addRows('output',guardrails?.output || {});` +
+    `  guardrailSummaryList.innerHTML=rows.join('');` +
+    `}` +
     `function applyHealthAction(action){` +
     `  const text=String(action || '').toLowerCase();` +
     `  const routeReasonInput=document.getElementById('routeReason');` +
@@ -1925,6 +1941,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderMetrics(metricsData.metrics || {},health,metricsData.outcome || {});` +
     `  renderBuckets(metricsData || {});` +
     `  renderAnomalies(metricsData.anomalies || [],health);` +
+    `  renderGuardrails(metricsData.guardrails || {});` +
     `  renderRoutingTuning(health?.routingTuning || []);` +
     `  renderOutcomeScorecard(metricsData.outcomeScorecard || {});` +
     `  renderQualityEvidence(metricsData.qualityEvidence || {});` +

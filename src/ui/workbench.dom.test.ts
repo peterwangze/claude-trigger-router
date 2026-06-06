@@ -220,6 +220,21 @@ async function createWorkbenchDom(options: {
             topRouteReasons: [],
             topFinalModels: [],
             topSemanticIntents: [],
+            guardrails: {
+              input: {
+                status: 'critical',
+                byCode: [
+                  {
+                    code: 'secret_exfiltration_request',
+                    severity: 'critical',
+                    count: 1,
+                    rate: 0.5,
+                    action: 'Audit client workflow.',
+                  },
+                ],
+              },
+              output: { status: 'ok', byCode: [] },
+            },
             qualityEvidence: {},
             taskComparison: {},
           }) as any;
@@ -403,6 +418,7 @@ async function createWorkbenchDom(options: {
     expect(dom.window.document.getElementById('healthSummary')?.textContent).toContain('Health: watch');
     expect(dom.window.document.getElementById('outcomeScorecardList')?.textContent).toContain('route_reason: smart_router');
     expect(dom.window.document.getElementById('operationsRiskSummary')?.textContent).toContain('pool_endpoint_cooldown');
+    expect(dom.window.document.getElementById('guardrailSummaryList')?.textContent).toContain('secret_exfiltration_request');
     expect(dom.window.document.getElementById('benchmarkHistorySummary')?.textContent).toContain('Entries');
   });
 

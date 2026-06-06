@@ -88,6 +88,28 @@ export interface IGovernanceQualityEvidenceSummary {
   samples: IGovernanceQualityEvidenceSample[];
 }
 
+export interface IGovernanceGuardrailFindingSummary {
+  code: string;
+  severity: 'info' | 'warn' | 'critical';
+  count: number;
+  rate: number;
+  action: string;
+}
+
+export interface IGovernanceGuardrailDirectionSummary {
+  status: 'ok' | 'watch' | 'critical';
+  totalFindings: number;
+  criticalCount: number;
+  warnCount: number;
+  infoCount: number;
+  byCode: IGovernanceGuardrailFindingSummary[];
+}
+
+export interface IGovernanceGuardrailMetricsSummary {
+  input: IGovernanceGuardrailDirectionSummary;
+  output: IGovernanceGuardrailDirectionSummary;
+}
+
 export interface IGovernanceTaskComparisonModelEntry {
   model: string;
   totalTraces: number;
@@ -262,6 +284,7 @@ export interface IGovernanceMetricsReport {
   topFinalModels: IGovernanceDistributionEntry[];
   topSemanticIntents: IGovernanceDistributionEntry[];
   anomalies: IGovernanceAnomaly[];
+  guardrails: IGovernanceGuardrailMetricsSummary;
   qualityEvidence?: IGovernanceQualityEvidenceSummary;
   taskComparison?: IGovernanceTaskComparisonSummary;
   health?: IGovernanceHealthSummary;
@@ -452,6 +475,100 @@ function classifyVerificationResult(value: string): 'info' | 'warn' {
   }
 
   return /fail|risk|unsafe|violation|missing|placeholder|error/.test(normalized) ? 'warn' : 'info';
+}
+
+function guardrailAction(code: string, direction: 'input' | 'output'): string {
+  if (code === 'prompt_injection_instruction_override') {
+    return 'Review prompt boundary wording and keep system/tool instructions out of user-editable templates.';
+  }
+  if (code === 'secret_exfiltration_request') {
+    return 'Audit the client workflow and ensure secrets are never available in model-visible context.';
+  }
+  if (code === 'placeholder_output') {
+    return 'Compare this route with a stronger or better instructed candidate before trusting the output.';
+  }
+  if (code === 'tool_result_error') {
+    return 'Inspect tool capability guardrails and upstream tool execution logs for this route.';
+  }
+  if (code === 'refusal_or_incomplete_output') {
+    return 'Check whether this route needs clearer task framing or a different model capability profile.';
+  }
+  return direction === 'input'
+    ? 'Review input-side optimization rules for this recurring prompt pattern.'
+    : 'Review output-side governance rules for this recurring response pattern.';
+}
+
+function buildGuardrailDirectionSummary(
+  traces: IGovernanceTrace[],
+  direction: 'input' | 'output'
+): IGovernanceGuardrailDirectionSummary {
+  const distribution: Record<string, { severity: 'info' | 'warn' | 'critical'; count: number }> = {};
+  let totalFindings = 0;
+  let criticalCount = 0;
+  let warnCount = 0;
+  let infoCount = 0;
+
+  for (const trace of traces) {
+    const report = direction === 'input' ? trace.inputGuardrail : trace.outputGuardrail;
+    for (const finding of report?.findings ?? []) {
+      totalFindings += 1;
+      if (finding.severity === 'critical') {
+        criticalCount += 1;
+      } else if (finding.severity === 'warn') {
+        warnCount += 1;
+      } else {
+        infoCount += 1;
+      }
+      const current = distribution[finding.code] ?? {
+        severity: finding.severity as 'info' | 'warn' | 'critical',
+        count: 0,
+      };
+      const severityRank = { critical: 0, warn: 1, info: 2 };
+      const nextSeverity = severityRank[finding.severity as 'info' | 'warn' | 'critical'] < severityRank[current.severity]
+        ? finding.severity as 'info' | 'warn' | 'critical'
+        : current.severity;
+      distribution[finding.code] = {
+        severity: nextSeverity,
+        count: current.count + 1,
+      };
+    }
+  }
+
+  const byCode = Object.entries(distribution)
+    .map(([code, item]) => ({
+      code,
+      severity: item.severity,
+      count: item.count,
+      rate: rate(item.count, traces.length),
+      action: guardrailAction(code, direction),
+    }))
+    .sort((left, right) => {
+      const severityRank = { critical: 0, warn: 1, info: 2 };
+      if (severityRank[left.severity] !== severityRank[right.severity]) {
+        return severityRank[left.severity] - severityRank[right.severity];
+      }
+      if (right.count !== left.count) {
+        return right.count - left.count;
+      }
+      return left.code.localeCompare(right.code);
+    })
+    .slice(0, 8);
+
+  return {
+    status: criticalCount > 0 ? 'critical' : warnCount > 0 ? 'watch' : 'ok',
+    totalFindings,
+    criticalCount,
+    warnCount,
+    infoCount,
+    byCode,
+  };
+}
+
+export function buildGuardrailMetricsSummary(traces: IGovernanceTrace[]): IGovernanceGuardrailMetricsSummary {
+  return {
+    input: buildGuardrailDirectionSummary(traces, 'input'),
+    output: buildGuardrailDirectionSummary(traces, 'output'),
+  };
 }
 
 function getTaskComparisonKey(trace: IGovernanceTrace): string | undefined {
@@ -1510,6 +1627,7 @@ export function getGovernanceMetricsReport(
   const topFinalModels = buildTopEntries(metrics.finalModelDistribution, limitedTraces.length);
   const topSemanticIntents = buildTopEntries(metrics.semanticIntentDistribution, limitedTraces.length);
   const anomalies = buildAnomalies(metrics, buckets, thresholds);
+  const guardrails = buildGuardrailMetricsSummary(limitedTraces);
   const qualityEvidence = buildQualityEvidenceSummary(limitedTraces, thresholds);
   const taskComparison = buildTaskComparisonSummary(limitedTraces);
   const outcomeScorecard = buildRoutingOutcomeScorecard({
@@ -1531,6 +1649,7 @@ export function getGovernanceMetricsReport(
     topFinalModels,
     topSemanticIntents,
     anomalies,
+    guardrails,
     qualityEvidence,
     taskComparison,
     health: buildGovernanceHealthSummary({
@@ -1593,6 +1712,17 @@ export function exportGovernanceMetricsReport(
     for (const item of report.qualityEvidence.samples) {
       lines.push(`qualityEvidenceSample,${item.type},${item.severity}:${item.requestId}:${compactCsvEvidence(item.evidence)}`);
     }
+  }
+
+  lines.push(`guardrails,inputStatus,${report.guardrails.input.status}`);
+  lines.push(`guardrails,inputFindings,${report.guardrails.input.totalFindings}`);
+  lines.push(`guardrails,outputStatus,${report.guardrails.output.status}`);
+  lines.push(`guardrails,outputFindings,${report.guardrails.output.totalFindings}`);
+  for (const item of report.guardrails.input.byCode) {
+    lines.push(`guardrailInput,${item.code},${item.severity}:${item.count}:${item.rate}`);
+  }
+  for (const item of report.guardrails.output.byCode) {
+    lines.push(`guardrailOutput,${item.code},${item.severity}:${item.count}:${item.rate}`);
   }
 
   if (report.taskComparison) {

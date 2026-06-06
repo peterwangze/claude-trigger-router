@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGovernanceHealthSummary, buildRoutingOutcomeScorecard, exportGovernanceMetricsReport, getGovernanceMetricsReport, summarizeGovernanceMetrics, summarizeRoutingOutcomes } from './metrics';
+import { buildGovernanceHealthSummary, buildGuardrailMetricsSummary, buildRoutingOutcomeScorecard, exportGovernanceMetricsReport, getGovernanceMetricsReport, summarizeGovernanceMetrics, summarizeRoutingOutcomes } from './metrics';
 import { governanceTraceStore } from './trace';
 
 describe('summarizeGovernanceMetrics', () => {
@@ -807,6 +807,76 @@ describe('summarizeGovernanceMetrics', () => {
     expect(scorecard.topActions[0]).toContain('Inspect risk evidence');
   });
 
+  it('summarizes input and output guardrail findings for metrics', () => {
+    const summary = buildGuardrailMetricsSummary([
+      {
+        requestId: 'trace-guardrail-1',
+        routeReason: ['input_guardrail:secret_exfiltration_request'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: 1,
+        inputGuardrail: {
+          status: 'critical',
+          findings: [
+            {
+              code: 'secret_exfiltration_request',
+              severity: 'critical',
+              message: 'Input appears to request secret or token disclosure.',
+            },
+          ],
+        },
+      },
+      {
+        requestId: 'trace-guardrail-2',
+        routeReason: ['output_guardrail:placeholder_output'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        startedAt: 2,
+        outputGuardrail: {
+          status: 'watch',
+          findings: [
+            {
+              code: 'placeholder_output',
+              severity: 'warn',
+              message: 'Output appears to contain placeholder text.',
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(summary.input).toEqual(expect.objectContaining({
+      status: 'critical',
+      totalFindings: 1,
+      criticalCount: 1,
+      byCode: [
+        expect.objectContaining({
+          code: 'secret_exfiltration_request',
+          severity: 'critical',
+          count: 1,
+          rate: 0.5,
+        }),
+      ],
+    }));
+    expect(summary.output).toEqual(expect.objectContaining({
+      status: 'watch',
+      totalFindings: 1,
+      warnCount: 1,
+      byCode: [
+        expect.objectContaining({
+          code: 'placeholder_output',
+          severity: 'warn',
+          count: 1,
+          rate: 0.5,
+        }),
+      ],
+    }));
+  });
+
   it('summarizes quality evidence samples from real governance traces', () => {
     governanceTraceStore.clear();
 
@@ -1034,6 +1104,40 @@ describe('summarizeGovernanceMetrics', () => {
       topFinalModels: [{ key: 'model-a', count: 2, rate: 1 }],
       topSemanticIntents: [{ key: 'review', count: 1, rate: 0.5 }],
       anomalies: [{ type: 'cascade_rate_high', severity: 'warn', message: 'x', metric: 'cascadeTriggeredRate', value: 0.5 }],
+      guardrails: {
+        input: {
+          status: 'critical',
+          totalFindings: 1,
+          criticalCount: 1,
+          warnCount: 0,
+          infoCount: 0,
+          byCode: [
+            {
+              code: 'secret_exfiltration_request',
+              severity: 'critical',
+              count: 1,
+              rate: 0.5,
+              action: 'Audit the client workflow and ensure secrets are never available in model-visible context.',
+            },
+          ],
+        },
+        output: {
+          status: 'watch',
+          totalFindings: 1,
+          criticalCount: 0,
+          warnCount: 1,
+          infoCount: 0,
+          byCode: [
+            {
+              code: 'placeholder_output',
+              severity: 'warn',
+              count: 1,
+              rate: 0.5,
+              action: 'Compare this route with a stronger or better instructed candidate before trusting the output.',
+            },
+          ],
+        },
+      },
       qualityEvidence: {
         totalSamples: 1,
         failureSamples: 1,
@@ -1123,6 +1227,9 @@ describe('summarizeGovernanceMetrics', () => {
     expect(csv).toContain('outcomeScorecard,totalItems,1');
     expect(csv).toContain('outcomeScorecardItem,route_reason:sticky,watch:24:Monitor context window fallback rate and long-context model latency.');
     expect(csv).toContain('anomaly,cascade_rate_high,warn:0.5');
+    expect(csv).toContain('guardrails,inputStatus,critical');
+    expect(csv).toContain('guardrailInput,secret_exfiltration_request,critical:1:0.5');
+    expect(csv).toContain('guardrailOutput,placeholder_output,warn:1:0.5');
     expect(csv).toContain('routingTuning,context_window_fallback_high,info:contextWindowFallbackRate=50%');
     expect(csv).toContain('qualityEvidence,totalSamples,1');
     expect(csv).toContain('qualityEvidenceSample,slow_request,warn:trace-slow:latencyMs=1700; provider=slow');
