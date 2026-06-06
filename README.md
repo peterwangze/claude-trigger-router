@@ -224,14 +224,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.17.0.md](docs/release-notes-v1.17.0.md)
+- 发布说明：[docs/release-notes-v1.18.0.md](docs/release-notes-v1.18.0.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.17.0 发布定位
+## v1.18.0 发布定位
 
-`v1.17.0` 是 UI 双层工作台收敛版。它不新增运行时路由策略，而是把 `/ui` 从功能集合页继续收敛为面向本地使用者、远程客户端、服务维护者和路由设计者的角色化工作台。
+`v1.18.0` 是治理观测运营化增强版。它不新增默认路由策略，而是把维护者已经能看到的 trace、metrics、pool health、key quota 和 guardrail 信号继续收敛成可排序、可行动、可在 Web UI 中快速扫描的运营闭环。
 
-这一版继续拆分 `/ui` 样式与视图状态 helper，新增 trace evidence 可读面板，固化角色化 UI 设计 contract，并加入 `test:ui:browser` 真实浏览器 smoke 来检查桌面/移动布局、角色入口跳转和横向溢出。完整发布边界见 [docs/release-notes-v1.17.0.md](docs/release-notes-v1.17.0.md)。
+这一版新增 outcome scorecard、Operations risk、Guardrail summary 和维护者 decision rail，让 `/ui` 先给出状态和下一步动作，再进入明细表；`test:ui:browser` 继续检查桌面/移动布局和横向溢出。完整发布边界见 [docs/release-notes-v1.18.0.md](docs/release-notes-v1.18.0.md)。
 
 ## License
 
