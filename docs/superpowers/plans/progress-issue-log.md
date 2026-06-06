@@ -49,7 +49,7 @@
 | PI-023 | v1.8.0 输出治理默认缓冲破坏基础路由流式输出并放大 socket 错误 | 2026-05-25 | closed | v1.11.0 已完成首轮止血：默认未开启 `Governance.cascade.stream_guard` 时恢复即时 chunk 转发，结构化 API error 不再被发送钩子提升为 hook error，SSE parser 补齐跨 chunk 状态与 flush 回归；2026-06-05 用户确认 v1.11.0 仍复现 socket 异常和中转卡顿，已新增 PI-024 / v1.12.0 承接第二层传输韧性修复 | `src/governance/stream-response-governance.ts` ; `src/index.ts` ; `src/utils/SSEParser.transform.ts` ; `docs/release-notes-v1.11.0.md` |
 | PI-024 | v1.11.0 仍复现 socket 断连和中转卡顿，缺少上游断流与远程取消防线 | 2026-06-05 | closed | 已通过 v1.12.0 阶段闭环：默认透传捕获上游 stream read error 并追加可读 SSE error event；远程中转将客户端 close 绑定到上游 fetch abort，远端 SSE 响应进入同一套流式治理包装；SSE parser 持续复用 TextDecoder 修复多字节跨 chunk 解码；发布边界由 v1.12.0 release notes 和 targeted tests 看护 | `src/governance/stream-response-governance.ts` ; `src/index.ts` ; `src/utils/SSEParser.transform.ts` ; `docs/release-notes-v1.12.0.md` |
 | PI-026 | `/ui` 功能可达但第一屏缺少角色化入口，用户难以判断从哪里开始 | 2026-06-05 | closed | 已通过 v1.16.0 用户视角复审阶段闭环：`/ui` 第一屏新增本地使用者、远程客户端、服务维护者和路由设计辅助入口，补任务路径和 UX 诊断面板，并用 fragment contract 与 DOM 跳转测试看护 | `src/ui/workbench.ts` ; `src/ui/workbench-fragments.ts` ; `src/ui/workbench.dom.test.ts` ; `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` |
-| PI-027 | `/ui` 需要完整角色化设计系统和辅助 skill 落地流程 | 2026-06-06 | in_progress | 当前不回退 PI-026 的第一屏角色入口闭环；已把更大的“Web UI 缺少设计、不同角色易用性不足、需要辅助 UI 设计/实现 skill”追加到 v1.17.0，并已安装 `figma-create-design-system-rules`、`figma-generate-design`、`figma-implement-design` 三个 Codex/Figma 辅助 skill。当前阶段结论是“v1.17.0 必须补角色/任务流、设计系统规则、组件状态、实现 contract 和真实浏览器 smoke 后才能关闭 UI 双层工作台收敛”。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` |
+| PI-027 | `/ui` 需要完整角色化设计系统和辅助 skill 落地流程 | 2026-06-06 | closed | 已通过 v1.17.0 阶段闭环：安装 `figma-create-design-system-rules`、`figma-generate-design`、`figma-implement-design` 三个 Codex/Figma 辅助 skill；固化角色/任务流、信息架构、设计 token、组件状态、响应式规则和不新增平行 UI 状态的实现 contract；新增 trace evidence detail、CSS 防溢出 contract 和 `npm run test:ui:browser` 真实浏览器 smoke。后续若 `/ui` 角色入口、trace evidence、移动/桌面布局或 browser smoke 再次退化，按 P1/P2 重新前置。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` ; `docs/release-notes-v1.17.0.md` |
 
 ## 问题详细记录
 
@@ -590,9 +590,10 @@
   - 已在 v1.17.0 版本计划新增“角色化 UI 体验设计与辅助 skill 接入” planned 事项
   - 已更新统一进展基线，将角色化 UI 体验设计、辅助 skill 接入和真实浏览器 smoke 设为 v1.17.0 当前推进重点
   - 已更新 UI 双层工作台实施计划，追加 Chunk 5：角色/任务流 checklist、设计 contract、skill-assisted implementation 和浏览器级 smoke
-- 当前状态：`in_progress`
-- 闭环结论：该问题不回退 PI-026 的第一屏角色入口阶段闭环；它作为 v1.17.0 的新增 P2 体验增强事项继续推进。关闭条件是：角色/任务流、信息架构、设计 token、组件状态、实现 contract、真实浏览器 smoke 和 v1.17.0 发布验收清单完成，并且没有新增平行 UI 状态。
+- 当前状态：`closed`
+- 闭环结论：该问题不回退 PI-026 的第一屏角色入口阶段闭环；它已通过 v1.17.0 阶段闭环：角色/任务流、信息架构、设计 token、组件状态、实现 contract、真实浏览器 smoke 和 v1.17.0 发布验收清单均已落入版本计划，且没有新增平行 UI 状态。后续若 `/ui` 角色入口、trace evidence、移动/桌面布局或 browser smoke 再次退化，按 P1/P2 重新前置。
 - 关联文档：
   - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
   - `docs/superpowers/plans/unified-progress-baseline.md`
   - `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md`
+  - `docs/release-notes-v1.17.0.md`
