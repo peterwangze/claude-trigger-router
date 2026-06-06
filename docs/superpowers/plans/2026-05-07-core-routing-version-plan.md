@@ -343,8 +343,9 @@ v1.16.0 闭环验证：三个事项已分别独立提交并逐项补复审证据
 3. `[closed 2026-06-06]` 角色化 UI 体验设计与辅助 skill 接入：已把“当前 Web UI 缺少设计、不同角色易用性不足”的反馈正式纳入 v1.17.0；本地已安装 `figma-create-design-system-rules`、`figma-generate-design`、`figma-implement-design` 三个 Codex/Figma 辅助 skill，Codex 重启后可用于设计系统规则生成、界面方案生成和设计到实现的辅助落地。当前会话未热加载这些新增 skill，因此本轮先以 `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` 固化角色/任务流、信息架构、设计 token、组件状态、响应式规则和不新增平行 UI 状态的实现 contract。
    - 闭环标准：角色化设计 contract 已明确本地使用者、远程客户端、服务维护者、路由设计者四类任务路径；视觉规则保持运维工具密度，不走营销页；颜色、间距、状态 badge、tab、role card、表格、trace detail、warning、保存动作和 empty/loading/error/success 状态均有约束；后续实现必须复用现有 `src/ui/*` helper 与 fragment contract。
    - 验证：`npm run test:ui` 已作为 contract 看护入口；真实浏览器 smoke 由事项 4 单独闭环。
-4. `[planned]` 真实浏览器 smoke 评估：在 jsdom smoke 之外补最小浏览器级验证，防止布局、脚本和鉴权入口只在源码测试中成立。
-   - 闭环标准：发布前至少有可重复的 UI smoke 验证入口。
+4. `[closed 2026-06-06]` 真实浏览器 smoke 评估：已新增 `npm run test:ui:browser`，先 build，再用隔离 HOME 启动 staged `dist/cli.js start`，通过本机 Edge/Chrome CDP 打开 `/ui`，在桌面和移动 viewport 检查角色入口、UX 设计辅助面板、trace evidence detail、维护者入口跳转和整页无横向溢出；同时补 `workbench-styles.ts` 的 shell/grid 最大宽度约束和 DOM style contract。
+   - 闭环标准：发布前已有可重复的 UI browser smoke；浏览器级失败会报告 URL、页面正文摘要和最宽元素，便于回填 CSS/fragment contract。
+   - 验证：`npm run test:ui`；`npm run test:ui:browser`。
 
 ### v1.18.0 治理观测运营化增强
 

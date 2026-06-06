@@ -29,6 +29,7 @@
     "test": "vitest --exclude src/e2e/**",
     "test:route-ux": "vitest --run src/router/route-preview.test.ts src/doctor/index.test.ts src/governance/stream-response-governance.test.ts src/index-startup.test.ts src/e2e/cli-e2e.test.ts -t \"route preview|previews route decisions|router slot summary|emits streamed chunks|readable SSE error|remote forwarding|structured 502|upstream error payloads|SmartRouter rules route|SmartRouter selects\"",
     "test:ui": "vitest --run src/ui/workbench.dom.test.ts",
+    "test:ui:browser": "npm run build && node scripts/ui-browser-smoke.mjs",
     "test:e2e:cli": "vitest --run src/e2e/cli-e2e.test.ts",
     "test:e2e:cli:entry": "vitest --run src/e2e/cli-e2e.test.ts -t \"help exits cleanly|init --force generates|doctor can repair|start/status/stop work|code reuses|ui prints|setup can create a fresh config|setup can create a remote-service client config|setup can create a server deployment profile\"",
     "test:e2e:acceptance": "vitest --run src/e2e/cli-acceptance.test.ts",

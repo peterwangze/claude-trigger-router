@@ -316,7 +316,7 @@ Closed 2026-06-06:
 - Modify: `src/ui/workbench-fragments.ts`
 - Test: `src/ui/workbench.dom.test.ts`
 
-- [ ] **Step 1: Write failing DOM/style contract tests**
+- [x] **Step 1: Write failing DOM/style contract tests**
 
 Assert stable anchors for:
 - role-specific first-screen entry
@@ -324,14 +324,20 @@ Assert stable anchors for:
 - state badges and warning tones
 - responsive table containers and non-overlapping compact panels
 
-- [ ] **Step 2: Implement the minimal visual system**
+- [x] **Step 2: Implement the minimal visual system**
 
 Keep the operational-tool feel: dense, quiet, readable, and role-guided. Reuse current data payloads and helpers; do not introduce a parallel client-side state model.
 
-- [ ] **Step 3: Run targeted UI tests**
+- [x] **Step 3: Run targeted UI tests**
 
 Run: `npm run test:ui`
 Expected: PASS.
+
+Closed 2026-06-06:
+- Existing role-aware first-screen entry remains the visual system baseline.
+- `workbench-styles.ts` now constrains app shell, hero, role grid, task map, sticky surface tabs, panels and wide tables so compact role panels cannot push the page into horizontal overflow.
+- `workbench.dom.test.ts` locks the new shell/grid max-width contract.
+- No new client-side state model was introduced; implementation still uses the existing server-rendered HTML and inline script state.
 
 ### Task 10: Add browser-level layout and interaction smoke
 
@@ -339,7 +345,7 @@ Expected: PASS.
 - Modify: `scripts/ui-browser-smoke.mjs`
 - Test: `npm run test:ui` or a dedicated browser smoke script if added
 
-- [ ] **Step 1: Define smoke viewport coverage**
+- [x] **Step 1: Define smoke viewport coverage**
 
 Cover at least:
 - desktop width
@@ -348,10 +354,16 @@ Cover at least:
 - trace detail expansion
 - config save/error affordance without text overlap
 
-- [ ] **Step 2: Run the browser smoke against a local UI target**
+- [x] **Step 2: Run the browser smoke against a local UI target**
 
 Expected: no blank UI, no horizontal page overflow, no overlapping role/task content, and primary actions remain reachable.
 
-- [ ] **Step 3: Feed failures back into the CSS/fragment contract**
+- [x] **Step 3: Feed failures back into the CSS/fragment contract**
 
 Expected: browser-only failures become repeatable DOM/style assertions or a stable smoke check before v1.17.0 closes.
+
+Closed 2026-06-06:
+- Added `scripts/ui-browser-smoke.mjs` and `npm run test:ui:browser`.
+- The smoke builds `dist`, starts CTR with an isolated HOME and fake upstream, opens `/ui` through Edge/Chrome CDP, checks desktop and mobile viewports, switches from the maintainer role card, and asserts no document-level horizontal overflow.
+- Browser-only overflow risks are now backed by CSS constraints in `workbench-styles.ts` and DOM style assertions in `workbench.dom.test.ts`.
+- Verification passed: `npm run test:ui`; `npm run test:ui:browser`.
