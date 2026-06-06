@@ -68,41 +68,39 @@ describe('deployment assets', () => {
     const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
     expect(releasingGuide).toContain('Release');
     expect(releasingGuide).toContain('src/deploy-assets.test.ts');
-    expect(releasingGuide).toContain('UI 与治理观测运营化专项');
-    expect(releasingGuide).toContain('docs/release-notes-v1.18.0.md');
-    expect(releasingGuide).toContain('v1.18.0');
-    expect(releasingGuide).toContain('治理观测运营化增强');
-    expect(releasingGuide).toContain('outcome scorecard');
-    expect(releasingGuide).toContain('Operations risk');
-    expect(releasingGuide).toContain('Guardrail summary');
-    expect(releasingGuide).toContain('decision rail');
+    expect(releasingGuide).toContain('远程接入与 UI 专项');
+    expect(releasingGuide).toContain('docs/release-notes-v1.19.0.md');
+    expect(releasingGuide).toContain('v1.19.0');
+    expect(releasingGuide).toContain('部署形态与远程接入收敛');
+    expect(releasingGuide).toContain('remote discovery');
+    expect(releasingGuide).toContain('remote availability');
+    expect(releasingGuide).toContain('远端 registration 摘要');
     expect(releasingGuide).toContain('test:ui:browser');
     expect(releasingGuide).toContain('help、init、doctor、start/status/stop');
   });
 
-  it('keeps v1.18.0 governance operations release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.18.0.md'), 'utf-8');
+  it('keeps v1.19.0 remote access release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.19.0.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('治理观测运营化增强版');
-    expect(releaseNotes).toContain('Routing outcome scorecard');
-    expect(releaseNotes).toContain('Operations risk');
-    expect(releaseNotes).toContain('Guardrail summary');
-    expect(releaseNotes).toContain('decision rail');
+    expect(releaseNotes).toContain('部署形态与远程接入收敛版');
+    expect(releaseNotes).toContain('Remote service discovery');
+    expect(releaseNotes).toContain('Remote availability');
+    expect(releaseNotes).toContain('Server/client guidance alignment');
+    expect(releaseNotes).toContain('nodeOrchestration');
+    expect(releaseNotes).toContain('clusterOrchestration');
     expect(releaseNotes).toContain('test:ui:browser');
-    expect(releaseNotes).toContain('npm run test:ui');
     expect(releaseNotes).toContain('npm run test:e2e:cli:entry');
     expect(releaseNotes).toContain('npm run test:route-ux');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.18.0 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.18.0.md');
-    expect(readme).toContain('治理观测运营化增强');
-    expect(readme).toContain('outcome scorecard');
-    expect(readme).toContain('Operations risk');
-    expect(readme).toContain('Guardrail summary');
-    expect(readme).toContain('test:ui:browser');
+    expect(readme).toContain('## v1.19.0 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.19.0.md');
+    expect(readme).toContain('部署形态与远程接入收敛');
+    expect(readme).toContain('remote discovery');
+    expect(readme).toContain('remote availability');
+    expect(readme).toContain('service-scope');
   });
 
   it('keeps the recommended Models field contract canonical for user-facing entry points', () => {
@@ -122,7 +120,7 @@ describe('deployment assets', () => {
   it('keeps README new-user quick start before release positioning', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
-    const releaseIndex = readme.indexOf('## v1.18.0 发布定位');
+    const releaseIndex = readme.indexOf('## v1.19.0 发布定位');
     const docsIndex = readme.indexOf('## 文档入口');
 
     expect(quickStartIndex).toBeGreaterThan(0);

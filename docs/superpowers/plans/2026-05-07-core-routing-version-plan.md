@@ -389,6 +389,8 @@ v1.18.0 闭环验证：四个 v1.18 事项已分别独立提交并逐项补 targ
    - 闭环标准：远程接入不再因为角色叙事漂移导致误配置。
    - 验证：`npx vitest --run src/doctor/index.test.ts src/setup/index.test.ts src/deploy-assets.test.ts`；`npm run build`。
 
+v1.19.0 闭环验证：三个 v1.19 事项已分别独立提交并逐项补 targeted 看护；本轮新增 remote discovery、remote availability、UI remote connection summary、doctor/setup 远程口径和 server/client guidance alignment 已通过对应 service-health/server/UI/doctor/setup/deploy-assets 测试。`docs/release-notes-v1.19.0.md`、README 发布定位、发布指南和 `package.json` / `package-lock.json` 已同步到 `1.19.0`。最终发布门禁以 `npm run release:verify` 为准。
+
 ### v1.20.0 发布与进展治理可持续化
 
 优先级：中低（P3 治理支撑与持续维护）。
@@ -405,6 +407,6 @@ v1.18.0 闭环验证：四个 v1.18 事项已分别独立提交并逐项补 targ
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；后续默认按 v1.19.0 部署形态与远程接入收敛推进。
+2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；后续默认按 v1.20.0 发布与进展治理可持续化推进。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。

@@ -196,7 +196,7 @@ ANTHROPIC_BASE_URL=https://router.example.com
 ANTHROPIC_AUTH_TOKEN=<managed-key>
 ```
 
-远程客户端可通过 `ctr doctor`、`ctr ui` 或 `GET /api/remote-status` 查看 remote discovery 与 availability：它会显示远端是否 ready、远端注册模型数、upstream 服务数和下一步处理提示；当前边界仍是 service 级，不包含节点/集群编排或托管控制面。
+远程客户端可通过 `ctr doctor`、`ctr ui` 或 `GET /api/remote-status` 查看 remote discovery 与 remote availability：它会显示远端是否 ready、远端注册模型数、upstream 服务数和下一步处理提示；当前边界仍是 service 级，不包含节点/集群编排或托管控制面。
 
 启用鉴权后，浏览器直接打开 `/ui` 不能自动携带 `Authorization` header。受保护 UI 需要 admin key，建议通过内网、本地隧道或 HTTPS 反向代理注入 `Authorization: Bearer <admin-key>`；不要把 admin key 放进 URL。
 
@@ -226,14 +226,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.18.0.md](docs/release-notes-v1.18.0.md)
+- 发布说明：[docs/release-notes-v1.19.0.md](docs/release-notes-v1.19.0.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.18.0 发布定位
+## v1.19.0 发布定位
 
-`v1.18.0` 是治理观测运营化增强版。它不新增默认路由策略，而是把维护者已经能看到的 trace、metrics、pool health、key quota 和 guardrail 信号继续收敛成可排序、可行动、可在 Web UI 中快速扫描的运营闭环。
+`v1.19.0` 是部署形态与远程接入收敛版。它不新增托管控制面或集群调度，而是在现有 local thin proxy、server profile、remote status 和 registration 基础上，让远程客户端与服务维护者更清楚地判断连到谁、远端是否 ready、有哪些模型可用，以及失败后该找谁处理。
 
-这一版新增 outcome scorecard、Operations risk、Guardrail summary 和维护者 decision rail，让 `/ui` 先给出状态和下一步动作，再进入明细表；`test:ui:browser` 继续检查桌面/移动布局和横向溢出。完整发布边界见 [docs/release-notes-v1.18.0.md](docs/release-notes-v1.18.0.md)。
+这一版新增 `/api/remote-status` 的 discovery 与 availability 摘要，`/ui` Role & connection guide 同步展示 remote discovery / availability，`ctr doctor` 和 `ctr setup` 也统一到 service-scope 远程接入口径。完整发布边界见 [docs/release-notes-v1.19.0.md](docs/release-notes-v1.19.0.md)。
 
 ## License
 
