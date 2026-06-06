@@ -379,8 +379,9 @@ v1.18.0 闭环验证：四个 v1.18 事项已分别独立提交并逐项补 targ
 - README、server maintainer guide、remote client guide、setup 和 doctor 的角色口径一致，明确 `local`、`server`、`cloud`、remote client、router service 的边界。
 - 本版本不宣称完整 cloud/托管控制面、自动集群编排、多活调度或远端配置写回。
 
-1. `[planned]` 远程服务发现与节点边界：评估并补齐服务发现、节点摘要、远端状态同步和失败提示。
+1. `[closed 2026-06-06]` 远程服务发现与节点边界：已在 `/api/remote-status` 新增 `discovery` 摘要，把远端 service-info、registration、当前 runtime role 和失败状态收敛为 `disabled / misconfigured / unreachable / not_ctr_service / not_ready / ready`；同时明确 boundary 仍是 `service` 级，`nodeOrchestration`、`clusterOrchestration` 和 `configWriteback` 均为 `unsupported`。`probeRemoteServiceStatus()` 透传远端 `serviceRole`，`/ui` Role & connection guide 新增 remote discovery 状态和动作提示。
    - 闭环标准：不宣称完整 cloud/托管控制面；新增远程能力必须有安全边界和可观测入口。
+   - 验证：`npx vitest --run src/service-health.test.ts src/server.test.ts`；`npx vitest --run src/ui/workbench.dom.test.ts`；`npm run build`。
 2. `[planned]` remote status/registration 运营化：继续增强远端注册摘要、upstream 服务数、模型可用性和客户端下一步提示。
    - 闭环标准：远程客户端能判断远端是否 ready、可用模型是否符合预期、失败后该找谁处理。
 3. `[planned]` server/client 文档和 setup profile 一致性：保持 README、server maintainer guide、remote client guide、setup 和 doctor 的角色口径一致。

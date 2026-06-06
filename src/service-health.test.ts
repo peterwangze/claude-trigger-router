@@ -70,6 +70,7 @@ describe('service health helpers', () => {
         service: SERVICE_NAME,
         ready: true,
         runtimeMode: 'server',
+        serviceRole: 'router_service',
         remoteEnabled: false,
       }),
     });
@@ -93,6 +94,7 @@ describe('service health helpers', () => {
       baseUrl: 'https://router.example.com',
       service: SERVICE_NAME,
       runtimeMode: 'server',
+      serviceRole: 'router_service',
       remoteEnabled: false,
     });
   });

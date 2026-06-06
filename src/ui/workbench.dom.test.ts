@@ -323,9 +323,35 @@ async function createWorkbenchDom(options: {
         }
         if (url === '/api/remote-status') {
           return jsonResponse({
-            remote: { enabled: false },
+            remote: {
+              enabled: true,
+              ready: true,
+              reachable: true,
+              baseUrl: 'https://router.example.com',
+            },
             compiledModels: { modelCount: 1 },
-            remoteRegistration: { enabled: false },
+            remoteRegistration: {
+              enabled: true,
+              available: true,
+              registrationEnabled: true,
+              summary: { models: 2, upstreamServices: 1 },
+            },
+            discovery: {
+              status: 'ready',
+              target: {
+                serviceRole: 'router_service',
+              },
+              boundary: {
+                targetRole: 'router_service',
+                scope: 'service',
+                nodeOrchestration: 'unsupported',
+                clusterOrchestration: 'unsupported',
+                configWriteback: 'unsupported',
+              },
+              actions: [
+                'Use the remote service as the routing authority; keep local CTR as a thin client proxy.',
+              ],
+            },
           }) as any;
         }
         if (url === '/api/models/pool-health') {
@@ -420,6 +446,8 @@ async function createWorkbenchDom(options: {
     expect(dom.window.document.getElementById('operationsRiskSummary')?.textContent).toContain('pool_endpoint_cooldown');
     expect(dom.window.document.getElementById('guardrailSummaryList')?.textContent).toContain('secret_exfiltration_request');
     expect(dom.window.document.getElementById('maintainerDecisionRail')?.textContent).toContain('route_reason: smart_router');
+    expect(dom.window.document.getElementById('remoteDiscoverySummary')?.textContent).toContain('ready · router_service · service');
+    expect(dom.window.document.getElementById('remoteDiscoveryActions')?.textContent).toContain('thin client proxy');
     expect(dom.window.document.getElementById('benchmarkHistorySummary')?.textContent).toContain('Entries');
   });
 

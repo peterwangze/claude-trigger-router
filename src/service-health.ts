@@ -14,6 +14,7 @@ export interface IRemoteServiceStatusSummary {
   baseUrl: string;
   service?: unknown;
   runtimeMode?: unknown;
+  serviceRole?: unknown;
   remoteEnabled?: unknown;
   auth?: unknown;
   security?: unknown;
@@ -137,6 +138,7 @@ export async function probeRemoteServiceStatus(
           service?: unknown;
           ready?: unknown;
           runtimeMode?: unknown;
+          serviceRole?: unknown;
           remoteEnabled?: unknown;
           auth?: unknown;
           security?: unknown;
@@ -150,6 +152,7 @@ export async function probeRemoteServiceStatus(
       baseUrl: normalizedBaseUrl,
       service: info.service,
       runtimeMode: info.runtimeMode,
+      serviceRole: info.serviceRole,
       remoteEnabled: info.remoteEnabled,
       ...(info.auth !== undefined ? { auth: info.auth } : {}),
       ...(info.security !== undefined ? { security: info.security } : {}),

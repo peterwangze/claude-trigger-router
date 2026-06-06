@@ -320,7 +320,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div><strong>current role</strong><span id="roleConnectionSummary" class="muted">${escapedRuntimeMode} / ${escapedServiceRole}</span></div>` +
     `<div><strong>listener</strong><span id="listenerConnectionSummary" class="muted">${escapedListenerSummary}</span></div>` +
     `<div><strong>remote clients</strong><span id="clientConnectionSummary" class="muted">${escapedClientConnectionSummary}</span></div>` +
+    `<div><strong>remote discovery</strong><span id="remoteDiscoverySummary" class="muted">checking</span></div>` +
     `</div>` +
+    `<ul id="remoteDiscoveryActions" class="mini-list"><li class="muted">等待远程服务发现结果</li></ul>` +
     `<div class="muted" style="margin-top:.75rem">${escapedLocalUserRoleGuide}</div>` +
     `<div class="muted" style="margin-top:.5rem">${escapedServerMaintainerRoleGuide}</div>` +
     `<div class="muted" style="margin-top:.5rem">${escapedRemoteClientRoleGuide}</div>` +
@@ -595,6 +597,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const clientConnectionSummary=document.getElementById('clientConnectionSummary');` +
     `const remoteStatusSummary=document.getElementById('remoteStatusSummary');` +
     `const registrationStatusSummary=document.getElementById('registrationStatusSummary');` +
+    `const remoteRegistrationStatusSummary=document.getElementById('remoteRegistrationStatusSummary');` +
+    `const remoteDiscoverySummary=document.getElementById('remoteDiscoverySummary');` +
+    `const remoteDiscoveryActions=document.getElementById('remoteDiscoveryActions');` +
     `const authStatusSummary=document.getElementById('authStatusSummary');` +
     `const securityStatusSummary=document.getElementById('securityStatusSummary');` +
     `const modelCountStatus=document.getElementById('modelCountStatus');` +
@@ -1584,11 +1589,18 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    const remoteRegistration=remoteData.remoteRegistration || {};` +
     `    const remoteRegistrationSummary=remoteRegistration.summary || {};` +
     `    remoteRegistrationStatusSummary.textContent=remoteRegistration.enabled ? (remoteRegistration.available ? (remoteRegistration.registrationEnabled ? ((remoteRegistrationSummary.models ?? 0)+' remote models / '+(remoteRegistrationSummary.upstreamServices ?? 0)+' upstream') : 'remote registration disabled') : ('unavailable · '+(remoteRegistration.error || remoteRegistration.baseUrl || '-'))) : 'disabled';` +
+    `    const discovery=remoteData.discovery || {};` +
+    `    const boundary=discovery.boundary || {};` +
+    `    const target=discovery.target || {};` +
+    `    if(remoteDiscoverySummary){ remoteDiscoverySummary.textContent=(discovery.status || 'unknown')+' · '+(target.serviceRole || boundary.targetRole || '-')+' · '+(boundary.scope || 'service'); }` +
+    `    if(remoteDiscoveryActions){ const actions=Array.isArray(discovery.actions) ? discovery.actions : []; remoteDiscoveryActions.innerHTML=actions.length ? actions.map(action=>'<li>'+esc(action)+'</li>').join('') : '<li class="muted">No remote discovery action</li>'; }` +
     `    if(remoteData.compiledModels){ modelCountStatus.textContent=remoteData.compiledModels.modelCount ?? modelCountStatus.textContent; }` +
     `    try { await loadModelPoolHealth(); } catch (_poolError) { modelPoolHealthSummary.className='alert warn'; modelPoolHealthSummary.innerHTML='<strong>Pool health unavailable</strong><div class="muted">无法加载模型池健康状态</div>'; }` +
     `  } catch (_error) {` +
     `    serviceReadyStatus.textContent='unreachable';` +
     `    remoteStatusSummary.textContent='unknown';` +
+    `    if(remoteDiscoverySummary){ remoteDiscoverySummary.textContent='unknown'; }` +
+    `    if(remoteDiscoveryActions){ remoteDiscoveryActions.innerHTML='<li class="muted">无法加载远程服务发现结果</li>'; }` +
     `    securityStatusSummary.textContent='unknown';` +
     `    modelPoolHealthSummary.className='alert warn';` +
     `    modelPoolHealthSummary.innerHTML='<strong>Pool health unavailable</strong><div class="muted">无法加载模型池健康状态</div>';` +

@@ -614,6 +614,86 @@ function summarizeGovernanceAlerts(report: ReturnType<typeof getGovernanceMetric
   };
 }
 
+function summarizeRemoteDiscovery(input: {
+  runtimeMode: string;
+  remote: any;
+  remoteRegistration: any;
+}) {
+  const remote = input.remote ?? {};
+  const remoteRegistration = input.remoteRegistration ?? {};
+  const currentRole = input.runtimeMode === "local" && remote.enabled
+    ? "remote_client"
+    : input.runtimeMode === "local"
+      ? "local_user"
+      : "router_service";
+  const targetRole = !remote.enabled
+    ? "unconfigured"
+    : remote.ready
+      ? "router_service"
+      : "unknown";
+  const remoteModels = typeof remoteRegistration.summary?.models === "number"
+    ? remoteRegistration.summary.models
+    : 0;
+  const upstreamServices = typeof remoteRegistration.summary?.upstreamServices === "number"
+    ? remoteRegistration.summary.upstreamServices
+    : 0;
+  const status = !remote.enabled
+    ? "disabled"
+    : !remote.configured
+      ? "misconfigured"
+      : !remote.reachable
+        ? "unreachable"
+        : remote.service && remote.service !== SERVICE_NAME
+          ? "not_ctr_service"
+          : remote.ready
+            ? "ready"
+            : "not_ready";
+  const actions: string[] = [];
+
+  if (status === "disabled") {
+    actions.push("Enable Runtime.remote_service and set base_url to discover a remote router service.");
+  } else if (status === "misconfigured") {
+    actions.push("Set Runtime.remote_service.base_url before using this profile as a remote client.");
+  } else if (status === "unreachable") {
+    actions.push("Check the remote base_url, network route, service process, and managed client + read-only key.");
+  } else if (status === "not_ctr_service") {
+    actions.push("Point Runtime.remote_service.base_url at a Claude Trigger Router service-info endpoint.");
+  } else if (status === "not_ready") {
+    actions.push("Ask the server maintainer to inspect /api/service-info, authentication, and service readiness.");
+  } else {
+    actions.push("Use the remote service as the routing authority; keep local CTR as a thin client proxy.");
+    actions.push("Ask the server maintainer for a managed client + read-only key if model calls or status checks fail.");
+  }
+
+  if (remoteRegistration.enabled && remoteRegistration.available && remoteRegistration.registrationEnabled === false) {
+    actions.push("Remote registration is reachable but disabled; ask the server maintainer whether model registration is expected.");
+  }
+
+  return {
+    status,
+    target: {
+      baseUrl: remote.baseUrl || "",
+      service: remote.service,
+      runtimeMode: remote.runtimeMode,
+      serviceRole: remote.serviceRole,
+      ready: Boolean(remote.ready),
+      registrationEnabled: remoteRegistration.registrationEnabled,
+      remoteModels,
+      upstreamServices,
+    },
+    boundary: {
+      currentRuntimeMode: input.runtimeMode,
+      currentRole,
+      targetRole,
+      scope: "service",
+      nodeOrchestration: "unsupported",
+      clusterOrchestration: "unsupported",
+      configWriteback: "unsupported",
+    },
+    actions,
+  };
+}
+
 function scoreModelIdSuggestion(source: string, candidateId: string, candidate: any) {
   const sourceText = String(source || "").toLowerCase();
   const candidateText = `${candidateId} ${candidate?.modelName || ""}`.toLowerCase();
@@ -1580,15 +1660,21 @@ export const createServer = (config: any): Server => {
       probeRemoteRegistrationStatus(normalized.Runtime?.remote_service),
     ]);
     const governanceReport = getGovernanceMetricsReport(readGovernanceMetricsQuery(req.query ?? {}));
+    const runtimeMode = normalized.Runtime?.mode ?? "local";
 
     return {
       service: SERVICE_NAME,
       ready: true,
-      runtimeMode: normalized.Runtime?.mode ?? "local",
+      runtimeMode,
       remote,
       remoteRegistration,
       compiledModels: summarizeCompiledModels(normalized),
       governance: summarizeGovernanceAlerts(governanceReport),
+      discovery: summarizeRemoteDiscovery({
+        runtimeMode,
+        remote,
+        remoteRegistration,
+      }),
       issueReport: buildValidationIssueReport({
         errors: normalizedResult.errors,
         warnings: normalizedResult.warnings,

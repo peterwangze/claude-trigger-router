@@ -571,6 +571,31 @@ describe('createServer /api/config', () => {
         warnCount: 0,
         criticalCount: 0,
       },
+      discovery: {
+        status: 'disabled',
+        target: {
+          baseUrl: '',
+          service: undefined,
+          runtimeMode: undefined,
+          serviceRole: undefined,
+          ready: false,
+          registrationEnabled: undefined,
+          remoteModels: 0,
+          upstreamServices: 0,
+        },
+        boundary: {
+          currentRuntimeMode: 'local',
+          currentRole: 'local_user',
+          targetRole: 'unconfigured',
+          scope: 'service',
+          nodeOrchestration: 'unsupported',
+          clusterOrchestration: 'unsupported',
+          configWriteback: 'unsupported',
+        },
+        actions: [
+          'Enable Runtime.remote_service and set base_url to discover a remote router service.',
+        ],
+      },
     }));
     expect(result.issueReport.summary).toEqual({
       total: 1,
@@ -606,6 +631,7 @@ describe('createServer /api/config', () => {
           service: 'claude-trigger-router',
           ready: true,
           runtimeMode: 'server',
+          serviceRole: 'router_service',
           remoteEnabled: false,
         }),
       });
@@ -649,6 +675,7 @@ describe('createServer /api/config', () => {
         baseUrl: 'https://router.example.com',
         service: 'claude-trigger-router',
         runtimeMode: 'server',
+        serviceRole: 'router_service',
         remoteEnabled: false,
       });
       expect(result.remoteRegistration).toEqual(expect.objectContaining({
@@ -668,6 +695,32 @@ describe('createServer /api/config', () => {
         modelCount: 0,
       }));
       expect(result.issueReport.summary.error).toBe(0);
+      expect(result.discovery).toEqual({
+        status: 'ready',
+        target: {
+          baseUrl: 'https://router.example.com',
+          service: 'claude-trigger-router',
+          runtimeMode: 'server',
+          serviceRole: 'router_service',
+          ready: true,
+          registrationEnabled: true,
+          remoteModels: 2,
+          upstreamServices: 1,
+        },
+        boundary: {
+          currentRuntimeMode: 'local',
+          currentRole: 'remote_client',
+          targetRole: 'router_service',
+          scope: 'service',
+          nodeOrchestration: 'unsupported',
+          clusterOrchestration: 'unsupported',
+          configWriteback: 'unsupported',
+        },
+        actions: [
+          'Use the remote service as the routing authority; keep local CTR as a thin client proxy.',
+          'Ask the server maintainer for a managed client + read-only key if model calls or status checks fail.',
+        ],
+      });
     } finally {
       vi.stubGlobal('fetch', originalFetch);
     }
