@@ -372,6 +372,13 @@ v1.18.0 闭环验证：四个 v1.18 事项已分别独立提交并逐项补 targ
 
 用户目标：在现有本地/远程 thin proxy 和 server profile 基础上，继续补服务发现、节点/集群编排边界和更完整服务模式，同时保持安全鉴权和角色心智清晰。
 
+验收 checklist：
+
+- `/api/remote-status` 能给远程客户端明确的服务发现结果、节点/服务边界和失败原因，不把远端不可达误判成本地配置损坏。
+- `/api/registration` / `/api/service-info` / `/ui` 能让维护者看见远端注册、upstream 服务和模型可用性摘要，并给出下一步处理提示。
+- README、server maintainer guide、remote client guide、setup 和 doctor 的角色口径一致，明确 `local`、`server`、`cloud`、remote client、router service 的边界。
+- 本版本不宣称完整 cloud/托管控制面、自动集群编排、多活调度或远端配置写回。
+
 1. `[planned]` 远程服务发现与节点边界：评估并补齐服务发现、节点摘要、远端状态同步和失败提示。
    - 闭环标准：不宣称完整 cloud/托管控制面；新增远程能力必须有安全边界和可观测入口。
 2. `[planned]` remote status/registration 运营化：继续增强远端注册摘要、upstream 服务数、模型可用性和客户端下一步提示。
