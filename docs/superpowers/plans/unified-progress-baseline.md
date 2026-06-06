@@ -429,7 +429,7 @@
 | 5 | UI 双层工作台收敛 | closed | v1.17.0 已完成角色化 UI 体验设计、Codex/Figma 辅助 skill 接入、设计系统规则、trace evidence 视图和真实浏览器 smoke | 作为回归底线维护；若 `/ui` 角色入口、trace evidence、移动/桌面布局或 browser smoke 再次退化，按 P1/P2 重新前置 |
 | 6 | Agent / 工具能力演进探索 | closed | v1.8.0 已完成 runtime pipeline、管理 API route contract、UI fragment contract、handoff summary、tool capability guardrail、输入/输出 guardrail 和 trace span 化；v1.11.0/v1.12.0 已补输出治理默认流式回归和第二层传输韧性 | 最新 agent/tool 版本事项已闭环；后续除非新增明确版本计划，否则只作为回归底线维护，且不得破坏默认流式输出 |
 | 7 | 智能路由自适应与多模型协同增强 | closed | v1.10.0 已完成 outcome-driven routing feedback、模型能力画像、confidence/latency budget 和最小协作模式 | 智能路由协同增强已闭环；后续只作为配置产品化、治理观测和复审回归底线维护 |
-| 8 | 治理观测增强 / 运营化 | P2-能力扩展与体验增强 | 推进 v1.18.0：在 routing outcome、benchmark history、pool health、key audit、上游断流 error event 的基础上继续压低维护者排障成本 | 治理观测需要服务入口稳定，而不是只服务高级维护者能力 |
+| 8 | 治理观测增强 / 运营化 | P2-能力扩展与体验增强 | 推进 v1.18.0：在 routing outcome、benchmark history、pool health、key audit、上游断流 error event 的基础上继续压低维护者排障成本，并明确承接 Web UI 功能审视与视觉设计优化 | 治理观测需要服务入口稳定，而不是只服务高级维护者能力；进入 UI 的运营能力必须同时经过角色任务流和视觉信息架构复核 |
 | 9 | 部署形态与远程接入收敛 | P2-能力扩展与体验增强 | 推进 v1.19.0：在 v1.9.0 修正远程客户端入口叙事后，继续补服务发现、节点边界和更完整服务模式 | 远程状态查询、模型调用转发和远端注册摘要已阶段闭环，后续可建立在准确文档和 setup 心智上继续演进 |
 | 10 | CLI 稳定性与发布工程 | P3-治理支撑 | 纳入 v1.20.0：持续补 packaged CLI 用户流 E2E 与 release verify slice，优先覆盖当前发布主路径 | 它需要持续跟随入口主路径一起扩 coverage；当门禁不稳定、基础路由流式或结构化 API error 退化时，按 P1/P0 触发条件前置处理 |
 | 11 | 已闭环事项复审校准 | P3-治理支撑 | 纳入 v1.20.0：持续复审 closed 事项，并把新发现的问题承接为增量事项 | 避免历史 closed 结论与新入口稳定目标漂移 |
@@ -458,11 +458,11 @@
 | v1.15.0 | CLI/setup UX 重设计收口 | fresh setup、legacy migration、remote client、server profile 和 SmartRouter 起步引导都有一致 next steps |
 | v1.16.0 | 用户视角复审与入口一致性校准 | 复审项目目标、入口路径和已发布版本用户体验，把新问题落入明确版本 |
 | v1.17.0 | UI 双层工作台收敛 | 使用者/维护者 UI 分层继续工程化，并补齐角色化体验设计、设计系统规则、辅助 skill 接入和浏览器级验收 |
-| v1.18.0 | 治理观测运营化增强 | 维护者能稳定运营路由质量、异常趋势、pool health、key audit 和输入侧优化 |
+| v1.18.0 | 治理观测运营化增强 | 维护者能稳定运营路由质量、异常趋势、pool health、key audit 和输入侧优化；同时审视 Web UI 功能组织并优化角色化视觉设计 |
 | v1.19.0 | 部署形态与远程接入收敛 | 继续补服务发现、节点边界和远程服务模式，同时保持安全鉴权和角色心智 |
 | v1.20.0 | 发布与进展治理可持续化 | 发布门禁、closed 事项复审、统一基线和 issue log 形成可持续机制 |
 
-执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；v1.17.0 已闭环后，当前默认从 v1.18.0 治理观测运营化增强开始。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / agent-tool trace contract 再次退化，则重新前置处理。
+执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；v1.17.0 已闭环后，当前默认从 v1.18.0 治理观测运营化增强开始，并在该版本内明确承接 Web UI 功能审视与视觉设计优化。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / Web UI 视觉设计 / agent-tool trace contract 再次退化，则重新前置处理。
 
 ### 8. v1.2.0 发布闭环边界
 

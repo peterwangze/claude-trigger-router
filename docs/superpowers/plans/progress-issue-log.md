@@ -50,6 +50,7 @@
 | PI-024 | v1.11.0 仍复现 socket 断连和中转卡顿，缺少上游断流与远程取消防线 | 2026-06-05 | closed | 已通过 v1.12.0 阶段闭环：默认透传捕获上游 stream read error 并追加可读 SSE error event；远程中转将客户端 close 绑定到上游 fetch abort，远端 SSE 响应进入同一套流式治理包装；SSE parser 持续复用 TextDecoder 修复多字节跨 chunk 解码；发布边界由 v1.12.0 release notes 和 targeted tests 看护 | `src/governance/stream-response-governance.ts` ; `src/index.ts` ; `src/utils/SSEParser.transform.ts` ; `docs/release-notes-v1.12.0.md` |
 | PI-026 | `/ui` 功能可达但第一屏缺少角色化入口，用户难以判断从哪里开始 | 2026-06-05 | closed | 已通过 v1.16.0 用户视角复审阶段闭环：`/ui` 第一屏新增本地使用者、远程客户端、服务维护者和路由设计辅助入口，补任务路径和 UX 诊断面板，并用 fragment contract 与 DOM 跳转测试看护 | `src/ui/workbench.ts` ; `src/ui/workbench-fragments.ts` ; `src/ui/workbench.dom.test.ts` ; `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` |
 | PI-027 | `/ui` 需要完整角色化设计系统和辅助 skill 落地流程 | 2026-06-06 | closed | 已通过 v1.17.0 阶段闭环：安装 `figma-create-design-system-rules`、`figma-generate-design`、`figma-implement-design` 三个 Codex/Figma 辅助 skill；固化角色/任务流、信息架构、设计 token、组件状态、响应式规则和不新增平行 UI 状态的实现 contract；新增 trace evidence detail、CSS 防溢出 contract 和 `npm run test:ui:browser` 真实浏览器 smoke。后续若 `/ui` 角色入口、trace evidence、移动/桌面布局或 browser smoke 再次退化，按 P1/P2 重新前置。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` ; `docs/release-notes-v1.17.0.md` |
+| PI-028 | Web UI 功能审视和视觉设计优化需要未启动版本明确承接 | 2026-06-06 | planned | 已规划到未启动的 v1.18.0 治理观测运营化增强：不回退 v1.17.0 的角色化入口、设计 contract 和 browser smoke 阶段闭环；后续用已安装的 UI/Figma 辅助 skill 审视 `/ui` 功能组织、角色任务流、视觉信息架构、状态表达、trace/detail 阅读路径和桌面/移动布局，并把优化结果落入可测试的 DOM/style/browser smoke。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/unified-progress-baseline.md` |
 
 ## 问题详细记录
 
@@ -597,3 +598,23 @@
   - `docs/superpowers/plans/unified-progress-baseline.md`
   - `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md`
   - `docs/release-notes-v1.17.0.md`
+
+### PI-028：Web UI 功能审视和视觉设计优化需要未启动版本明确承接
+
+- 发现时间：2026-06-06
+- 严重级别：P2
+- 现象：v1.17.0 已完成角色化入口、设计 contract、辅助 skill 安装和真实浏览器 smoke，但用户进一步要求把 Web UI 功能审视和视觉设计优化明确规划到未启动的后续版本，避免它继续停留在“已闭环事项的隐含后续”里。
+- 影响范围：
+  - `/ui` 后续进入治理观测运营化时，功能入口、trace/detail、pool health、key audit 和异常趋势可能再次堆叠
+  - 角色化入口已存在，但各角色的高频任务流仍需要结合真实功能重新审视排序、密度和视觉层级
+  - 已安装的 UI/Figma 辅助 skill 若没有版本事项承接，容易只停留在工具可用而没有进入实现闭环
+  - 视觉优化若不绑定 DOM/style/browser smoke，可能退化为一次性审美调整
+- 修正动作：
+  - 已将 Web UI 功能审视与视觉设计优化加入 v1.18.0 治理观测运营化增强的版本范围
+  - 已在 v1.18.0 planned 清单新增独立事项，要求复核本地使用者、远程客户端、服务维护者和路由设计者四类任务流
+  - 已更新统一进展基线的优先级表、版本计划入口和执行规则，把 Web UI 视觉设计退化列为可重新前置的回归触发项
+- 当前状态：`planned`
+- 当前阶段结论：该问题不回退 PI-027 / v1.17.0 的阶段闭环；它已作为 v1.18.0 未启动事项明确承接。后续推进 v1.18.0 时，必须把 UI/Figma 辅助 skill 用于功能组织与视觉信息架构复核，并把最终优化落入可测试的 DOM/style/browser smoke。
+- 关联文档：
+  - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
+  - `docs/superpowers/plans/unified-progress-baseline.md`

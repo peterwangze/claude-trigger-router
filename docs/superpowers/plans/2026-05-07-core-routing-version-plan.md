@@ -107,7 +107,7 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 | v1.15.0 | CLI/setup UX 重设计收口 | migration-first、model-id-first、fresh setup 主路径、SmartRouter 起步引导、完成页 next steps | 新用户能按 setup 问答稳定生成本地可用配置，并知道下一步如何 doctor/start/code/ui；旧 provider-centric 叙事不再回流 |
 | v1.16.0 | 用户视角复审与入口一致性校准 | 项目目标复审、入口可用性巡检、已发布版本用户体验回归、问题归档机制 | 每次复审发现的问题都能落入明确版本；fresh setup、远程转发、配置保存、鉴权、route preview 和发布门禁回归能被及时前置 |
 | v1.17.0 | UI 双层工作台收敛 | 角色化 UI 体验设计、Codex/Figma 辅助 skill 接入、使用者/维护者渲染片段拆分、CSS/JS helper、trace span 视图、真实浏览器 smoke | `/ui` 不再只是功能集合页；不同角色能按任务路径进入，视觉系统与实现 contract 成体系，新增视图不再堆回大型内联脚本 |
-| v1.18.0 | 治理观测运营化增强 | routing outcome、pool health、key audit、输入侧优化、导出/归档/异常趋势 | 维护者能用稳定入口判断路由质量、异常趋势和建议动作；治理观测与 UI、trace、metrics 形成可运营闭环 |
+| v1.18.0 | 治理观测运营化增强 | routing outcome、pool health、key audit、输入侧优化、Web UI 功能审视与视觉设计优化、导出/归档/异常趋势 | 维护者能用稳定入口判断路由质量、异常趋势和建议动作；治理观测与 UI、trace、metrics 形成可运营闭环，Web UI 不只功能可达，也能按角色任务流保持清晰、低噪声和可持续扩展 |
 | v1.19.0 | 部署形态与远程接入收敛 | 服务发现、节点/集群编排边界、远程服务模式、remote status/registration 可观测性 | 远程接入在安全鉴权和清晰角色边界下继续演进，不把托管/cloud 能力误宣称为已完成 |
 | v1.20.0 | 发布与进展治理可持续化 | packaged CLI 用户流、release verify slice、closed 事项复审、统一基线和 issue log 维护 | 发布门禁能持续覆盖真实用户流；进展台账和问题记录不再依赖临时会话记忆 |
 
@@ -361,6 +361,8 @@ v1.17.0 闭环验证：四个 v1.17 事项已分别独立提交并逐项补 targ
    - 闭环标准：远程服务和模型池问题不会只散落在不同 API 或日志中。
 3. `[planned]` 输入侧优化进入统一 trace/metrics：Prompt / Intent Optimization 等治理增强必须复用现有 trace、metrics 和 UI contract。
    - 闭环标准：不新增平行观测结构；异常和收益证据可追溯。
+4. `[planned]` Web UI 功能审视与视觉设计优化：在 v1.17.0 已安装并固化的 UI/Figma 辅助 skill 与设计 contract 基础上，正式审视 `/ui` 现有功能是否按本地使用者、远程客户端、服务维护者和路由设计者的任务流组织；用低噪声运营工具视觉规则优化信息密度、导航层级、状态表达、表格 / trace / detail 阅读路径和桌面/移动布局。
+   - 闭环标准：不回退 v1.17.0 的角色化入口和 browser smoke；新增视觉与功能调整必须落入可测试的 DOM/style/browser smoke，而不是一次性视觉修补。
 
 ### v1.19.0 部署形态与远程接入收敛
 
