@@ -405,6 +405,7 @@ describe('runSetupCli', () => {
     expect(enterClaudeCode).not.toHaveBeenCalled();
     expect(io.info).toHaveBeenCalledWith('本地代理已启动并通过健康检查。远程服务连接配置已保存，可用于本地代理转发和检查远端 ready/status。');
     expect(io.info).toHaveBeenCalledWith('下一步：运行 ctr doctor 或 ctr status 查看本地代理与远程服务 ready 状态。');
+    expect(io.info).toHaveBeenCalledWith('远程可观测：ctr ui 或 GET /api/remote-status 会展示 discovery、availability、远端模型数和 upstream 服务数。');
     expect(io.info).toHaveBeenCalledWith('日常使用：运行 ctr code，Claude Code 会连接本地 ctr，并由本地 ctr 转发模型调用到远端服务。');
     expect(io.info).toHaveBeenCalledWith('可选直连远端服务时，再按服务维护者提供的 ANTHROPIC_BASE_URL 和 ANTHROPIC_AUTH_TOKEN 配置 Claude Code。');
     expect(io.info).toHaveBeenCalledWith('如果远端不可用，请确认 Runtime.remote_service.base_url 和 managed client + read-only key。');

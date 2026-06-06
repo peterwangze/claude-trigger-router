@@ -552,14 +552,29 @@ describe('runDoctorCli', () => {
       };
     });
 
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: vi.fn().mockResolvedValue({
-        service: 'claude-trigger-router',
-        ready: true,
-        runtimeMode: 'server',
-        remoteEnabled: false,
-      }),
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith('/api/registration')) {
+        return Promise.resolve({
+          ok: true,
+          json: vi.fn().mockResolvedValue({
+            enabled: true,
+            summary: {
+              models: 2,
+              upstreamServices: 1,
+            },
+          }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          service: 'claude-trigger-router',
+          ready: true,
+          runtimeMode: 'server',
+          serviceRole: 'router_service',
+          remoteEnabled: false,
+        }),
+      });
     });
     const originalFetch = global.fetch;
     global.fetch = fetchMock as any;
@@ -585,6 +600,11 @@ describe('runDoctorCli', () => {
           Authorization: 'Bearer remote-token',
         },
       }));
+      expect(fetchMock).toHaveBeenCalledWith('https://router.example.com/api/registration', expect.objectContaining({
+        headers: {
+          Authorization: 'Bearer remote-token',
+        },
+      }));
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('服务上下文：local'));
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('Scope 指引：admin'));
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('Key 操作指引'));
@@ -593,6 +613,9 @@ describe('runDoctorCli', () => {
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程 token 指引'));
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('client + read-only'));
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程服务状态：ready'));
+      expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程发现边界：router_service / service scope'));
+      expect(io.info).toHaveBeenCalledWith(expect.stringContaining('远程注册摘要：2 models / 1 upstream'));
+      expect(io.info).toHaveBeenCalledWith(expect.stringContaining('如果预期模型缺失，请联系服务维护者检查 Registration.models 或 upstream model pool'));
       expect(io.confirm).not.toHaveBeenCalled();
       expect(io.info).toHaveBeenCalledWith(expect.stringContaining('已跳过模型探测：当前配置没有本地模型'));
     } finally {

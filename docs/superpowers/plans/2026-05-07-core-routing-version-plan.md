@@ -385,8 +385,9 @@ v1.18.0 闭环验证：四个 v1.18 事项已分别独立提交并逐项补 targ
 2. `[closed 2026-06-06]` remote status/registration 运营化：已在 `/api/remote-status` 新增 `availability` 摘要，把远端 ready、registration 可用性、远端模型数、upstream 服务数、模型 ID、upstream service ID、客户端下一步和维护者动作合并为可直接判断的运营状态；`/ui` Role & connection guide 同步展示 remote availability，并把 client next steps 合并到 remote discovery 动作列表。
    - 闭环标准：远程客户端能判断远端是否 ready、可用模型是否符合预期、失败后该找谁处理。
    - 验证：`npx vitest --run src/server.test.ts src/service-health.test.ts`；`npx vitest --run src/ui/workbench.dom.test.ts`；`npm run build`。
-3. `[planned]` server/client 文档和 setup profile 一致性：保持 README、server maintainer guide、remote client guide、setup 和 doctor 的角色口径一致。
+3. `[closed 2026-06-06]` server/client 文档和 setup profile 一致性：已同步 README、configuration guide、server maintainer guide 和 remote client guide 的 server/client 角色口径，明确 remote discovery / availability、service-scope 边界、远端模型数、upstream 服务数、managed `client + read-only` key、不可远端写回配置，以及不支持 node/cluster orchestration / hosted cloud control plane。`ctr doctor` 远程客户端路径新增 service-scope discovery 和远端注册摘要输出；`ctr setup` 远程路径下一步新增 `/api/remote-status` discovery/availability 观测提示；`src/deploy-assets.test.ts` 已守护关键文档锚点。
    - 闭环标准：远程接入不再因为角色叙事漂移导致误配置。
+   - 验证：`npx vitest --run src/doctor/index.test.ts src/setup/index.test.ts src/deploy-assets.test.ts`；`npm run build`。
 
 ### v1.20.0 发布与进展治理可持续化
 

@@ -25,6 +25,8 @@ Edit `Models[].key`, `Models[].api`, `Models[].interface` and `Models[].model` b
 
 `GET /api/service-info` returns the same security policy and a deployment checklist so maintainers can verify the live service before sharing the URL.
 
+Remote clients read `GET /api/remote-status` from their local thin proxy. That response now includes discovery and availability summaries so clients can see the remote service role, service-scope boundary, remote model count, upstream service count and next steps without receiving secrets. Keep `/api/registration` redacted and treat it as an observability source, not remote config writeback.
+
 ## 2. Diagnose and start
 
 ```bash
@@ -103,3 +105,5 @@ curl -H "Authorization: Bearer $CTR_ADMIN_KEY" http://127.0.0.1:5678/api/service
 ```
 
 For model pools, use `GET /api/models/pool-health` for current health and `POST /api/models/pool-health/probe` for an operator-triggered lightweight reachability probe. The probe does not send a model request; it uses `HEAD` against enabled endpoints, records latency for reachable endpoints, and records failures into the existing cooldown/circuit breaker state.
+
+This server profile still does not provide node/cluster orchestration or a hosted cloud control plane. If remote clients report missing expected models in availability, inspect `Registration.models`, `Registration.upstream_services` and model pool health on this server.

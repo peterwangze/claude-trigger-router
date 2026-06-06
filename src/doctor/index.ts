@@ -23,7 +23,7 @@ import {
 } from '../models/compile';
 import { buildProviderDispatchRequest, describeProtocolDiagnostic, TProtocolDiagnosticCode } from '../protocols';
 import { isServiceRunning, killProcess, readServiceInfo } from '../utils/processCheck';
-import { isTcpPortOccupied, probeRemoteServiceStatus, probeServiceHealth, waitForService } from '../service-health';
+import { isTcpPortOccupied, probeRemoteRegistrationStatus, probeRemoteServiceStatus, probeServiceHealth, waitForService } from '../service-health';
 import { buildUsableMinimalTemplateConfig } from '../setup/templates';
 import { managedApiKeySummary } from '../auth/api-keys';
 import { formatRoutePreview, IRoutePreviewRequest, previewRoute } from '../router/route-preview';
@@ -731,6 +731,12 @@ async function reportRuntimeServiceContext(config: IAppConfig, deps: IDoctorDeps
       ? 'reachable'
       : 'unreachable';
   deps.io.info(`远程服务状态：${statusLabel}（reachable=${remoteStatus.reachable}, ready=${remoteStatus.ready}）`);
+  const remoteRole = typeof remoteStatus.serviceRole === 'string'
+    ? remoteStatus.serviceRole
+    : remoteStatus.ready
+      ? 'router_service'
+      : 'unknown';
+  deps.io.info(`远程发现边界：${remoteRole} / service scope；node/cluster orchestration 和远端配置写回当前不支持。`);
   const remoteSecurity = remoteStatus.security && typeof remoteStatus.security === 'object'
     ? remoteStatus.security as { status?: unknown; issues?: Array<{ message?: string; action?: string }> }
     : undefined;
@@ -743,6 +749,13 @@ async function reportRuntimeServiceContext(config: IAppConfig, deps: IDoctorDeps
   }
   if (remoteStatus.error) {
     deps.io.info(`远程服务提示：${remoteStatus.error}`);
+  }
+  const remoteRegistration = await probeRemoteRegistrationStatus(remoteService);
+  if (remoteRegistration.available) {
+    deps.io.info(`远程注册摘要：${remoteRegistration.summary?.models ?? 0} models / ${remoteRegistration.summary?.upstreamServices ?? 0} upstream`);
+    deps.io.info('远程可用性提示：如果预期模型缺失，请联系服务维护者检查 Registration.models 或 upstream model pool。');
+  } else if (remoteRegistration.enabled) {
+    deps.io.info(`远程注册摘要：unavailable（${remoteRegistration.error || remoteRegistration.baseUrl || 'unknown'}）`);
   }
 }
 

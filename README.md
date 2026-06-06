@@ -196,6 +196,8 @@ ANTHROPIC_BASE_URL=https://router.example.com
 ANTHROPIC_AUTH_TOKEN=<managed-key>
 ```
 
+远程客户端可通过 `ctr doctor`、`ctr ui` 或 `GET /api/remote-status` 查看 remote discovery 与 availability：它会显示远端是否 ready、远端注册模型数、upstream 服务数和下一步处理提示；当前边界仍是 service 级，不包含节点/集群编排或托管控制面。
+
 启用鉴权后，浏览器直接打开 `/ui` 不能自动携带 `Authorization` header。受保护 UI 需要 admin key，建议通过内网、本地隧道或 HTTPS 反向代理注入 `Authorization: Bearer <admin-key>`；不要把 admin key 放进 URL。
 
 更多部署细节：

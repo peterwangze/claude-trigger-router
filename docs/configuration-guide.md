@@ -118,7 +118,7 @@ Router: {}
 相关状态接口：
 
 - `GET /api/service-info`
-- `GET /api/remote-status`
+- `GET /api/remote-status`：本地 thin proxy 的远程 discovery / availability 摘要，包含远端 ready、远端模型数、upstream 服务数、客户端下一步和 service-scope 边界
 - `GET /api/registration`
 - `GET /api/governance/health`
 
@@ -293,7 +293,7 @@ Governance:
 - 当前角色：本地代理或远程路由服务
 - 当前监听地址，以及 server/cloud 模式下远程客户端应使用的 `ANTHROPIC_BASE_URL`
 - 当前鉴权状态、bootstrap key 和 active managed key 摘要
-- 如果启用了 `Runtime.remote_service`，会探测远程服务是否 reachable / ready
+- 如果启用了 `Runtime.remote_service`，会探测远程服务是否 reachable / ready、输出 service-scope discovery 边界，并在可达时显示远端注册模型数和 upstream 服务数
 
 如果远程客户端配置没有本地 `Models`，doctor 会跳过本地模型探测，不会再询问是否探测 `0` 个模型。
 
@@ -302,10 +302,10 @@ Governance:
 - 本地服务 ready 状态和端口
 - `Runtime.mode` 与服务角色
 - 监听地址、维护入口和远程客户端连接建议
-- 远程服务状态摘要
+- 远程服务状态摘要、remote discovery 和 remote availability
 - Registration 模型和上游服务摘要
 
-这些信息来自现有 `/api/service-info` 和 `/api/remote-status`，不会引入新的平行运行时。启用 `Runtime.remote_service` 时，`/api/remote-status` 还会只读同步远端 `/api/registration` 的脱敏摘要，用于显示远端注册模型数和 upstream 服务数；它不会把远端注册写回本地配置。
+这些信息来自现有 `/api/service-info` 和 `/api/remote-status`，不会引入新的平行运行时。启用 `Runtime.remote_service` 时，`/api/remote-status` 还会只读同步远端 `/api/registration` 的脱敏摘要，用于显示远端注册模型数、upstream 服务数、模型 ID 和客户端下一步；它不会把远端注册写回本地配置，也不表示已经支持节点/集群编排。
 
 维护者工作台还会展示治理 Health 摘要。它来自 `/api/governance/health`，同样也包含在 `/api/governance/metrics` 的 `health` 字段里：
 

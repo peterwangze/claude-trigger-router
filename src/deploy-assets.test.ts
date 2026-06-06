@@ -27,10 +27,14 @@ describe('deployment assets', () => {
     const maintainerGuide = readFileSync(join(process.cwd(), 'docs', 'server-maintainer-guide.md'), 'utf-8');
     expect(maintainerGuide).toContain('ctr deploy init --target server');
     expect(maintainerGuide).toContain('ANTHROPIC_BASE_URL=http://<server-host>:<port>');
+    expect(maintainerGuide).toContain('discovery and availability summaries');
+    expect(maintainerGuide).toContain('node/cluster orchestration');
 
     const remoteClientGuide = readFileSync(join(process.cwd(), 'docs', 'remote-client-guide.md'), 'utf-8');
     expect(remoteClientGuide).toContain('client + read-only');
     expect(remoteClientGuide).toContain('Runtime:');
+    expect(remoteClientGuide).toContain('remote discovery, availability');
+    expect(remoteClientGuide).toContain('remote config writeback');
 
     const roleGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-roles.md'), 'utf-8');
     expect(roleGuide).toContain('本地使用者');
@@ -40,6 +44,8 @@ describe('deployment assets', () => {
     const configurationGuide = readFileSync(join(process.cwd(), 'docs', 'configuration-guide.md'), 'utf-8');
     expect(configurationGuide).toContain('配置指南');
     expect(configurationGuide).toContain('ctr doctor --route-preview --route-text');
+    expect(configurationGuide).toContain('remote discovery 和 remote availability');
+    expect(configurationGuide).toContain('service-scope discovery 边界');
     expect(configurationGuide).toContain('显式 `provider,model` 上游引用会直接使用');
     expect(configurationGuide).toContain('config/trigger.smart-router.advanced.yaml');
 
