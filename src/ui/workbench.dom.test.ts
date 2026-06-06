@@ -289,6 +289,20 @@ async function createWorkbenchDom(options: {
             clientConnection: { baseUrl: 'http://127.0.0.1:5678', recommendedScopes: ['client', 'read-only'] },
             auth: { required: false, managedKeys: { active: 0 }, quota: { keys: [] } },
             security: { status: 'ok', issues: [] },
+            operations: {
+              status: 'watch',
+              poolHealth: { healthy: 1, cooldown: 1, open: 0 },
+              keyAudit: { trackedKeys: 1, watch: 1, exhausted: 0 },
+              actions: [
+                {
+                  code: 'pool_endpoint_cooldown',
+                  source: 'pool_health',
+                  severity: 'warning',
+                  message: '1 endpoint is cooling down.',
+                  action: 'Review recent fallback traces.',
+                },
+              ],
+            },
             registration: { enabled: false, models: 0, upstreamServices: 0 },
           }) as any;
         }
@@ -388,6 +402,7 @@ async function createWorkbenchDom(options: {
     expect(dom.window.document.getElementById('compiledModelsStatus')?.textContent).toContain('已加载');
     expect(dom.window.document.getElementById('healthSummary')?.textContent).toContain('Health: watch');
     expect(dom.window.document.getElementById('outcomeScorecardList')?.textContent).toContain('route_reason: smart_router');
+    expect(dom.window.document.getElementById('operationsRiskSummary')?.textContent).toContain('pool_endpoint_cooldown');
     expect(dom.window.document.getElementById('benchmarkHistorySummary')?.textContent).toContain('Entries');
   });
 

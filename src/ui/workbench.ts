@@ -333,6 +333,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="muted" style="margin-top:.5rem">如果服务启用了鉴权，浏览器直接打开 <code>/ui</code> 不能自动携带 <code>Authorization</code> header；维护者应通过内网、本地隧道或反向代理注入 <code>Authorization: Bearer &lt;admin-key&gt;</code> 后访问，不要把 admin key 放进 URL。</div>` +
     `</div>` +
     `<div class="subpanel">` +
+    `<div class="row"><strong>Operations risk</strong><span class="muted">把 model pool health 与 managed key quota 合并成维护者动作列表</span></div>` +
+    `<div id="operationsRiskSummary" class="alert info"><strong>Operations pending</strong><div class="muted">等待服务状态加载</div></div>` +
+    `</div>` +
+    `<div class="subpanel">` +
     `<div class="row"><strong>Auth quota</strong><span class="muted">按 managed key 查看模型调用配额、当前用量与窗口重置时间</span></div>` +
     `<table id="authQuotaTable" class="management-table">` +
     `<thead><tr><th>Key</th><th>Scope</th><th>Status</th><th>Requests</th><th>Tokens</th><th>Window</th></tr></thead>` +
@@ -644,6 +648,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const benchmarkHistoryList=document.getElementById('benchmarkHistoryList');` +
     `const benchmarkCalibrationStatus=document.getElementById('benchmarkCalibrationStatus');` +
     `const securitySummary=document.getElementById('securitySummary');` +
+    `const operationsRiskSummary=document.getElementById('operationsRiskSummary');` +
     `const authQuotaTableBody=document.querySelector('#authQuotaTable tbody');` +
     `const modelPoolHealthSummary=document.getElementById('modelPoolHealthSummary');` +
     `const modelPoolHealthTableBody=document.querySelector('#modelPoolHealthTable tbody');` +
@@ -686,6 +691,18 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    const windowText=quotaCfg.window_seconds ? (esc(quotaCfg.window_seconds)+'s'+(usage.windowResetAt ? '<div class="muted">reset '+esc(String(usage.windowResetAt).replace('T',' ').replace('.000Z','Z'))+'</div>' : '<div class="muted">not started</div>')) : '-';` +
     `    return '<tr><td>'+keyName+'</td><td>'+esc((item.scopes || []).join(', ') || '-')+'</td><td><span class="pill '+statusClass+'">'+esc(item.status || '-')+'</span></td><td>'+esc(limitText(usage.requestsUsed,usage.requestLimit))+'</td><td>'+esc(limitText(usage.tokensUsed,usage.tokenLimit))+'</td><td>'+windowText+'</td></tr>';` +
     `  }).join('');` +
+    `}` +
+    `function renderOperationsRisk(operations){` +
+    `  const status=operations?.status || 'ok';` +
+    `  const cls=status === 'critical' ? 'critical' : (status === 'watch' ? 'warn' : 'info');` +
+    `  const pool=operations?.poolHealth || {};` +
+    `  const keys=operations?.keyAudit || {};` +
+    `  const actions=Array.isArray(operations?.actions) ? operations.actions : [];` +
+    `  const poolText='pool '+esc(pool.healthy || 0)+' healthy / '+esc(pool.cooldown || 0)+' cooldown / '+esc(pool.open || 0)+' open';` +
+    `  const keyText='keys '+esc(keys.trackedKeys || 0)+' tracked / '+esc(keys.watch || 0)+' watch / '+esc(keys.exhausted || 0)+' exhausted';` +
+    `  const actionList=actions.length ? '<ul class="mini-list">'+actions.slice(0,4).map(item=>'<li><span><span class="pill '+esc(item.severity === 'critical' ? 'critical' : (item.severity === 'warning' ? 'warn' : 'info'))+'">'+esc(item.source || '-')+'</span> <strong>'+esc(item.code || '-')+'</strong><div class="muted">'+esc(item.message || '')+'</div></span><strong>'+esc(item.action || '')+'</strong></li>').join('')+'</ul>' : '<div class="muted">No pool or key audit actions in the current window</div>';` +
+    `  operationsRiskSummary.className='alert '+cls;` +
+    `  operationsRiskSummary.innerHTML='<strong>Operations: '+esc(status)+'</strong><div class="muted">'+poolText+' · '+keyText+'</div>'+actionList;` +
     `}` +
     `function renderModelPoolHealth(data){` +
     `  const summary=data?.summary || {};` +
@@ -1522,6 +1539,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    securityStatusSummary.textContent=security.status || '-';` +
     `    securitySummary.className='alert '+((security.status === 'critical') ? 'critical' : (security.status === 'warning' ? 'warn' : 'info'));` +
     `    securitySummary.innerHTML='<strong>Security: '+esc(security.status || '-')+'</strong><div>'+esc(issues[0]?.message || '当前服务未发现明显鉴权暴露风险')+'</div>'+ (issues.length ? '<ul class="mini-list">'+issues.map(issue=>'<li>'+esc(issue.action || issue.code)+'</li>').join('')+'</ul>' : '');` +
+    `    renderOperationsRisk(data.operations || {});` +
     `    const registration=data.registration || {};` +
     `    registrationStatusSummary.textContent=registration.enabled ? ((registration.models ?? 0)+' models / '+(registration.upstreamServices ?? 0)+' upstream') : 'disabled';` +
     `    const remote=remoteData.remote || {};` +

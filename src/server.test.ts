@@ -175,6 +175,24 @@ describe('createServer /api/config', () => {
           }),
         ],
       },
+      operations: {
+        status: 'ok',
+        poolHealth: {
+          pools: 0,
+          endpoints: 0,
+          healthy: 0,
+          cooldown: 0,
+          open: 0,
+          averageLatencyMs: undefined,
+        },
+        keyAudit: {
+          trackedKeys: 0,
+          exhausted: 0,
+          watch: 0,
+          inactive: 0,
+        },
+        actions: [],
+      },
     });
   });
 
@@ -268,6 +286,79 @@ describe('createServer /api/config', () => {
     expect(JSON.stringify(result)).not.toContain(created.record.key_hash);
     expect(JSON.stringify(result)).not.toContain(created.record.key_prefix);
     expect(JSON.stringify(result)).not.toContain(created.record.key_suffix);
+  });
+
+  it('summarizes pool health and managed key quota as operations risk', async () => {
+    const created = createManagedApiKey({
+      label: 'quota limited client',
+      scopes: ['client'],
+      quota: {
+        request_limit: 1,
+        token_limit: 100,
+      },
+    });
+    authQuotaUsageStore.consume(created.record.id, created.record.quota, 10);
+    const now = Date.now();
+    modelPoolHealthStore.recordFailure('sonnet', 'edge-primary', now);
+    modelPoolHealthStore.recordFailure('sonnet', 'edge-primary', now + 1);
+    modelPoolHealthStore.recordFailure('sonnet', 'edge-primary', now + 2);
+    const server = createServer({
+      initialConfig: {
+        APIKEY: 'bootstrap-key',
+        Auth: {
+          managed_keys: [created.record],
+        },
+        Router: {
+          default: 'sonnet',
+        },
+        Registration: {
+          enabled: true,
+          strategy: 'priority',
+          models: [
+            {
+              id: 'sonnet',
+              api: 'https://edge.example.com/v1',
+              key: 'sk-edge',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-primary',
+                pool_priority: 10,
+              },
+            },
+          ],
+        },
+      },
+    });
+    const handler = server.app.routes.get('GET /api/service-info');
+
+    const result = await handler({}, {});
+
+    expect(result.operations).toEqual(expect.objectContaining({
+      status: 'critical',
+      poolHealth: expect.objectContaining({
+        endpoints: 1,
+        open: 1,
+      }),
+      keyAudit: expect.objectContaining({
+        trackedKeys: 1,
+        exhausted: 1,
+      }),
+      actions: expect.arrayContaining([
+        expect.objectContaining({
+          code: 'pool_circuit_open',
+          source: 'pool_health',
+          severity: 'critical',
+        }),
+        expect.objectContaining({
+          code: 'managed_key_quota_exhausted',
+          source: 'key_audit',
+          severity: 'critical',
+        }),
+      ]),
+    }));
+    expect(JSON.stringify(result)).not.toContain(created.secret);
+    expect(JSON.stringify(result)).not.toContain(created.record.key_hash);
   });
 
   it('reports inactive managed key records as auth-required but degraded', async () => {

@@ -217,6 +217,10 @@ function buildServiceInfo(rawConfig: any) {
               : "ok",
     };
   });
+  const operations = buildOperationsSummary({
+    poolHealth: buildModelPoolHealthReport(rawConfig),
+    quotaKeys,
+  });
 
   return {
     service: SERVICE_NAME,
@@ -287,6 +291,7 @@ function buildServiceInfo(rawConfig: any) {
       deploymentChecklist,
       issues: securityIssues,
     },
+    operations,
   };
 }
 
@@ -386,6 +391,122 @@ function buildModelPoolHealthReport(rawConfig: any) {
     },
     pools,
     warnings: normalizedResult.warnings,
+  };
+}
+
+function buildOperationsSummary(input: {
+  poolHealth: ReturnType<typeof buildModelPoolHealthReport>;
+  quotaKeys: Array<{
+    id: string;
+    label: string;
+    scopes: string[];
+    active: boolean;
+    status: string;
+    usage?: {
+      requestLimit?: number;
+      requestsUsed: number;
+      tokenLimit?: number;
+      tokensUsed: number;
+      windowResetAt?: string;
+    };
+  }>;
+}) {
+  const actions: Array<{
+    code: string;
+    source: "pool_health" | "key_audit";
+    severity: "critical" | "warning" | "info";
+    message: string;
+    action: string;
+  }> = [];
+  const poolSummary = input.poolHealth.summary ?? {};
+  if ((poolSummary.open ?? 0) > 0) {
+    actions.push({
+      code: "pool_circuit_open",
+      source: "pool_health",
+      severity: "critical",
+      message: `${poolSummary.open} model pool endpoint(s) have an open circuit.`,
+      action: "Probe pool health, inspect failing upstream services, and keep traffic on healthy fallback endpoints.",
+    });
+  }
+  if ((poolSummary.cooldown ?? 0) > 0) {
+    actions.push({
+      code: "pool_endpoint_cooldown",
+      source: "pool_health",
+      severity: "warning",
+      message: `${poolSummary.cooldown} model pool endpoint(s) are in cooldown.`,
+      action: "Review recent fallback traces before promoting the cooled endpoint back to active traffic.",
+    });
+  }
+  if (typeof poolSummary.averageLatencyMs === "number" && poolSummary.averageLatencyMs >= 1500) {
+    actions.push({
+      code: "pool_latency_high",
+      source: "pool_health",
+      severity: "warning",
+      message: `Average pool endpoint latency is ${Math.round(poolSummary.averageLatencyMs)} ms.`,
+      action: "Prefer lower-latency endpoints for frequent routes and reserve slow endpoints for explicit deep-work paths.",
+    });
+  }
+
+  const exhaustedKeys = input.quotaKeys.filter((key) => key.status === "exhausted");
+  const watchKeys = input.quotaKeys.filter((key) => key.status === "watch");
+  const inactiveKeys = input.quotaKeys.filter((key) => key.status === "inactive");
+  if (exhaustedKeys.length > 0) {
+    actions.push({
+      code: "managed_key_quota_exhausted",
+      source: "key_audit",
+      severity: "critical",
+      message: `${exhaustedKeys.length} managed key(s) have exhausted quota.`,
+      action: "Rotate traffic to another key, raise quota deliberately, or wait for the quota window reset.",
+    });
+  }
+  if (watchKeys.length > 0) {
+    actions.push({
+      code: "managed_key_quota_near_limit",
+      source: "key_audit",
+      severity: "warning",
+      message: `${watchKeys.length} managed key(s) are near quota limits.`,
+      action: "Check client usage before the window exhausts and tune request/token quotas if this is expected traffic.",
+    });
+  }
+  if (inactiveKeys.length > 0) {
+    actions.push({
+      code: "managed_key_inactive",
+      source: "key_audit",
+      severity: "warning",
+      message: `${inactiveKeys.length} managed key record(s) are inactive.`,
+      action: "Revoke stale keys from docs/client profiles or create a replacement managed key for active clients.",
+    });
+  }
+
+  const status = actions.some((item) => item.severity === "critical")
+    ? "critical"
+    : actions.some((item) => item.severity === "warning")
+      ? "watch"
+      : "ok";
+
+  return {
+    status,
+    poolHealth: {
+      pools: poolSummary.pools ?? 0,
+      endpoints: poolSummary.endpoints ?? 0,
+      healthy: poolSummary.healthy ?? 0,
+      cooldown: poolSummary.cooldown ?? 0,
+      open: poolSummary.open ?? 0,
+      averageLatencyMs: poolSummary.averageLatencyMs,
+    },
+    keyAudit: {
+      trackedKeys: input.quotaKeys.length,
+      exhausted: exhaustedKeys.length,
+      watch: watchKeys.length,
+      inactive: inactiveKeys.length,
+    },
+    actions: actions.sort((left, right) => {
+      const rank = { critical: 0, warning: 1, info: 2 };
+      if (rank[left.severity] !== rank[right.severity]) {
+        return rank[left.severity] - rank[right.severity];
+      }
+      return left.code.localeCompare(right.code);
+    }),
   };
 }
 

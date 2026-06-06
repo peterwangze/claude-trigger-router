@@ -357,8 +357,8 @@ v1.17.0 闭环验证：四个 v1.17 事项已分别独立提交并逐项补 targ
 
 1. `[closed 2026-06-06]` routing outcome 与建议动作运营化：已新增 `outcomeScorecard`，把 route reason、final model 和 semantic intent 三类 outcome 按 priority score 排序，并结合 model switch、alignment、cascade、latency、quality evidence 与 task comparison 生成 status、evidence、action 和 configPath；`/api/governance/metrics`、CSV export 与 `/ui` 维护者工作台均展示同一 scorecard。
    - 验证：`npx vitest --run src/governance/metrics.test.ts`；`npx vitest --run src/ui/workbench.dom.test.ts`；`npm run build`。
-2. `[planned]` pool health 与 key audit 汇入治理视图：把模型池健康、成本/速率、key 用量和异常告警纳入同一运营入口。
-   - 闭环标准：远程服务和模型池问题不会只散落在不同 API 或日志中。
+2. `[closed 2026-06-06]` pool health 与 key audit 汇入治理视图：`/api/service-info` 已新增 `operations` 汇总，把 model pool endpoint 的 healthy/cooldown/open、平均延迟与 managed key quota 的 tracked/watch/exhausted/inactive 合并为统一 status 和 actions；`/ui` 维护者工作台新增 Operations risk 面板，直接展示 pool health 与 key audit 的联合风险和建议动作。
+   - 验证：`npx vitest --run src/server.test.ts`；`npx vitest --run src/ui/workbench.dom.test.ts`；`npm run build`。
 3. `[planned]` 输入侧优化进入统一 trace/metrics：Prompt / Intent Optimization 等治理增强必须复用现有 trace、metrics 和 UI contract。
    - 闭环标准：不新增平行观测结构；异常和收益证据可追溯。
 4. `[planned]` Web UI 功能审视与视觉设计优化：在 v1.17.0 已安装并固化的 UI/Figma 辅助 skill 与设计 contract 基础上，正式审视 `/ui` 现有功能是否按本地使用者、远程客户端、服务维护者和路由设计者的任务流组织；用低噪声运营工具视觉规则优化信息密度、导航层级、状态表达、表格 / trace / detail 阅读路径和桌面/移动布局。
