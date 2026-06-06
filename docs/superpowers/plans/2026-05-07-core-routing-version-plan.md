@@ -382,8 +382,9 @@ v1.18.0 闭环验证：四个 v1.18 事项已分别独立提交并逐项补 targ
 1. `[closed 2026-06-06]` 远程服务发现与节点边界：已在 `/api/remote-status` 新增 `discovery` 摘要，把远端 service-info、registration、当前 runtime role 和失败状态收敛为 `disabled / misconfigured / unreachable / not_ctr_service / not_ready / ready`；同时明确 boundary 仍是 `service` 级，`nodeOrchestration`、`clusterOrchestration` 和 `configWriteback` 均为 `unsupported`。`probeRemoteServiceStatus()` 透传远端 `serviceRole`，`/ui` Role & connection guide 新增 remote discovery 状态和动作提示。
    - 闭环标准：不宣称完整 cloud/托管控制面；新增远程能力必须有安全边界和可观测入口。
    - 验证：`npx vitest --run src/service-health.test.ts src/server.test.ts`；`npx vitest --run src/ui/workbench.dom.test.ts`；`npm run build`。
-2. `[planned]` remote status/registration 运营化：继续增强远端注册摘要、upstream 服务数、模型可用性和客户端下一步提示。
+2. `[closed 2026-06-06]` remote status/registration 运营化：已在 `/api/remote-status` 新增 `availability` 摘要，把远端 ready、registration 可用性、远端模型数、upstream 服务数、模型 ID、upstream service ID、客户端下一步和维护者动作合并为可直接判断的运营状态；`/ui` Role & connection guide 同步展示 remote availability，并把 client next steps 合并到 remote discovery 动作列表。
    - 闭环标准：远程客户端能判断远端是否 ready、可用模型是否符合预期、失败后该找谁处理。
+   - 验证：`npx vitest --run src/server.test.ts src/service-health.test.ts`；`npx vitest --run src/ui/workbench.dom.test.ts`；`npm run build`。
 3. `[planned]` server/client 文档和 setup profile 一致性：保持 README、server maintainer guide、remote client guide、setup 和 doctor 的角色口径一致。
    - 闭环标准：远程接入不再因为角色叙事漂移导致误配置。
 

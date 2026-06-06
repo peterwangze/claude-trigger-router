@@ -694,6 +694,77 @@ function summarizeRemoteDiscovery(input: {
   };
 }
 
+function summarizeRemoteAvailability(input: {
+  remote: any;
+  remoteRegistration: any;
+}) {
+  const remote = input.remote ?? {};
+  const remoteRegistration = input.remoteRegistration ?? {};
+  const modelIds = Array.isArray(remoteRegistration.models)
+    ? remoteRegistration.models
+        .map((model: any) => typeof model?.id === "string" ? model.id : undefined)
+        .filter((id: string | undefined): id is string => Boolean(id))
+    : [];
+  const upstreamServiceIds = Array.isArray(remoteRegistration.upstreamServices)
+    ? remoteRegistration.upstreamServices
+        .map((service: any) => typeof service?.id === "string" ? service.id : undefined)
+        .filter((id: string | undefined): id is string => Boolean(id))
+    : [];
+  const remoteModels = typeof remoteRegistration.summary?.models === "number"
+    ? remoteRegistration.summary.models
+    : modelIds.length;
+  const upstreamServices = typeof remoteRegistration.summary?.upstreamServices === "number"
+    ? remoteRegistration.summary.upstreamServices
+    : upstreamServiceIds.length;
+  const serviceReady = Boolean(remote.ready);
+  const registrationAvailable = Boolean(remoteRegistration.available);
+  const status = !remote.enabled
+    ? "disabled"
+    : !serviceReady
+      ? "blocked"
+      : registrationAvailable && remoteRegistration.registrationEnabled === false
+        ? "registration_disabled"
+        : registrationAvailable && remoteModels === 0
+          ? "no_models"
+          : serviceReady
+            ? "ready"
+            : "watch";
+  const clientNextSteps: string[] = [];
+  const maintainerActions: string[] = [];
+
+  if (status === "disabled") {
+    clientNextSteps.push("Enable Runtime.remote_service when this profile should connect to a remote router service.");
+  } else if (status === "blocked") {
+    clientNextSteps.push("Fix the remote base URL, token, or network path before using ctr code.");
+    maintainerActions.push("Confirm the remote service process is running and /api/service-info is reachable with a managed client + read-only key.");
+  } else if (status === "registration_disabled") {
+    clientNextSteps.push("Remote service is reachable, but registration is disabled; ask the server maintainer which models are available.");
+    maintainerActions.push("Enable Registration or document that this server intentionally hides registration details.");
+  } else if (status === "no_models") {
+    clientNextSteps.push("Remote service is ready, but no registered models were reported; ask the server maintainer to publish Registration.models.");
+    maintainerActions.push("Add Registration.models or verify that /api/registration exposes the expected model list.");
+  } else {
+    clientNextSteps.push("Remote router is ready; run ctr code or point Claude Code at the local thin proxy.");
+    clientNextSteps.push("If an expected model is missing, ask the server maintainer to check Registration.models or the upstream model pool.");
+    maintainerActions.push("Keep managed client + read-only keys active for remote users.");
+    maintainerActions.push("Use /api/registration on the server to inspect model and upstream service registration.");
+  }
+
+  return {
+    status,
+    serviceReady,
+    registrationAvailable,
+    modelAvailability: {
+      remoteModels,
+      upstreamServices,
+      modelIds,
+      upstreamServiceIds,
+    },
+    clientNextSteps,
+    maintainerActions,
+  };
+}
+
 function scoreModelIdSuggestion(source: string, candidateId: string, candidate: any) {
   const sourceText = String(source || "").toLowerCase();
   const candidateText = `${candidateId} ${candidate?.modelName || ""}`.toLowerCase();
@@ -1672,6 +1743,10 @@ export const createServer = (config: any): Server => {
       governance: summarizeGovernanceAlerts(governanceReport),
       discovery: summarizeRemoteDiscovery({
         runtimeMode,
+        remote,
+        remoteRegistration,
+      }),
+      availability: summarizeRemoteAvailability({
         remote,
         remoteRegistration,
       }),

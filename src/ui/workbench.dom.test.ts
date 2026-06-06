@@ -352,6 +352,16 @@ async function createWorkbenchDom(options: {
                 'Use the remote service as the routing authority; keep local CTR as a thin client proxy.',
               ],
             },
+            availability: {
+              status: 'ready',
+              modelAvailability: {
+                remoteModels: 2,
+                upstreamServices: 1,
+              },
+              clientNextSteps: [
+                'Remote router is ready; run ctr code or point Claude Code at the local thin proxy.',
+              ],
+            },
           }) as any;
         }
         if (url === '/api/models/pool-health') {
@@ -447,6 +457,7 @@ async function createWorkbenchDom(options: {
     expect(dom.window.document.getElementById('guardrailSummaryList')?.textContent).toContain('secret_exfiltration_request');
     expect(dom.window.document.getElementById('maintainerDecisionRail')?.textContent).toContain('route_reason: smart_router');
     expect(dom.window.document.getElementById('remoteDiscoverySummary')?.textContent).toContain('ready · router_service · service');
+    expect(dom.window.document.getElementById('remoteAvailabilitySummary')?.textContent).toContain('ready · 2 models / 1 upstream');
     expect(dom.window.document.getElementById('remoteDiscoveryActions')?.textContent).toContain('thin client proxy');
     expect(dom.window.document.getElementById('benchmarkHistorySummary')?.textContent).toContain('Entries');
   });

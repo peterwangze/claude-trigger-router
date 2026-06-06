@@ -596,6 +596,21 @@ describe('createServer /api/config', () => {
           'Enable Runtime.remote_service and set base_url to discover a remote router service.',
         ],
       },
+      availability: {
+        status: 'disabled',
+        serviceReady: false,
+        registrationAvailable: false,
+        modelAvailability: {
+          remoteModels: 0,
+          upstreamServices: 0,
+          modelIds: [],
+          upstreamServiceIds: [],
+        },
+        clientNextSteps: [
+          'Enable Runtime.remote_service when this profile should connect to a remote router service.',
+        ],
+        maintainerActions: [],
+      },
     }));
     expect(result.issueReport.summary).toEqual({
       total: 1,
@@ -620,6 +635,16 @@ describe('createServer /api/config', () => {
               {
                 id: 'sonnet',
                 keyConfigured: true,
+              },
+              {
+                id: 'haiku',
+                keyConfigured: true,
+              },
+            ],
+            upstreamServices: [
+              {
+                id: 'edge-router',
+                authTokenConfigured: true,
               },
             ],
           }),
@@ -719,6 +744,25 @@ describe('createServer /api/config', () => {
         actions: [
           'Use the remote service as the routing authority; keep local CTR as a thin client proxy.',
           'Ask the server maintainer for a managed client + read-only key if model calls or status checks fail.',
+        ],
+      });
+      expect(result.availability).toEqual({
+        status: 'ready',
+        serviceReady: true,
+        registrationAvailable: true,
+        modelAvailability: {
+          remoteModels: 2,
+          upstreamServices: 1,
+          modelIds: ['sonnet', 'haiku'],
+          upstreamServiceIds: ['edge-router'],
+        },
+        clientNextSteps: [
+          'Remote router is ready; run ctr code or point Claude Code at the local thin proxy.',
+          'If an expected model is missing, ask the server maintainer to check Registration.models or the upstream model pool.',
+        ],
+        maintainerActions: [
+          'Keep managed client + read-only keys active for remote users.',
+          'Use /api/registration on the server to inspect model and upstream service registration.',
         ],
       });
     } finally {
