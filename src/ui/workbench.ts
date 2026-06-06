@@ -308,6 +308,11 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<section id="maintainerSurface" class="surface-panel" data-surface="maintainer" hidden>` +
     `<div class="panel">` +
     `<div class="surface-heading"><strong>维护者工作台</strong><span class="muted">运行观测、Governance Trace、metrics、归档与维护操作。</span></div>` +
+    `<div id="maintainerDecisionRail" class="decision-rail" aria-label="维护者决策摘要">` +
+    `<div class="decision-signal" data-state="ok"><span class="muted">Operations</span><strong>pending</strong><div class="muted">等待服务状态</div></div>` +
+    `<div class="decision-signal" data-state="ok"><span class="muted">Guardrails</span><strong>pending</strong><div class="muted">等待治理指标</div></div>` +
+    `<div class="decision-signal" data-state="ok"><span class="muted">Outcome</span><strong>pending</strong><div class="muted">等待路由结果</div></div>` +
+    `</div>` +
     `<div id="securitySummary" class="alert info"><strong>Security pending</strong><div class="muted">等待服务安全状态加载</div></div>` +
     `<div class="subpanel" id="roleConnectionGuide">` +
     `<div class="row"><strong>Role & connection guide</strong><span class="muted">按当前 local / server / cloud 角色确认监听地址、维护入口和远程客户端接入方式。</span></div>` +
@@ -636,6 +641,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const modelOutcomeRanking=document.getElementById('modelOutcomeRanking');` +
     `const intentOutcomeRanking=document.getElementById('intentOutcomeRanking');` +
     `const healthSummary=document.getElementById('healthSummary');` +
+    `const maintainerDecisionRail=document.getElementById('maintainerDecisionRail');` +
     `const guardrailSummaryList=document.getElementById('guardrailSummaryList');` +
     `const routingTuningList=document.getElementById('routingTuningList');` +
     `const outcomeScorecardList=document.getElementById('outcomeScorecardList');` +
@@ -671,6 +677,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `let currentDraftConfig={};` +
     `let knownModelIds=[];` +
     `let lastCompiledModelsData=null;` +
+    `let latestOperations=null;` +
+    `let latestMetricsData=null;` +
+    `let latestHealth=null;` +
     `let activeValidationHighlight=null;` +
     `function withDraftCompiledData(payload){ return { ...(lastCompiledModelsData || {}), normalizedConfig: payload || currentDraftConfig || {} }; }` +
     `const draftPresets={` +
@@ -708,6 +717,27 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const actionList=actions.length ? '<ul class="mini-list">'+actions.slice(0,4).map(item=>'<li><span><span class="pill '+esc(item.severity === 'critical' ? 'critical' : (item.severity === 'warning' ? 'warn' : 'info'))+'">'+esc(item.source || '-')+'</span> <strong>'+esc(item.code || '-')+'</strong><div class="muted">'+esc(item.message || '')+'</div></span><strong>'+esc(item.action || '')+'</strong></li>').join('')+'</ul>' : '<div class="muted">No pool or key audit actions in the current window</div>';` +
     `  operationsRiskSummary.className='alert '+cls;` +
     `  operationsRiskSummary.innerHTML='<strong>Operations: '+esc(status)+'</strong><div class="muted">'+poolText+' · '+keyText+'</div>'+actionList;` +
+    `}` +
+    `function decisionState(value){ return value === 'critical' ? 'critical' : (value === 'watch' || value === 'warning' ? 'watch' : 'ok'); }` +
+    `function renderDecisionSignal(label,status,title,detail){` +
+    `  const state=decisionState(status);` +
+    `  return '<div class="decision-signal" data-state="'+esc(state)+'"><span class="muted">'+esc(label)+'</span><strong>'+esc(title || status || 'ok')+'</strong><div class="muted">'+esc(detail || 'No action required')+'</div></div>';` +
+    `}` +
+    `function renderMaintainerDecisionRail(){` +
+    `  const operations=latestOperations || {};` +
+    `  const guardrails=latestMetricsData?.guardrails || {};` +
+    `  const scorecard=latestMetricsData?.outcomeScorecard || {};` +
+    `  const input=guardrails.input || {};` +
+    `  const output=guardrails.output || {};` +
+    `  const guardrailStatus=input.status === 'critical' || output.status === 'critical' ? 'critical' : ((input.status === 'watch' || output.status === 'watch') ? 'watch' : 'ok');` +
+    `  const guardrailTop=(input.byCode && input.byCode[0]) || (output.byCode && output.byCode[0]);` +
+    `  const outcomeTop=Array.isArray(scorecard.items) ? scorecard.items[0] : null;` +
+    `  const outcomeStatus=scorecard.criticalCount ? 'critical' : (scorecard.watchCount ? 'watch' : (latestHealth?.status || 'ok'));` +
+    `  maintainerDecisionRail.innerHTML=[` +
+    `    renderDecisionSignal('Operations',operations.status || 'ok',operations.status || 'ok',(operations.actions && operations.actions[0]?.action) || 'Pool health and key quota are currently quiet.'),` +
+    `    renderDecisionSignal('Guardrails',guardrailStatus,guardrailTop?.code || guardrailStatus,guardrailTop?.action || 'Input and output guardrails have no current findings.'),` +
+    `    renderDecisionSignal('Outcome',outcomeStatus,outcomeTop ? (outcomeTop.scope+': '+outcomeTop.key) : (latestHealth?.status || 'ok'),outcomeTop?.action || 'Routing outcome scorecard has no priority action yet.')` +
+    `  ].join('');` +
     `}` +
     `function renderModelPoolHealth(data){` +
     `  const summary=data?.summary || {};` +
@@ -1544,7 +1574,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    securityStatusSummary.textContent=security.status || '-';` +
     `    securitySummary.className='alert '+((security.status === 'critical') ? 'critical' : (security.status === 'warning' ? 'warn' : 'info'));` +
     `    securitySummary.innerHTML='<strong>Security: '+esc(security.status || '-')+'</strong><div>'+esc(issues[0]?.message || '当前服务未发现明显鉴权暴露风险')+'</div>'+ (issues.length ? '<ul class="mini-list">'+issues.map(issue=>'<li>'+esc(issue.action || issue.code)+'</li>').join('')+'</ul>' : '');` +
-    `    renderOperationsRisk(data.operations || {});` +
+    `    latestOperations=data.operations || {};` +
+    `    renderOperationsRisk(latestOperations);` +
+    `    renderMaintainerDecisionRail();` +
     `    const registration=data.registration || {};` +
     `    registrationStatusSummary.textContent=registration.enabled ? ((registration.models ?? 0)+' models / '+(registration.upstreamServices ?? 0)+' upstream') : 'disabled';` +
     `    const remote=remoteData.remote || {};` +
@@ -1938,6 +1970,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const metricsData=await metricsRes.json();` +
     `  const healthData=await healthRes.json();` +
     `  const health=healthData.health || metricsData.health;` +
+    `  latestMetricsData=metricsData || {};` +
+    `  latestHealth=health || null;` +
     `  renderMetrics(metricsData.metrics || {},health,metricsData.outcome || {});` +
     `  renderBuckets(metricsData || {});` +
     `  renderAnomalies(metricsData.anomalies || [],health);` +
@@ -1947,6 +1981,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderQualityEvidence(metricsData.qualityEvidence || {});` +
     `  renderTaskComparison(metricsData.taskComparison || {});` +
     `  renderBenchmarkSummary(metricsData.taskComparison || {},metricsData.qualityEvidence || {});` +
+    `  renderMaintainerDecisionRail();` +
     `  renderRanking(routeRanking,metricsData.topRouteReasons || [],'No routes');` +
     `  renderRanking(modelRanking,metricsData.topFinalModels || [],'No models');` +
     `  renderRanking(intentRanking,metricsData.topSemanticIntents || [],'No intents');` +

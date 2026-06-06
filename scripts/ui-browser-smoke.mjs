@@ -163,6 +163,7 @@ function smokeExpression() {
       bodyText: document.body?.innerText?.slice(0, 240) || '',
       roleEntry: Boolean(document.querySelector('#localUserRoleCard') && document.querySelector('#remoteClientRoleCard') && document.querySelector('#maintainerRoleCard') && document.querySelector('#routingDesignerRoleCard')),
       designPanel: Boolean(document.querySelector('#uiDesignAssistantPanel')),
+      decisionRail: Boolean(document.querySelector('#maintainerDecisionRail .decision-signal')),
       traceEvidence: Boolean(document.querySelector('#traceEvidenceDetail')),
       maintainerVisible: Boolean(maintainerSurface && !maintainerSurface.hidden && maintainerTab?.classList.contains('active')),
       noHorizontalOverflow: beforeOverflow && afterOverflow,
@@ -192,6 +193,7 @@ function assertSmokeResult(label, result) {
   if (!result.title.includes('角色化路由工作台')) failures.push('missing role-aware title');
   if (!result.roleEntry) failures.push('missing role entry cards');
   if (!result.designPanel) failures.push('missing UI design assistant panel');
+  if (!result.decisionRail) failures.push('missing maintainer decision rail');
   if (!result.traceEvidence) failures.push('missing trace evidence detail anchor');
   if (!result.maintainerVisible) failures.push('maintainer role card did not switch surface');
   if (!result.noHorizontalOverflow) failures.push(`horizontal overflow (${result.scrollWidth} > ${result.width})`);

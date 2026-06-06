@@ -419,6 +419,7 @@ async function createWorkbenchDom(options: {
     expect(dom.window.document.getElementById('outcomeScorecardList')?.textContent).toContain('route_reason: smart_router');
     expect(dom.window.document.getElementById('operationsRiskSummary')?.textContent).toContain('pool_endpoint_cooldown');
     expect(dom.window.document.getElementById('guardrailSummaryList')?.textContent).toContain('secret_exfiltration_request');
+    expect(dom.window.document.getElementById('maintainerDecisionRail')?.textContent).toContain('route_reason: smart_router');
     expect(dom.window.document.getElementById('benchmarkHistorySummary')?.textContent).toContain('Entries');
   });
 
@@ -467,6 +468,8 @@ describe('workbench DOM smoke', () => {
     expect(styles).toContain('.surface-tabs');
     expect(styles).toContain('.app-shell>*{min-width:0;max-width:100%}');
     expect(styles).toContain('.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.62fr);gap:1rem;align-items:stretch;margin-bottom:1rem;min-width:0;max-width:100%}');
+    expect(styles).toContain('.decision-rail');
+    expect(styles).toContain('.decision-signal');
     expect(styles).toContain('@media (max-width:760px)');
     expect(styles).toContain('.management-table,.trend-table,table{display:block;overflow-x:auto;white-space:nowrap}');
   });
