@@ -387,6 +387,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<ul id="routingTuningList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
     `</div>` +
     `<div class="subpanel">` +
+    `<div class="row"><strong>Outcome scorecard</strong><span class="muted">按 route、model、intent 汇总优先处理的运营动作</span></div>` +
+    `<ul id="outcomeScorecardList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
+    `</div>` +
+    `<div class="subpanel">` +
     `<div class="row"><strong>Quality evidence</strong><span class="muted">真实 trace 中的失败、连续性和速度风险样本</span></div>` +
     `<div id="qualityEvidenceSummary" class="stats"><div class="stat"><span class="muted">Samples</span><strong>-</strong></div><div class="stat"><span class="muted">Risk</span><strong>-</strong></div><div class="stat"><span class="muted">Improvement</span><strong>-</strong></div><div class="stat"><span class="muted">Speed risk</span><strong>-</strong></div></div>` +
     `<ul id="qualityEvidenceList" class="mini-list"><li><span class="muted">Loading</span><strong>-</strong></li></ul>` +
@@ -625,6 +629,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const intentOutcomeRanking=document.getElementById('intentOutcomeRanking');` +
     `const healthSummary=document.getElementById('healthSummary');` +
     `const routingTuningList=document.getElementById('routingTuningList');` +
+    `const outcomeScorecardList=document.getElementById('outcomeScorecardList');` +
     `const routeDecisionSummaryList=document.getElementById('routeDecisionSummaryList');` +
     `const switchContinuitySummaryList=document.getElementById('switchContinuitySummaryList');` +
     `const routeHandoffSummaryList=document.getElementById('routeHandoffSummaryList');` +
@@ -1672,6 +1677,16 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    return '<li><span><span class="pill '+esc(item.severity === 'critical' ? 'critical' : (item.severity === 'warn' ? 'warn' : 'info'))+'">'+esc(item.severity || 'info')+'</span> <strong>'+esc(item.code || '-')+'</strong><div class="muted">'+esc(item.message || '')+'</div><div class="muted">'+esc(item.evidence || '')+'</div>'+suggestionHtml+'</span><strong>'+esc(item.action || '')+'</strong></li>';` +
     `  }).join('');` +
     `}` +
+    `function renderOutcomeScorecard(scorecard){` +
+    `  const items=Array.isArray(scorecard?.items) ? scorecard.items : [];` +
+    `  if(!items.length){ outcomeScorecardList.innerHTML='<li><span class="muted">No outcome scorecard items</span><strong>stable</strong></li>'; return; }` +
+    `  outcomeScorecardList.innerHTML=items.map(item=>{` +
+    `    const cls=item.status === 'critical' ? 'critical' : (item.status === 'watch' ? 'warn' : 'info');` +
+    `    const evidence=Array.isArray(item.evidence) && item.evidence.length ? '<div class="muted">'+item.evidence.slice(0,4).map(esc).join(' · ')+'</div>' : '';` +
+    `    const config=item.configPath ? '<div class="muted">config: <code>'+esc(item.configPath)+'</code></div>' : '';` +
+    `    return '<li><span><span class="pill '+esc(cls)+'">'+esc(item.status || 'stable')+'</span> <strong>'+esc(item.scope || '-')+': '+esc(item.key || '-')+'</strong>'+evidence+config+'</span><strong>'+esc(item.action || '')+'</strong></li>';` +
+    `  }).join('');` +
+    `}` +
     `function renderQualityEvidence(summary){` +
     `  const items=summary?.samples || [];` +
     `  qualityEvidenceSummary.innerHTML=[['Samples',summary?.totalSamples || 0],['Risk',summary?.failureSamples || 0],['Improvement',summary?.improvementSamples || 0],['Speed risk',summary?.speedRiskSamples || 0]].map(([label,value])=>'<div class="stat"><span class="muted">'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('');` +
@@ -1893,6 +1908,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderBuckets(metricsData || {});` +
     `  renderAnomalies(metricsData.anomalies || [],health);` +
     `  renderRoutingTuning(health?.routingTuning || []);` +
+    `  renderOutcomeScorecard(metricsData.outcomeScorecard || {});` +
     `  renderQualityEvidence(metricsData.qualityEvidence || {});` +
     `  renderTaskComparison(metricsData.taskComparison || {});` +
     `  renderBenchmarkSummary(metricsData.taskComparison || {},metricsData.qualityEvidence || {});` +

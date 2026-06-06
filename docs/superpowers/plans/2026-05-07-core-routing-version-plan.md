@@ -355,8 +355,8 @@ v1.17.0 闭环验证：四个 v1.17 事项已分别独立提交并逐项补 targ
 
 用户目标：维护者能稳定运营路由质量、异常趋势、pool health、key audit 和输入侧优化，而不是只在调试时临时查看 trace。
 
-1. `[planned]` routing outcome 与建议动作运营化：把质量、速度、失败、cascade、shadow 和人工校准证据继续收敛为 health/metrics/UI 中的建议动作。
-   - 闭环标准：维护者能知道“该改哪个规则、候选、预算或模型池配置”。
+1. `[closed 2026-06-06]` routing outcome 与建议动作运营化：已新增 `outcomeScorecard`，把 route reason、final model 和 semantic intent 三类 outcome 按 priority score 排序，并结合 model switch、alignment、cascade、latency、quality evidence 与 task comparison 生成 status、evidence、action 和 configPath；`/api/governance/metrics`、CSV export 与 `/ui` 维护者工作台均展示同一 scorecard。
+   - 验证：`npx vitest --run src/governance/metrics.test.ts`；`npx vitest --run src/ui/workbench.dom.test.ts`；`npm run build`。
 2. `[planned]` pool health 与 key audit 汇入治理视图：把模型池健康、成本/速率、key 用量和异常告警纳入同一运营入口。
    - 闭环标准：远程服务和模型池问题不会只散落在不同 API 或日志中。
 3. `[planned]` 输入侧优化进入统一 trace/metrics：Prompt / Intent Optimization 等治理增强必须复用现有 trace、metrics 和 UI contract。

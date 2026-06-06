@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGovernanceHealthSummary, exportGovernanceMetricsReport, getGovernanceMetricsReport, summarizeGovernanceMetrics, summarizeRoutingOutcomes } from './metrics';
+import { buildGovernanceHealthSummary, buildRoutingOutcomeScorecard, exportGovernanceMetricsReport, getGovernanceMetricsReport, summarizeGovernanceMetrics, summarizeRoutingOutcomes } from './metrics';
 import { governanceTraceStore } from './trace';
 
 describe('summarizeGovernanceMetrics', () => {
@@ -715,6 +715,98 @@ describe('summarizeGovernanceMetrics', () => {
     expect(health.actions).toContain('Review high-cascade route groups before widening SmartRouter candidates.');
   });
 
+  it('builds an operational routing outcome scorecard', () => {
+    const traces = [
+      {
+        requestId: 'trace-switch-risk',
+        initialModel: 'haiku',
+        finalModel: 'sonnet',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: true,
+        cascadeEvidence: ['Detected failure marker'],
+        shadowChecked: false,
+        semanticIntent: 'coding',
+        startedAt: 1,
+        latencyMs: 1800,
+      },
+      {
+        requestId: 'trace-switch-risk-2',
+        initialModel: 'haiku',
+        finalModel: 'sonnet',
+        routeReason: ['smart_router'],
+        stickyHit: false,
+        alignmentUsed: false,
+        cascadeTriggered: true,
+        cascadeEvidence: ['Retry fixed compile error'],
+        shadowChecked: false,
+        semanticIntent: 'coding',
+        startedAt: 2,
+        latencyMs: 1700,
+      },
+      {
+        requestId: 'trace-stable',
+        initialModel: 'sonnet',
+        finalModel: 'sonnet',
+        routeReason: ['sticky_correction'],
+        stickyHit: true,
+        alignmentUsed: false,
+        cascadeTriggered: false,
+        shadowChecked: false,
+        semanticIntent: 'docs',
+        startedAt: 3,
+        latencyMs: 80,
+      },
+    ];
+    const outcome = summarizeRoutingOutcomes(traces);
+    const scorecard = buildRoutingOutcomeScorecard({
+      outcome,
+      qualityEvidence: {
+        totalSamples: 2,
+        failureSamples: 2,
+        improvementSamples: 0,
+        speedRiskSamples: 0,
+        byType: [],
+        samples: [
+          {
+            requestId: 'trace-switch-risk',
+            type: 'cascade_failure',
+            severity: 'critical',
+            evidence: 'Detected failure marker',
+            action: 'Review cascade evidence.',
+            routeReason: ['smart_router'],
+            finalModel: 'sonnet',
+            semanticIntent: 'coding',
+            startedAt: 1,
+          },
+          {
+            requestId: 'trace-switch-risk-2',
+            type: 'cascade_failure',
+            severity: 'critical',
+            evidence: 'Retry fixed compile error',
+            action: 'Review cascade evidence.',
+            routeReason: ['smart_router'],
+            finalModel: 'sonnet',
+            semanticIntent: 'coding',
+            startedAt: 2,
+          },
+        ],
+      },
+    });
+
+    expect(scorecard.criticalCount).toBeGreaterThan(0);
+    expect(scorecard.items[0]).toEqual(expect.objectContaining({
+      key: 'smart_router',
+      scope: 'route_reason',
+      status: 'critical',
+      qualityRiskCount: 2,
+      configPath: 'SmartRouter.candidates',
+    }));
+    expect(scorecard.items[0].action).toContain('Inspect risk evidence');
+    expect(scorecard.topActions[0]).toContain('Inspect risk evidence');
+  });
+
   it('summarizes quality evidence samples from real governance traces', () => {
     governanceTraceStore.clear();
 
@@ -890,6 +982,31 @@ describe('summarizeGovernanceMetrics', () => {
           },
         ],
       },
+      outcomeScorecard: {
+        totalItems: 1,
+        criticalCount: 0,
+        watchCount: 1,
+        stableCount: 0,
+        topActions: ['Monitor context window fallback rate and long-context model latency.'],
+        items: [
+          {
+            key: 'sticky',
+            scope: 'route_reason',
+            status: 'watch',
+            priorityScore: 24,
+            totalTraces: 2,
+            rate: 1,
+            modelSwitchRate: 0.5,
+            alignmentOnSwitchRate: 1,
+            cascadeAfterSwitchRate: 0,
+            averageLatencyMs: 120,
+            qualityRiskCount: 1,
+            evidence: ['2 traces (100%)', 'switch 50%'],
+            action: 'Monitor context window fallback rate and long-context model latency.',
+            configPath: 'SmartRouter.rules',
+          },
+        ],
+      },
       buckets: [
         {
           bucketStart: 1,
@@ -1003,6 +1120,8 @@ describe('summarizeGovernanceMetrics', () => {
     expect(csv).toContain('outcome,modelSwitchRate,0.5');
     expect(csv).toContain('outcome,contextWindowFallbackRate,0.5');
     expect(csv).toContain('outcome,contextWindowExceededRate,0');
+    expect(csv).toContain('outcomeScorecard,totalItems,1');
+    expect(csv).toContain('outcomeScorecardItem,route_reason:sticky,watch:24:Monitor context window fallback rate and long-context model latency.');
     expect(csv).toContain('anomaly,cascade_rate_high,warn:0.5');
     expect(csv).toContain('routingTuning,context_window_fallback_high,info:contextWindowFallbackRate=50%');
     expect(csv).toContain('qualityEvidence,totalSamples,1');

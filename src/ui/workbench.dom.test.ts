@@ -204,6 +204,19 @@ async function createWorkbenchDom(options: {
             buckets: [],
             anomalies: [],
             outcome: {},
+            outcomeScorecard: {
+              items: [
+                {
+                  key: 'smart_router',
+                  scope: 'route_reason',
+                  status: 'watch',
+                  priorityScore: 31,
+                  evidence: ['2 traces (100%)', 'switch 50%'],
+                  action: 'Inspect risk evidence before sending more traffic through route smart_router.',
+                  configPath: 'SmartRouter.candidates',
+                },
+              ],
+            },
             topRouteReasons: [],
             topFinalModels: [],
             topSemanticIntents: [],
@@ -374,6 +387,7 @@ async function createWorkbenchDom(options: {
     expect(dom.window.document.getElementById('draftPreviewStatus')?.textContent).toContain('已载入当前配置');
     expect(dom.window.document.getElementById('compiledModelsStatus')?.textContent).toContain('已加载');
     expect(dom.window.document.getElementById('healthSummary')?.textContent).toContain('Health: watch');
+    expect(dom.window.document.getElementById('outcomeScorecardList')?.textContent).toContain('route_reason: smart_router');
     expect(dom.window.document.getElementById('benchmarkHistorySummary')?.textContent).toContain('Entries');
   });
 

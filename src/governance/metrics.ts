@@ -216,6 +216,39 @@ export interface IGovernanceRoutingOutcomeSummary {
   bySemanticIntent: IGovernanceRoutingOutcomeGroupEntry[];
 }
 
+export type TGovernanceRoutingOutcomeScorecardScope =
+  | 'route_reason'
+  | 'final_model'
+  | 'semantic_intent';
+
+export type TGovernanceRoutingOutcomeScorecardStatus = 'stable' | 'watch' | 'critical';
+
+export interface IGovernanceRoutingOutcomeScorecardItem {
+  key: string;
+  scope: TGovernanceRoutingOutcomeScorecardScope;
+  status: TGovernanceRoutingOutcomeScorecardStatus;
+  priorityScore: number;
+  totalTraces: number;
+  rate: number;
+  modelSwitchRate: number;
+  alignmentOnSwitchRate: number;
+  cascadeAfterSwitchRate: number;
+  averageLatencyMs: number;
+  qualityRiskCount: number;
+  evidence: string[];
+  action: string;
+  configPath?: string;
+}
+
+export interface IGovernanceRoutingOutcomeScorecardSummary {
+  totalItems: number;
+  criticalCount: number;
+  watchCount: number;
+  stableCount: number;
+  topActions: string[];
+  items: IGovernanceRoutingOutcomeScorecardItem[];
+}
+
 export interface IGovernanceMetricsReport {
   windowMs?: number;
   bucketCount: number;
@@ -223,6 +256,7 @@ export interface IGovernanceMetricsReport {
   windowEnd?: number;
   metrics: IGovernanceMetrics;
   outcome: IGovernanceRoutingOutcomeSummary;
+  outcomeScorecard: IGovernanceRoutingOutcomeScorecardSummary;
   buckets: IGovernanceMetricsBucket[];
   topRouteReasons: IGovernanceDistributionEntry[];
   topFinalModels: IGovernanceDistributionEntry[];
@@ -1069,6 +1103,193 @@ function buildRoutingTuningRecommendations(
   return recommendations.slice(0, 5);
 }
 
+function scorecardScopeLabel(scope: TGovernanceRoutingOutcomeScorecardScope): string {
+  if (scope === 'route_reason') {
+    return 'route';
+  }
+  if (scope === 'final_model') {
+    return 'model';
+  }
+  return 'intent';
+}
+
+function matchingQualityRiskCount(
+  scope: TGovernanceRoutingOutcomeScorecardScope,
+  key: string,
+  qualityEvidence?: IGovernanceQualityEvidenceSummary
+): number {
+  const samples = qualityEvidence?.samples ?? [];
+  return samples.filter((sample) => {
+    if (sample.severity === 'info') {
+      return false;
+    }
+    if (scope === 'route_reason') {
+      return sample.routeReason.includes(key);
+    }
+    if (scope === 'final_model') {
+      return sample.finalModel === key;
+    }
+    return sample.semanticIntent === key;
+  }).length;
+}
+
+function matchingTaskComparison(
+  scope: TGovernanceRoutingOutcomeScorecardScope,
+  key: string,
+  taskComparison?: IGovernanceTaskComparisonSummary
+): IGovernanceTaskComparisonEntry | undefined {
+  if (scope !== 'semantic_intent') {
+    return undefined;
+  }
+  return taskComparison?.comparisons.find((item) => item.taskKey === key);
+}
+
+function buildOutcomeScorecardAction(input: {
+  group: IGovernanceRoutingOutcomeGroupEntry;
+  scope: TGovernanceRoutingOutcomeScorecardScope;
+  qualityRiskCount: number;
+  taskComparison?: IGovernanceTaskComparisonEntry;
+}): string {
+  const keyLabel = `${scorecardScopeLabel(input.scope)} ${input.group.key}`;
+  if (input.group.key.startsWith('context_window_exceeded')) {
+    return `Review context metadata and Router.longContext for ${keyLabel}.`;
+  }
+  if (input.qualityRiskCount > 0 || input.group.cascadeAfterSwitchRate >= DEFAULT_ANOMALY_THRESHOLDS.cascadeWarnRate) {
+    return `Inspect risk evidence before sending more traffic through ${keyLabel}.`;
+  }
+  if (input.group.modelSwitchRate >= 0.5 && input.group.alignmentOnSwitchRate < 0.5) {
+    return `Enable or tune switch alignment for ${keyLabel}.`;
+  }
+  if (input.group.averageLatencyMs >= DEFAULT_ANOMALY_THRESHOLDS.latencyWarnMs) {
+    return `Compare faster candidates before making ${keyLabel} the default path.`;
+  }
+  if (input.taskComparison?.failureRateDelta || input.taskComparison?.latencyDeltaMs) {
+    return `Compare ${input.taskComparison.bestModel} against ${input.taskComparison.baselineModel} for ${keyLabel}.`;
+  }
+  return `Continue monitoring ${keyLabel}.`;
+}
+
+function buildOutcomeScorecardItem(input: {
+  group: IGovernanceRoutingOutcomeGroupEntry;
+  scope: TGovernanceRoutingOutcomeScorecardScope;
+  qualityRiskCount: number;
+  taskComparison?: IGovernanceTaskComparisonEntry;
+}): IGovernanceRoutingOutcomeScorecardItem {
+  const { group, scope, qualityRiskCount, taskComparison } = input;
+  const latencyRisk = group.averageLatencyMs >= DEFAULT_ANOMALY_THRESHOLDS.latencyCriticalMs
+    ? 1
+    : group.averageLatencyMs >= DEFAULT_ANOMALY_THRESHOLDS.latencyWarnMs
+      ? 0.5
+      : 0;
+  const switchContinuityRisk = group.modelSwitchRate > 0
+    ? Math.max(0, group.modelSwitchRate - group.alignmentOnSwitchRate)
+    : 0;
+  const taskOpportunity = taskComparison && (taskComparison.failureRateDelta > 0 || taskComparison.latencyDeltaMs > 0)
+    ? 1
+    : 0;
+  const priorityScore = Number((
+    group.rate * 12 +
+    group.modelSwitchRate * 18 +
+    switchContinuityRisk * 18 +
+    group.cascadeAfterSwitchRate * 26 +
+    latencyRisk * 16 +
+    Math.min(qualityRiskCount, 3) * 8 +
+    taskOpportunity * 8
+  ).toFixed(2));
+
+  const status: TGovernanceRoutingOutcomeScorecardStatus =
+    group.key.startsWith('context_window_exceeded') ||
+    group.cascadeAfterSwitchRate >= DEFAULT_ANOMALY_THRESHOLDS.cascadeCriticalRate ||
+    group.averageLatencyMs >= DEFAULT_ANOMALY_THRESHOLDS.latencyCriticalMs ||
+    qualityRiskCount >= 2
+      ? 'critical'
+      : priorityScore >= 24 ||
+          group.cascadeAfterSwitchRate >= DEFAULT_ANOMALY_THRESHOLDS.cascadeWarnRate ||
+          qualityRiskCount > 0 ||
+          latencyRisk > 0
+        ? 'watch'
+        : 'stable';
+
+  const evidence = [
+    `${group.totalTraces} trace${group.totalTraces === 1 ? '' : 's'} (${percent(group.rate)})`,
+    `switch ${percent(group.modelSwitchRate)}`,
+    `alignment ${percent(group.alignmentOnSwitchRate)}`,
+    `cascade ${percent(group.cascadeAfterSwitchRate)}`,
+    `latency ${group.averageLatencyMs} ms`,
+  ];
+  if (qualityRiskCount > 0) {
+    evidence.push(`${qualityRiskCount} quality risk sample${qualityRiskCount === 1 ? '' : 's'}`);
+  }
+  if (taskComparison?.failureRateDelta || taskComparison?.latencyDeltaMs) {
+    evidence.push(`best ${taskComparison.bestModel}, baseline ${taskComparison.baselineModel}`);
+  }
+
+  return {
+    key: group.key,
+    scope,
+    status,
+    priorityScore,
+    totalTraces: group.totalTraces,
+    rate: group.rate,
+    modelSwitchRate: group.modelSwitchRate,
+    alignmentOnSwitchRate: group.alignmentOnSwitchRate,
+    cascadeAfterSwitchRate: group.cascadeAfterSwitchRate,
+    averageLatencyMs: group.averageLatencyMs,
+    qualityRiskCount,
+    evidence,
+    action: buildOutcomeScorecardAction({ group, scope, qualityRiskCount, taskComparison }),
+    configPath: scope === 'route_reason' ? smartRouterTargetPath(group.key) : undefined,
+  };
+}
+
+export function buildRoutingOutcomeScorecard(input: {
+  outcome: IGovernanceRoutingOutcomeSummary;
+  qualityEvidence?: IGovernanceQualityEvidenceSummary;
+  taskComparison?: IGovernanceTaskComparisonSummary;
+  limit?: number;
+}): IGovernanceRoutingOutcomeScorecardSummary {
+  const items = [
+    ...input.outcome.byRouteReason.map((group) => ({ group, scope: 'route_reason' as const })),
+    ...input.outcome.byFinalModel.map((group) => ({ group, scope: 'final_model' as const })),
+    ...input.outcome.bySemanticIntent.map((group) => ({ group, scope: 'semantic_intent' as const })),
+  ].map(({ group, scope }) => buildOutcomeScorecardItem({
+    group,
+    scope,
+    qualityRiskCount: matchingQualityRiskCount(scope, group.key, input.qualityEvidence),
+    taskComparison: matchingTaskComparison(scope, group.key, input.taskComparison),
+  }));
+
+  const statusRank: Record<TGovernanceRoutingOutcomeScorecardStatus, number> = {
+    critical: 0,
+    watch: 1,
+    stable: 2,
+  };
+  const rankedItems = items.sort((left, right) => {
+    if (statusRank[left.status] !== statusRank[right.status]) {
+      return statusRank[left.status] - statusRank[right.status];
+    }
+    if (right.priorityScore !== left.priorityScore) {
+      return right.priorityScore - left.priorityScore;
+    }
+    if (right.totalTraces !== left.totalTraces) {
+      return right.totalTraces - left.totalTraces;
+    }
+    return `${left.scope}:${left.key}`.localeCompare(`${right.scope}:${right.key}`);
+  });
+  const limitedItems = rankedItems.slice(0, input.limit ?? 8);
+
+  return {
+    totalItems: items.length,
+    criticalCount: items.filter((item) => item.status === 'critical').length,
+    watchCount: items.filter((item) => item.status === 'watch').length,
+    stableCount: items.filter((item) => item.status === 'stable').length,
+    topActions: Array.from(new Set(limitedItems
+      .filter((item) => item.status !== 'stable')
+      .map((item) => item.action))).slice(0, 5),
+    items: limitedItems,
+  };
+}
+
 export function buildGovernanceHealthSummary(input: {
   metrics: IGovernanceMetrics;
   anomalies: IGovernanceAnomaly[];
@@ -1291,6 +1512,11 @@ export function getGovernanceMetricsReport(
   const anomalies = buildAnomalies(metrics, buckets, thresholds);
   const qualityEvidence = buildQualityEvidenceSummary(limitedTraces, thresholds);
   const taskComparison = buildTaskComparisonSummary(limitedTraces);
+  const outcomeScorecard = buildRoutingOutcomeScorecard({
+    outcome,
+    qualityEvidence,
+    taskComparison,
+  });
 
   return {
     windowMs: options.windowMs,
@@ -1299,6 +1525,7 @@ export function getGovernanceMetricsReport(
     windowEnd: windowed.windowEnd,
     metrics,
     outcome,
+    outcomeScorecard,
     buckets,
     topRouteReasons,
     topFinalModels,
@@ -1345,6 +1572,9 @@ export function exportGovernanceMetricsReport(
     `outcome,cascadeAfterSwitchRate,${report.outcome.cascadeAfterSwitchRate}`,
     `outcome,contextWindowFallbackRate,${report.outcome.contextWindowFallbackRate}`,
     `outcome,contextWindowExceededRate,${report.outcome.contextWindowExceededRate}`,
+    `outcomeScorecard,totalItems,${report.outcomeScorecard.totalItems}`,
+    `outcomeScorecard,criticalCount,${report.outcomeScorecard.criticalCount}`,
+    `outcomeScorecard,watchCount,${report.outcomeScorecard.watchCount}`,
   ];
 
   if (report.health) {
@@ -1403,6 +1633,10 @@ export function exportGovernanceMetricsReport(
 
   for (const item of report.outcome.bySemanticIntent) {
     lines.push(`outcomeBySemanticIntent,${item.key},${item.totalTraces}:${item.modelSwitchRate}:${item.averageLatencyMs}`);
+  }
+
+  for (const item of report.outcomeScorecard.items) {
+    lines.push(`outcomeScorecardItem,${item.scope}:${compactCsvEvidence(item.key)},${item.status}:${item.priorityScore}:${compactCsvEvidence(item.action)}`);
   }
 
   for (const bucket of report.buckets) {
