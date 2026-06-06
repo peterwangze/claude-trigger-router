@@ -106,7 +106,7 @@ v1.3.0 和 v1.4.0 的基础路由 / SmartRouter 常用体验已经阶段闭环�
 | v1.14.0 | 配置产品化最终收口 | `Models` 字段心智、路由槽位、capability warning、README/configuration guide/UI/setup 一致性 | 用户能用同一套 `id/api/key/interface/model/thinking/metadata` 心智完成配置、诊断、保存和修复；CLI/UI/文档不再各说一套 |
 | v1.15.0 | CLI/setup UX 重设计收口 | migration-first、model-id-first、fresh setup 主路径、SmartRouter 起步引导、完成页 next steps | 新用户能按 setup 问答稳定生成本地可用配置，并知道下一步如何 doctor/start/code/ui；旧 provider-centric 叙事不再回流 |
 | v1.16.0 | 用户视角复审与入口一致性校准 | 项目目标复审、入口可用性巡检、已发布版本用户体验回归、问题归档机制 | 每次复审发现的问题都能落入明确版本；fresh setup、远程转发、配置保存、鉴权、route preview 和发布门禁回归能被及时前置 |
-| v1.17.0 | UI 双层工作台收敛 | 使用者/维护者渲染片段拆分、CSS/JS helper、trace span 视图、真实浏览器 smoke | `/ui` 继续保持使用者入口清晰、维护者观测独立，新增视图不再堆回大型内联脚本 |
+| v1.17.0 | UI 双层工作台收敛 | 角色化 UI 体验设计、Codex/Figma 辅助 skill 接入、使用者/维护者渲染片段拆分、CSS/JS helper、trace span 视图、真实浏览器 smoke | `/ui` 不再只是功能集合页；不同角色能按任务路径进入，视觉系统与实现 contract 成体系，新增视图不再堆回大型内联脚本 |
 | v1.18.0 | 治理观测运营化增强 | routing outcome、pool health、key audit、输入侧优化、导出/归档/异常趋势 | 维护者能用稳定入口判断路由质量、异常趋势和建议动作；治理观测与 UI、trace、metrics 形成可运营闭环 |
 | v1.19.0 | 部署形态与远程接入收敛 | 服务发现、节点/集群编排边界、远程服务模式、remote status/registration 可观测性 | 远程接入在安全鉴权和清晰角色边界下继续演进，不把托管/cloud 能力误宣称为已完成 |
 | v1.20.0 | 发布与进展治理可持续化 | packaged CLI 用户流、release verify slice、closed 事项复审、统一基线和 issue log 维护 | 发布门禁能持续覆盖真实用户流；进展台账和问题记录不再依赖临时会话记忆 |
@@ -331,7 +331,7 @@ v1.16.0 闭环验证：三个事项已分别独立提交并逐项补复审证据
 
 优先级：中（P2 能力扩展与体验增强）。
 
-用户目标：`/ui` 保持使用者配置入口与维护者观测入口分层清晰，继续降低大型 HTML/CSS/内联 JS 的维护压力，让配置产品化、trace span 和治理观测能稳妥进入 UI。
+用户目标：`/ui` 不再只是功能可达的调试/配置集合页，而是形成面向本地使用者、远程客户端、服务维护者和路由设计者的角色化工作台；视觉系统、信息架构、任务流和实现 contract 要一起收口，继续降低大型 HTML/CSS/内联 JS 的维护压力，让配置产品化、trace span 和治理观测能稳妥进入 UI。
 
 0. `[closed 2026-06-05 via v1.16.0]` 角色化 UI 入口与设计辅助面板：作为 v1.16.0 用户视角复审发现的入口易用性缺口，已先补第一屏角色入口、任务路径和 UX 诊断面板。v1.17.0 后续不重复承接该问题，只在此基础上继续工程化拆分和浏览器 smoke。
 1. `[closed 2026-06-06]` 使用者/维护者渲染片段继续拆分：已在现有 fragment contract 上拆出 `workbench-styles.ts` CSS helper 与 `workbench-view-model.ts` 首屏状态派生 helper，让角色入口、服务状态、远程摘要、鉴权摘要和响应式样式不再直接堆在 `renderWorkbenchHtml()` 开头。
@@ -340,7 +340,10 @@ v1.16.0 闭环验证：三个事项已分别独立提交并逐项补复审证据
 2. `[closed 2026-06-06]` trace span 与路由证据视图收敛：已在维护者 Trace Detail 区新增 `traceEvidenceDetail` 可读证据面板，点击任意 trace 后先展示 route decision、switch continuity、handoff stages、routing evidence 和 trace spans，再保留原始 JSON 作为深挖入口。
    - 闭环标准：维护者能从 UI 看懂一次请求的路由、切换、错误和建议动作；新面板复用 detail payload 中已有 `decisionSummary`、`switchSummary`、`handoffSummary` 和 `spans`，不新增平行观测结构。
    - 验证：`npm run test:ui`；`npm run build`。
-3. `[planned]` 真实浏览器 smoke 评估：在 jsdom smoke 之外补最小浏览器级验证，防止布局、脚本和鉴权入口只在源码测试中成立。
+3. `[closed 2026-06-06]` 角色化 UI 体验设计与辅助 skill 接入：已把“当前 Web UI 缺少设计、不同角色易用性不足”的反馈正式纳入 v1.17.0；本地已安装 `figma-create-design-system-rules`、`figma-generate-design`、`figma-implement-design` 三个 Codex/Figma 辅助 skill，Codex 重启后可用于设计系统规则生成、界面方案生成和设计到实现的辅助落地。当前会话未热加载这些新增 skill，因此本轮先以 `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` 固化角色/任务流、信息架构、设计 token、组件状态、响应式规则和不新增平行 UI 状态的实现 contract。
+   - 闭环标准：角色化设计 contract 已明确本地使用者、远程客户端、服务维护者、路由设计者四类任务路径；视觉规则保持运维工具密度，不走营销页；颜色、间距、状态 badge、tab、role card、表格、trace detail、warning、保存动作和 empty/loading/error/success 状态均有约束；后续实现必须复用现有 `src/ui/*` helper 与 fragment contract。
+   - 验证：`npm run test:ui` 已作为 contract 看护入口；真实浏览器 smoke 由事项 4 单独闭环。
+4. `[planned]` 真实浏览器 smoke 评估：在 jsdom smoke 之外补最小浏览器级验证，防止布局、脚本和鉴权入口只在源码测试中成立。
    - 闭环标准：发布前至少有可重复的 UI smoke 验证入口。
 
 ### v1.18.0 治理观测运营化增强
