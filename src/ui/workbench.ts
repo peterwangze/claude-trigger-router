@@ -37,6 +37,23 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const escapedRouteSetupTone = escapeHtml(viewModel.routeSetupTone);
   const escapedMaintainerTone = escapeHtml(viewModel.maintainerTone);
   const escapedRemoteTone = escapeHtml(viewModel.remoteTone);
+  const providerTemplates = getUiProviderTemplates();
+  const providerTemplateEntries = Object.entries(providerTemplates);
+  const providerOptionsHtml = providerTemplateEntries
+    .map(([key, template]) => `<option value="${escapeHtml(key)}">${escapeHtml(template.label ?? key)}</option>`)
+    .join("");
+  const providerCardsHtml = providerTemplateEntries
+    .map(([key, template]) => {
+      const examples = Array.isArray(template.model_examples) ? template.model_examples.slice(0, 2).join(" / ") : "";
+      return (
+        `<button class="provider-card" type="button" data-provider-template="${escapeHtml(key)}">` +
+        `<strong>${escapeHtml(template.label ?? key)}</strong>` +
+        `<span>${escapeHtml(template.interface ?? "openai")} · ${escapeHtml(template.default_model ?? "-")}</span>` +
+        `<small>${escapeHtml(examples || template.api || "")}</small>` +
+        `</button>`
+      );
+    })
+    .join("");
 
   return (
     renderWorkbenchDocumentStart() +
@@ -46,8 +63,8 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<main class="app-shell">` +
     `<div class="hero">` +
     `<div class="panel hero-copy">` +
-    `<div><div class="eyebrow">Claude Trigger Router UI</div><h1>角色化路由工作台</h1>` +
-    `<p class="hero-summary">按使用者、远程客户端和维护者的任务组织入口：先确认服务是否可用，再编辑模型与路由，最后用观测面板定位质量、速度和安全问题。</p></div>` +
+    `<div><div class="eyebrow">Claude Trigger Router UI</div><h1>配置向导</h1>` +
+    `<p class="hero-summary">先完成模型、Key 和默认路由；远程接入与治理观测留在维护者工作台。</p></div>` +
     `<div class="hero-actions">` +
     `<button id="loadConfigDraftHeroBtn" type="button">载入当前配置</button>` +
     `<button id="previewConfigDraftHeroBtn" type="button">预览 compiled models</button>` +
@@ -73,51 +90,65 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `<section class="role-grid" aria-label="角色任务入口">` +
     `<article class="role-card" data-tone="${escapedUserReadinessTone}" id="localUserRoleCard">` +
-    `<div><h2>本地使用者</h2><p>日常入口是确认 ready、调整 Models / Router，然后进入 Claude Code。</p></div>` +
-    `<div class="role-meta"><span class="pill info">高频</span><button class="secondary" type="button" data-surface-jump="user">编辑配置</button></div>` +
+    `<div><h2>配置模型</h2><p>选择厂商模板，填 Key，设为默认模型。</p></div>` +
+    `<div class="role-meta"><span class="pill info">常用</span><button class="secondary" type="button" data-surface-jump="user">开始配置</button></div>` +
     `</article>` +
     `<article class="role-card" data-tone="${escapedRemoteTone}" id="remoteClientRoleCard">` +
-    `<div><h2>远程客户端</h2><p>关注远端 base URL、read-only/client token 和注册模型摘要。</p></div>` +
+    `<div><h2>远程接入</h2><p>查看远端服务、token 和注册模型状态。</p></div>` +
     `<div class="role-meta"><span class="pill info">${escapedRemoteSummary}</span><button class="secondary" type="button" data-surface-jump="maintainer">查看连接</button></div>` +
     `</article>` +
     `<article class="role-card" data-tone="${escapedMaintainerTone}" id="maintainerRoleCard">` +
-    `<div><h2>服务维护者</h2><p>关注鉴权、安全、模型池健康、trace、异常趋势和归档。</p></div>` +
+    `<div><h2>运维观测</h2><p>查看鉴权、安全、模型池和路由结果。</p></div>` +
     `<div class="role-meta"><span class="pill ${viewModel.securitySummary === 'critical' ? 'critical' : 'info'}">${escapedSecuritySummary}</span><button class="secondary" type="button" data-surface-jump="maintainer">进入观测</button></div>` +
     `</article>` +
     `<article class="role-card" data-tone="${escapedRouteSetupTone}" id="routingDesignerRoleCard">` +
-    `<div><h2>路由设计辅助</h2><p>用预览、warning、路由解释和 SmartRouter 证据检查入口是否容易用。</p></div>` +
-    `<div class="role-meta"><span class="pill info">UX tool</span><button class="secondary" type="button" data-surface-jump="user">开始诊断</button></div>` +
+    `<div><h2>高级路由</h2><p>配置 SmartRouter、规则和治理增强。</p></div>` +
+    `<div class="role-meta"><span class="pill info">高级</span><button class="secondary" type="button" data-surface-jump="user" data-open-advanced="true">打开高级项</button></div>` +
     `</article>` +
     `</section>` +
-    `<section class="task-map" aria-label="UI 设计辅助面板">` +
-    `<div class="panel">` +
-    `<div class="surface-heading"><strong>任务路径</strong><span class="muted">把 UI 优先服务的用户动作摆在第一屏。</span></div>` +
-    `<ul class="mini-list">` +
-    `<li><span><strong>1. 看服务</strong><div class="muted">ready、port、mode、auth、security 先给结论。</div></span><strong>${escapedSecuritySummary}</strong></li>` +
-    `<li><span><strong>2. 改配置</strong><div class="muted">Models、Router.default、warning、preview、save 聚合到使用者工作台。</div></span><strong>${escapedModelsCount} models</strong></li>` +
-    `<li><span><strong>3. 查路由</strong><div class="muted">基础槽位与 SmartRouter explanation 帮用户判断是否生效。</div></span><strong>${escapedRouterDefault}</strong></li>` +
-    `<li><span><strong>4. 做维护</strong><div class="muted">trace、metrics、pool health、auth quota 留在维护者工作台。</div></span><strong>${escapedRuntimeMode}</strong></li>` +
-    `</ul>` +
-    `</div>` +
-    `<div class="panel" id="uiDesignAssistantPanel">` +
-    `<div class="surface-heading"><strong>UX 诊断</strong><span class="muted">辅助 UI 设计与实现的最小检查清单。</span></div>` +
+    `<section id="uiDesignAssistantPanel" hidden aria-hidden="true">` +
     `<div class="ux-checklist">` +
     `<div class="ux-check" data-state="${escapedUserReadinessTone}"><strong>角色入口</strong><span class="muted">本地使用者、远程客户端、维护者和路由设计辅助已分开。</span></div>` +
     `<div class="ux-check" data-state="${escapedRouteSetupTone}"><strong>主路径</strong><span class="muted">配置、预览、保存和路由解释在默认使用者入口。</span></div>` +
     `<div class="ux-check" data-state="${escapedMaintainerTone}"><strong>维护边界</strong><span class="muted">安全、auth、pool health、trace 和归档独立承接。</span></div>` +
     `<div class="ux-check" data-state="ready"><strong>响应式</strong><span class="muted">小屏使用单列和横向表格，不让状态文字挤压操作入口。</span></div>` +
     `</div>` +
-    `</div>` +
     `</section>` +
     renderSurfaceTabs() +
     `<section id="userSurface" class="surface-panel" data-surface="user">` +
     `<div class="panel">` +
-    `<div class="surface-heading"><strong>使用者工作台</strong><span class="muted">配置、模型、路由、服务状态与下一步保存动作。</span></div>` +
+    `<div class="surface-heading"><strong>常用配置</strong><span class="muted">选择厂商，填 Key，预览后保存。</span></div>` +
+    `<div class="quick-config-grid">` +
+    `<div class="quick-config-main">` +
+    `<div class="row"><strong>一键模型配置</strong><span id="quickConfigStatus" class="muted">等待载入当前配置</span></div>` +
+    `<div class="control-grid quick-control-grid">` +
+    `<div><label>模型厂商</label><select id="quickProviderTemplate">${providerOptionsHtml}</select></div>` +
+    `<div><label>Model ID</label><input id="quickModelId" placeholder="sonnet"></div>` +
+    `<div><label>API Key</label><input id="quickModelKey" placeholder="sk-..."></div>` +
+    `<div><label>上游模型</label><input id="quickModelName" list="quickModelNameSuggestions" placeholder="anthropic/claude-sonnet-4"><datalist id="quickModelNameSuggestions"></datalist></div>` +
+    `<div style="grid-column:1/-1"><label>API 地址</label><input id="quickModelApi" placeholder="https://..."></div>` +
+    `</div>` +
+    `<div class="action-row">` +
+    `<button id="applyQuickConfigBtn" type="button">一键生成配置</button>` +
+    `<button id="previewQuickConfigBtn" class="secondary" type="button">预览配置</button>` +
+    `<button id="saveQuickConfigBtn" type="button">保存配置</button>` +
+    `<button id="addModelDraftBtn" class="secondary" type="button">添加更多模型</button>` +
+    `</div>` +
+    `<div id="quickConfigSummary" class="quick-summary">` +
+    `<span class="pill info">Models</span><span class="muted">尚未生成草稿</span>` +
+    `</div>` +
+    `</div>` +
+    `<div class="provider-template-panel">` +
+    `<div class="row"><strong>常用厂商模板</strong><span class="muted">点击后填入厂商默认地址和模型名。</span></div>` +
+    `<div id="providerTemplateCards" class="provider-card-grid">${providerCardsHtml}</div>` +
+    `</div>` +
+    `</div>` +
+    `<details class="advanced-section" id="advancedConfigDetails">` +
+    `<summary>高级配置、路由和诊断</summary>` +
     `<div class="subpanel">` +
-    `<div class="row"><strong>Draft Config Preview</strong><span class="muted">编辑当前配置草稿并即时预览 compiled models 结果，不落盘</span></div>` +
+    `<div class="row"><strong>配置草稿</strong><span class="muted">多模型、路由、SmartRouter、治理与 JSON 草稿。</span></div>` +
     `<div class="action-row">` +
     `<button id="loadConfigDraftBtn" type="button">载入当前配置</button>` +
-    `<button id="addModelDraftBtn" type="button">新增 Model</button>` +
     `<button id="applyBalancedPresetBtn" type="button">应用平衡预设</button>` +
     `<button id="previewBalancedPresetBtn" type="button">预览平衡预设</button>` +
     `<button id="applyFastPresetBtn" type="button">应用快速预设</button>` +
@@ -244,7 +275,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div id="modelsFormGrid" class="models-form-grid">` +
     `<div class="panel" style="margin-bottom:0"><span class="muted">No draft models loaded yet</span></div>` +
     `</div>` +
-    `<textarea id="configDraftEditor" aria-label="JSON config draft" style="width:100%;min-height:240px;margin-top:.75rem;padding:.75rem;border-radius:12px;border:1px solid #d1d5db;font:12px/1.5 ui-monospace,SFMono-Regular,monospace" spellcheck="false" placeholder='{"Models":[{"id":"sonnet","api":"https://...","key":"sk-...","interface":"openai","model":"anthropic/claude-sonnet-4","thinking":"auto","metadata":{"vendor_hint":"openrouter"}}],"Router":{"default":"sonnet"}}'></textarea>` +
+    `<textarea id="configDraftEditor" aria-label="JSON config draft" style="width:100%;min-height:240px;margin-top:.75rem;padding:.75rem;border-radius:8px;border:1px solid #d1d5db;font:12px/1.5 ui-monospace,SFMono-Regular,monospace" spellcheck="false" placeholder='{"Models":[{"id":"sonnet","api":"https://...","key":"sk-...","interface":"openai","model":"anthropic/claude-sonnet-4","thinking":"auto","metadata":{"vendor_hint":"openrouter"}}],"Router":{"default":"sonnet"}}'></textarea>` +
     `<div class="muted">JSON 草稿同样建议只写入口字段；保存时会自动归一，旧字段别名无需手动补充。</div>` +
     `<div class="subpanel">` +
     `<div class="row"><strong>Preview Diff</strong><span class="muted">对比当前运行配置与草稿配置的 compiled model 变化</span></div>` +
@@ -303,6 +334,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `</div>` +
     `</div>` +
+    `</details>` +
     `</div>` +
     `</section>` +
     `<section id="maintainerSurface" class="surface-panel" data-surface="maintainer" hidden>` +
@@ -573,6 +605,16 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const draftPresetModeHint=document.getElementById('draftPresetModeHint');` +
     `const draftPresetList=document.getElementById('draftPresetList');` +
     `const draftPreviewMeta=document.getElementById('draftPreviewMeta');` +
+    `const quickProviderTemplate=document.getElementById('quickProviderTemplate');` +
+    `const quickModelId=document.getElementById('quickModelId');` +
+    `const quickModelKey=document.getElementById('quickModelKey');` +
+    `const quickModelName=document.getElementById('quickModelName');` +
+    `const quickModelApi=document.getElementById('quickModelApi');` +
+    `const quickModelNameSuggestions=document.getElementById('quickModelNameSuggestions');` +
+    `const quickConfigStatus=document.getElementById('quickConfigStatus');` +
+    `const quickConfigSummary=document.getElementById('quickConfigSummary');` +
+    `const providerTemplateCards=document.getElementById('providerTemplateCards');` +
+    `const advancedConfigDetails=document.getElementById('advancedConfigDetails');` +
     `const draftValidationList=document.getElementById('draftValidationList');` +
     `const capabilityWarningsList=document.getElementById('capabilityWarningsList');` +
     `const routerSlotSummary=document.getElementById('routerSlotSummary');` +
@@ -818,6 +860,88 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const resolvedKey=(templateKey && modelProviderTemplates[templateKey]) ? templateKey : defaultProviderTemplateKey;` +
     `  const template=modelProviderTemplates[resolvedKey] || {};` +
     `  return { provider_template:resolvedKey, id:template.suggested_id || '', api:template.api || '', interface:template.interface || 'openai', model:template.default_model || '', thinking:template.default_thinking || 'auto' };` +
+    `}` +
+    `function setQuickTemplate(templateKey, options={}){` +
+    `  const resolvedKey=(templateKey && modelProviderTemplates[templateKey]) ? templateKey : defaultProviderTemplateKey;` +
+    `  const template=modelProviderTemplates[resolvedKey] || {};` +
+    `  quickProviderTemplate.value=resolvedKey;` +
+    `  quickModelNameSuggestions.innerHTML=(template.model_examples || []).map(item=>'<option value=\"'+esc(item)+'\"></option>').join('');` +
+    `  quickModelId.placeholder=template.suggested_id || 'sonnet';` +
+    `  quickModelKey.placeholder=template.key_placeholder || 'sk-...';` +
+    `  quickModelName.placeholder=template.default_model || '';` +
+    `  quickModelApi.placeholder=template.api || '';` +
+    `  if(options.force || !quickModelId.value.trim()){ quickModelId.value=template.suggested_id || ''; }` +
+    `  if(options.force || !quickModelName.value.trim()){ quickModelName.value=template.default_model || ''; }` +
+    `  if(options.force || !quickModelApi.value.trim()){ quickModelApi.value=template.api || ''; }` +
+    `  quickConfigStatus.textContent='已选择 '+(template.label || resolvedKey);` +
+    `  renderQuickConfigSummary();` +
+    `}` +
+    `function syncQuickConfigFromDraft(config){` +
+    `  const models=Array.isArray(config?.Models) ? config.Models : [];` +
+    `  const first=models[0] || {};` +
+    `  const templateKey=inferProviderTemplateKey(first) || defaultProviderTemplateKey;` +
+    `  setQuickTemplate(templateKey);` +
+    `  if(first.id){ quickModelId.value=first.id; }` +
+    `  if(first.key || first.api_key){ quickModelKey.value=first.key || first.api_key; }` +
+    `  if(first.model){ quickModelName.value=first.model; }` +
+    `  if(first.api || first.api_base_url){ quickModelApi.value=first.api || first.api_base_url; }` +
+    `  renderQuickConfigSummary();` +
+    `}` +
+    `function buildQuickModel(){` +
+    `  const templateKey=(quickProviderTemplate.value || defaultProviderTemplateKey).trim();` +
+    `  const template=modelProviderTemplates[templateKey] || modelProviderTemplates[defaultProviderTemplateKey] || {};` +
+    `  const modelId=(quickModelId.value || template.suggested_id || 'main').trim();` +
+    `  const metadata={};` +
+    `  if(template.vendor_hint){ metadata.vendor_hint=template.vendor_hint; }` +
+    `  const model={ id:modelId, api:(quickModelApi.value || template.api || '').trim(), key:(quickModelKey.value || '').trim(), interface:template.interface || 'openai', model:(quickModelName.value || template.default_model || '').trim(), thinking:template.default_thinking || 'auto' };` +
+    `  if(Object.keys(metadata).length){ model.metadata=metadata; }` +
+    `  return model;` +
+    `}` +
+    `function buildQuickConfigPayload(){` +
+    `  const model=buildQuickModel();` +
+    `  const source=currentDraftConfig || {};` +
+    `  const payload={};` +
+    `  ['HOST','PORT','LOG','LOG_LEVEL','API_TIMEOUT_MS','NON_INTERACTIVE_MODE','APIKEY','Auth','Runtime'].forEach((key)=>{ if(source[key] !== undefined){ payload[key]=source[key]; } });` +
+    `  payload.Models=[model];` +
+    `  payload.Router={ default:model.id };` +
+    `  return payload;` +
+    `}` +
+    `function renderQuickConfigSummary(payload){` +
+    `  const config=(payload && Array.isArray(payload.Models)) ? payload : buildQuickConfigPayload();` +
+    `  const model=config.Models?.[0] || {};` +
+    `  const template=modelProviderTemplates[model.provider_template || quickProviderTemplate.value] || {};` +
+    `  quickConfigSummary.innerHTML='<span class=\"pill info\">'+esc(template.label || model.provider_template || 'provider')+'</span><strong>'+esc(model.id || '-')+'</strong><span class=\"muted\">'+esc(model.model || '-')+'</span><span class=\"muted\">Router.default = '+esc(config.Router?.default || '-')+'</span>';` +
+    `}` +
+    `function applyQuickConfig(){` +
+    `  const payload=buildQuickConfigPayload();` +
+    `  currentDraftConfig=payload;` +
+    `  renderModelsForm(payload.Models || []);` +
+    `  renderConfigControlForms(payload);` +
+    `  draftRouterDefault.value=payload.Router?.default || '';` +
+    `  configDraftEditor.value=JSON.stringify(payload,null,2);` +
+    `  renderDraftSummary(payload);` +
+    `  renderDraftValidation([],[]);` +
+    `  renderCapabilityWarnings();` +
+    `  renderRouterSlotExplanation(withDraftCompiledData(payload));` +
+    `  renderContextWindowGuide(withDraftCompiledData(payload));` +
+    `  renderDraftPreviewMeta();` +
+    `  renderQuickConfigSummary(payload);` +
+    `  quickConfigStatus.textContent='已生成基础配置草稿';` +
+    `  draftPreviewStatus.textContent='已从一键配置生成草稿';` +
+    `  return payload;` +
+    `}` +
+    `async function previewQuickConfig(){` +
+    `  const payload=applyQuickConfig();` +
+    `  quickConfigStatus.textContent='预览配置中...';` +
+    `  await previewConfigDraft();` +
+    `  quickConfigStatus.textContent='预览完成，可保存配置';` +
+    `  return payload;` +
+    `}` +
+    `async function saveQuickConfig(){` +
+    `  applyQuickConfig();` +
+    `  quickConfigStatus.textContent='保存配置中...';` +
+    `  await saveConfigDraft();` +
+    `  quickConfigStatus.textContent=draftPreviewStatus.textContent || '保存完成';` +
     `}` +
     `function getModelIdSuggestionsMarkup(idPrefix){` +
     `  return '<datalist id=\"'+idPrefix+'\">'+knownModelIds.map(modelId=>'<option value=\"'+esc(modelId)+'\"></option>').join('')+'</datalist>';` +
@@ -1513,6 +1637,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  currentDraftConfig=data || {};` +
     `  renderModelsForm(currentDraftConfig.Models || []);` +
     `  renderConfigControlForms(currentDraftConfig);` +
+    `  syncQuickConfigFromDraft(currentDraftConfig);` +
     `  draftRouterDefault.value=currentDraftConfig.Router?.default || '';` +
     `  configDraftEditor.value=JSON.stringify(data,null,2);` +
     `  renderDraftSummary(currentDraftConfig);` +
@@ -1635,6 +1760,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  }` +
     `  currentDraftConfig=data.normalizedConfig || payload;` +
     `  renderModelsForm(currentDraftConfig.Models || []);` +
+    `  syncQuickConfigFromDraft(currentDraftConfig);` +
     `  configDraftEditor.value=JSON.stringify(currentDraftConfig,null,2);` +
     `  await loadCompiledModels();` +
     `  renderDraftValidation(data.errors || [], data.warnings || [], data.issueReport);` +
@@ -1645,6 +1771,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const nextModels=extractModelsFromForm();` +
     `  nextModels.push(createDraftModelFromTemplate(defaultProviderTemplateKey));` +
     `  renderModelsForm(nextModels);` +
+    `  if(advancedConfigDetails){ advancedConfigDetails.open=true; }` +
     `  syncDraftEditorFromForm();` +
     `}` +
     `function addTriggerRule(){ const next=extractTriggerRulesFromForm(); next.push({ name:'', enabled:true, priority:10, model:'', patterns:[{ type:'exact', keywords:[] }] }); renderTriggerRulesList(next); syncDraftEditorFromForm(); }` +
@@ -1674,7 +1801,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `draftRouterDefault.addEventListener('input',syncDraftEditorFromForm);` +
     `[triggerEnabled,triggerIntentEnabled,triggerAnalysisScope,triggerIntentModel,smartEnabled,smartRouterModel,smartFallback,smartCacheTtl,smartMaxTokens,governanceEnabled,governanceAlignmentEnabled,governanceSummarizerModel,governanceSemanticEnabled,governanceClassifierModel,governanceShadowEnabled,governanceVerifierModel].forEach(el=>{ el.addEventListener('input',syncDraftEditorFromForm); el.addEventListener('change',syncDraftEditorFromForm); });` +
     `surfaceTabs.forEach((tab)=>tab.addEventListener('click',()=>setActiveSurface(tab.dataset.surfaceTarget || 'user')));` +
-    `surfaceJumpButtons.forEach((button)=>button.addEventListener('click',()=>jumpToSurface(button.dataset.surfaceJump || 'user')));` +
+    `surfaceJumpButtons.forEach((button)=>button.addEventListener('click',()=>{ jumpToSurface(button.dataset.surfaceJump || 'user'); if(button.dataset.openAdvanced && advancedConfigDetails){ advancedConfigDetails.open=true; } }));` +
     `setActiveSurface('user');` +
     `function renderMetrics(metrics,health,outcome){` +
     `  metricsGrid.innerHTML=[` +
@@ -2081,6 +2208,12 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `document.getElementById('previewConfigDraftHeroBtn').addEventListener('click',previewConfigDraft);` +
     `document.getElementById('refreshStatusHeroBtn').addEventListener('click',loadServiceStatus);` +
     `document.getElementById('loadConfigDraftBtn').addEventListener('click',loadConfigDraft);` +
+    `quickProviderTemplate.addEventListener('change',()=>setQuickTemplate(quickProviderTemplate.value,{ force:true }));` +
+    `[quickModelId,quickModelKey,quickModelName,quickModelApi].forEach(el=>{ el.addEventListener('input',renderQuickConfigSummary); el.addEventListener('change',renderQuickConfigSummary); });` +
+    `providerTemplateCards.addEventListener('click',(e)=>{ const btn=e.target.closest('button[data-provider-template]'); if(!btn){ return; } setQuickTemplate(btn.dataset.providerTemplate,{ force:true }); });` +
+    `document.getElementById('applyQuickConfigBtn').addEventListener('click',applyQuickConfig);` +
+    `document.getElementById('previewQuickConfigBtn').addEventListener('click',previewQuickConfig);` +
+    `document.getElementById('saveQuickConfigBtn').addEventListener('click',saveQuickConfig);` +
     `document.getElementById('addModelDraftBtn').addEventListener('click',addDraftModel);` +
     `document.getElementById('applyBalancedPresetBtn').addEventListener('click',()=>applyDraftPreset('balanced'));` +
     `document.getElementById('previewBalancedPresetBtn').addEventListener('click',()=>previewDraftPreset('balanced'));` +

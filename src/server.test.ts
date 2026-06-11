@@ -3112,10 +3112,13 @@ describe('createServer /api/config', () => {
     const html = await handler({}, reply);
 
     expect(reply.header).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
-    expect(html).toContain('角色化路由工作台');
+    expect(html).toContain('配置向导');
     expect(html).toContain('角色任务入口');
     expect(html).toContain('uiDesignAssistantPanel');
-    expect(html).toContain('UX 诊断');
+    expect(html).toContain('一键模型配置');
+    expect(html).toContain('常用厂商模板');
+    expect(html).toContain('id="quickProviderTemplate"');
+    expect(html).toContain('id="advancedConfigDetails"');
     expect(html).toContain('serviceReadyStatus');
     expect(html).toContain('servicePortStatus');
     expect(html).toContain('modelCountStatus');
@@ -3153,12 +3156,12 @@ describe('createServer /api/config', () => {
     expect(html).toContain('setActiveSurface');
     expect(html).toContain('setActiveSurface(\'user\')');
     expect(html).toContain('<section id="maintainerSurface" class="surface-panel" data-surface="maintainer" hidden>');
-    expect(html.indexOf('Draft Config Preview')).toBeLessThan(html.indexOf('维护者观测'));
+    expect(html.indexOf('常用配置')).toBeLessThan(html.indexOf('维护者观测'));
     expect(html).toContain('维护者观测');
     expect(html).toContain('Governance Trace');
     expect(html).toContain('/api/models/compiled');
     expect(html).toContain('/api/models/compiled/preview');
-    expect(html).toContain('Draft Config Preview');
+    expect(html).toContain('配置草稿');
     expect(html).toContain('draftSummaryGrid');
     expect(html).toContain('draftPresetList');
     expect(html).toContain('draftPreviewMeta');

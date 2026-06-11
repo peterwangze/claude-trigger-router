@@ -17,6 +17,7 @@ const CDP_COMMAND_TIMEOUT_MS = Number(process.env.CTR_BROWSER_SMOKE_CDP_TIMEOUT_
 
 let ctrProcess;
 let browserProcess;
+let cdp;
 let upstreamServer;
 const ctrLogs = [];
 const browserLogs = [];
@@ -26,6 +27,7 @@ const hardTimeout = setTimeout(() => {
   printProcessTail('browser', browserLogs);
   Promise.allSettled([
     terminateProcess(browserProcess),
+    terminateBrowserProfileProcesses(userDataDir),
     terminateProcess(ctrProcess),
     closeServer(upstreamServer),
     removeWithRetry(tmpRoot),
@@ -94,7 +96,7 @@ try {
   captureProcessLogs(browserProcess, browserLogs);
 
   const target = await waitForCdpTarget(cdpPort, appUrl);
-  const cdp = await connectCdp(target.webSocketDebuggerUrl);
+  cdp = await connectCdp(target.webSocketDebuggerUrl);
 
   await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
@@ -121,6 +123,8 @@ try {
 } finally {
   clearTimeout(hardTimeout);
   await terminateProcess(browserProcess);
+  await terminateBrowserProfileProcesses(userDataDir);
+  await cdp?.close?.();
   await terminateProcess(ctrProcess);
   await closeServer(upstreamServer);
   await removeWithRetry(tmpRoot);
@@ -162,6 +166,7 @@ function smokeExpression() {
       href: location.href,
       bodyText: document.body?.innerText?.slice(0, 240) || '',
       roleEntry: Boolean(document.querySelector('#localUserRoleCard') && document.querySelector('#remoteClientRoleCard') && document.querySelector('#maintainerRoleCard') && document.querySelector('#routingDesignerRoleCard')),
+      quickConfig: Boolean(document.querySelector('#quickProviderTemplate') && document.querySelector('#applyQuickConfigBtn') && document.querySelector('#providerTemplateCards [data-provider-template="openrouter"]')),
       designPanel: Boolean(document.querySelector('#uiDesignAssistantPanel')),
       decisionRail: Boolean(document.querySelector('#maintainerDecisionRail .decision-signal')),
       traceEvidence: Boolean(document.querySelector('#traceEvidenceDetail')),
@@ -190,8 +195,9 @@ function smokeExpression() {
 
 function assertSmokeResult(label, result) {
   const failures = [];
-  if (!result.title.includes('角色化路由工作台')) failures.push('missing role-aware title');
+  if (!result.title.includes('配置向导')) failures.push('missing config wizard title');
   if (!result.roleEntry) failures.push('missing role entry cards');
+  if (!result.quickConfig) failures.push('missing quick config controls');
   if (!result.designPanel) failures.push('missing UI design assistant panel');
   if (!result.decisionRail) failures.push('missing maintainer decision rail');
   if (!result.traceEvidence) failures.push('missing trace evidence detail anchor');
@@ -254,7 +260,11 @@ async function closeServer(server) {
   if (!server?.listening) {
     return;
   }
-  await new Promise((resolve) => server.close(() => resolve()));
+  await Promise.race([
+    new Promise((resolve) => server.close(() => resolve())),
+    delay(2000),
+  ]);
+  server.closeAllConnections?.();
 }
 
 async function terminateProcess(child) {
@@ -262,12 +272,20 @@ async function terminateProcess(child) {
     return;
   }
 
+  const detachChild = () => {
+    child.stdout?.destroy();
+    child.stderr?.destroy();
+    child.stdin?.destroy();
+    child.unref?.();
+  };
+
   if (process.platform === 'win32') {
-    await new Promise((resolve) => {
-      const killer = spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-      killer.once('exit', resolve);
-      killer.once('error', resolve);
-    });
+    await runTaskkill(child.pid);
+    if (child.exitCode === null) {
+      child.kill();
+      await Promise.race([new Promise((resolve) => child.once('exit', resolve)), delay(1000)]);
+    }
+    detachChild();
     await delay(500);
     return;
   }
@@ -280,6 +298,50 @@ async function terminateProcess(child) {
     child.kill('SIGKILL');
     await Promise.race([exited, delay(2000)]);
   }
+  detachChild();
+}
+
+async function terminateBrowserProfileProcesses(profileDir) {
+  if (process.platform !== 'win32') {
+    return;
+  }
+  const script = [
+    '$profile = $env:CTR_BROWSER_PROFILE_DIR;',
+    'Get-CimInstance Win32_Process |',
+    '  Where-Object { $_.CommandLine -and $_.CommandLine.Contains($profile) -and $_.Name -match "^(msedge|chrome|chromium)\\.exe$" } |',
+    '  ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }',
+  ].join(' ');
+  await runProcessWithTimeout('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script], {
+    CTR_BROWSER_PROFILE_DIR: profileDir,
+  });
+}
+
+async function runTaskkill(pid) {
+  await runProcessWithTimeout('taskkill', ['/PID', String(pid), '/T', '/F']);
+}
+
+async function runProcessWithTimeout(command, args, extraEnv = {}, timeoutMs = 5000) {
+  let killer;
+  let timeout;
+  await new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeout);
+      killer?.unref?.();
+      resolve();
+    };
+    killer = spawn(command, args, { env: { ...process.env, ...extraEnv }, stdio: 'ignore' });
+    timeout = setTimeout(() => {
+      killer?.kill();
+      finish();
+    }, 5000);
+    killer.once('exit', finish);
+    killer.once('error', finish);
+  });
 }
 
 async function removeWithRetry(path) {

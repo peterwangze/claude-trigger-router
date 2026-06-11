@@ -953,9 +953,11 @@ describe('isolated packaged CLI acceptance', () => {
 
       const uiPage = await fetchTextWithRetry(`http://127.0.0.1:${port}/ui`);
       expect(uiPage.contentType).toContain('text/html');
-      expect(uiPage.text).toContain('角色化路由工作台');
+      expect(uiPage.text).toContain('配置向导');
       expect(uiPage.text).toContain('角色任务入口');
-      expect(uiPage.text).toContain('UX 诊断');
+      expect(uiPage.text).toContain('一键模型配置');
+      expect(uiPage.text).toContain('常用厂商模板');
+      expect(uiPage.text).toContain('id="quickProviderTemplate"');
       expect(uiPage.text).toContain('维护者工作台');
       expect(uiPage.text).toContain('/api/governance/health');
       expect(uiPage.text).toContain('id="healthSummary"');

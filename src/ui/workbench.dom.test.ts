@@ -504,12 +504,16 @@ describe('workbench DOM smoke', () => {
     const styles = renderWorkbenchStyles();
 
     expect(styles).toContain('.role-grid');
+    expect(styles).toContain('.quick-config-grid');
+    expect(styles).toContain('.provider-card-grid');
+    expect(styles).toContain('.advanced-section');
     expect(styles).toContain('.surface-tabs');
     expect(styles).toContain('.app-shell>*{min-width:0;max-width:100%}');
     expect(styles).toContain('.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.62fr);gap:1rem;align-items:stretch;margin-bottom:1rem;min-width:0;max-width:100%}');
     expect(styles).toContain('.decision-rail');
     expect(styles).toContain('.decision-signal');
     expect(styles).toContain('@media (max-width:760px)');
+    expect(styles).toContain('@media (max-width:980px){.hero,.task-map,.quick-config-grid{grid-template-columns:1fr}');
     expect(styles).toContain('.management-table,.trend-table,table{display:block;overflow-x:auto;white-space:nowrap}');
   });
 
@@ -543,8 +547,45 @@ describe('workbench DOM smoke', () => {
 
     expect(document.getElementById('routerDefaultStatus')?.textContent).toBe('sonnet');
     expect(document.getElementById('configDraftEditor')?.textContent || (document.getElementById('configDraftEditor') as HTMLTextAreaElement).value).toContain('claude-sonnet-4');
+    expect(document.getElementById('quickProviderTemplate')).toHaveProperty('value', 'openrouter');
+    expect(document.getElementById('quickModelKey')).toHaveProperty('value', 'sk-test');
+    expect(document.getElementById('providerTemplateCards')?.textContent).toContain('OpenRouter');
     expect(document.querySelector('#compiledModelMapTable tbody')?.textContent).toContain('model__sonnet');
     expect(document.getElementById('contextWindowGuide')?.textContent).toContain('Context window guide');
+
+    dom.window.close();
+  });
+
+  it('builds a basic model config from provider templates without opening advanced controls', async () => {
+    const { dom } = await createWorkbenchDom();
+    const document = dom.window.document;
+
+    document.querySelector<HTMLButtonElement>('[data-provider-template="deepseek"]')?.click();
+    await waitFor(() => {
+      expect(document.getElementById('quickProviderTemplate')).toHaveProperty('value', 'deepseek');
+    });
+
+    (document.getElementById('quickModelKey') as HTMLInputElement).value = 'sk-deepseek';
+    document.getElementById('applyQuickConfigBtn')?.click();
+
+    await waitFor(() => {
+      expect(document.getElementById('quickConfigStatus')?.textContent).toContain('已生成基础配置草稿');
+      expect(document.getElementById('quickConfigSummary')?.textContent).toContain('deepseek_chat');
+    });
+
+    const draft = JSON.parse((document.getElementById('configDraftEditor') as HTMLTextAreaElement).value);
+    expect(draft.Models).toEqual([
+      expect.objectContaining({
+        id: 'deepseek_chat',
+        api: 'https://api.deepseek.com/chat/completions',
+        key: 'sk-deepseek',
+        interface: 'openai',
+        model: 'deepseek-chat',
+      }),
+    ]);
+    expect(draft.Models[0]).not.toHaveProperty('provider_template');
+    expect(draft.Router.default).toBe('deepseek_chat');
+    expect(document.getElementById('advancedConfigDetails')).toHaveProperty('open', false);
 
     dom.window.close();
   });

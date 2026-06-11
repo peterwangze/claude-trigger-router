@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.19.0` minor release 的优先级是部署形态与远程接入收敛。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 fresh setup、远程转发、配置保存、鉴权、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回不回退、`/ui` 角色化入口不漂移、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail 可达和真实浏览器布局不横向溢出。
+本次 `v1.19.1` patch release 的优先级是 `/ui` 配置向导与一键模型配置体验修复。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 fresh setup、远程转发、配置保存、鉴权、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回不回退、`/ui` 配置向导、quick config 常用厂商模板、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail 可达和真实浏览器布局不横向溢出。
 
 ## 一次性准备
 
@@ -26,26 +26,25 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.19.0` 的发布边界以 `docs/release-notes-v1.19.0.md` 为准：主打部署形态与远程接入收敛、remote discovery、remote availability、server/client guidance alignment 和真实浏览器 smoke。
+   - 本次 `v1.19.1` 的发布边界以 `docs/release-notes-v1.19.1.md` 为准：主打 `/ui` 配置向导、一键模型配置、常用模型厂商模板、高级配置后置和真实浏览器 smoke 稳定退出。
 2. 本地先执行发布包验证：
 
 ```bash
 npm run release:verify
 ```
 
-v1.19.0 期间建议在正式 `release:verify` 前额外跑一次远程接入与 UI 专项：
+v1.19.1 期间建议在正式 `release:verify` 前额外跑一次 UI 配置向导专项：
 
 ```bash
 npx vitest --run src/deploy-assets.test.ts
-npx vitest --run src/service-health.test.ts src/server.test.ts
-npx vitest --run src/doctor/index.test.ts src/setup/index.test.ts
 npm run test:ui
 npm run test:ui:browser
+npm run test:e2e:acceptance -- -t "release:stage creates a usable isolated wrapper that points to the staged HOME"
 npm run test:e2e:cli:entry
 npm run test:route-ux
 ```
 
-这条专项把 README/发布说明入口、`/ui` 角色化第一屏、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail、真实浏览器桌面/移动布局、help/setup/doctor/code/ui 短入口、setup fresh、remote client、server deployment、route preview、即时流式输出、上游断流可读 error、远程中转取消和结构化 API error 串成同一个发布前门禁。它关注用户能直接感知的“能不能进入、会不会卡住、错误能不能读懂、远端是否可用、页面会不会溢出”，不是只检查内部函数返回。
+这条专项把 README/发布说明入口、`/ui` 配置向导第一屏、一键模型配置、常用厂商模板、DeepSeek 最小配置草稿、advanced controls 默认折叠、真实浏览器桌面/移动布局、release stage wrapper 和 help/setup/doctor/code/ui 短入口串成同一个发布前门禁。它关注用户能直接感知的“能不能进入、能不能少想一步完成配置、页面会不会溢出、浏览器 smoke 会不会卡住”，不是只检查内部函数返回。
 
 v1.12.0 期间建议在正式 `release:verify` 前额外跑一次流式稳定专项：
 

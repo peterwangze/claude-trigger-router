@@ -226,14 +226,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.19.0.md](docs/release-notes-v1.19.0.md)
+- 发布说明：[docs/release-notes-v1.19.1.md](docs/release-notes-v1.19.1.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.19.0 发布定位
+## v1.19.1 发布定位
 
-`v1.19.0` 是部署形态与远程接入收敛版。它不新增托管控制面或集群调度，而是在现有 local thin proxy、server profile、remote status 和 registration 基础上，让远程客户端与服务维护者更清楚地判断连到谁、远端是否 ready、有哪些模型可用，以及失败后该找谁处理。
+`v1.19.1` 是配置向导与一键模型配置体验修复版。它不改变路由协议或远程接入语义，而是把 `/ui` 默认入口收敛到普通用户最常见的模型配置任务：选厂商、填 Key、确认默认模型并保存。
 
-这一版新增 `/api/remote-status` 的 discovery 与 availability 摘要，`/ui` Role & connection guide 同步展示 remote discovery / availability，`ctr doctor` 和 `ctr setup` 也统一到 service-scope 远程接入口径。完整发布边界见 [docs/release-notes-v1.19.0.md](docs/release-notes-v1.19.0.md)。
+这一版内置 OpenRouter、DeepSeek、OpenAI-compatible、Anthropic 和 SiliconFlow 模板，`/ui` 一键生成推荐的 `Models + Router.default` 配置；高级路由、SmartRouter、治理和诊断仍保留在高级区。完整发布边界见 [docs/release-notes-v1.19.1.md](docs/release-notes-v1.19.1.md)。
 
 ## License
 

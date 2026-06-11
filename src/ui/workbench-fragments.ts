@@ -10,7 +10,17 @@ export const WORKBENCH_FRAGMENT_CONTRACTS: IWorkbenchFragmentContract[] = [
     surface: 'user',
     name: 'config-draft',
     rootId: 'userSurface',
-    requiredAnchors: ['loadConfigDraftBtn', 'previewConfigDraftBtn', 'saveConfigDraftBtn', 'modelsFormGrid'],
+    requiredAnchors: [
+      'quickProviderTemplate',
+      'quickModelKey',
+      'applyQuickConfigBtn',
+      'previewQuickConfigBtn',
+      'saveQuickConfigBtn',
+      'loadConfigDraftBtn',
+      'previewConfigDraftBtn',
+      'saveConfigDraftBtn',
+      'modelsFormGrid',
+    ],
   },
   {
     surface: 'user',
