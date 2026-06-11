@@ -226,14 +226,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.19.1.md](docs/release-notes-v1.19.1.md)
+- 发布说明：[docs/release-notes-v1.19.2.md](docs/release-notes-v1.19.2.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.19.1 发布定位
+## v1.19.2 发布定位
 
-`v1.19.1` 是配置向导与一键模型配置体验修复版。它不改变路由协议或远程接入语义，而是把 `/ui` 默认入口收敛到普通用户最常见的模型配置任务：选厂商、填 Key、确认默认模型并保存。
+`v1.19.2` 是新版 Claude 长任务超时与流式中断修复版。它不改变模型配置、路由选择或远程接入语义，重点修复远程客户端模式下约 10 分钟主动 abort，以及 agent 工具续写链路可能中途静默停止的问题。
 
-这一版内置 OpenRouter、DeepSeek、OpenAI-compatible、Anthropic 和 SiliconFlow 模板，`/ui` 一键生成推荐的 `Models + Router.default` 配置；高级路由、SmartRouter、治理和诊断仍保留在高级区。完整发布边界见 [docs/release-notes-v1.19.1.md](docs/release-notes-v1.19.1.md)。
+这一版让 `API_TIMEOUT_MS` 只保护远端服务开始响应的等待期，远端 stream 建立后不再被 CTR 的 600 秒定时器掐断；agent/tool follow-up stream 也不再把瞬时背压当成停止信号。完整发布边界见 [docs/release-notes-v1.19.2.md](docs/release-notes-v1.19.2.md)。
 
 ## License
 

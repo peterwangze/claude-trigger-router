@@ -13,6 +13,8 @@ const mockTriggerRoute = vi.fn();
 const mockTriggerGetSmartRouterConfig = vi.fn();
 const mockSessionStateGet = vi.fn();
 const mockGetAllAgents = vi.fn().mockReturnValue([]);
+const mockGetAgent = vi.fn();
+const mockRewriteStream = vi.fn();
 const mockApiKeyAuth = vi.fn().mockReturnValue((_req: unknown, _reply: unknown, done: (err?: Error) => void) => done());
 const mockFinalizeTrace = vi.fn((trace: unknown) => trace);
 const mockRecordGovernanceTrace = vi.fn();
@@ -77,12 +79,13 @@ vi.mock('./utils/SSESerializer.transform', () => ({
 }));
 
 vi.mock('./utils/rewriteStream', () => ({
-  rewriteStream: vi.fn(),
+  rewriteStream: mockRewriteStream,
 }));
 
 vi.mock('./agents', () => ({
   default: {
     getAllAgents: mockGetAllAgents,
+    getAgent: mockGetAgent,
   },
 }));
 
@@ -138,7 +141,7 @@ vi.mock('./protocols', () => ({
 }));
 
 describe('run startup wiring', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.unstubAllGlobals();
@@ -187,6 +190,35 @@ describe('run startup wiring', () => {
       },
     });
     mockSessionStateGet.mockReturnValue(undefined);
+    mockGetAgent.mockReturnValue(undefined);
+    const { SSEParserTransform } = await import('./utils/SSEParser.transform');
+    const { SSESerializerTransform } = await import('./utils/SSESerializer.transform');
+    vi.mocked(SSEParserTransform).mockImplementation(() => new TransformStream() as any);
+    vi.mocked(SSESerializerTransform).mockImplementation(() => new TransformStream() as any);
+    mockRewriteStream.mockImplementation((stream: ReadableStream, handler: (data: any, controller: any) => Promise<any>) => {
+      const reader = stream.getReader();
+      return new ReadableStream({
+        async start(controller) {
+          try {
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) {
+                controller.close();
+                break;
+              }
+              const result = await handler(value, controller);
+              if (result !== undefined) {
+                controller.enqueue(result);
+              }
+            }
+          } catch (error) {
+            controller.error(error);
+          } finally {
+            reader.releaseLock();
+          }
+        },
+      });
+    });
   });
 
   it('creates the server without jsonPath and writes log files directly under HOME_DIR', async () => {
@@ -522,6 +554,138 @@ describe('run startup wiring', () => {
     );
   });
 
+  it('continues agent tool follow-up streaming instead of stopping on transient backpressure', async () => {
+    const toolAgent = {
+      name: 'coder',
+      tools: new Map([
+        [
+          'apply_patch',
+          {
+            name: 'apply_patch',
+            description: 'Apply patch',
+            input_schema: {},
+            handler: vi.fn().mockResolvedValue('patched'),
+          },
+        ],
+      ]),
+    };
+    mockGetAgent.mockImplementation((name: string) => (name === 'coder' ? toolAgent : undefined));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue({
+            event: 'content_block_delta',
+            data: {
+              index: 0,
+              delta: {
+                text: 'first continuation',
+              },
+            },
+          });
+          controller.enqueue({
+            event: 'content_block_delta',
+            data: {
+              index: 0,
+              delta: {
+                text: 'second continuation',
+              },
+            },
+          });
+          controller.close();
+        },
+      }),
+    }));
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const firstOnSendHook = addHook.mock.calls.filter(([name]: [string]) => name === 'onSend')[0]?.[1];
+    const done = vi.fn();
+    const payload = new ReadableStream({
+      start(controller) {
+        controller.enqueue({
+          event: 'content_block_start',
+          data: {
+            index: 0,
+            content_block: {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'apply_patch',
+            },
+          },
+        });
+        controller.enqueue({
+          event: 'content_block_delta',
+          data: {
+            index: 0,
+            delta: {
+              type: 'input_json_delta',
+              partial_json: '{"file":"index.ts"}',
+            },
+          },
+        });
+        controller.enqueue({
+          event: 'content_block_stop',
+          data: {
+            index: 0,
+            type: 'content_block_stop',
+          },
+        });
+        controller.enqueue({
+          event: 'message_delta',
+          data: {
+            usage: { input_tokens: 1, output_tokens: 1 },
+          },
+        });
+        controller.close();
+      },
+    });
+    const req: any = {
+      url: '/v1/messages',
+      sessionId: 'session-agent-follow-up',
+      agents: ['coder'],
+      body: {
+        model: 'sonnet',
+        messages: [],
+      },
+    };
+
+    firstOnSendHook(req, {}, payload, done);
+
+    expect(done).toHaveBeenCalledWith(null, expect.any(ReadableStream));
+    const outputStream = done.mock.calls[0][1] as ReadableStream;
+    const reader = outputStream.getReader();
+    const output: any[] = [];
+    while (true) {
+      const { value, done: streamDone } = await reader.read();
+      if (streamDone) {
+        break;
+      }
+      output.push(value);
+    }
+
+    expect(output).toEqual([
+      expect.objectContaining({
+        data: expect.objectContaining({
+          delta: expect.objectContaining({
+            text: 'first continuation',
+          }),
+        }),
+      }),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          delta: expect.objectContaining({
+            text: 'second continuation',
+          }),
+        }),
+      }),
+    ]);
+
+    vi.unstubAllGlobals();
+  });
+
   it('forwards local model calls to the configured remote service before local routing', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: 'msg_remote' }), {
@@ -676,6 +840,84 @@ describe('run startup wiring', () => {
     expect(fetchSignal?.aborted).toBe(true);
     expect(reply.send).toHaveBeenCalledWith(expect.any(ReadableStream));
 
+    vi.unstubAllGlobals();
+  });
+
+  it('does not abort an active remote stream after the response-start timeout window', async () => {
+    vi.useFakeTimers();
+    let fetchSignal: AbortSignal | undefined;
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn().mockImplementation((_url, init) => {
+      fetchSignal = init.signal;
+      return Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"started"}}\n\n'));
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              'content-type': 'text/event-stream',
+            },
+          }
+        )
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    mockInitConfig.mockResolvedValue({
+      HOST: '127.0.0.1',
+      PORT: 5678,
+      LOG: false,
+      APIKEY: 'local-admin',
+      API_TIMEOUT_MS: 600000,
+      Providers: [],
+      Runtime: {
+        mode: 'local',
+        remote_service: {
+          enabled: true,
+          base_url: 'https://router.example.com/',
+          auth_token: 'remote-client-token',
+        },
+      },
+    });
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const remoteForwardHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler')[1]?.[1];
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      raw: {
+        once: vi.fn(),
+      },
+    };
+    const req: any = {
+      id: 'req-remote-long-stream',
+      method: 'POST',
+      url: '/v1/messages',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer local-admin',
+      },
+      body: {
+        model: 'sonnet',
+        messages: [{ role: 'user', content: 'long task' }],
+      },
+    };
+
+    await remoteForwardHook(req, reply);
+    await vi.advanceTimersByTimeAsync(600001);
+
+    expect(fetchSignal).toBeDefined();
+    expect(fetchSignal?.aborted).toBe(false);
+    expect(reply.send).toHaveBeenCalledWith(expect.any(ReadableStream));
+
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 

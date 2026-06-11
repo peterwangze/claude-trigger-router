@@ -174,39 +174,6 @@ function isSSEContentType(contentType: string | null): boolean {
   return Boolean(contentType?.toLowerCase().includes("text/event-stream"));
 }
 
-function clearTimerOnStreamClose(
-  stream: ReadableStream<Uint8Array>,
-  clear: () => void
-): ReadableStream<Uint8Array> {
-  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
-
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      reader = stream.getReader();
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) {
-            break;
-          }
-          controller.enqueue(value);
-        }
-        controller.close();
-      } catch (error) {
-        controller.error(error);
-      } finally {
-        clear();
-        reader?.releaseLock();
-        reader = undefined;
-      }
-    },
-    cancel(reason) {
-      clear();
-      return reader?.cancel(reason);
-    },
-  });
-}
-
 async function forwardModelCallToRemote(req: any, reply: any, config: any): Promise<boolean> {
   if (!isModelCallPath(req.url) || !isRemoteForwardEnabled(config) || req.headers?.["x-ctr-remote-forward"] === "1") {
     return false;
@@ -218,18 +185,18 @@ async function forwardModelCallToRemote(req: any, reply: any, config: any): Prom
   const path = forwardPath.split("?")[0];
   const targetUrl = `${remoteBaseUrl}${forwardPath}`;
   const abortController = new AbortController();
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  const clearRemoteTimeout = () => {
-    if (timeout) {
-      clearTimeout(timeout);
-      timeout = undefined;
+  let responseStartTimeout: ReturnType<typeof setTimeout> | undefined;
+  const clearRemoteResponseStartTimeout = () => {
+    if (responseStartTimeout) {
+      clearTimeout(responseStartTimeout);
+      responseStartTimeout = undefined;
     }
   };
-  timeout = setTimeout(() => {
+  responseStartTimeout = setTimeout(() => {
     abortController.abort(new Error("remote_forward_timeout"));
   }, config.API_TIMEOUT_MS ?? 600_000);
   const abortOnClientClose = () => {
-    clearRemoteTimeout();
+    clearRemoteResponseStartTimeout();
     abortController.abort(new Error("client_connection_closed"));
   };
   reply.raw?.once?.("close", abortOnClientClose);
@@ -240,6 +207,7 @@ async function forwardModelCallToRemote(req: any, reply: any, config: any): Prom
       body: req.body === undefined ? undefined : JSON.stringify(req.body),
       signal: abortController.signal,
     });
+    clearRemoteResponseStartTimeout();
     reply.code(response.status);
     const contentType = response.headers.get("content-type");
     if (contentType) {
@@ -252,13 +220,11 @@ async function forwardModelCallToRemote(req: any, reply: any, config: any): Prom
     req.remoteForwarded = true;
     req.responseGovernanceApplied = true;
     if (response.body) {
-      const body = clearTimerOnStreamClose(response.body, clearRemoteTimeout);
       reply.send(isSSEContentType(contentType)
-        ? governStreamingResponse(body, req, config, config.PORT ?? 5678)
-        : body);
+        ? governStreamingResponse(response.body, req, config, config.PORT ?? 5678)
+        : response.body);
       return true;
     }
-    clearRemoteTimeout();
     reply.send(response.ok ? {} : { error: `Remote service returned HTTP ${response.status}` });
     return true;
   } catch (error) {
@@ -276,9 +242,7 @@ async function forwardModelCallToRemote(req: any, reply: any, config: any): Prom
     });
     return true;
   } finally {
-    if (!req.remoteForwarded) {
-      clearRemoteTimeout();
-    }
+    clearRemoteResponseStartTimeout();
   }
 }
 
@@ -829,11 +793,6 @@ async function run(options: RunOptions = {}) {
                         ["message_start", "message_stop"].includes(value.event)
                       ) {
                         continue;
-                      }
-
-                      if (!controller.desiredSize) {
-                        logWarn("Stream backpressure detected");
-                        break;
                       }
 
                       controller.enqueue(value);
