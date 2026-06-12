@@ -226,14 +226,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.19.2.md](docs/release-notes-v1.19.2.md)
+- 发布说明：[docs/release-notes-v1.19.3.md](docs/release-notes-v1.19.3.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.19.2 发布定位
+## v1.19.3 发布定位
 
-`v1.19.2` 是新版 Claude 长任务超时与流式中断修复版。它不改变模型配置、路由选择或远程接入语义，重点修复远程客户端模式下约 10 分钟主动 abort，以及 agent 工具续写链路可能中途静默停止的问题。
+`v1.19.3` 是 Claude 流式断流系统修复版。它不改变模型配置、路由选择或远程接入语义，重点补齐 `v1.19.2` 后仍复现的随机中断、第二轮卡顿、手动停止后新对话 socket close 和 API error 后继续又停的问题。
 
-这一版让 `API_TIMEOUT_MS` 只保护远端服务开始响应的等待期，远端 stream 建立后不再被 CTR 的 600 秒定时器掐断；agent/tool follow-up stream 也不再把瞬时背压当成停止信号。完整发布边界见 [docs/release-notes-v1.19.2.md](docs/release-notes-v1.19.2.md)。
+这一版新增 stream lifecycle 诊断、默认流式安全关闭、远程与 agent follow-up 的取消传播，以及第二轮/继续请求回归看护，避免 CTR 把内部 stream 错误升级成不可读 socket 断连。完整发布边界见 [docs/release-notes-v1.19.3.md](docs/release-notes-v1.19.3.md)。
 
 ## License
 

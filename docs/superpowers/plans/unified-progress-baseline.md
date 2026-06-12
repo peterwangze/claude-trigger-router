@@ -460,9 +460,10 @@
 | v1.17.0 | UI 双层工作台收敛 | 使用者/维护者 UI 分层继续工程化，并补齐角色化体验设计、设计系统规则、辅助 skill 接入和浏览器级验收 |
 | v1.18.0 | 治理观测运营化增强 | 已闭环：维护者能通过 outcome scorecard、Operations risk、Guardrail summary 和 decision rail 快速判断路由质量、pool/key 风险、输入/输出 guardrail 和下一步动作 |
 | v1.19.0 | 部署形态与远程接入收敛 | 已闭环：remote discovery、remote availability、service-scope 边界、doctor/setup 远程口径和 server/client 文档一致性已进入发布边界 |
+| v1.19.3 | Claude 流式断流系统修复 | 已闭环：stream lifecycle 诊断、默认流式安全关闭、远程/agent 取消传播、第二轮和错误后继续请求 signal 隔离已进入发布边界 |
 | v1.20.0 | 发布与进展治理可持续化 | 发布门禁、closed 事项复审、统一基线和 issue log 形成可持续机制 |
 
-执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；v1.19.0 已闭环后，当前默认从 v1.20.0 发布与进展治理可持续化开始。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / remote discovery / remote availability / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / Web UI 视觉设计 / 治理观测 decision rail / agent-tool trace contract 再次退化，则重新前置处理。
+执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；v1.19.3 已闭环后，当前默认从 v1.20.0 发布与进展治理可持续化开始。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 第二轮会话断流 / 错误后继续请求断流 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / remote discovery / remote availability / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / Web UI 视觉设计 / 治理观测 decision rail / agent-tool trace contract 再次退化，则重新前置处理。
 
 ### 8. v1.2.0 发布闭环边界
 

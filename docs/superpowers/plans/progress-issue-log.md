@@ -49,6 +49,7 @@
 | PI-023 | v1.8.0 输出治理默认缓冲破坏基础路由流式输出并放大 socket 错误 | 2026-05-25 | closed | v1.11.0 已完成首轮止血：默认未开启 `Governance.cascade.stream_guard` 时恢复即时 chunk 转发，结构化 API error 不再被发送钩子提升为 hook error，SSE parser 补齐跨 chunk 状态与 flush 回归；2026-06-05 用户确认 v1.11.0 仍复现 socket 异常和中转卡顿，已新增 PI-024 / v1.12.0 承接第二层传输韧性修复 | `src/governance/stream-response-governance.ts` ; `src/index.ts` ; `src/utils/SSEParser.transform.ts` ; `docs/release-notes-v1.11.0.md` |
 | PI-024 | v1.11.0 仍复现 socket 断连和中转卡顿，缺少上游断流与远程取消防线 | 2026-06-05 | closed | 已通过 v1.12.0 阶段闭环：默认透传捕获上游 stream read error 并追加可读 SSE error event；远程中转将客户端 close 绑定到上游 fetch abort，远端 SSE 响应进入同一套流式治理包装；SSE parser 持续复用 TextDecoder 修复多字节跨 chunk 解码；发布边界由 v1.12.0 release notes 和 targeted tests 看护 | `src/governance/stream-response-governance.ts` ; `src/index.ts` ; `src/utils/SSEParser.transform.ts` ; `docs/release-notes-v1.12.0.md` |
 | PI-025 | 新版 Claude 经 CTR 长任务约 10 分钟超时且 agent/tool stream 可能中途静默停止 | 2026-06-11 | closed | 已通过 v1.19.2 阶段闭环：`Runtime.remote_service` thin proxy 不再把 `API_TIMEOUT_MS=600000` 当成整条远程模型 stream 的总时长上限，收到远端响应头后即清理响应开始超时；客户端断开仍取消上游。agent/tool follow-up stream 不再因 `controller.desiredSize === 0` 直接 break，改由 Web Streams 处理背压排队。发布边界由 `docs/release-notes-v1.19.2.md`、`src/index-startup.test.ts` 和 release verify 看护 | `src/index.ts` ; `src/index-startup.test.ts` ; `docs/release-notes-v1.19.2.md` |
+| PI-029 | v1.19.2 后仍复现随机断流、第二轮卡顿和 socket close | 2026-06-12 | closed | 已通过 v1.19.3 阶段闭环：默认流式透传新增 lifecycle 诊断；上游 read error、下游 cancel 和 stream_guard 上游失败都收敛为可读 SSE error 或安全关闭，不再把 CTR 内部控制器错误升级成 socket close；远程返回流 cancel、客户端 close/aborted 和 agent/tool follow-up 内部 fetch 都传播同一请求级 abort；新增同一 session 第二轮、手动停止后新请求和 socket error 后继续请求不继承旧 abort signal 的回归测试。发布边界由 `docs/release-notes-v1.19.3.md`、`stream-response-governance` / `index-startup` targeted tests 和 release verify 看护 | `src/governance/stream-response-governance.ts` ; `src/utils/stream-lifecycle.ts` ; `src/index.ts` ; `src/index-startup.test.ts` ; `docs/release-notes-v1.19.3.md` |
 | PI-026 | `/ui` 功能可达但第一屏缺少角色化入口，用户难以判断从哪里开始 | 2026-06-05 | closed | 已通过 v1.16.0 用户视角复审阶段闭环：`/ui` 第一屏新增本地使用者、远程客户端、服务维护者和路由设计辅助入口，补任务路径和 UX 诊断面板，并用 fragment contract 与 DOM 跳转测试看护 | `src/ui/workbench.ts` ; `src/ui/workbench-fragments.ts` ; `src/ui/workbench.dom.test.ts` ; `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` |
 | PI-027 | `/ui` 需要完整角色化设计系统和辅助 skill 落地流程 | 2026-06-06 | closed | 已通过 v1.17.0 阶段闭环：安装 `figma-create-design-system-rules`、`figma-generate-design`、`figma-implement-design` 三个 Codex/Figma 辅助 skill；固化角色/任务流、信息架构、设计 token、组件状态、响应式规则和不新增平行 UI 状态的实现 contract；新增 trace evidence detail、CSS 防溢出 contract 和 `npm run test:ui:browser` 真实浏览器 smoke。后续若 `/ui` 角色入口、trace evidence、移动/桌面布局或 browser smoke 再次退化，按 P1/P2 重新前置。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` ; `docs/release-notes-v1.17.0.md` |
 | PI-028 | Web UI 功能审视和视觉设计优化需要未启动版本明确承接 | 2026-06-06 | closed | 已通过 v1.18.0 阶段闭环：不回退 v1.17.0 的角色化入口、设计 contract 和 browser smoke；维护者工作台新增 decision rail，将 Operations、Guardrails 和 Outcome 三类运营信号按状态、动作和明细路径组织；样式与 DOM/browser smoke 均已看护桌面/移动布局和无横向溢出。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/unified-progress-baseline.md` |
@@ -619,3 +620,29 @@
 - 关联文档：
   - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`
   - `docs/superpowers/plans/unified-progress-baseline.md`
+
+### PI-029：v1.19.2 后仍复现随机断流、第二轮卡顿和 socket close
+
+- 发现时间：2026-06-12
+- 严重级别：P0
+- 现象：用户反馈 `v1.19.2` 后断流仍存在，具体包括约 10 分钟直接中断、不满 10 分钟随机中断、API error 后让 Claude 继续很快又停、同一 session 第二轮明显卡顿或卡住，以及手动终结一次对话后新对话经常出现 `API Error: The socket connection was closed unexpectedly.`
+- 影响范围：
+  - 新版 Claude 长任务经 CTR 运行时仍可能不可恢复地中断
+  - 同一 session 第二轮和错误后继续请求可能被旧 stream/abort 状态污染
+  - 手动 stop 之后内部 agent/tool follow-up 或远程 upstream 可能留下半开的请求
+  - 用户看到 socket close 时无法区分上游断流、客户端取消还是 CTR 内部控制器异常
+- 修正动作：
+  - 默认流式透传新增 `start / chunk / upstream_error / client_cancel / finalize` 生命周期记录
+  - 默认透传路径捕获上游 read error 后追加可读 SSE error 并安全关闭；下游取消后 `enqueue / close` 异常不再冒泡成 socket close
+  - `stream_guard` 缓冲路径遇到上游异常时返回可读 SSE error，不再直接 `controller.error()`
+  - 远程 thin proxy 把客户端 close / aborted 和返回流 cancel 传播到上游 fetch
+  - agent/tool follow-up 内部 `/v1/messages` fetch 绑定外层请求 abort signal
+  - 新增第二轮、手动停止后新请求、socket error 后继续请求 signal 隔离回归
+- 当前状态：`closed`
+- 闭环结论：v1.19.3 不回退 v1.19.2 关于“远端 stream 建立后不受 600 秒总时长定时器限制”的结论，而是在其上继续收敛 CTR 自身的 stream 生命周期、错误关闭、取消传播和二轮请求隔离。后续若基础流式即时输出、上游断流可读错误、远程/agent 取消传播、第二轮会话或错误后继续请求再次退化，按 P0 重新前置。
+- 关联文档：
+  - `src/governance/stream-response-governance.ts`
+  - `src/utils/stream-lifecycle.ts`
+  - `src/index.ts`
+  - `src/index-startup.test.ts`
+  - `docs/release-notes-v1.19.3.md`

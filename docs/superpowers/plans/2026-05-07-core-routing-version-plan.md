@@ -407,6 +407,28 @@ v1.19.0 闭环验证：三个 v1.19 事项已分别独立提交并逐项补 targ
 
 v1.19.2 闭环验证：本轮新增远程 SSE 响应建立后超过 600 秒不 abort、agent/tool follow-up stream 不因背压静默截断两个启动链路回归测试，并通过 targeted `index-startup`、构建和 release readiness 文档断言。`docs/release-notes-v1.19.2.md`、README 发布定位、发布指南和 `package.json` / `package-lock.json` 已同步到 `1.19.2`。最终发布门禁以 `npm run release:verify` 为准。
 
+### v1.19.3 Claude 流式断流系统修复
+
+优先级：最高（P0 用户复现故障）。
+
+用户目标：在 `v1.19.2` 后仍出现随机断流、第二轮卡顿、API error 后继续很快又停，以及手动停止后新对话出现 `The socket connection was closed unexpectedly` 时，系统性收敛 CTR 自身的 stream 生命周期、错误关闭、取消传播和二轮请求隔离。
+
+1. `[closed 2026-06-12]` stream lifecycle 诊断：默认流式透传路径记录 `start / chunk / upstream_error / client_cancel / finalize`，携带 request id、session id、chunk/bytes、终态和错误信息，用于区分上游断流、客户端手动取消和正常结束。
+   - 闭环标准：正常流、上游 read error 和客户端 cancel 都有可断言的生命周期事件。
+   - 验证：`npm test -- --run src/governance/stream-response-governance.test.ts`。
+2. `[closed 2026-06-12]` 默认流式安全关闭：默认透传捕获上游 read error 后保留已输出 chunk，并追加可读 SSE error 后关闭；下游已经 cancel/close 时不让 `enqueue / close` 异常冒泡成 socket-level 断连；`stream_guard` 缓冲路径也不再直接 `controller.error()`。
+   - 闭环标准：上游异常、下游取消和 stream_guard 上游失败都不会把 CTR 内部 stream 错误升级成不可读 socket close。
+   - 验证：`npm test -- --run src/governance/stream-response-governance.test.ts`。
+3. `[closed 2026-06-12]` 远程与 agent follow-up 取消传播：远程 thin proxy 把客户端 close / aborted 和返回流 cancel 传播到上游 fetch；agent/tool follow-up 内部 `/v1/messages` fetch 绑定外层请求 abort signal，手动停止时不留下半开的内部续写请求。
+   - 闭环标准：远程返回流 cancel 会 abort 上游；agent follow-up fetch 能收到外层客户端取消 signal；远端 stream 建立后仍不受 600 秒总时长定时器影响。
+   - 验证：`npm test -- --run src/index-startup.test.ts`；`npm run build`。
+4. `[closed 2026-06-12]` 第二轮与错误后继续回归：新增同一 session 手动停止后第二轮请求必须获得全新 abort signal，以及远程 socket error 后继续请求不继承旧 signal、仍能独立完成流式输出的回归测试。
+   - 闭环标准：第二轮对话、手动终结后新对话和 API error 后继续请求不复用旧 aborted signal。
+   - 验证：`npm test -- --run src/index-startup.test.ts`。
+5. `[closed 2026-06-12]` v1.19.3 发布质量检视与归档：新增 `docs/release-notes-v1.19.3.md`，同步 README 发布定位、发布指南、deploy assets 断言、版本计划和问题台账；发布前以 `npm run release:verify` 作为最终门禁。
+
+v1.19.3 闭环验证：四个修复事项已分别独立提交并逐项补 targeted 看护；本轮新增 stream lifecycle、默认流式安全关闭、stream_guard 可读错误、远程/agent 取消传播、第二轮和错误后继续 signal 隔离回归。`docs/release-notes-v1.19.3.md`、README 发布定位、发布指南和 `package.json` / `package-lock.json` 已同步到 `1.19.3`。最终发布门禁以 `npm run release:verify` 为准。
+
 ### v1.20.0 发布与进展治理可持续化
 
 优先级：中低（P3 治理支撑与持续维护）。
@@ -423,6 +445,6 @@ v1.19.2 闭环验证：本轮新增远程 SSE 响应建立后超过 600 秒不 a
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；v1.19.2 已闭环新版 Claude 长任务超时与流式中断修复；后续默认按 v1.20.0 发布与进展治理可持续化推进。
+2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；v1.19.2 已闭环新版 Claude 长任务超时与流式中断修复；v1.19.3 已闭环 Claude 流式断流系统修复；后续默认按 v1.20.0 发布与进展治理可持续化推进。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。
