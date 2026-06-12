@@ -174,6 +174,69 @@ function isSSEContentType(contentType: string | null): boolean {
   return Boolean(contentType?.toLowerCase().includes("text/event-stream"));
 }
 
+function isWritableResponseEnded(reply: any): boolean {
+  return Boolean(reply?.raw?.writableEnded || reply?.raw?.destroyed || reply?.sent);
+}
+
+function bindClientAbort(req: any, reply: any, abortController: AbortController) {
+  const abort = (reason: string) => {
+    if (!abortController.signal.aborted && !isWritableResponseEnded(reply)) {
+      abortController.abort(new Error(reason));
+    }
+  };
+  const abortOnRequestClose = () => abort("client_request_closed");
+  const abortOnRequestAborted = () => abort("client_request_aborted");
+  const abortOnReplyClose = () => abort("client_connection_closed");
+
+  req.raw?.once?.("close", abortOnRequestClose);
+  req.raw?.once?.("aborted", abortOnRequestAborted);
+  reply.raw?.once?.("close", abortOnReplyClose);
+
+  return () => {
+    req.raw?.off?.("close", abortOnRequestClose);
+    req.raw?.off?.("aborted", abortOnRequestAborted);
+    reply.raw?.off?.("close", abortOnReplyClose);
+  };
+}
+
+function abortableReadableStream<T>(
+  stream: ReadableStream<T>,
+  abortController: AbortController,
+  cancelReason: string,
+  onSettled?: () => void
+): ReadableStream<T> {
+  let reader: ReadableStreamDefaultReader<T> | undefined;
+
+  return new ReadableStream<T>({
+    async start(controller) {
+      reader = stream.getReader();
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            controller.close();
+            break;
+          }
+          controller.enqueue(value);
+        }
+      } catch (error) {
+        controller.error(error);
+      } finally {
+        reader?.releaseLock();
+        reader = undefined;
+        onSettled?.();
+      }
+    },
+    cancel(reason) {
+      if (!abortController.signal.aborted) {
+        abortController.abort(new Error(cancelReason));
+      }
+      onSettled?.();
+      return reader?.cancel(reason);
+    },
+  });
+}
+
 async function forwardModelCallToRemote(req: any, reply: any, config: any): Promise<boolean> {
   if (!isModelCallPath(req.url) || !isRemoteForwardEnabled(config) || req.headers?.["x-ctr-remote-forward"] === "1") {
     return false;
@@ -195,11 +258,11 @@ async function forwardModelCallToRemote(req: any, reply: any, config: any): Prom
   responseStartTimeout = setTimeout(() => {
     abortController.abort(new Error("remote_forward_timeout"));
   }, config.API_TIMEOUT_MS ?? 600_000);
-  const abortOnClientClose = () => {
+  const cleanupClientAbort = bindClientAbort(req, reply, abortController);
+  let keepClientAbortBound = false;
+  abortController.signal.addEventListener("abort", () => {
     clearRemoteResponseStartTimeout();
-    abortController.abort(new Error("client_connection_closed"));
-  };
-  reply.raw?.once?.("close", abortOnClientClose);
+  }, { once: true });
   try {
     const response = await fetch(targetUrl, {
       method: String(req.method ?? "POST").toUpperCase(),
@@ -220,9 +283,16 @@ async function forwardModelCallToRemote(req: any, reply: any, config: any): Prom
     req.remoteForwarded = true;
     req.responseGovernanceApplied = true;
     if (response.body) {
+      keepClientAbortBound = true;
+      const responseBody = abortableReadableStream(
+        response.body,
+        abortController,
+        isSSEContentType(contentType) ? "remote_stream_cancelled" : "remote_response_cancelled",
+        cleanupClientAbort
+      );
       reply.send(isSSEContentType(contentType)
-        ? governStreamingResponse(response.body, req, config, config.PORT ?? 5678)
-        : response.body);
+        ? governStreamingResponse(responseBody, req, config, config.PORT ?? 5678)
+        : responseBody);
       return true;
     }
     reply.send(response.ok ? {} : { error: `Remote service returned HTTP ${response.status}` });
@@ -243,6 +313,9 @@ async function forwardModelCallToRemote(req: any, reply: any, config: any): Prom
     return true;
   } finally {
     clearRemoteResponseStartTimeout();
+    if (!keepClientAbortBound) {
+      cleanupClientAbort();
+    }
   }
 }
 
@@ -677,6 +750,7 @@ async function run(options: RunOptions = {}) {
             agents: req.agents,
           });
           const abortController = new AbortController();
+          const cleanupAgentAbort = bindClientAbort(req, reply, abortController);
           const sseParser = new SSEParserTransform();
           const eventStream = payload.pipeThrough(sseParser as any);
           let currentAgent: IAgent | undefined;
@@ -689,7 +763,7 @@ async function run(options: RunOptions = {}) {
 
           const sseSerializer = new SSESerializerTransform();
 
-          const agentStream = rewriteStream(eventStream, async (data: any, controller: any) => {
+          const rewrittenAgentStream = rewriteStream(eventStream, async (data: any, controller: any) => {
               try {
                 // 工具调用开始
                 if (
@@ -775,6 +849,7 @@ async function run(options: RunOptions = {}) {
                         "content-type": "application/json",
                       },
                       body: JSON.stringify(req.body),
+                      signal: abortController.signal,
                     }
                   );
                   if (!response.ok) {
@@ -829,6 +904,13 @@ async function run(options: RunOptions = {}) {
               }
             }).pipeThrough(sseSerializer as any);
 
+          abortController.signal.addEventListener("abort", cleanupAgentAbort, { once: true });
+          const agentStream = abortableReadableStream(
+            rewrittenAgentStream,
+            abortController,
+            "agent_stream_cancelled",
+            cleanupAgentAbort
+          );
           return done(
             null,
             governStreamingResponse(agentStream, req, config, servicePort)

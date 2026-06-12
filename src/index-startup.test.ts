@@ -686,6 +686,128 @@ describe('run startup wiring', () => {
     vi.unstubAllGlobals();
   });
 
+  it('passes outer client abort signal to agent tool follow-up requests', async () => {
+    let followUpSignal: AbortSignal | undefined;
+    const closeHandlers: Array<() => void> = [];
+    const toolAgent = {
+      name: 'coder',
+      tools: new Map([
+        [
+          'apply_patch',
+          {
+            name: 'apply_patch',
+            description: 'Apply patch',
+            input_schema: {},
+            handler: vi.fn().mockResolvedValue('patched'),
+          },
+        ],
+      ]),
+    };
+    mockGetAgent.mockImplementation((name: string) => (name === 'coder' ? toolAgent : undefined));
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url, init) => {
+      followUpSignal = init.signal;
+      return Promise.resolve({
+        ok: true,
+        body: new ReadableStream({
+          start(controller) {
+            controller.enqueue({
+              event: 'content_block_delta',
+              data: {
+                index: 0,
+                delta: {
+                  text: 'follow-up',
+                },
+              },
+            });
+          },
+        }),
+      });
+    }));
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const firstOnSendHook = addHook.mock.calls.filter(([name]: [string]) => name === 'onSend')[0]?.[1];
+    const done = vi.fn();
+    const payload = new ReadableStream({
+      start(controller) {
+        controller.enqueue({
+          event: 'content_block_start',
+          data: {
+            index: 0,
+            content_block: {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'apply_patch',
+            },
+          },
+        });
+        controller.enqueue({
+          event: 'content_block_delta',
+          data: {
+            index: 0,
+            delta: {
+              type: 'input_json_delta',
+              partial_json: '{"file":"index.ts"}',
+            },
+          },
+        });
+        controller.enqueue({
+          event: 'content_block_stop',
+          data: {
+            index: 0,
+            type: 'content_block_stop',
+          },
+        });
+        controller.enqueue({
+          event: 'message_delta',
+          data: {
+            usage: { input_tokens: 1, output_tokens: 1 },
+          },
+        });
+      },
+    });
+    const req: any = {
+      url: '/v1/messages',
+      sessionId: 'session-agent-abort',
+      raw: {
+        once: vi.fn((event: string, handler: () => void) => {
+          if (event === 'close') {
+            closeHandlers.push(handler);
+          }
+        }),
+        off: vi.fn(),
+      },
+      agents: ['coder'],
+      body: {
+        model: 'sonnet',
+        messages: [],
+      },
+    };
+    const reply = {
+      raw: {
+        once: vi.fn((event: string, handler: () => void) => {
+          if (event === 'close') {
+            closeHandlers.push(handler);
+          }
+        }),
+        off: vi.fn(),
+      },
+    };
+
+    firstOnSendHook(req, reply, payload, done);
+    const outputStream = done.mock.calls[0][1] as ReadableStream;
+    const reader = outputStream.getReader();
+    await reader.read();
+    closeHandlers[0]?.();
+
+    expect(followUpSignal).toBeDefined();
+    expect(followUpSignal?.aborted).toBe(true);
+
+    vi.unstubAllGlobals();
+  });
+
   it('forwards local model calls to the configured remote service before local routing', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: 'msg_remote' }), {
@@ -839,6 +961,89 @@ describe('run startup wiring', () => {
     expect(fetchSignal).toBeDefined();
     expect(fetchSignal?.aborted).toBe(true);
     expect(reply.send).toHaveBeenCalledWith(expect.any(ReadableStream));
+
+    vi.unstubAllGlobals();
+  });
+
+  it('aborts remote upstream when the returned stream is cancelled', async () => {
+    let fetchSignal: AbortSignal | undefined;
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn().mockImplementation((_url, init) => {
+      fetchSignal = init.signal;
+      return Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"started"}}\n\n'));
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              'content-type': 'text/event-stream',
+            },
+          }
+        )
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    mockInitConfig.mockResolvedValue({
+      HOST: '127.0.0.1',
+      PORT: 5678,
+      LOG: false,
+      APIKEY: 'local-admin',
+      Providers: [],
+      Runtime: {
+        mode: 'local',
+        remote_service: {
+          enabled: true,
+          base_url: 'https://router.example.com/',
+          auth_token: 'remote-client-token',
+        },
+      },
+    });
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const remoteForwardHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler')[1]?.[1];
+    const reply = {
+      code: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      raw: {
+        once: vi.fn(),
+        off: vi.fn(),
+      },
+    };
+    const req: any = {
+      id: 'req-remote-stream-cancel',
+      method: 'POST',
+      url: '/v1/messages',
+      raw: {
+        once: vi.fn(),
+        off: vi.fn(),
+      },
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer local-admin',
+      },
+      body: {
+        model: 'sonnet',
+        messages: [{ role: 'user', content: 'long task' }],
+      },
+    };
+
+    await remoteForwardHook(req, reply);
+
+    const outputStream = vi.mocked(reply.send).mock.calls[0][0] as ReadableStream<Uint8Array>;
+    const reader = outputStream.getReader();
+    expect((await reader.read()).done).toBe(false);
+    await reader.cancel('manual stop');
+
+    expect(fetchSignal).toBeDefined();
+    expect(fetchSignal?.aborted).toBe(true);
 
     vi.unstubAllGlobals();
   });
