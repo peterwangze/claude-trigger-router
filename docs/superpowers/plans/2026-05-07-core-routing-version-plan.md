@@ -438,8 +438,9 @@ v1.19.3 闭环验证：四个修复事项已分别独立提交并逐项补 targe
 1. `[closed 2026-06-12]` agent stream rewrite 稳定性补强：全量复审后确认 `rewriteStream()` 仍会在 handler 抛错或下游关闭竞态中直接 `controller.error()`，且没有 cancel 传播；agent/tool follow-up 还缺少内部 reader 释放和空 body 保护。已改为支持下游 cancel 传播、safe enqueue/close、reader finally 释放，并在 follow-up response 无 body 时安全结束。
    - 闭环标准：工具续写路径下游取消会取消上游 reader；handler 真实错误仍可见；follow-up 空 body 不会导致 socket 级异常。
    - 验证：`npm test -- --run src/utils/rewriteStream.test.ts src/index-startup.test.ts src/governance/stream-response-governance.test.ts`。
-2. `[planned]` 全链路断流专项门禁：把 remote SSE 长流、非 SSE 远程 body cancel、agent/tool follow-up、stream_guard、错误后继续、手动停止后新请求、第二轮同 session、结构化错误和 route UX 合并为一个更明确的稳定性专项脚本。
+2. `[closed 2026-06-12]` 全链路断流专项门禁：新增 `npm run test:stream-stability`，先运行 `rewriteStream`、SSE parser、stream response governance 和 startup wiring 的完整 targeted tests，再串接 `test:route-ux`，把 remote SSE 长流、agent/tool follow-up、stream_guard、错误后继续、手动停止后新请求、第二轮同 session、结构化错误和 route UX 合并为一个更明确的稳定性专项脚本。
    - 闭环标准：发布前可一条命令覆盖用户最常见断流/卡住路径，不只散落在多个 targeted test。
+   - 验证：`npm run test:stream-stability`。
 3. `[planned]` 诊断可见性补强：把 `streamLifecycle` 和关键 abort reason 暴露到维护者可读的 trace/detail 或 doctor/日志摘要中，避免用户只看到 socket close 而无法判断是上游断流、客户端取消还是 CTR 内部防护。
    - 闭环标准：维护者能按 request id/session id 查到 stream start/chunk/error/cancel/finalize 和 abort reason。
 4. `[planned]` 配置/运行态稳定性审视：复查 `API_TIMEOUT_MS`、doctor probe timeout、remote status probe、SmartRouter 内部请求、shadow/semantic verifier 和 release check 中可能误伤长任务或阻塞用户入口的超时/错误路径。
