@@ -461,10 +461,10 @@
 | v1.18.0 | 治理观测运营化增强 | 已闭环：维护者能通过 outcome scorecard、Operations risk、Guardrail summary 和 decision rail 快速判断路由质量、pool/key 风险、输入/输出 guardrail 和下一步动作 |
 | v1.19.0 | 部署形态与远程接入收敛 | 已闭环：remote discovery、remote availability、service-scope 边界、doctor/setup 远程口径和 server/client 文档一致性已进入发布边界 |
 | v1.19.3 | Claude 流式断流系统修复 | 已闭环：stream lifecycle 诊断、默认流式安全关闭、远程/agent 取消传播、第二轮和错误后继续请求 signal 隔离已进入发布边界 |
-| v1.19.4 | 常见场景稳定性与可用性全量复审 | 进行中：先补 agent stream rewrite 取消传播、safe enqueue/close、follow-up reader 释放和空 body 保护；后续继续补全链路断流专项、诊断可见性和 timeout/error 路径审视 |
+| v1.19.4 | 常见场景稳定性与可用性全量复审 | 已闭环：agent stream rewrite 稳定性、全链路 `test:stream-stability` 门禁、trace/detail stream lifecycle 可见性和管理 probe timeout 诊断已进入发布边界 |
 | v1.20.0 | 发布与进展治理可持续化 | 发布门禁、closed 事项复审、统一基线和 issue log 形成可持续机制 |
 
-执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；当前默认先完成 v1.19.4 常见场景稳定性与可用性全量复审，再回到 v1.20.0 发布与进展治理可持续化。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 第二轮会话断流 / 错误后继续请求断流 / agent/tool follow-up 断流 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / remote discovery / remote availability / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / Web UI 视觉设计 / 治理观测 decision rail / agent-tool trace contract 再次退化，则重新前置处理。
+执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；当前默认回到 v1.20.0 发布与进展治理可持续化。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 第二轮会话断流 / 错误后继续请求断流 / agent/tool follow-up 断流 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / remote discovery / remote availability / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / Web UI 视觉设计 / 治理观测 decision rail / agent-tool trace contract 再次退化，则重新前置处理。
 
 ### 8. v1.2.0 发布闭环边界
 

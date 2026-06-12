@@ -50,7 +50,7 @@
 | PI-024 | v1.11.0 仍复现 socket 断连和中转卡顿，缺少上游断流与远程取消防线 | 2026-06-05 | closed | 已通过 v1.12.0 阶段闭环：默认透传捕获上游 stream read error 并追加可读 SSE error event；远程中转将客户端 close 绑定到上游 fetch abort，远端 SSE 响应进入同一套流式治理包装；SSE parser 持续复用 TextDecoder 修复多字节跨 chunk 解码；发布边界由 v1.12.0 release notes 和 targeted tests 看护 | `src/governance/stream-response-governance.ts` ; `src/index.ts` ; `src/utils/SSEParser.transform.ts` ; `docs/release-notes-v1.12.0.md` |
 | PI-025 | 新版 Claude 经 CTR 长任务约 10 分钟超时且 agent/tool stream 可能中途静默停止 | 2026-06-11 | closed | 已通过 v1.19.2 阶段闭环：`Runtime.remote_service` thin proxy 不再把 `API_TIMEOUT_MS=600000` 当成整条远程模型 stream 的总时长上限，收到远端响应头后即清理响应开始超时；客户端断开仍取消上游。agent/tool follow-up stream 不再因 `controller.desiredSize === 0` 直接 break，改由 Web Streams 处理背压排队。发布边界由 `docs/release-notes-v1.19.2.md`、`src/index-startup.test.ts` 和 release verify 看护 | `src/index.ts` ; `src/index-startup.test.ts` ; `docs/release-notes-v1.19.2.md` |
 | PI-029 | v1.19.2 后仍复现随机断流、第二轮卡顿和 socket close | 2026-06-12 | closed | 已通过 v1.19.3 阶段闭环：默认流式透传新增 lifecycle 诊断；上游 read error、下游 cancel 和 stream_guard 上游失败都收敛为可读 SSE error 或安全关闭，不再把 CTR 内部控制器错误升级成 socket close；远程返回流 cancel、客户端 close/aborted 和 agent/tool follow-up 内部 fetch 都传播同一请求级 abort；新增同一 session 第二轮、手动停止后新请求和 socket error 后继续请求不继承旧 abort signal 的回归测试。发布边界由 `docs/release-notes-v1.19.3.md`、`stream-response-governance` / `index-startup` targeted tests 和 release verify 看护 | `src/governance/stream-response-governance.ts` ; `src/utils/stream-lifecycle.ts` ; `src/index.ts` ; `src/index-startup.test.ts` ; `docs/release-notes-v1.19.3.md` |
-| PI-030 | 断流频发涉及多种常见场景，需要全量稳定性与可用性复审 | 2026-06-12 | in_progress | 已规划 v1.19.4 承接：先完成 agent stream rewrite 稳定性补强，`rewriteStream()` 现在支持下游 cancel 传播、safe enqueue/close；agent/tool follow-up 内部 reader 会 finally 释放，response body 缺失时安全结束。后续继续补全链路断流专项、stream lifecycle 诊断可见性、timeout/error 路径审视和 v1.19.4 发布归档 | `src/utils/rewriteStream.ts` ; `src/utils/rewriteStream.test.ts` ; `src/index.ts` ; `src/index-startup.test.ts` ; `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` |
+| PI-030 | 断流频发涉及多种常见场景，需要全量稳定性与可用性复审 | 2026-06-12 | closed | 已通过 v1.19.4 阶段闭环：`rewriteStream()` 支持下游 cancel 传播、safe enqueue/close；agent/tool follow-up 内部 reader 会 finally 释放，response body 缺失时安全结束；新增 `npm run test:stream-stability` 覆盖高频断流组合场景；`streamLifecycle` 和 abort reason 已进入 trace/detail 与 Web UI；远程 service/registration 和模型池管理 probe 具备明确 timeout 诊断。发布边界由 `docs/release-notes-v1.19.4.md`、stream stability gate 和 release verify 看护 | `src/utils/rewriteStream.ts` ; `src/utils/rewriteStream.test.ts` ; `src/index.ts` ; `src/index-startup.test.ts` ; `src/governance/trace.ts` ; `src/service-health.ts` ; `docs/release-notes-v1.19.4.md` |
 | PI-026 | `/ui` 功能可达但第一屏缺少角色化入口，用户难以判断从哪里开始 | 2026-06-05 | closed | 已通过 v1.16.0 用户视角复审阶段闭环：`/ui` 第一屏新增本地使用者、远程客户端、服务维护者和路由设计辅助入口，补任务路径和 UX 诊断面板，并用 fragment contract 与 DOM 跳转测试看护 | `src/ui/workbench.ts` ; `src/ui/workbench-fragments.ts` ; `src/ui/workbench.dom.test.ts` ; `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` |
 | PI-027 | `/ui` 需要完整角色化设计系统和辅助 skill 落地流程 | 2026-06-06 | closed | 已通过 v1.17.0 阶段闭环：安装 `figma-create-design-system-rules`、`figma-generate-design`、`figma-implement-design` 三个 Codex/Figma 辅助 skill；固化角色/任务流、信息架构、设计 token、组件状态、响应式规则和不新增平行 UI 状态的实现 contract；新增 trace evidence detail、CSS 防溢出 contract 和 `npm run test:ui:browser` 真实浏览器 smoke。后续若 `/ui` 角色入口、trace evidence、移动/桌面布局或 browser smoke 再次退化，按 P1/P2 重新前置。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/unified-progress-baseline.md` ; `docs/superpowers/plans/2026-04-17-dual-surface-ui-ux-implementation.md` ; `docs/release-notes-v1.17.0.md` |
 | PI-028 | Web UI 功能审视和视觉设计优化需要未启动版本明确承接 | 2026-06-06 | closed | 已通过 v1.18.0 阶段闭环：不回退 v1.17.0 的角色化入口、设计 contract 和 browser smoke；维护者工作台新增 decision rail，将 Operations、Guardrails 和 Outcome 三类运营信号按状态、动作和明细路径组织；样式与 DOM/browser smoke 均已看护桌面/移动布局和无横向溢出。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/unified-progress-baseline.md` |
@@ -659,19 +659,21 @@
   - 断流诊断虽然已记录到请求对象，但维护者入口还没有形成统一可读视图
   - 发布前缺少一条专门覆盖高频断流组合场景的专项门禁
 - 修正动作：
-  - 已规划 v1.19.4 常见场景稳定性与可用性全量复审
-  - 已完成第一项：`rewriteStream()` 支持下游 cancel 传播、safe enqueue/close，并保留 handler 真实错误语义
-  - 已完成第一项：agent/tool follow-up 内部 reader 使用 finally 释放，follow-up response body 缺失时安全结束
-  - 已补 `src/utils/rewriteStream.test.ts` 和 `src/index-startup.test.ts` 回归
-- 当前状态：`in_progress`
+  - 已通过 v1.19.4 常见场景稳定性与可用性全量复审闭环
+  - `rewriteStream()` 支持下游 cancel 传播、safe enqueue/close，并保留 handler 真实错误语义
+  - agent/tool follow-up 内部 reader 使用 finally 释放，follow-up response body 缺失时安全结束
+  - 新增 `npm run test:stream-stability`，覆盖 remote SSE/非 SSE、agent follow-up、stream_guard、手动停止、第二轮、错误后继续和结构化错误
+  - `streamLifecycle`、abort reason 和 `stream_lifecycle` span 已进入治理 trace/detail 与 Web UI trace 详情
+  - 远程 service/registration 和模型池管理 probe timeout 已输出结构化诊断，长任务流式路径仍不被短请求 timeout 误伤
+- 当前状态：`closed`
 - 后续闭环标准：
-  - 新增一条全链路断流专项门禁，覆盖 remote SSE/非 SSE、agent follow-up、stream_guard、手动停止、第二轮、错误后继续和结构化错误
-  - stream lifecycle 和 abort reason 能进入维护者可见诊断入口
-  - timeout/error 路径复审完成，长任务流式路径不被短请求 timeout 误伤
-  - v1.19.4 release notes、README/releasing/deploy assets 和最终 `release:verify` 完成后再关闭
+  - 若基础流式即时输出、上游断流可读错误、远程/agent 取消传播、第二轮会话、错误后继续请求或管理 probe 再次退化，按 P0 重新前置
 - 关联文档：
   - `src/utils/rewriteStream.ts`
   - `src/utils/rewriteStream.test.ts`
   - `src/index.ts`
   - `src/index-startup.test.ts`
+  - `src/governance/trace.ts`
+  - `src/service-health.ts`
+  - `docs/release-notes-v1.19.4.md`
   - `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md`

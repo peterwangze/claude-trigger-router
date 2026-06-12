@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.19.3` patch release 的优先级是 Claude 流式断流系统修复。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 fresh setup、远程转发、远端 SSE 建立后不被 600 秒总时长定时器 abort、stream lifecycle 诊断、默认流式安全关闭、agent/tool follow-up stream 不因背压或客户端取消静默截断、第二轮对话和错误后继续请求不继承旧 abort signal、配置保存、鉴权、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回不回退、`/ui` 配置向导、quick config 常用厂商模板、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail 可达和真实浏览器布局不横向溢出。
+本次 `v1.19.4` patch release 的优先级是常见场景稳定性与可用性全量复审。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 fresh setup、远程转发、远端 SSE 建立后不被 600 秒总时长定时器 abort、stream lifecycle 诊断、trace/detail 可见 abort reason、agent/tool follow-up stream 不因背压或客户端取消静默截断、rewriteStream 下游 cancel 传播、第二轮对话和错误后继续请求不继承旧 abort signal、配置保存、鉴权、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回不回退、管理类 probe timeout 诊断、`/ui` 配置向导、quick config 常用厂商模板、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail 可达和真实浏览器布局不横向溢出。
 
 ## 一次性准备
 
@@ -26,21 +26,20 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.19.3` 的发布边界以 `docs/release-notes-v1.19.3.md` 为准：主打 stream lifecycle 诊断、默认流式安全关闭、远程与 agent follow-up 取消传播、第二轮/继续请求不继承旧 abort signal，以及对应启动链路回归看护。
+   - 本次 `v1.19.4` 的发布边界以 `docs/release-notes-v1.19.4.md` 为准：主打全链路 stream stability 门禁、agent stream rewrite 稳定性、trace/detail 可见 stream lifecycle、管理 probe timeout 诊断，以及对应启动链路回归看护。
 2. 本地先执行发布包验证：
 
 ```bash
 npm run release:verify
 ```
 
-v1.19.3 期间建议在正式 `release:verify` 前额外跑一次 Claude 流式断流系统修复专项：
+v1.19.4 期间建议在正式 `release:verify` 前额外跑一次常见场景稳定性专项：
 
 ```bash
-npm test -- --run src/governance/stream-response-governance.test.ts src/index-startup.test.ts
-npm run test:route-ux
+npm run test:stream-stability
 ```
 
-这条专项把 stream lifecycle 诊断、上游中途断流可读 SSE error、下游取消安全关闭、远程 thin proxy 响应开始超时、远端 SSE 建立后的长流式任务、客户端断开取消上游、agent 工具续写、第二轮/继续请求 signal 隔离、结构化 502、route preview 和基础流式即时透传串成同一个发布前门禁。它关注用户能直接感知的“长任务会不会随机停、第二轮会不会卡住、手动停止后新对话会不会继承旧断流、错误后继续是否仍可读”，不是只检查内部函数返回。
+这条专项把 rewriteStream 取消传播、SSE parser、stream lifecycle 诊断、上游中途断流可读 SSE error、下游取消安全关闭、远程 thin proxy 响应开始超时、远端 SSE 建立后的长流式任务、客户端断开取消上游、agent 工具续写、第二轮/继续请求 signal 隔离、结构化 502、route preview 和基础流式即时透传串成同一个发布前门禁。它关注用户能直接感知的“长任务会不会随机停、第二轮会不会卡住、手动停止后新对话会不会继承旧断流、错误后继续是否仍可读”，不是只检查内部函数返回。
 
 v1.19.1 期间建议在正式 `release:verify` 前额外跑一次 UI 配置向导专项：
 

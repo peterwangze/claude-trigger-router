@@ -226,14 +226,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.19.3.md](docs/release-notes-v1.19.3.md)
+- 发布说明：[docs/release-notes-v1.19.4.md](docs/release-notes-v1.19.4.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.19.3 发布定位
+## v1.19.4 发布定位
 
-`v1.19.3` 是 Claude 流式断流系统修复版。它不改变模型配置、路由选择或远程接入语义，重点补齐 `v1.19.2` 后仍复现的随机中断、第二轮卡顿、手动停止后新对话 socket close 和 API error 后继续又停的问题。
+`v1.19.4` 是常见场景稳定性与可用性全量复审版。它不改变模型配置、路由选择或远程接入语义，重点把本地直连、远程中转、agent/tool 续写、手动停止、错误后继续和第二轮会话放到同一条断流稳定性链路里看护。
 
-这一版新增 stream lifecycle 诊断、默认流式安全关闭、远程与 agent follow-up 的取消传播，以及第二轮/继续请求回归看护，避免 CTR 把内部 stream 错误升级成不可读 socket 断连。完整发布边界见 [docs/release-notes-v1.19.3.md](docs/release-notes-v1.19.3.md)。
+这一版新增全链路 `test:stream-stability` 门禁，补强 agent stream rewrite 取消传播和空 body 安全结束，并把 `streamLifecycle`、abort reason、`stream_lifecycle` span 暴露到 trace API 与 Web UI trace 详情；管理类远程/模型池探测也有明确 timeout 诊断。完整发布边界见 [docs/release-notes-v1.19.4.md](docs/release-notes-v1.19.4.md)。
 
 ## License
 

@@ -69,35 +69,34 @@ describe('deployment assets', () => {
     expect(releasingGuide).toContain('Release');
     expect(releasingGuide).toContain('src/deploy-assets.test.ts');
     expect(releasingGuide).toContain('UI 配置向导专项');
-    expect(releasingGuide).toContain('docs/release-notes-v1.19.3.md');
-    expect(releasingGuide).toContain('v1.19.3');
+    expect(releasingGuide).toContain('docs/release-notes-v1.19.4.md');
+    expect(releasingGuide).toContain('v1.19.4');
     expect(releasingGuide).toContain('stream lifecycle 诊断');
     expect(releasingGuide).toContain('第二轮对话和错误后继续请求不继承旧 abort signal');
-    expect(releasingGuide).toContain('Claude 流式断流系统修复专项');
+    expect(releasingGuide).toContain('常见场景稳定性专项');
+    expect(releasingGuide).toContain('test:stream-stability');
     expect(releasingGuide).toContain('test:ui:browser');
     expect(releasingGuide).toContain('help、init、doctor、start/status/stop');
   });
 
-  it('keeps v1.19.3 Claude stream disconnect release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.19.3.md'), 'utf-8');
+  it('keeps v1.19.4 stability review release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.19.4.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('Claude 流式断流系统修复版');
-    expect(releaseNotes).toContain('Stream lifecycle diagnostics');
-    expect(releaseNotes).toContain('Safe streaming shutdown');
-    expect(releaseNotes).toContain('Upstream cancellation propagation');
-    expect(releaseNotes).toContain('Second-turn and continue regressions');
-    expect(releaseNotes).toContain('The socket connection was closed unexpectedly');
-    expect(releaseNotes).toContain('npm test -- --run src/governance/stream-response-governance.test.ts src/index-startup.test.ts');
-    expect(releaseNotes).toContain('npm run test:route-ux');
+    expect(releaseNotes).toContain('常见场景稳定性与可用性全量复审版');
+    expect(releaseNotes).toContain('Agent stream rewrite stability');
+    expect(releaseNotes).toContain('Stream stability gate');
+    expect(releaseNotes).toContain('Stream diagnostics visibility');
+    expect(releaseNotes).toContain('Management probe stability');
+    expect(releaseNotes).toContain('npm run test:stream-stability');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.19.3 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.19.3.md');
-    expect(readme).toContain('Claude 流式断流系统修复版');
-    expect(readme).toContain('第二轮卡顿');
-    expect(readme).toContain('stream lifecycle 诊断');
+    expect(readme).toContain('## v1.19.4 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.19.4.md');
+    expect(readme).toContain('常见场景稳定性与可用性全量复审版');
+    expect(readme).toContain('test:stream-stability');
+    expect(readme).toContain('streamLifecycle');
   });
 
   it('keeps the recommended Models field contract canonical for user-facing entry points', () => {
@@ -117,7 +116,7 @@ describe('deployment assets', () => {
   it('keeps README new-user quick start before release positioning', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
-    const releaseIndex = readme.indexOf('## v1.19.3 发布定位');
+    const releaseIndex = readme.indexOf('## v1.19.4 发布定位');
     const docsIndex = readme.indexOf('## 文档入口');
 
     expect(quickStartIndex).toBeGreaterThan(0);

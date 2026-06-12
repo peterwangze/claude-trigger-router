@@ -447,7 +447,10 @@ v1.19.3 闭环验证：四个修复事项已分别独立提交并逐项补 targe
 4. `[closed 2026-06-12]` 配置/运行态稳定性审视：复查 `API_TIMEOUT_MS`、doctor probe timeout、remote status probe、SmartRouter 内部请求、shadow/semantic verifier 和 release check 中可能误伤长任务或阻塞用户入口的超时/错误路径。确认模型长流主路径仍只把 `API_TIMEOUT_MS` 用作远端响应开始 timeout；补强管理类短 probe：远程 service/registration timeout 统一输出可读诊断，模型池 HEAD 探测新增 800ms 短 timeout，避免 Web UI/doctor 管理入口被单个慢端点卡住。
    - 闭环标准：长任务流式路径不被短请求 timeout 误伤；短请求仍有明确超时和结构化错误。
    - 验证：`npm test -- --run src/service-health.test.ts src/server.test.ts src/index-startup.test.ts`。
-5. `[planned]` v1.19.4 发布质量归档：补 release notes、README/releasing/deploy assets 断言和问题台账；发布前完成稳定性专项、route UX、build 和 release verify。
+5. `[closed 2026-06-12]` v1.19.4 发布质量归档：补 `docs/release-notes-v1.19.4.md`、README/releasing/deploy assets 断言和问题台账；发布前完成稳定性专项、build 和 release verify。
+   - 闭环标准：release notes、README 发布定位、发布指南、部署资产断言、统一基线和问题台账均指向 v1.19.4；最终发布门禁以 `npm run release:verify` 为准。
+
+v1.19.4 闭环验证：五个事项已分别独立提交并逐项补 targeted 看护；本轮新增 agent stream rewrite 稳定性、全链路 `test:stream-stability` 门禁、trace/detail stream lifecycle 可见性、管理 probe timeout 诊断和发布归档。`docs/release-notes-v1.19.4.md`、README 发布定位、发布指南和 `package.json` / `package-lock.json` 已同步到 `1.19.4`。最终发布门禁以 `npm run release:verify` 为准。
 
 ### v1.20.0 发布与进展治理可持续化
 
@@ -465,6 +468,6 @@ v1.19.3 闭环验证：四个修复事项已分别独立提交并逐项补 targe
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；v1.19.2 已闭环新版 Claude 长任务超时与流式中断修复；v1.19.3 已闭环 Claude 流式断流系统修复；当前新增 v1.19.4 承接常见场景稳定性与可用性全量复审，完成后再回到 v1.20.0 发布与进展治理可持续化推进。
+2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；v1.19.2 已闭环新版 Claude 长任务超时与流式中断修复；v1.19.3 已闭环 Claude 流式断流系统修复；v1.19.4 已闭环常见场景稳定性与可用性全量复审；当前默认回到 v1.20.0 发布与进展治理可持续化推进。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。
