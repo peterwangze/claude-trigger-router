@@ -1126,6 +1126,198 @@ describe('run startup wiring', () => {
     vi.unstubAllGlobals();
   });
 
+  it('uses a fresh remote abort signal for the second turn after manual stop', async () => {
+    const signals: AbortSignal[] = [];
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn().mockImplementation(() => {
+      return Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"turn"}}\n\n'));
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              'content-type': 'text/event-stream',
+            },
+          }
+        )
+      );
+    });
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url, init) => {
+      signals.push(init.signal);
+      return fetchMock(url, init);
+    }));
+    mockInitConfig.mockResolvedValue({
+      HOST: '127.0.0.1',
+      PORT: 5678,
+      LOG: false,
+      APIKEY: 'local-admin',
+      Providers: [],
+      Runtime: {
+        mode: 'local',
+        remote_service: {
+          enabled: true,
+          base_url: 'https://router.example.com/',
+          auth_token: 'remote-client-token',
+        },
+      },
+    });
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const remoteForwardHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler')[1]?.[1];
+    const createReply = () => ({
+      code: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      raw: {
+        once: vi.fn(),
+        off: vi.fn(),
+      },
+    });
+    const createReq = (id: string) => ({
+      id,
+      method: 'POST',
+      url: '/v1/messages',
+      raw: {
+        once: vi.fn(),
+        off: vi.fn(),
+      },
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer local-admin',
+      },
+      body: {
+        model: 'sonnet',
+        metadata: {
+          user_id: 'user_session_same-session',
+        },
+        messages: [{ role: 'user', content: id }],
+      },
+    });
+
+    const firstReply = createReply();
+    await remoteForwardHook(createReq('first'), firstReply);
+    const firstReader = (vi.mocked(firstReply.send).mock.calls[0][0] as ReadableStream<Uint8Array>).getReader();
+    expect((await firstReader.read()).done).toBe(false);
+    await firstReader.cancel('manual stop');
+
+    const secondReply = createReply();
+    await remoteForwardHook(createReq('second'), secondReply);
+    const secondReader = (vi.mocked(secondReply.send).mock.calls[0][0] as ReadableStream<Uint8Array>).getReader();
+    expect((await secondReader.read()).done).toBe(false);
+
+    expect(signals).toHaveLength(2);
+    expect(signals[0].aborted).toBe(true);
+    expect(signals[1]).not.toBe(signals[0]);
+    expect(signals[1].aborted).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps a continue request independent after a remote socket error', async () => {
+    const signals: AbortSignal[] = [];
+    const encoder = new TextEncoder();
+    vi.stubGlobal('fetch', vi.fn()
+      .mockImplementationOnce((_url, init) => {
+        signals.push(init.signal);
+        return Promise.reject(new Error('The socket connection was closed unexpectedly.'));
+      })
+      .mockImplementationOnce((_url, init) => {
+        signals.push(init.signal);
+        return Promise.resolve(
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"continued"}}\n\n'));
+                controller.close();
+              },
+            }),
+            {
+              status: 200,
+              headers: {
+                'content-type': 'text/event-stream',
+              },
+            }
+          )
+        );
+      }));
+    mockInitConfig.mockResolvedValue({
+      HOST: '127.0.0.1',
+      PORT: 5678,
+      LOG: false,
+      APIKEY: 'local-admin',
+      Providers: [],
+      Runtime: {
+        mode: 'local',
+        remote_service: {
+          enabled: true,
+          base_url: 'https://router.example.com/',
+          auth_token: 'remote-client-token',
+        },
+      },
+    });
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const remoteForwardHook = addHook.mock.calls.filter(([name]: [string]) => name === 'preHandler')[1]?.[1];
+    const createReply = () => ({
+      code: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      raw: {
+        once: vi.fn(),
+        off: vi.fn(),
+      },
+    });
+    const createReq = (id: string) => ({
+      id,
+      method: 'POST',
+      url: '/v1/messages',
+      raw: {
+        once: vi.fn(),
+        off: vi.fn(),
+      },
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer local-admin',
+      },
+      body: {
+        model: 'sonnet',
+        messages: [{ role: 'user', content: id }],
+      },
+    });
+
+    const errorReply = createReply();
+    await remoteForwardHook(createReq('error'), errorReply);
+    expect(errorReply.code).toHaveBeenCalledWith(502);
+    expect(errorReply.send).toHaveBeenCalledWith(expect.objectContaining({
+      error: expect.objectContaining({
+        type: 'remote_service_unavailable',
+      }),
+    }));
+
+    const continueReply = createReply();
+    await remoteForwardHook(createReq('continue'), continueReply);
+    const outputStream = vi.mocked(continueReply.send).mock.calls[0][0] as ReadableStream<Uint8Array>;
+    const reader = outputStream.getReader();
+    const firstChunk = await reader.read();
+
+    expect(new TextDecoder().decode(firstChunk.value)).toContain('continued');
+    expect(signals).toHaveLength(2);
+    expect(signals[1]).not.toBe(signals[0]);
+    expect(signals[1].aborted).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
+
   it('returns a structured 502 when remote forwarding cannot reach the service', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('connect failed')));
     mockInitConfig.mockResolvedValue({
