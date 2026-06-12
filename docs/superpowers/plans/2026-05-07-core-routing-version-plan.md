@@ -464,8 +464,11 @@ v1.19.4 闭环验证：五个事项已分别独立提交并逐项补 targeted �
 2. `[closed 2026-06-12]` closed 事项复审校准机制化：新增 `npm run test:closed-review`，自动检查统一基线近期执行顺序中的 closed 事项是否保留回归触发口径，并确认 PI-009 这类“closed 事项文档结论与实现漂移”的问题记录仍作为制度化反例存在；发现漂移时仍按“新增事项承接，不回退历史结论”的规则处理。
    - 闭环标准：不靠临时记忆判断闭环；每个漂移都有 issue log 记录。
    - 验证：`npm run test:closed-review`；`npm test -- --run src/deploy-assets.test.ts`。
-3. `[planned]` 进展文档体系治理：维护统一基线、版本路线、执行顺序和问题修改记录的一致性。
+3. `[closed 2026-06-12]` 进展文档体系治理：扩展 `npm run test:closed-review` 为进展治理门禁，除 closed 事项复审外，还检查统一基线、版本路线和问题记录之间的关键互链、默认推进版本口径和文档治理偏差记录规则，避免新增事项绕过统一入口或多入口互相打架。
    - 闭环标准：后续新增事项必须先进入统一入口，再下沉到具体计划；避免多入口互相打架。
+   - 验证：`npm run test:closed-review`；`npm test -- --run src/deploy-assets.test.ts`。
+
+v1.20.0 闭环验证：三个治理事项已分别独立提交并逐项补可执行门禁；本轮将 `test:stream-stability` 固化进本地与 GitHub 发布链路，新增 `test:closed-review` 检查 closed 事项回归触发口径、PI-009 漂移反例、统一基线 / 版本路线 / 问题记录互链和默认版本指针。最终发布门禁以 `npm run release:verify` 为准。
 
 ## 执行规则
 

@@ -5,6 +5,7 @@ const path = require('path');
 
 const repoRoot = path.join(__dirname, '..');
 const baselinePath = path.join(repoRoot, 'docs', 'superpowers', 'plans', 'unified-progress-baseline.md');
+const versionPlanPath = path.join(repoRoot, 'docs', 'superpowers', 'plans', '2026-05-07-core-routing-version-plan.md');
 const issueLogPath = path.join(repoRoot, 'docs', 'superpowers', 'plans', 'progress-issue-log.md');
 
 function fail(message) {
@@ -38,6 +39,7 @@ function parseTableRows(section) {
 }
 
 const baseline = readText(baselinePath);
+const versionPlan = readText(versionPlanPath);
 const issueLog = readText(issueLogPath);
 const executionSection = getSection(baseline, '### 6. 近期执行顺序（排产抓手）', '### 7. 版本计划入口');
 const rows = parseTableRows(executionSection);
@@ -72,4 +74,31 @@ if (!issueLog.includes('不回退原结论') || !issueLog.includes('新增 `已�
   fail('issue log is missing the closed-item calibration mechanism');
 }
 
-console.log(`closed-review-gate: checked ${closedRows.length} closed execution-order rows`);
+const requiredCrossLinks = [
+  'docs/superpowers/plans/2026-05-07-core-routing-version-plan.md',
+  'docs/superpowers/plans/progress-issue-log.md',
+];
+
+for (const link of requiredCrossLinks) {
+  if (!baseline.includes(link)) {
+    fail(`baseline is missing required cross-link: ${link}`);
+  }
+}
+
+if (!versionPlan.includes('默认先看本文档版本路线，再回到统一进展基线确认状态')) {
+  fail('version plan is missing the execution order rule');
+}
+
+if (!baseline.includes('当前默认回到 v1.20.0 发布与进展治理可持续化')) {
+  fail('baseline default version pointer is not aligned to v1.20.0');
+}
+
+if (!versionPlan.includes('当前默认回到 v1.20.0 发布与进展治理可持续化推进')) {
+  fail('version plan default version pointer is not aligned to v1.20.0');
+}
+
+if (!issueLog.includes('涉及统一进展入口结构、事项 / 特性状态口径、历史文档收编关系、职责边界漂移的问题，都必须记录到本文档')) {
+  fail('issue log is missing governance drift recording rule');
+}
+
+console.log(`closed-review-gate: checked ${closedRows.length} closed execution-order rows and progress doc cross-links`);

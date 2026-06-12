@@ -462,7 +462,7 @@
 | v1.19.0 | 部署形态与远程接入收敛 | 已闭环：remote discovery、remote availability、service-scope 边界、doctor/setup 远程口径和 server/client 文档一致性已进入发布边界 |
 | v1.19.3 | Claude 流式断流系统修复 | 已闭环：stream lifecycle 诊断、默认流式安全关闭、远程/agent 取消传播、第二轮和错误后继续请求 signal 隔离已进入发布边界 |
 | v1.19.4 | 常见场景稳定性与可用性全量复审 | 已闭环：agent stream rewrite 稳定性、全链路 `test:stream-stability` 门禁、trace/detail stream lifecycle 可见性和管理 probe timeout 诊断已进入发布边界 |
-| v1.20.0 | 发布与进展治理可持续化 | 发布门禁、closed 事项复审、统一基线和 issue log 形成可持续机制 |
+| v1.20.0 | 发布与进展治理可持续化 | 已闭环：stream stability 成为本地/GitHub 发布硬门槛，closed 事项复审和统一基线 / 版本路线 / issue log 互链已由 `test:closed-review` 看护 |
 
 执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；当前默认回到 v1.20.0 发布与进展治理可持续化。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 第二轮会话断流 / 错误后继续请求断流 / agent/tool follow-up 断流 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / remote discovery / remote availability / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / Web UI 视觉设计 / 治理观测 decision rail / agent-tool trace contract 再次退化，则重新前置处理。
 
