@@ -207,4 +207,15 @@ describe('deployment assets', () => {
     expect(publishWorkflow).toContain('npm run test:stream-stability');
     expect(releasingGuide).toContain('release:verify`、`Release Check` 和 `Publish Package` 都会固定执行常见场景稳定性专项');
   });
+
+  it('ships a closed-item review gate for progress governance', () => {
+    const packageScripts = packageJson.scripts as Record<string, string>;
+    const gateScript = readFileSync(join(process.cwd(), 'scripts', 'closed-review-gate.js'), 'utf-8');
+    const versionPlan = readFileSync(join(process.cwd(), 'docs', 'superpowers', 'plans', '2026-05-07-core-routing-version-plan.md'), 'utf-8');
+
+    expect(packageScripts['test:closed-review']).toBe('node scripts/closed-review-gate.js');
+    expect(gateScript).toContain('closed rows missing regression trigger wording');
+    expect(gateScript).toContain('PI-009');
+    expect(versionPlan).toContain('test:closed-review');
+  });
 });

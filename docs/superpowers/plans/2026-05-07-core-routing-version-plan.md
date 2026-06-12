@@ -461,8 +461,9 @@ v1.19.4 闭环验证：五个事项已分别独立提交并逐项补 targeted �
 1. `[closed 2026-06-12]` packaged CLI 用户流门禁继续补强：`release:verify`、`Release Check` 和 `Publish Package` 固定执行 `npm run test:stream-stability`，让 rewriteStream、SSE parser、stream governance、startup wiring、route UX 和 packaged CLI 门禁共同成为发布前硬门槛，而不是依赖人工记忆额外执行。
    - 闭环标准：help、init、setup、start/stop/status、doctor、code、ui、route preview 和 remote profile 的副作用边界可被发布前拦截。
    - 验证：`npm test -- --run src/deploy-assets.test.ts`。
-2. `[planned]` closed 事项复审校准机制化：按统一基线顺序持续抽查 closed 事项，发现漂移时新增事项承接。
+2. `[closed 2026-06-12]` closed 事项复审校准机制化：新增 `npm run test:closed-review`，自动检查统一基线近期执行顺序中的 closed 事项是否保留回归触发口径，并确认 PI-009 这类“closed 事项文档结论与实现漂移”的问题记录仍作为制度化反例存在；发现漂移时仍按“新增事项承接，不回退历史结论”的规则处理。
    - 闭环标准：不靠临时记忆判断闭环；每个漂移都有 issue log 记录。
+   - 验证：`npm run test:closed-review`；`npm test -- --run src/deploy-assets.test.ts`。
 3. `[planned]` 进展文档体系治理：维护统一基线、版本路线、执行顺序和问题修改记录的一致性。
    - 闭环标准：后续新增事项必须先进入统一入口，再下沉到具体计划；避免多入口互相打架。
 
