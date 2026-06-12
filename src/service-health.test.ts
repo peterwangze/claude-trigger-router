@@ -2,6 +2,7 @@ import { createServer } from 'http';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  formatProbeError,
   isExpectedServiceHealth,
   isTcpPortOccupied,
   probeRemoteRegistrationStatus,
@@ -48,6 +49,15 @@ describe('service health helpers', () => {
 
   it('exposes the dedicated registration endpoint path', () => {
     expect(SERVICE_REGISTRATION_PATH).toBe('/api/registration');
+  });
+
+  it('formats probe timeout errors as operator-readable diagnostics', () => {
+    expect(formatProbeError({ name: 'TimeoutError', message: 'The operation was aborted due to timeout' }, 'Remote service status probe'))
+      .toBe('Remote service status probe timed out before a response was received');
+    expect(formatProbeError({ name: 'AbortError', message: 'This operation was aborted' }, 'Model pool endpoint probe'))
+      .toBe('Model pool endpoint probe timed out before a response was received');
+    expect(formatProbeError(new Error('getaddrinfo ENOTFOUND router.example.com'), 'Remote service status probe'))
+      .toBe('getaddrinfo ENOTFOUND router.example.com');
   });
 
   it('summarizes disabled remote service without probing network', async () => {
@@ -97,6 +107,21 @@ describe('service health helpers', () => {
       serviceRole: 'router_service',
       remoteEnabled: false,
     });
+  });
+
+  it('returns a structured remote service timeout diagnostic', async () => {
+    const fetchFn = vi.fn().mockRejectedValue({ name: 'TimeoutError', message: 'timeout' });
+
+    const status = await probeRemoteServiceStatus({
+      enabled: true,
+      base_url: 'https://router.example.com/',
+    }, 500, fetchFn as any);
+
+    expect(status).toEqual(expect.objectContaining({
+      reachable: false,
+      ready: false,
+      error: 'Remote service status probe timed out before a response was received',
+    }));
   });
 
   it('probes remote registration summary with bearer token', async () => {
@@ -184,6 +209,21 @@ describe('service health helpers', () => {
         models: 0,
         upstreamServices: 0,
       },
+    }));
+  });
+
+  it('returns a structured remote registration timeout diagnostic', async () => {
+    const fetchFn = vi.fn().mockRejectedValue({ name: 'AbortError', message: 'aborted' });
+
+    const status = await probeRemoteRegistrationStatus({
+      enabled: true,
+      base_url: 'https://router.example.com',
+    }, 500, fetchFn as any);
+
+    expect(status).toEqual(expect.objectContaining({
+      reachable: false,
+      available: false,
+      error: 'Remote registration probe timed out before a response was received',
     }));
   });
 

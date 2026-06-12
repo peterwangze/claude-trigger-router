@@ -444,8 +444,9 @@ v1.19.3 闭环验证：四个修复事项已分别独立提交并逐项补 targe
 3. `[closed 2026-06-12]` 诊断可见性补强：把 `streamLifecycle` 和关键 abort reason 暴露到治理 trace/detail 与 Web UI trace 详情中，并追加 `stream_lifecycle` span，维护者可以按 request id/session id 看到 start/chunk/error/cancel/finalize、chunk/byte 计数、上游错误和客户端取消原因，避免用户只看到 socket close 而无法判断是上游断流、客户端取消还是 CTR 内部防护。
    - 闭环标准：维护者能按 request id/session id 查到 stream start/chunk/error/cancel/finalize 和 abort reason。
    - 验证：`npm test -- --run src/governance/trace.test.ts src/governance/stream-response-governance.test.ts src/server.test.ts src/ui/workbench.dom.test.ts`。
-4. `[planned]` 配置/运行态稳定性审视：复查 `API_TIMEOUT_MS`、doctor probe timeout、remote status probe、SmartRouter 内部请求、shadow/semantic verifier 和 release check 中可能误伤长任务或阻塞用户入口的超时/错误路径。
+4. `[closed 2026-06-12]` 配置/运行态稳定性审视：复查 `API_TIMEOUT_MS`、doctor probe timeout、remote status probe、SmartRouter 内部请求、shadow/semantic verifier 和 release check 中可能误伤长任务或阻塞用户入口的超时/错误路径。确认模型长流主路径仍只把 `API_TIMEOUT_MS` 用作远端响应开始 timeout；补强管理类短 probe：远程 service/registration timeout 统一输出可读诊断，模型池 HEAD 探测新增 800ms 短 timeout，避免 Web UI/doctor 管理入口被单个慢端点卡住。
    - 闭环标准：长任务流式路径不被短请求 timeout 误伤；短请求仍有明确超时和结构化错误。
+   - 验证：`npm test -- --run src/service-health.test.ts src/server.test.ts src/index-startup.test.ts`。
 5. `[planned]` v1.19.4 发布质量归档：补 release notes、README/releasing/deploy assets 断言和问题台账；发布前完成稳定性专项、route UX、build 和 release verify。
 
 ### v1.20.0 发布与进展治理可持续化

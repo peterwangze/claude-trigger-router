@@ -1860,9 +1860,11 @@ describe('createServer /api/config', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('https://edge-ok.example.com/v1/messages', expect.objectContaining({
       method: 'HEAD',
+      signal: expect.any(AbortSignal),
     }));
     expect(fetchMock).toHaveBeenCalledWith('https://edge-down.example.com/v1/messages', expect.objectContaining({
       method: 'HEAD',
+      signal: expect.any(AbortSignal),
     }));
     expect(result.summary).toEqual({
       targets: 2,
@@ -1896,6 +1898,57 @@ describe('createServer /api/config', () => {
       healthy: 1,
       cooldown: 1,
     }));
+  });
+
+  it('reports model pool probe timeout as a structured endpoint failure', async () => {
+    const fetchMock = vi.fn().mockRejectedValue({ name: 'TimeoutError', message: 'timeout' });
+    vi.stubGlobal('fetch', fetchMock);
+    const server = createServer({
+      initialConfig: {
+        Router: { default: 'sonnet' },
+        Registration: {
+          enabled: true,
+          strategy: 'priority',
+          models: [
+            {
+              id: 'sonnet',
+              api: 'https://edge-slow.example.com/v1',
+              key: 'sk-edge',
+              interface: 'anthropic',
+              model: 'claude-sonnet-4-5',
+              metadata: {
+                pool_endpoint_id: 'edge-slow',
+                pool_priority: 10,
+              },
+            },
+          ],
+        },
+      },
+    });
+    const handler = server.app.routes.get('POST /api/models/pool-health/probe');
+
+    try {
+      const result = await handler({ body: {} }, {});
+
+      expect(result.summary).toEqual({
+        targets: 1,
+        probed: 1,
+        ok: 0,
+        failed: 1,
+        skipped: 0,
+      });
+      expect(result.results[0]).toEqual(expect.objectContaining({
+        endpointId: 'edge-slow',
+        ok: false,
+        error: 'Model pool endpoint probe timed out before a response was received',
+        health: expect.objectContaining({
+          status: 'cooldown',
+          failureCount: 1,
+        }),
+      }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('previews compiled Models registry for a draft config without saving', async () => {

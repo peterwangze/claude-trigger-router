@@ -7,7 +7,7 @@
 import Server from "@musistudio/llms";
 import { readConfigFile, writeConfigFile, backupConfigFile, configFileExists, normalizeAndValidateConfig, deriveRuntimeSmartRouterConfig } from "./utils";
 import { log } from "./utils/log";
-import { probeRemoteRegistrationStatus, probeRemoteServiceStatus, SERVICE_NAME } from "./service-health";
+import { formatProbeError, probeRemoteRegistrationStatus, probeRemoteServiceStatus, SERVICE_NAME } from "./service-health";
 import { BENCHMARK_HISTORY_FILE } from "./constants";
 import {
   governanceTraceStore,
@@ -510,6 +510,8 @@ function buildOperationsSummary(input: {
   };
 }
 
+const MODEL_POOL_PROBE_TIMEOUT_MS = 800;
+
 async function probeModelPoolEndpoint(pool: any, endpoint: any) {
   const startedAt = Date.now();
   if (!endpoint.api) {
@@ -525,6 +527,7 @@ async function probeModelPoolEndpoint(pool: any, endpoint: any) {
   try {
     const response = await fetch(endpoint.api, {
       method: "HEAD",
+      signal: AbortSignal.timeout(MODEL_POOL_PROBE_TIMEOUT_MS),
     } as any);
     const latencyMs = Date.now() - startedAt;
     const ok = response.status < 500;
@@ -547,7 +550,7 @@ async function probeModelPoolEndpoint(pool: any, endpoint: any) {
       endpointId: endpoint.id,
       url: endpoint.api,
       ok: false,
-      error: error?.message || String(error),
+      error: formatProbeError(error, "Model pool endpoint probe"),
       health,
     };
   }

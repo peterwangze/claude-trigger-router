@@ -42,6 +42,19 @@ export interface IServiceHealthProbeOptions {
   apiKey?: string;
 }
 
+export function formatProbeError(error: unknown, context: string): string {
+  const candidate = error as { name?: string; message?: string; code?: string } | undefined;
+  const name = candidate?.name ?? '';
+  const message = candidate?.message ?? '';
+  const code = candidate?.code ?? '';
+
+  if (name === 'TimeoutError' || name === 'AbortError' || code === 'ABORT_ERR') {
+    return `${context} timed out before a response was received`;
+  }
+
+  return message || String(error);
+}
+
 function buildServiceHealthHeaders(options: IServiceHealthProbeOptions = {}): Record<string, string> | undefined {
   const apiKey = options.apiKey?.trim();
   return apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined;
@@ -164,7 +177,7 @@ export async function probeRemoteServiceStatus(
       reachable: false,
       ready: false,
       baseUrl: normalizedBaseUrl,
-      error: error?.message || String(error),
+      error: formatProbeError(error, 'Remote service status probe'),
     };
   }
 }
@@ -252,7 +265,7 @@ export async function probeRemoteRegistrationStatus(
       reachable: false,
       available: false,
       baseUrl: normalizedBaseUrl,
-      error: error?.message || String(error),
+      error: formatProbeError(error, 'Remote registration probe'),
     };
   }
 }
