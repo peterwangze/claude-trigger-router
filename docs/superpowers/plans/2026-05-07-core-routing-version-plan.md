@@ -470,6 +470,9 @@ v1.19.4 闭环验证：五个事项已分别独立提交并逐项补 targeted �
 
 v1.20.0 闭环验证：三个治理事项已分别独立提交并逐项补可执行门禁；本轮将 `test:stream-stability` 固化进本地与 GitHub 发布链路，新增 `test:closed-review` 检查 closed 事项回归触发口径、PI-009 漂移反例、统一基线 / 版本路线 / 问题记录互链和默认版本指针。最终发布门禁以 `npm run release:verify` 为准。
 
+4. `[closed 2026-06-12]` v1.20.0 发布质量归档：补 `docs/release-notes-v1.20.0.md`、README/releasing/deploy assets 断言和版本台账；发布前完成 stream stability、closed review、build 和 release verify。
+   - 闭环标准：release notes、README 发布定位、发布指南、部署资产断言和统一基线均指向 v1.20.0；最终发布门禁以 `npm run release:verify` 为准。
+
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。

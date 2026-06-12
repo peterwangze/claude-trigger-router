@@ -226,14 +226,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.19.4.md](docs/release-notes-v1.19.4.md)
+- 发布说明：[docs/release-notes-v1.20.0.md](docs/release-notes-v1.20.0.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.19.4 发布定位
+## v1.20.0 发布定位
 
-`v1.19.4` 是常见场景稳定性与可用性全量复审版。它不改变模型配置、路由选择或远程接入语义，重点把本地直连、远程中转、agent/tool 续写、手动停止、错误后继续和第二轮会话放到同一条断流稳定性链路里看护。
+`v1.20.0` 是发布与进展治理可持续化版。它不改变模型配置、路由选择或远程接入语义，重点把 v1.19.x 的断流稳定性修复沉淀成长期发布门禁和进展治理机制。
 
-这一版新增全链路 `test:stream-stability` 门禁，补强 agent stream rewrite 取消传播和空 body 安全结束，并把 `streamLifecycle`、abort reason、`stream_lifecycle` span 暴露到 trace API 与 Web UI trace 详情；管理类远程/模型池探测也有明确 timeout 诊断。完整发布边界见 [docs/release-notes-v1.19.4.md](docs/release-notes-v1.19.4.md)。
+这一版把 `test:stream-stability` 固化进 `release:verify`、`Release Check` 和 `Publish Package`，并新增 `test:closed-review` 看护 closed 事项回归触发口径、PI-009 漂移反例、统一基线 / 版本路线 / issue log 互链和默认版本指针。完整发布边界见 [docs/release-notes-v1.20.0.md](docs/release-notes-v1.20.0.md)。
 
 ## License
 

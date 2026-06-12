@@ -38,6 +38,14 @@ function parseTableRows(section) {
     .map((line) => line.split('|').slice(1, -1).map((cell) => cell.trim()));
 }
 
+function extractDefaultVersionPointer(text, sourceName) {
+  const match = text.match(/当前默认回到\s+(v\d+\.\d+\.\d+\s+[^。\n]+?)(?:推进)?[。；;]/);
+  if (!match) {
+    fail(`${sourceName} is missing the default version pointer`);
+  }
+  return match[1].replace(/推进$/, '').trim();
+}
+
 const baseline = readText(baselinePath);
 const versionPlan = readText(versionPlanPath);
 const issueLog = readText(issueLogPath);
@@ -89,12 +97,11 @@ if (!versionPlan.includes('默认先看本文档版本路线，再回到统一�
   fail('version plan is missing the execution order rule');
 }
 
-if (!baseline.includes('当前默认回到 v1.20.0 发布与进展治理可持续化')) {
-  fail('baseline default version pointer is not aligned to v1.20.0');
-}
+const baselineDefaultPointer = extractDefaultVersionPointer(baseline, 'baseline');
+const versionPlanDefaultPointer = extractDefaultVersionPointer(versionPlan, 'version plan');
 
-if (!versionPlan.includes('当前默认回到 v1.20.0 发布与进展治理可持续化推进')) {
-  fail('version plan default version pointer is not aligned to v1.20.0');
+if (baselineDefaultPointer !== versionPlanDefaultPointer) {
+  fail(`default version pointers are not aligned: baseline="${baselineDefaultPointer}", version plan="${versionPlanDefaultPointer}"`);
 }
 
 if (!issueLog.includes('涉及统一进展入口结构、事项 / 特性状态口径、历史文档收编关系、职责边界漂移的问题，都必须记录到本文档')) {

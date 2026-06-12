@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.19.4` patch release 的优先级是常见场景稳定性与可用性全量复审。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 fresh setup、远程转发、远端 SSE 建立后不被 600 秒总时长定时器 abort、stream lifecycle 诊断、trace/detail 可见 abort reason、agent/tool follow-up stream 不因背压或客户端取消静默截断、rewriteStream 下游 cancel 传播、第二轮对话和错误后继续请求不继承旧 abort signal、配置保存、鉴权、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回不回退、管理类 probe timeout 诊断、`/ui` 配置向导、quick config 常用厂商模板、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail 可达和真实浏览器布局不横向溢出。
+本次 `v1.20.0` minor release 的优先级是发布与进展治理可持续化。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 fresh setup、远程转发、远端 SSE 建立后不被 600 秒总时长定时器 abort、stream lifecycle 诊断、trace/detail 可见 abort reason、agent/tool follow-up stream 不因背压或客户端取消静默截断、rewriteStream 下游 cancel 传播、第二轮对话和错误后继续请求不继承旧 abort signal、配置保存、鉴权、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回不回退、管理类 probe timeout 诊断、`/ui` 配置向导、quick config 常用厂商模板、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail 可达、closed 事项复审口径和真实浏览器布局不横向溢出。
 
 ## 一次性准备
 
@@ -26,7 +26,7 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.19.4` 的发布边界以 `docs/release-notes-v1.19.4.md` 为准：主打全链路 stream stability 门禁、agent stream rewrite 稳定性、trace/detail 可见 stream lifecycle、管理 probe timeout 诊断，以及对应启动链路回归看护。
+   - 本次 `v1.20.0` 的发布边界以 `docs/release-notes-v1.20.0.md` 为准：主打全链路 stream stability 发布硬门槛、closed 事项复审 gate、统一基线 / 版本路线 / issue log 互链看护，以及对应启动链路回归看护。
 2. 本地先执行发布包验证：
 
 ```bash
@@ -72,6 +72,7 @@ npm run test:e2e:acceptance
 - `npm run build`
 - `npm test -- --run`
 - `npm run test:stream-stability`
+- `npm run test:closed-review`
 - `npm run test:ui`
 - `npm run test:e2e:cli:entry`
 - `npm run test:e2e:cli`
