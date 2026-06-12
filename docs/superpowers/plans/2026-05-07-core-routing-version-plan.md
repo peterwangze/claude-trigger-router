@@ -429,6 +429,23 @@ v1.19.2 闭环验证：本轮新增远程 SSE 响应建立后超过 600 秒不 a
 
 v1.19.3 闭环验证：四个修复事项已分别独立提交并逐项补 targeted 看护；本轮新增 stream lifecycle、默认流式安全关闭、stream_guard 可读错误、远程/agent 取消传播、第二轮和错误后继续 signal 隔离回归。`docs/release-notes-v1.19.3.md`、README 发布定位、发布指南和 `package.json` / `package-lock.json` 已同步到 `1.19.3`。最终发布门禁以 `npm run release:verify` 为准。
 
+### v1.19.4 常见场景稳定性与可用性全量复审
+
+优先级：最高（P0 高频可用性）。
+
+用户目标：断流问题已经影响多种常见场景时，不再只按单点报错补丁处理，而是系统性审视本地直连、远程 thin proxy、agent/tool follow-up、手动停止、错误后继续、第二轮会话、CLI 启动和发布门禁，继续把“不会随机停、停了能解释、继续不继承旧状态”作为基础能力。
+
+1. `[closed 2026-06-12]` agent stream rewrite 稳定性补强：全量复审后确认 `rewriteStream()` 仍会在 handler 抛错或下游关闭竞态中直接 `controller.error()`，且没有 cancel 传播；agent/tool follow-up 还缺少内部 reader 释放和空 body 保护。已改为支持下游 cancel 传播、safe enqueue/close、reader finally 释放，并在 follow-up response 无 body 时安全结束。
+   - 闭环标准：工具续写路径下游取消会取消上游 reader；handler 真实错误仍可见；follow-up 空 body 不会导致 socket 级异常。
+   - 验证：`npm test -- --run src/utils/rewriteStream.test.ts src/index-startup.test.ts src/governance/stream-response-governance.test.ts`。
+2. `[planned]` 全链路断流专项门禁：把 remote SSE 长流、非 SSE 远程 body cancel、agent/tool follow-up、stream_guard、错误后继续、手动停止后新请求、第二轮同 session、结构化错误和 route UX 合并为一个更明确的稳定性专项脚本。
+   - 闭环标准：发布前可一条命令覆盖用户最常见断流/卡住路径，不只散落在多个 targeted test。
+3. `[planned]` 诊断可见性补强：把 `streamLifecycle` 和关键 abort reason 暴露到维护者可读的 trace/detail 或 doctor/日志摘要中，避免用户只看到 socket close 而无法判断是上游断流、客户端取消还是 CTR 内部防护。
+   - 闭环标准：维护者能按 request id/session id 查到 stream start/chunk/error/cancel/finalize 和 abort reason。
+4. `[planned]` 配置/运行态稳定性审视：复查 `API_TIMEOUT_MS`、doctor probe timeout、remote status probe、SmartRouter 内部请求、shadow/semantic verifier 和 release check 中可能误伤长任务或阻塞用户入口的超时/错误路径。
+   - 闭环标准：长任务流式路径不被短请求 timeout 误伤；短请求仍有明确超时和结构化错误。
+5. `[planned]` v1.19.4 发布质量归档：补 release notes、README/releasing/deploy assets 断言和问题台账；发布前完成稳定性专项、route UX、build 和 release verify。
+
 ### v1.20.0 发布与进展治理可持续化
 
 优先级：中低（P3 治理支撑与持续维护）。
@@ -445,6 +462,6 @@ v1.19.3 闭环验证：四个修复事项已分别独立提交并逐项补 targe
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；v1.19.2 已闭环新版 Claude 长任务超时与流式中断修复；v1.19.3 已闭环 Claude 流式断流系统修复；后续默认按 v1.20.0 发布与进展治理可持续化推进。
+2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；v1.19.2 已闭环新版 Claude 长任务超时与流式中断修复；v1.19.3 已闭环 Claude 流式断流系统修复；当前新增 v1.19.4 承接常见场景稳定性与可用性全量复审，完成后再回到 v1.20.0 发布与进展治理可持续化推进。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。
