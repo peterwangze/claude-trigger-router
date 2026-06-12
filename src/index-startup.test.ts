@@ -196,26 +196,52 @@ describe('run startup wiring', () => {
     vi.mocked(SSEParserTransform).mockImplementation(() => new TransformStream() as any);
     vi.mocked(SSESerializerTransform).mockImplementation(() => new TransformStream() as any);
     mockRewriteStream.mockImplementation((stream: ReadableStream, handler: (data: any, controller: any) => Promise<any>) => {
-      const reader = stream.getReader();
+      let reader: ReadableStreamDefaultReader | undefined;
+      let cancelled = false;
       return new ReadableStream({
         async start(controller) {
+          reader = stream.getReader();
           try {
             while (true) {
+              if (cancelled) {
+                break;
+              }
               const { value, done } = await reader.read();
               if (done) {
-                controller.close();
+                try {
+                  controller.close();
+                } catch {
+                  // downstream may have cancelled
+                }
                 break;
               }
               const result = await handler(value, controller);
               if (result !== undefined) {
-                controller.enqueue(result);
+                try {
+                  controller.enqueue(result);
+                } catch {
+                  cancelled = true;
+                  await reader.cancel('downstream_closed').catch(() => undefined);
+                  break;
+                }
               }
             }
           } catch (error) {
-            controller.error(error);
+            if (!cancelled) {
+              try {
+                controller.error(error);
+              } catch {
+                // downstream may have cancelled
+              }
+            }
           } finally {
-            reader.releaseLock();
+            reader?.releaseLock();
+            reader = undefined;
           }
+        },
+        cancel(reason) {
+          cancelled = true;
+          return reader?.cancel(reason);
         },
       });
     });
@@ -804,6 +830,92 @@ describe('run startup wiring', () => {
 
     expect(followUpSignal).toBeDefined();
     expect(followUpSignal?.aborted).toBe(true);
+
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps agent stream readable when follow-up response has no body', async () => {
+    const toolAgent = {
+      name: 'coder',
+      tools: new Map([
+        [
+          'apply_patch',
+          {
+            name: 'apply_patch',
+            description: 'Apply patch',
+            input_schema: {},
+            handler: vi.fn().mockResolvedValue('patched'),
+          },
+        ],
+      ]),
+    };
+    mockGetAgent.mockImplementation((name: string) => (name === 'coder' ? toolAgent : undefined));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      body: undefined,
+    }));
+    const { run } = await import('./index');
+
+    await run({ port: 6789 });
+
+    const addHook = mockCreateServer.mock.results[0].value.addHook;
+    const firstOnSendHook = addHook.mock.calls.filter(([name]: [string]) => name === 'onSend')[0]?.[1];
+    const done = vi.fn();
+    const payload = new ReadableStream({
+      start(controller) {
+        controller.enqueue({
+          event: 'content_block_start',
+          data: {
+            index: 0,
+            content_block: {
+              type: 'tool_use',
+              id: 'tool-1',
+              name: 'apply_patch',
+            },
+          },
+        });
+        controller.enqueue({
+          event: 'content_block_delta',
+          data: {
+            index: 0,
+            delta: {
+              type: 'input_json_delta',
+              partial_json: '{"file":"index.ts"}',
+            },
+          },
+        });
+        controller.enqueue({
+          event: 'content_block_stop',
+          data: {
+            index: 0,
+            type: 'content_block_stop',
+          },
+        });
+        controller.enqueue({
+          event: 'message_delta',
+          data: {
+            usage: { input_tokens: 1, output_tokens: 1 },
+          },
+        });
+        controller.close();
+      },
+    });
+    const req: any = {
+      url: '/v1/messages',
+      sessionId: 'session-agent-empty-follow-up',
+      agents: ['coder'],
+      body: {
+        model: 'sonnet',
+        messages: [],
+      },
+    };
+
+    firstOnSendHook(req, {}, payload, done);
+
+    expect(done).toHaveBeenCalledWith(null, expect.any(ReadableStream));
+    const outputStream = done.mock.calls[0][1] as ReadableStream;
+    const reader = outputStream.getReader();
+    await expect(reader.read()).resolves.toEqual({ done: true, value: undefined });
 
     vi.unstubAllGlobals();
   });

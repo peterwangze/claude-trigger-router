@@ -206,6 +206,28 @@ function abortableReadableStream<T>(
   onSettled?: () => void
 ): ReadableStream<T> {
   let reader: ReadableStreamDefaultReader<T> | undefined;
+  let settled = false;
+  const settle = () => {
+    if (!settled) {
+      settled = true;
+      onSettled?.();
+    }
+  };
+  const safeClose = (controller: ReadableStreamDefaultController<T>) => {
+    try {
+      controller.close();
+    } catch {
+      // Downstream may have cancelled while the upstream reader was settling.
+    }
+  };
+  const safeEnqueue = (controller: ReadableStreamDefaultController<T>, value: T): boolean => {
+    try {
+      controller.enqueue(value);
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   return new ReadableStream<T>({
     async start(controller) {
@@ -214,24 +236,34 @@ function abortableReadableStream<T>(
         while (true) {
           const { value, done } = await reader.read();
           if (done) {
-            controller.close();
+            safeClose(controller);
             break;
           }
-          controller.enqueue(value);
+          if (!safeEnqueue(controller, value)) {
+            if (!abortController.signal.aborted) {
+              abortController.abort(new Error(cancelReason));
+            }
+            await reader.cancel(cancelReason).catch(() => undefined);
+            break;
+          }
         }
       } catch (error) {
-        controller.error(error);
+        try {
+          controller.error(error);
+        } catch {
+          // The consumer may already have cancelled; treat it as settled.
+        }
       } finally {
         reader?.releaseLock();
         reader = undefined;
-        onSettled?.();
+        settle();
       }
     },
     cancel(reason) {
       if (!abortController.signal.aborted) {
         abortController.abort(new Error(cancelReason));
       }
-      onSettled?.();
+      settle();
       return reader?.cancel(reason);
     },
   });
@@ -855,11 +887,14 @@ async function run(options: RunOptions = {}) {
                   if (!response.ok) {
                     return undefined;
                   }
+                  if (!response.body) {
+                    return undefined;
+                  }
                   const innerSseParser = new SSEParserTransform();
-                  const stream = response.body!.pipeThrough(innerSseParser as any);
+                  const stream = response.body.pipeThrough(innerSseParser as any);
                   const reader = stream.getReader();
-                  while (true) {
-                    try {
+                  try {
+                    while (true) {
                       const { value, done } = await reader.read();
                       if (done) {
                         break;
@@ -871,19 +906,21 @@ async function run(options: RunOptions = {}) {
                       }
 
                       controller.enqueue(value);
-                    } catch (readError: any) {
-                      if (
-                        readError.name === "AbortError" ||
-                        readError.code === "ERR_STREAM_PREMATURE_CLOSE"
-                      ) {
-                        log(
-                          "Stream reading aborted due to client disconnect"
-                        );
-                        abortController.abort();
-                        break;
-                      }
-                      throw readError;
                     }
+                  } catch (readError: any) {
+                    if (
+                      readError.name === "AbortError" ||
+                      readError.code === "ERR_STREAM_PREMATURE_CLOSE"
+                    ) {
+                      log(
+                        "Stream reading aborted due to client disconnect"
+                      );
+                      abortController.abort();
+                      return undefined;
+                    }
+                    throw readError;
+                  } finally {
+                    reader.releaseLock();
                   }
                   return undefined;
                 }
