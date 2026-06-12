@@ -183,6 +183,13 @@ export interface IGovernanceTrace {
     durationMs?: number;
     attributes?: Record<string, unknown>;
   }>;
+  streamLifecycle?: Array<{
+    event: string;
+    at: number;
+    requestId?: string;
+    sessionId?: string;
+    detail?: Record<string, unknown>;
+  }>;
   stickyHit: boolean;
   alignmentUsed: boolean;
   semanticIntent?: string;

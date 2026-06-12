@@ -1183,6 +1183,22 @@ describe('createServer /api/config', () => {
       startedAt: 1,
       completedAt: 2,
       latencyMs: 1,
+      streamLifecycle: [
+        {
+          event: 'start',
+          at: 1,
+          requestId: 'trace-1',
+        },
+        {
+          event: 'finalize',
+          at: 2,
+          requestId: 'trace-1',
+          detail: {
+            status: 'completed',
+            chunks: 2,
+          },
+        },
+      ],
     });
     governanceTraceStore.add({
       requestId: 'trace-2',
@@ -1257,6 +1273,16 @@ describe('createServer /api/config', () => {
     expect(filteredByShadow.traces).toHaveLength(1);
     expect(filteredByShadow.traces[0].requestId).toBe('trace-1');
     expect(detailResult.requestId).toBe('trace-1');
+    expect(detailResult.streamLifecycle).toEqual([
+      expect.objectContaining({ event: 'start' }),
+      expect.objectContaining({
+        event: 'finalize',
+        detail: expect.objectContaining({
+          status: 'completed',
+          chunks: 2,
+        }),
+      }),
+    ]);
     expect(detailResult.decisionSummary).toEqual(expect.objectContaining({
       requestId: 'trace-1',
       source: 'cascade',

@@ -177,6 +177,13 @@ async function createWorkbenchDom(options: {
               spans: [
                 { name: 'runtime.route', status: 'completed', startOffsetMs: 0, durationMs: 12 },
                 { name: 'protocol.dispatch', status: 'completed', startOffsetMs: 12, durationMs: 24 },
+                { name: 'stream_lifecycle', status: 'client_cancel', startOffsetMs: 36, durationMs: 1000 },
+              ],
+              streamLifecycle: [
+                { event: 'start', at: 1000, requestId: 'route-1', sessionId: 'session-a' },
+                { event: 'chunk', at: 1010, requestId: 'route-1', sessionId: 'session-a', detail: { chunks: 1, bytes: 24 } },
+                { event: 'client_cancel', at: 1500, requestId: 'route-1', sessionId: 'session-a', detail: { reason: 'manual stop', chunks: 1, bytes: 24 } },
+                { event: 'finalize', at: 2000, requestId: 'route-1', sessionId: 'session-a', detail: { status: 'client_cancel', chunks: 1, bytes: 24, sawText: true } },
               ],
             }) as any;
           }
@@ -761,6 +768,9 @@ describe('workbench DOM smoke', () => {
       expect(evidence).toContain('Enable or tune Governance.sticky.alignment');
       expect(evidence).toContain('runtime.route');
       expect(evidence).toContain('protocol.dispatch');
+      expect(evidence).toContain('Stream lifecycle');
+      expect(evidence).toContain('client_cancel');
+      expect(evidence).toContain('manual stop');
       expect(document.getElementById('traceDetail')?.textContent).toContain('"spans"');
     });
 

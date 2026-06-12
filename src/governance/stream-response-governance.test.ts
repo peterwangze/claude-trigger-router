@@ -170,6 +170,25 @@ describe('governStreamingResponse', () => {
         }),
       }),
     ]));
+    expect(governanceTraceStore.get('req-stream-pass')?.streamLifecycle).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event: 'finalize',
+        detail: expect.objectContaining({
+          status: 'completed',
+          chunks: 2,
+        }),
+      }),
+    ]));
+    expect(governanceTraceStore.get('req-stream-pass')?.spans).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: 'stream_lifecycle',
+        status: 'completed',
+        attributes: expect.objectContaining({
+          events: ['start', 'chunk', 'chunk', 'finalize'],
+          chunks: 2,
+        }),
+      }),
+    ]));
   });
 
   it('emits streamed chunks before the upstream stream closes when stream_guard is disabled', async () => {
@@ -275,6 +294,29 @@ describe('governStreamingResponse', () => {
         }),
       }),
     ]);
+    expect(governanceTraceStore.get('req-stream-error')?.streamLifecycle).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event: 'upstream_error',
+        detail: expect.objectContaining({
+          message: 'upstream socket closed',
+        }),
+      }),
+      expect.objectContaining({
+        event: 'finalize',
+        detail: expect.objectContaining({
+          status: 'upstream_error',
+        }),
+      }),
+    ]));
+    expect(governanceTraceStore.get('req-stream-error')?.spans).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: 'stream_lifecycle',
+        status: 'upstream_error',
+        attributes: expect.objectContaining({
+          streamError: 'upstream socket closed',
+        }),
+      }),
+    ]));
   });
 
   it('records client cancellation lifecycle without treating it as upstream failure', async () => {

@@ -316,6 +316,62 @@ describe('governance trace', () => {
     ]);
   });
 
+  it('adds stream lifecycle diagnostics to trace spans', () => {
+    const trace = createGovernanceTrace({
+      requestId: 'req-stream-span',
+      startedAt: 100,
+      streamLifecycle: [
+        {
+          event: 'start',
+          at: 110,
+        },
+        {
+          event: 'chunk',
+          at: 120,
+          detail: {
+            chunks: 1,
+            bytes: 12,
+          },
+        },
+        {
+          event: 'client_cancel',
+          at: 130,
+          detail: {
+            reason: 'manual stop',
+            chunks: 1,
+            bytes: 12,
+          },
+        },
+        {
+          event: 'finalize',
+          at: 140,
+          detail: {
+            status: 'client_cancel',
+            chunks: 1,
+            bytes: 12,
+            sawText: true,
+          },
+        },
+      ],
+    });
+
+    expect(buildTraceSpansFromPipeline(trace)).toEqual([
+      expect.objectContaining({
+        name: 'stream_lifecycle',
+        status: 'client_cancel',
+        startOffsetMs: 10,
+        durationMs: 30,
+        attributes: expect.objectContaining({
+          events: ['start', 'chunk', 'client_cancel', 'finalize'],
+          chunks: 1,
+          bytes: 12,
+          sawText: true,
+          cancelReason: 'manual stop',
+        }),
+      }),
+    ]);
+  });
+
   it('persists traces to disk and reloads them on restart', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'ctr-governance-trace-'));
     const persistFile = join(dir, 'governance-traces.json');

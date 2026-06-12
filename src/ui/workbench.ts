@@ -1992,8 +1992,16 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const sw=data.switchSummary || {};` +
     `  const handoff=data.handoffSummary || {};` +
     `  const spans=Array.isArray(data.spans) ? data.spans : [];` +
+    `  const lifecycle=Array.isArray(data.streamLifecycle) ? data.streamLifecycle : [];` +
     `  const evidence=Array.isArray(decision.routingEvidence) ? decision.routingEvidence : [];` +
     `  const spanRows=spans.length ? spans.slice(0,8).map(span=>'<li><span><strong>'+esc(span.name || '-')+'</strong><div class="muted">'+esc(span.status || '-')+' · '+esc(span.durationMs !== undefined ? (fmt(span.durationMs)+' ms') : 'duration n/a')+'</div></span><strong>'+esc(span.startOffsetMs !== undefined ? ('+'+fmt(span.startOffsetMs)+' ms') : '-').replace('.00 ms',' ms')+'</strong></li>').join('') : '<li><span class="muted">No trace spans recorded</span><strong>0</strong></li>';` +
+    `  const finalLifecycle=[...lifecycle].reverse().find(item=>item.event==='finalize') || {};` +
+    `  const cancelLifecycle=[...lifecycle].reverse().find(item=>item.event==='client_cancel') || {};` +
+    `  const errorLifecycle=[...lifecycle].reverse().find(item=>item.event==='upstream_error') || {};` +
+    `  const lifecycleDetail=finalLifecycle.detail || {};` +
+    `  const lifecycleStatus=lifecycleDetail.status || errorLifecycle.event || cancelLifecycle.event || (lifecycle.length ? 'observed' : 'none');` +
+    `  const lifecycleMeta=[lifecycleStatus, lifecycleDetail.chunks !== undefined ? ('chunks '+lifecycleDetail.chunks) : '', lifecycleDetail.bytes !== undefined ? ('bytes '+lifecycleDetail.bytes) : '', lifecycleDetail.streamError ? ('error '+lifecycleDetail.streamError) : '', cancelLifecycle.detail?.reason ? ('cancel '+cancelLifecycle.detail.reason) : ''].filter(Boolean).join(' · ');` +
+    `  const lifecycleRows=lifecycle.length ? '<li><span><strong>'+esc(lifecycleStatus)+'</strong><div class="muted">'+esc(lifecycleMeta || 'stream lifecycle recorded')+'</div><div class="muted">'+esc(lifecycle.map(item=>item.event).join(' -> '))+'</div></span><strong>'+esc(finalLifecycle.sessionId || finalLifecycle.requestId || data.requestId || '-')+'</strong></li>' : '<li><span class="muted">No stream lifecycle recorded</span><strong>0</strong></li>';` +
     `  const stageRows=Array.isArray(handoff.stages) && handoff.stages.length ? handoff.stages.map(stage=>'<span class="pill '+esc(stage.status === 'failed' || stage.status === 'blocked' ? 'critical' : (stage.status === 'skipped' ? 'warn' : 'info'))+'">'+esc(stage.stage)+': '+esc(stage.status)+'</span>').join(' ') : '<span class="muted">No handoff stages</span>';` +
     `  const evidenceRows=evidence.length ? evidence.slice(0,4).map(item=>'<li><span>'+esc(item)+'</span><strong>evidence</strong></li>').join('') : '<li><span class="muted">No routing evidence attached</span><strong>0</strong></li>';` +
     `  const statusClass=sw.status === 'critical' ? 'critical' : (sw.status === 'watch' ? 'warn' : 'info');` +
@@ -2002,6 +2010,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    '<div class="alert '+statusClass+'"><strong>'+esc(sw.headline || 'Switch continuity unavailable')+'</strong><div class="muted">'+esc(sw.action || 'No suggested action')+'</div></div>' +` +
     `    '<div class="alert '+(handoff.blocked ? 'warn' : 'info')+'"><strong>'+esc(handoff.headline || 'Route handoff unavailable')+'</strong><div class="muted">'+stageRows+'</div><div class="muted">'+esc(handoff.action || '')+'</div></div>' +` +
     `    '<div class="subpanel"><div class="row"><strong>Routing evidence</strong><span class="muted">SmartRouter budget、confidence、quality 和 fallback 证据</span></div><ul class="mini-list">'+evidenceRows+'</ul></div>' +` +
+    `    '<div class="subpanel"><div class="row"><strong>Stream lifecycle</strong><span class="muted">start / chunk / error / cancel / finalize 诊断</span></div><ul class="mini-list">'+lifecycleRows+'</ul></div>' +` +
     `    '<div class="subpanel"><div class="row"><strong>Trace spans</strong><span class="muted">runtime pipeline / guardrail / pool fallback 片段</span></div><ul class="mini-list">'+spanRows+'</ul></div>';` +
     `}` +
     `function renderAnomalies(anomalies,health){` +

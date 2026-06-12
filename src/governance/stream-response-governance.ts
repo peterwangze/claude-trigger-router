@@ -157,6 +157,12 @@ function finalizeStreamingTrace(
   if (observation.streamError) {
     appendTraceReason(req.governanceTrace, 'upstream_stream_error');
   }
+  if (Array.isArray(req.streamLifecycle)) {
+    req.governanceTrace.streamLifecycle = req.streamLifecycle.map((entry: any) => ({
+      ...entry,
+      detail: entry.detail ? { ...entry.detail } : undefined,
+    }));
+  }
   req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
     req.governanceTrace,
     getRuntimePipeline(req)
@@ -249,9 +255,6 @@ function passThroughStreamingResponse(
             collectEventObservation(event, observation);
           }
         }
-        finalizeStreamingTrace(req, observation);
-        reader.releaseLock();
-        reader = undefined;
         recordStreamLifecycle(req, 'finalize', {
           status,
           chunks,
@@ -259,6 +262,9 @@ function passThroughStreamingResponse(
           sawText: observation.sawText,
           streamError: observation.streamError,
         });
+        finalizeStreamingTrace(req, observation);
+        reader.releaseLock();
+        reader = undefined;
         safeClose(controller);
       }
     },
@@ -403,6 +409,12 @@ export function governStreamingResponse(
             req.governanceTrace,
             getRuntimePipeline(req)
           );
+          if (Array.isArray(req.streamLifecycle)) {
+            req.governanceTrace.streamLifecycle = req.streamLifecycle.map((entry: any) => ({
+              ...entry,
+              detail: entry.detail ? { ...entry.detail } : undefined,
+            }));
+          }
           req.governanceTrace.spans = buildTraceSpansFromPipeline(
             req.governanceTrace,
             getRuntimePipeline(req)

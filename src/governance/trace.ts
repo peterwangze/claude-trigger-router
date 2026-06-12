@@ -34,6 +34,38 @@ export interface IGovernanceTraceArchiveRecord {
   compressed: boolean;
 }
 
+function cloneTrace(trace: IGovernanceTrace): IGovernanceTrace {
+  return {
+    ...trace,
+    routeReason: [...(trace.routeReason ?? [])],
+    routeDecision: trace.routeDecision ? {
+      ...trace.routeDecision,
+      routingEvidence: trace.routeDecision.routingEvidence ? [...trace.routeDecision.routingEvidence] : undefined,
+    } : undefined,
+    handoffSummary: trace.handoffSummary ? {
+      ...trace.handoffSummary,
+      stages: trace.handoffSummary.stages.map((stage) => ({ ...stage })),
+    } : undefined,
+    inputGuardrail: trace.inputGuardrail ? {
+      ...trace.inputGuardrail,
+      findings: trace.inputGuardrail.findings.map((finding) => ({ ...finding })),
+    } : undefined,
+    outputGuardrail: trace.outputGuardrail ? {
+      ...trace.outputGuardrail,
+      findings: trace.outputGuardrail.findings.map((finding) => ({ ...finding })),
+    } : undefined,
+    spans: trace.spans ? trace.spans.map((span) => ({
+      ...span,
+      attributes: span.attributes ? { ...span.attributes } : undefined,
+    })) : undefined,
+    streamLifecycle: trace.streamLifecycle ? trace.streamLifecycle.map((entry) => ({
+      ...entry,
+      detail: entry.detail ? { ...entry.detail } : undefined,
+    })) : undefined,
+    cascadeEvidence: trace.cascadeEvidence ? [...trace.cascadeEvidence] : [],
+  };
+}
+
 export class GovernanceTraceStore {
   private cache: LRUCache<string, IGovernanceTrace>;
   private persistFile?: string;
@@ -64,11 +96,7 @@ export class GovernanceTraceStore {
   }
 
   add(trace: IGovernanceTrace): void {
-    this.cache.set(trace.requestId, {
-      ...trace,
-      routeReason: [...trace.routeReason],
-      routeDecision: trace.routeDecision ? { ...trace.routeDecision } : undefined,
-    });
+    this.cache.set(trace.requestId, cloneTrace(trace));
     this.schedulePersistToDisk();
   }
 
@@ -122,7 +150,7 @@ export class GovernanceTraceStore {
   hydrate(traces: IGovernanceTrace[]): void {
     this.cache.clear();
     for (const trace of traces) {
-      this.cache.set(trace.requestId, { ...trace, routeReason: [...trace.routeReason] });
+      this.cache.set(trace.requestId, cloneTrace(trace));
     }
     this.schedulePersistToDisk();
   }
@@ -237,7 +265,7 @@ export class GovernanceTraceStore {
       }
 
       for (const trace of Array.from(deduped.values()).slice(0, this.cache.max)) {
-        this.cache.set(trace.requestId, { ...trace, routeReason: [...(trace.routeReason ?? [])] });
+        this.cache.set(trace.requestId, cloneTrace(trace));
       }
     } catch {
       // Ignore persistence corruption and continue with in-memory mode.
@@ -282,7 +310,7 @@ export class GovernanceTraceStore {
         this.pruneArchives();
         this.cache.clear();
         for (const trace of activeTraces) {
-          this.cache.set(trace.requestId, { ...trace, routeReason: [...trace.routeReason] });
+          this.cache.set(trace.requestId, cloneTrace(trace));
         }
       }
 
@@ -393,6 +421,10 @@ export function createGovernanceTrace(
     spans: input.spans ? input.spans.map((span) => ({
       ...span,
       attributes: span.attributes ? { ...span.attributes } : undefined,
+    })) : undefined,
+    streamLifecycle: input.streamLifecycle ? input.streamLifecycle.map((entry) => ({
+      ...entry,
+      detail: entry.detail ? { ...entry.detail } : undefined,
     })) : undefined,
     stickyHit: input.stickyHit ?? false,
     alignmentUsed: input.alignmentUsed ?? false,
@@ -528,6 +560,28 @@ export function buildTraceSpansFromPipeline(
       status: trace.outputGuardrail.status,
       attributes: {
         findings: trace.outputGuardrail.findings.map((finding) => finding.code),
+      },
+    });
+  }
+
+  if (trace.streamLifecycle?.length) {
+    const finalEntry = [...trace.streamLifecycle].reverse().find((entry) => entry.event === 'finalize');
+    const cancelEntry = [...trace.streamLifecycle].reverse().find((entry) => entry.event === 'client_cancel');
+    const errorEntry = [...trace.streamLifecycle].reverse().find((entry) => entry.event === 'upstream_error');
+    const startedAt = trace.streamLifecycle.find((entry) => typeof entry.at === 'number')?.at;
+    const endedAt = finalEntry?.at ?? trace.streamLifecycle.at(-1)?.at;
+    spans.push({
+      name: 'stream_lifecycle',
+      status: String(finalEntry?.detail?.status ?? errorEntry?.event ?? cancelEntry?.event ?? 'observed'),
+      ...(typeof startedAt === 'number' ? { startOffsetMs: Math.max(0, startedAt - trace.startedAt) } : {}),
+      ...(typeof startedAt === 'number' && typeof endedAt === 'number' ? { durationMs: Math.max(0, endedAt - startedAt) } : {}),
+      attributes: {
+        events: trace.streamLifecycle.map((entry) => entry.event),
+        chunks: finalEntry?.detail?.chunks ?? errorEntry?.detail?.chunks ?? cancelEntry?.detail?.chunks,
+        bytes: finalEntry?.detail?.bytes ?? errorEntry?.detail?.bytes ?? cancelEntry?.detail?.bytes,
+        sawText: finalEntry?.detail?.sawText,
+        streamError: finalEntry?.detail?.streamError ?? errorEntry?.detail?.message,
+        cancelReason: cancelEntry?.detail?.reason,
       },
     });
   }
