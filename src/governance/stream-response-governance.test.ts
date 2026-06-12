@@ -117,6 +117,8 @@ describe('governStreamingResponse', () => {
 
   it('passes through original stream when stream_guard is disabled', async () => {
     const req: any = {
+      id: 'req-stream-pass',
+      sessionId: 'session-pass',
       body: {
         model: 'provider,model-a',
         metadata: {},
@@ -147,6 +149,27 @@ describe('governStreamingResponse', () => {
     const output = await readAll(result);
     expect(output).toContain('hello world');
     expect(req.governanceTrace.routeReason).not.toContain('cascade_gate_stream');
+    expect(req.streamLifecycle).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event: 'start',
+        requestId: 'req-stream-pass',
+        sessionId: 'session-pass',
+      }),
+      expect.objectContaining({
+        event: 'chunk',
+        detail: expect.objectContaining({
+          chunks: 1,
+        }),
+      }),
+      expect.objectContaining({
+        event: 'finalize',
+        detail: expect.objectContaining({
+          status: 'completed',
+          chunks: 2,
+          sawText: true,
+        }),
+      }),
+    ]));
   });
 
   it('emits streamed chunks before the upstream stream closes when stream_guard is disabled', async () => {
@@ -234,6 +257,95 @@ describe('governStreamingResponse', () => {
     expect(output).toContain('event: error');
     expect(output).toContain('upstream_stream_error');
     expect(output).toContain('The upstream stream closed before completion.');
+    expect(req.streamLifecycle).toEqual([
+      expect.objectContaining({ event: 'start' }),
+      expect.objectContaining({ event: 'chunk' }),
+      expect.objectContaining({
+        event: 'upstream_error',
+        detail: expect.objectContaining({
+          message: 'upstream socket closed',
+          chunks: 1,
+        }),
+      }),
+      expect.objectContaining({
+        event: 'finalize',
+        detail: expect.objectContaining({
+          status: 'upstream_error',
+          streamError: 'upstream socket closed',
+        }),
+      }),
+    ]);
+  });
+
+  it('records client cancellation lifecycle without treating it as upstream failure', async () => {
+    let releaseSecondChunk: (() => void) | undefined;
+    const secondChunkReady = new Promise<void>((resolve) => {
+      releaseSecondChunk = resolve;
+    });
+    const upstreamCancel = vi.fn();
+    const encoder = new TextEncoder();
+    const req: any = {
+      id: 'req-stream-cancel',
+      body: {
+        model: 'provider,model-a',
+        metadata: {},
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-stream-cancel' }),
+    };
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"first"}}\n\n'));
+        await secondChunkReady;
+        controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"second"}}\n\n'));
+        controller.close();
+      },
+      cancel: upstreamCancel,
+    });
+
+    const result = governStreamingResponse(
+      stream,
+      req,
+      {
+        Governance: {
+          enabled: true,
+          cascade: {
+            enabled: true,
+            stream_guard: false,
+          },
+        },
+      } as any,
+      5678
+    );
+
+    const reader = result.getReader();
+    const firstRead = await reader.read();
+    expect(firstRead.done).toBe(false);
+
+    await reader.cancel(new Error('manual stop'));
+    releaseSecondChunk?.();
+
+    expect(upstreamCancel).toHaveBeenCalledWith(expect.any(Error));
+    expect(req.streamLifecycle).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event: 'start' }),
+      expect.objectContaining({
+        event: 'chunk',
+        detail: expect.objectContaining({ chunks: 1 }),
+      }),
+      expect.objectContaining({
+        event: 'client_cancel',
+        detail: expect.objectContaining({
+          reason: 'manual stop',
+          chunks: 1,
+        }),
+      }),
+      expect.objectContaining({
+        event: 'finalize',
+        detail: expect.objectContaining({
+          status: 'client_cancel',
+          chunks: 1,
+        }),
+      }),
+    ]));
   });
 
   it('retries with upgraded model when stream_guard detects failure evidence', async () => {

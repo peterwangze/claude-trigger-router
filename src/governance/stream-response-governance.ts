@@ -12,6 +12,7 @@ import { decideCascadeEscalation, detectFailureEvidence, executeCascadeRetryStre
 import { resolveModelReference } from '../models/compile';
 import { getRuntimePipeline } from '../runtime/pipeline';
 import { inspectOutputGuardrail } from './io-guardrail';
+import { recordStreamLifecycle } from '../utils/stream-lifecycle';
 
 interface ICollectedSSE {
   events: any[];
@@ -154,16 +155,30 @@ function passThroughStreamingResponse(
   const observation: IStreamObservation = { text: '', sawText: false };
   let buffer = '';
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let chunks = 0;
+  let bytes = 0;
+  let status: 'completed' | 'upstream_error' | 'client_cancel' = 'completed';
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       reader = stream.getReader();
+      recordStreamLifecycle(req, 'start', {
+        mode: 'pass_through',
+        streamGuard: false,
+      });
       try {
         while (true) {
           const { value, done } = await reader.read();
           if (done) {
             break;
           }
+          chunks += 1;
+          bytes += value.byteLength;
+          recordStreamLifecycle(req, 'chunk', {
+            chunks,
+            bytes,
+            chunkBytes: value.byteLength,
+          });
           controller.enqueue(value);
           buffer = observeSSEChunk(buffer, decoder.decode(value, { stream: true }), observation);
         }
@@ -171,7 +186,13 @@ function passThroughStreamingResponse(
         const message = error instanceof Error && error.message
           ? error.message
           : 'The upstream stream closed before completion.';
+        status = 'upstream_error';
         observation.streamError = message;
+        recordStreamLifecycle(req, 'upstream_error', {
+          message,
+          chunks,
+          bytes,
+        });
         controller.enqueue(serializeStreamErrorEvent('The upstream stream closed before completion.'));
       } finally {
         const remaining = decoder.decode();
@@ -187,10 +208,23 @@ function passThroughStreamingResponse(
         finalizeStreamingTrace(req, observation);
         reader.releaseLock();
         reader = undefined;
+        recordStreamLifecycle(req, 'finalize', {
+          status,
+          chunks,
+          bytes,
+          sawText: observation.sawText,
+          streamError: observation.streamError,
+        });
         controller.close();
       }
     },
     cancel(reason) {
+      status = 'client_cancel';
+      recordStreamLifecycle(req, 'client_cancel', {
+        reason: reason instanceof Error ? reason.message : String(reason ?? ''),
+        chunks,
+        bytes,
+      });
       return reader?.cancel(reason);
     },
   });
