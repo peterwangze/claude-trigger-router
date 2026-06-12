@@ -35,6 +35,9 @@ jobs:
       - name: Run test suite
         run: npm test -- --run
 
+      - name: Run stream stability gate
+        run: npm run test:stream-stability
+
       - name: Run packaged CLI entry smoke
         run: npm run test:e2e:cli:entry
 

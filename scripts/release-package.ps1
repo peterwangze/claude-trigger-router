@@ -266,6 +266,10 @@ function Invoke-ReleaseVerification {
     Invoke-CommandChecked { npm test -- --run } "Tests failed"
   }
 
+  Invoke-Step "Run stream stability gate" {
+    Invoke-CommandChecked { npm run test:stream-stability } "Stream stability gate failed"
+  }
+
   Invoke-Step "Run packaged CLI entry smoke" {
     Invoke-CommandChecked { npm run test:e2e:cli:entry } "Packaged CLI entry smoke failed"
   }

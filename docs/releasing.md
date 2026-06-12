@@ -33,7 +33,7 @@
 npm run release:verify
 ```
 
-v1.19.4 期间建议在正式 `release:verify` 前额外跑一次常见场景稳定性专项：
+从 v1.20.0 开始，`release:verify`、`Release Check` 和 `Publish Package` 都会固定执行常见场景稳定性专项：
 
 ```bash
 npm run test:stream-stability
@@ -71,6 +71,7 @@ npm run test:e2e:acceptance
 
 - `npm run build`
 - `npm test -- --run`
+- `npm run test:stream-stability`
 - `npm run test:ui`
 - `npm run test:e2e:cli:entry`
 - `npm run test:e2e:cli`
@@ -249,6 +250,7 @@ git push origin v1.0.1
    - `npm ci`
    - `npm run build`
    - `npm test -- --run`
+   - `npm run test:stream-stability`
    - `npm run test:e2e:cli:entry`
    - `npm run test:e2e:cli`
    - npm trusted publishing 版本门禁

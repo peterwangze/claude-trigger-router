@@ -458,8 +458,9 @@ v1.19.4 闭环验证：五个事项已分别独立提交并逐项补 targeted �
 
 用户目标：发布质量门槛、进展基线、closed 事项复审和问题记录形成可持续机制，减少“已经闭环但真实用户又踩中”的情况。
 
-1. `[planned]` packaged CLI 用户流门禁继续补强：继续扩展 release verify、packaged E2E 和 acceptance 的真实用户流 slice。
+1. `[closed 2026-06-12]` packaged CLI 用户流门禁继续补强：`release:verify`、`Release Check` 和 `Publish Package` 固定执行 `npm run test:stream-stability`，让 rewriteStream、SSE parser、stream governance、startup wiring、route UX 和 packaged CLI 门禁共同成为发布前硬门槛，而不是依赖人工记忆额外执行。
    - 闭环标准：help、init、setup、start/stop/status、doctor、code、ui、route preview 和 remote profile 的副作用边界可被发布前拦截。
+   - 验证：`npm test -- --run src/deploy-assets.test.ts`。
 2. `[planned]` closed 事项复审校准机制化：按统一基线顺序持续抽查 closed 事项，发现漂移时新增事项承接。
    - 闭环标准：不靠临时记忆判断闭环；每个漂移都有 issue log 记录。
 3. `[planned]` 进展文档体系治理：维护统一基线、版本路线、执行顺序和问题修改记录的一致性。

@@ -192,4 +192,19 @@ describe('deployment assets', () => {
     expect(releaseCheckWorkflow).toContain('this commit is tagged v${CURRENT_VERSION}');
     expect(releasingGuide).toContain('master` push 和 `vX.Y.Z` tag push 几乎同时发生');
   });
+
+  it('keeps stream stability gate in every release path', () => {
+    const releaseScript = readFileSync(join(process.cwd(), 'scripts', 'release-package.ps1'), 'utf-8');
+    const releaseCheckWorkflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release-check.yml'), 'utf-8');
+    const publishWorkflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'publish.yml'), 'utf-8');
+    const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
+
+    expect(releaseScript).toContain('Run stream stability gate');
+    expect(releaseScript).toContain('npm run test:stream-stability');
+    expect(releaseCheckWorkflow).toContain('Run stream stability gate');
+    expect(releaseCheckWorkflow).toContain('npm run test:stream-stability');
+    expect(publishWorkflow).toContain('Run stream stability gate');
+    expect(publishWorkflow).toContain('npm run test:stream-stability');
+    expect(releasingGuide).toContain('release:verify`、`Release Check` 和 `Publish Package` 都会固定执行常见场景稳定性专项');
+  });
 });
