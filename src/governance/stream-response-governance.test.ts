@@ -348,6 +348,66 @@ describe('governStreamingResponse', () => {
     ]));
   });
 
+  it('settles safely when downstream cancellation races with upstream reads', async () => {
+    let releaseSecondChunk: (() => void) | undefined;
+    const secondChunkReady = new Promise<void>((resolve) => {
+      releaseSecondChunk = resolve;
+    });
+    const encoder = new TextEncoder();
+    const req: any = {
+      id: 'req-stream-cancel-race',
+      body: {
+        model: 'provider,model-a',
+        metadata: {},
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-stream-cancel-race' }),
+    };
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"first"}}\n\n'));
+        await secondChunkReady;
+        controller.enqueue(encoder.encode('event: content_block_delta\ndata: {"delta":{"text":"late"}}\n\n'));
+        controller.close();
+      },
+    });
+
+    const result = governStreamingResponse(
+      stream,
+      req,
+      {
+        Governance: {
+          enabled: true,
+          cascade: {
+            enabled: true,
+            stream_guard: false,
+          },
+        },
+      } as any,
+      5678
+    );
+
+    const reader = result.getReader();
+    expect((await reader.read()).done).toBe(false);
+    await expect(reader.cancel('manual stop')).resolves.toBeUndefined();
+    releaseSecondChunk?.();
+    await Promise.resolve();
+
+    expect(req.streamLifecycle).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event: 'client_cancel',
+        detail: expect.objectContaining({
+          reason: 'manual stop',
+        }),
+      }),
+      expect.objectContaining({
+        event: 'finalize',
+        detail: expect.objectContaining({
+          status: 'client_cancel',
+        }),
+      }),
+    ]));
+  });
+
   it('retries with upgraded model when stream_guard detects failure evidence', async () => {
     governanceTraceStore.clear();
 
@@ -399,6 +459,48 @@ describe('governStreamingResponse', () => {
     expect(req.governanceTrace.routeReason).toContain('cascade_gate_stream');
     expect(req.governanceTrace.routeReason).toContain('cascade_stream_retry_executed');
     expect(governanceTraceStore.get('req-stream-retry')?.finalModel).toBe('provider,model-b');
+  });
+
+  it('returns a readable SSE error when stream_guard buffering sees an upstream failure', async () => {
+    const req: any = {
+      body: {
+        model: 'provider,model-a',
+        metadata: {},
+      },
+      governanceTrace: createGovernanceTrace({ requestId: 'req-stream-guard-error' }),
+    };
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(new Error('guard upstream socket closed'));
+      },
+    });
+
+    const result = governStreamingResponse(
+      stream,
+      req,
+      {
+        Governance: {
+          enabled: true,
+          cascade: {
+            enabled: true,
+            stream_guard: true,
+            triggers: {
+              placeholder_patterns: ['TODO'],
+            },
+            levels: [
+              { from: 'provider,model-a', to: 'provider,model-b' },
+            ],
+          },
+        },
+      } as any,
+      5678
+    );
+
+    const output = await readAll(result);
+    expect(output).toContain('event: error');
+    expect(output).toContain('upstream_stream_error');
+    expect(output).toContain('guard upstream socket closed');
   });
 
   it('resolves cascade level modelIds in stream governance', async () => {

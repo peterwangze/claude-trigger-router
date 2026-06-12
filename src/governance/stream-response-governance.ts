@@ -56,6 +56,30 @@ function serializeStreamErrorEvent(message: string): Uint8Array {
   });
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function safeEnqueue(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  value: Uint8Array
+): boolean {
+  try {
+    controller.enqueue(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeClose(controller: ReadableStreamDefaultController<Uint8Array>): void {
+  try {
+    controller.close();
+  } catch {
+    // Downstream may have cancelled while the upstream reader was settling.
+  }
+}
+
 function parseSSEBlock(block: string): any | null {
   const event: any = {};
   const dataLines: string[] = [];
@@ -158,6 +182,20 @@ function passThroughStreamingResponse(
   let chunks = 0;
   let bytes = 0;
   let status: 'completed' | 'upstream_error' | 'client_cancel' = 'completed';
+  let clientCancelRecorded = false;
+
+  const recordClientCancel = (reason: unknown) => {
+    status = 'client_cancel';
+    if (clientCancelRecorded) {
+      return;
+    }
+    clientCancelRecorded = true;
+    recordStreamLifecycle(req, 'client_cancel', {
+      reason: reason instanceof Error ? reason.message : String(reason ?? ''),
+      chunks,
+      bytes,
+    });
+  };
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -179,21 +217,27 @@ function passThroughStreamingResponse(
             bytes,
             chunkBytes: value.byteLength,
           });
-          controller.enqueue(value);
+          if (!safeEnqueue(controller, value)) {
+            recordClientCancel('downstream_closed');
+            await reader.cancel('downstream_closed').catch(() => undefined);
+            break;
+          }
           buffer = observeSSEChunk(buffer, decoder.decode(value, { stream: true }), observation);
         }
       } catch (error) {
-        const message = error instanceof Error && error.message
-          ? error.message
-          : 'The upstream stream closed before completion.';
-        status = 'upstream_error';
+        const message = getErrorMessage(error, 'The upstream stream closed before completion.');
+        if (status !== 'client_cancel') {
+          status = 'upstream_error';
+        }
         observation.streamError = message;
-        recordStreamLifecycle(req, 'upstream_error', {
-          message,
-          chunks,
-          bytes,
-        });
-        controller.enqueue(serializeStreamErrorEvent('The upstream stream closed before completion.'));
+        if (status === 'upstream_error') {
+          recordStreamLifecycle(req, 'upstream_error', {
+            message,
+            chunks,
+            bytes,
+          });
+          safeEnqueue(controller, serializeStreamErrorEvent('The upstream stream closed before completion.'));
+        }
       } finally {
         const remaining = decoder.decode();
         if (remaining) {
@@ -215,16 +259,11 @@ function passThroughStreamingResponse(
           sawText: observation.sawText,
           streamError: observation.streamError,
         });
-        controller.close();
+        safeClose(controller);
       }
     },
     cancel(reason) {
-      status = 'client_cancel';
-      recordStreamLifecycle(req, 'client_cancel', {
-        reason: reason instanceof Error ? reason.message : String(reason ?? ''),
-        chunks,
-        bytes,
-      });
+      recordClientCancel(reason);
       return reader?.cancel(reason);
     },
   });
@@ -344,9 +383,11 @@ export function governStreamingResponse(
         }
 
         for (const event of selected.events) {
-          controller.enqueue(serializeEvent(event));
+          if (!safeEnqueue(controller, serializeEvent(event))) {
+            return;
+          }
         }
-        controller.close();
+        safeClose(controller);
 
         if (req.sessionId && selected.usage) {
           sessionUsageCache.put(req.sessionId, selected.usage);
@@ -372,7 +413,9 @@ export function governStreamingResponse(
           recordGovernanceTrace(req.governanceTrace);
         }
       } catch (error) {
-        controller.error(error);
+        const message = getErrorMessage(error, 'The upstream stream closed before completion.');
+        safeEnqueue(controller, serializeStreamErrorEvent(message));
+        safeClose(controller);
       }
     },
   });
