@@ -613,7 +613,7 @@ async function run(options: RunOptions = {}) {
               summarizer_model: resolveModelReference(config, alignmentConfig.summarizer_model) ?? alignmentConfig.summarizer_model,
             };
             const alignmentStartedAt = Date.now();
-            const summary = await contextAlignmentService.summarizeTransition(
+            const alignmentResult = await contextAlignmentService.summarizeTransitionWithDiagnostics(
               triggerResult.analyzedText,
               previousModel,
               triggerResult.model,
@@ -623,6 +623,7 @@ async function run(options: RunOptions = {}) {
               config.APIKEY,
             config.API_TIMEOUT_MS
           );
+          const summary = alignmentResult.summary;
           recordPreflightStage(
             req,
             'context_alignment_summary',
@@ -631,7 +632,11 @@ async function run(options: RunOptions = {}) {
             {
               previousModel,
               nextModel: triggerResult.model,
-              requestChars: triggerResult.analyzedText.length,
+              requestChars: alignmentResult.inputChars,
+              boundedChars: alignmentResult.boundedChars,
+              truncated: alignmentResult.truncated,
+              timeoutMs: alignmentResult.timeoutMs,
+              skipReason: alignmentResult.skipReason,
               summarizerModel: resolvedAlignmentConfig.summarizer_model,
             }
           );

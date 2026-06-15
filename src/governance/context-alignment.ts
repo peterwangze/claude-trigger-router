@@ -10,6 +10,19 @@ import { logError, logWarn } from '../utils/log';
 import { createSingleUserTextIR } from '../protocols/message-ir';
 import { toAnthropicMessagesRequest } from '../protocols/anthropic';
 
+const DEFAULT_ALIGNMENT_CONTEXT_CHARS = 4000;
+const DEFAULT_ALIGNMENT_TIMEOUT_MS = 30000;
+
+export interface IContextAlignmentSummaryResult {
+  summary: string | null;
+  skipped: boolean;
+  skipReason?: string;
+  inputChars: number;
+  boundedChars: number;
+  truncated: boolean;
+  timeoutMs?: number;
+}
+
 const CONTEXT_ALIGNMENT_PROMPT = `You are a technical handoff assistant.
 Summarize the current task so a different model can continue the work without losing context.
 
@@ -40,7 +53,25 @@ export class ContextAlignmentService {
       .replace('{request}', text);
   }
 
-  async summarizeTransition(
+  private boundContext(text: string, config: IContextAlignmentConfig): {
+    text: string;
+    inputChars: number;
+    boundedChars: number;
+    truncated: boolean;
+  } {
+    const maxChars = config.max_context_chars && config.max_context_chars > 0
+      ? config.max_context_chars
+      : DEFAULT_ALIGNMENT_CONTEXT_CHARS;
+    const bounded = text.length > maxChars ? text.slice(-maxChars) : text;
+    return {
+      text: bounded,
+      inputChars: text.length,
+      boundedChars: bounded.length,
+      truncated: bounded.length < text.length,
+    };
+  }
+
+  async summarizeTransitionWithDiagnostics(
     text: string,
     previousModel: string,
     nextModel: string,
@@ -49,9 +80,42 @@ export class ContextAlignmentService {
     fetchFn?: typeof fetch,
     apiKey?: string,
     timeoutMs?: number
-  ): Promise<string | null> {
-    if (!config.enabled || !config.summarizer_model || !text.trim()) {
-      return null;
+  ): Promise<IContextAlignmentSummaryResult> {
+    const bounded = this.boundContext(text, config);
+    const effectiveTimeoutMs = config.timeout_ms && config.timeout_ms > 0
+      ? config.timeout_ms
+      : timeoutMs && timeoutMs > 0
+        ? Math.min(timeoutMs, DEFAULT_ALIGNMENT_TIMEOUT_MS)
+        : DEFAULT_ALIGNMENT_TIMEOUT_MS;
+
+    if (!config.enabled) {
+      return {
+        summary: null,
+        skipped: true,
+        skipReason: 'disabled',
+        ...bounded,
+        timeoutMs: effectiveTimeoutMs,
+      };
+    }
+
+    if (!config.summarizer_model) {
+      return {
+        summary: null,
+        skipped: true,
+        skipReason: 'missing_summarizer_model',
+        ...bounded,
+        timeoutMs: effectiveTimeoutMs,
+      };
+    }
+
+    if (!bounded.text.trim()) {
+      return {
+        summary: null,
+        skipped: true,
+        skipReason: 'empty_context',
+        ...bounded,
+        timeoutMs: effectiveTimeoutMs,
+      };
     }
 
     try {
@@ -66,24 +130,67 @@ export class ContextAlignmentService {
           toAnthropicMessagesRequest({
             model: config.summarizer_model,
             max_tokens: config.max_summary_tokens ?? 256,
-            ir: createSingleUserTextIR(this.buildPrompt(text, previousModel, nextModel)),
+            ir: createSingleUserTextIR(this.buildPrompt(bounded.text, previousModel, nextModel)),
           })
         ),
-        ...(timeoutMs && timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
+        signal: AbortSignal.timeout(effectiveTimeoutMs),
       });
 
       if (!response.ok) {
         logWarn('[ContextAlignment] Alignment request failed:', response.status);
-        return null;
+        return {
+          summary: null,
+          skipped: true,
+          skipReason: `http_${response.status}`,
+          ...bounded,
+          timeoutMs: effectiveTimeoutMs,
+        };
       }
 
       const data = await response.json() as any;
       const summary = data.content?.[0]?.text?.trim?.() || '';
-      return summary || null;
+      return {
+        summary: summary || null,
+        skipped: !summary,
+        ...(!summary ? { skipReason: 'empty_summary' } : {}),
+        ...bounded,
+        timeoutMs: effectiveTimeoutMs,
+      };
     } catch (error) {
       logError('[ContextAlignment] Failed to summarize transition:', error);
-      return null;
+      return {
+        summary: null,
+        skipped: true,
+        skipReason: error instanceof Error && error.name === 'TimeoutError'
+          ? 'timeout'
+          : 'request_failed',
+        ...bounded,
+        timeoutMs: effectiveTimeoutMs,
+      };
     }
+  }
+
+  async summarizeTransition(
+    text: string,
+    previousModel: string,
+    nextModel: string,
+    config: IContextAlignmentConfig,
+    port: number = DEFAULT_CONFIG.PORT,
+    fetchFn?: typeof fetch,
+    apiKey?: string,
+    timeoutMs?: number
+  ): Promise<string | null> {
+    const result = await this.summarizeTransitionWithDiagnostics(
+      text,
+      previousModel,
+      nextModel,
+      config,
+      port,
+      fetchFn,
+      apiKey,
+      timeoutMs
+    );
+    return result.summary;
   }
 
   injectAlignmentContext(system: any, summary: string, previousModel: string, nextModel: string): any {

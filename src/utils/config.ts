@@ -236,6 +236,12 @@ function validateStickyRoutingConfig(
     if ((sticky.alignment.max_summary_tokens ?? 0) <= 0) {
       errors.push(`${prefix}.alignment.max_summary_tokens must be greater than 0 when alignment is enabled`);
     }
+    if (sticky.alignment.max_context_chars !== undefined && sticky.alignment.max_context_chars <= 0) {
+      errors.push(`${prefix}.alignment.max_context_chars must be greater than 0 when alignment is enabled`);
+    }
+    if (sticky.alignment.timeout_ms !== undefined && sticky.alignment.timeout_ms <= 0) {
+      errors.push(`${prefix}.alignment.timeout_ms must be greater than 0 when alignment is enabled`);
+    }
   }
 }
 

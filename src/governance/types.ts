@@ -16,6 +16,12 @@ export interface IContextAlignmentConfig {
 
   /** 摘要最大 token 数 */
   max_summary_tokens?: number;
+
+  /** 传给 summarizer 的最大上下文字符数，默认 4000 */
+  max_context_chars?: number;
+
+  /** summarizer 独立超时，默认不超过 30000ms */
+  timeout_ms?: number;
 }
 
 export interface IStickyRoutingConfig {

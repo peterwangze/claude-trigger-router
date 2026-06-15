@@ -94,6 +94,7 @@ vi.mock('./governance', () => ({
   applyResponseGovernance: vi.fn(),
   contextAlignmentService: {
     summarizeTransition: vi.fn(),
+    summarizeTransitionWithDiagnostics: vi.fn(),
     injectAlignmentContext: vi.fn(),
   },
   createGovernanceTrace: vi.fn().mockReturnValue({}),
@@ -197,6 +198,16 @@ describe('run startup wiring', () => {
       matched: false,
       confidence: 0,
       analysisTime: 0,
+    });
+    const { contextAlignmentService } = await import('./governance');
+    vi.mocked(contextAlignmentService.summarizeTransitionWithDiagnostics).mockResolvedValue({
+      summary: null,
+      skipped: true,
+      skipReason: 'disabled',
+      inputChars: 0,
+      boundedChars: 0,
+      truncated: false,
+      timeoutMs: 30000,
     });
     mockTriggerGetSmartRouterConfig.mockReturnValue({
       enabled: true,
@@ -464,7 +475,7 @@ describe('run startup wiring', () => {
     await smartRouterHook(req, {});
 
     expect(req.body.model).toBe('opus');
-    expect(contextAlignmentService.summarizeTransition).not.toHaveBeenCalled();
+    expect(contextAlignmentService.summarizeTransitionWithDiagnostics).not.toHaveBeenCalled();
     expect(contextAlignmentService.injectAlignmentContext).not.toHaveBeenCalled();
   });
 
