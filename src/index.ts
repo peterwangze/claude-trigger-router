@@ -725,6 +725,8 @@ async function run(options: RunOptions = {}) {
           {
             tokenCount: tokenDiagnostics.tokenCount,
             durationMs: tokenDiagnostics.durationMs,
+            cacheHit: tokenDiagnostics.cacheHit,
+            signatureLength: tokenDiagnostics.signatureLength,
             messageCount: tokenDiagnostics.messageCount,
             toolCount: tokenDiagnostics.toolCount,
           }

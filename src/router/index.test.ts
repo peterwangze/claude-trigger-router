@@ -41,6 +41,56 @@ describe('router model registry integration', () => {
     expect(req.body.model).toBe('model__sonnet,anthropic/claude-sonnet-4');
   });
 
+  it('reuses token count diagnostics for repeated resume-sized request context', async () => {
+    const requestBody = {
+      model: 'claude-3-5-sonnet',
+      messages: [
+        { role: 'user' as const, content: 'resume history '.repeat(200) },
+        { role: 'assistant' as const, content: 'previous answer '.repeat(100) },
+        { role: 'user' as const, content: 'continue the same task' },
+      ],
+      system: [],
+      tools: [
+        {
+          name: 'search',
+          description: 'search tool',
+          input_schema: {
+            type: 'object',
+            properties: {
+              query: { type: 'string' },
+            },
+          },
+        },
+      ],
+    };
+    const config = {
+      Providers: [],
+      Models: [
+        {
+          id: 'sonnet',
+          api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+          api_key: 'sk-test',
+          protocol: 'openai',
+          model: 'anthropic/claude-sonnet-4',
+        },
+      ],
+      Router: {
+        default: 'sonnet',
+      },
+    };
+
+    const firstReq = { body: JSON.parse(JSON.stringify(requestBody)) };
+    const secondReq = { body: JSON.parse(JSON.stringify(requestBody)) };
+
+    await router(firstReq as any, {} as any, { config, event: undefined });
+    await router(secondReq as any, {} as any, { config, event: undefined });
+
+    expect(firstReq.routerTokenDiagnostics.cacheHit).toBe(false);
+    expect(secondReq.routerTokenDiagnostics.cacheHit).toBe(true);
+    expect(secondReq.routerTokenDiagnostics.tokenCount).toBe(firstReq.routerTokenDiagnostics.tokenCount);
+    expect(secondReq.routerTokenDiagnostics.signatureLength).toBeGreaterThan(1000);
+  });
+
   it('resolves think and background routes from modelId', async () => {
     const req = {
       body: {

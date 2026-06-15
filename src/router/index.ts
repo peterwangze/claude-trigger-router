@@ -18,6 +18,46 @@ import type { ICompiledModelRef } from '../models/compile';
 import { appendTraceReason } from '../governance';
 
 const enc = get_encoding("cl100k_base");
+const TOKEN_COUNT_CACHE_MAX = 128;
+
+interface ITokenCountDiagnostics {
+  tokenCount: number;
+  cacheHit: boolean;
+  signature: string;
+}
+
+const tokenCountCache = new Map<string, number>();
+
+function stableStringify(value: unknown): string {
+  if (value === undefined) {
+    return 'undefined';
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function buildTokenCountSignature(messages: MessageParam[] | undefined, system: any, tools: Tool[] | undefined): string {
+  return stableStringify({
+    messages: Array.isArray(messages) ? messages : [],
+    system: system ?? [],
+    tools: Array.isArray(tools) ? tools : [],
+  });
+}
+
+function rememberTokenCount(signature: string, tokenCount: number): void {
+  if (tokenCountCache.has(signature)) {
+    tokenCountCache.delete(signature);
+  }
+  tokenCountCache.set(signature, tokenCount);
+  while (tokenCountCache.size > TOKEN_COUNT_CACHE_MAX) {
+    const firstKey = tokenCountCache.keys().next().value;
+    if (!firstKey) break;
+    tokenCountCache.delete(firstKey);
+  }
+}
 
 /**
  * 计算 token 数量
@@ -26,7 +66,17 @@ const calculateTokenCount = (
   messages: MessageParam[],
   system: any,
   tools: Tool[]
-) => {
+): ITokenCountDiagnostics => {
+  const signature = buildTokenCountSignature(messages, system, tools);
+  const cached = tokenCountCache.get(signature);
+  if (cached !== undefined) {
+    return {
+      tokenCount: cached,
+      cacheHit: true,
+      signature,
+    };
+  }
+
   let tokenCount = 0;
   if (Array.isArray(messages)) {
     messages.forEach((message) => {
@@ -73,7 +123,12 @@ const calculateTokenCount = (
       }
     });
   }
-  return tokenCount;
+  rememberTokenCount(signature, tokenCount);
+  return {
+    tokenCount,
+    cacheHit: false,
+    signature,
+  };
 };
 
 /**
@@ -331,17 +386,20 @@ export const router = async (req: any, _res: any, context: any) => {
 
   try {
     const tokenStartedAt = Date.now();
-    const tokenCount = calculateTokenCount(
+    const tokenDiagnostics = calculateTokenCount(
       messages as MessageParam[],
       system,
       tools as Tool[]
     );
+    const tokenCount = tokenDiagnostics.tokenCount;
     const tokenCompletedAt = Date.now();
     req.routerTokenDiagnostics = {
       startedAt: tokenStartedAt,
       completedAt: tokenCompletedAt,
       durationMs: Math.max(0, tokenCompletedAt - tokenStartedAt),
       tokenCount,
+      cacheHit: tokenDiagnostics.cacheHit,
+      signatureLength: tokenDiagnostics.signature.length,
       messageCount: Array.isArray(messages) ? messages.length : 0,
       toolCount: Array.isArray(tools) ? tools.length : 0,
     };
