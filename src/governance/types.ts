@@ -190,6 +190,28 @@ export interface IGovernanceTrace {
     sessionId?: string;
     detail?: Record<string, unknown>;
   }>;
+  preflightDiagnostics?: {
+    startedAt: number;
+    completedAt?: number;
+    messageCount: number;
+    userMessageCount: number;
+    assistantMessageCount: number;
+    toolUseCount: number;
+    toolResultCount: number;
+    textCharCount: number;
+    userTextCharCount: number;
+    toolResultCharCount: number;
+    systemCharCount: number;
+    toolSchemaCharCount: number;
+    stages: Array<{
+      name: string;
+      status: string;
+      startedAt: number;
+      completedAt: number;
+      durationMs: number;
+      detail?: Record<string, unknown>;
+    }>;
+  };
   stickyHit: boolean;
   alignmentUsed: boolean;
   semanticIntent?: string;

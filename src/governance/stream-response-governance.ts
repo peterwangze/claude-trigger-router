@@ -13,6 +13,7 @@ import { resolveModelReference } from '../models/compile';
 import { getRuntimePipeline } from '../runtime/pipeline';
 import { inspectOutputGuardrail } from './io-guardrail';
 import { recordStreamLifecycle } from '../utils/stream-lifecycle';
+import { attachPreflightDiagnostics } from './preflight-diagnostics';
 
 interface ICollectedSSE {
   events: any[];
@@ -149,6 +150,7 @@ function finalizeStreamingTrace(
     return;
   }
 
+  attachPreflightDiagnostics(req);
   const outputGuardrail = inspectOutputGuardrail(observation.text);
   req.governanceTrace.outputGuardrail = outputGuardrail;
   for (const finding of outputGuardrail.findings) {

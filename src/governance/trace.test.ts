@@ -372,6 +372,74 @@ describe('governance trace', () => {
     ]);
   });
 
+  it('adds preflight diagnostics to trace spans', () => {
+    const trace = createGovernanceTrace({
+      requestId: 'req-preflight-span',
+      startedAt: 100,
+      preflightDiagnostics: {
+        startedAt: 105,
+        completedAt: 145,
+        messageCount: 12,
+        userMessageCount: 6,
+        assistantMessageCount: 6,
+        toolUseCount: 2,
+        toolResultCount: 2,
+        textCharCount: 24000,
+        userTextCharCount: 12000,
+        toolResultCharCount: 6000,
+        systemCharCount: 800,
+        toolSchemaCharCount: 1200,
+        stages: [
+          {
+            name: 'smart_router_analysis',
+            status: 'completed',
+            startedAt: 105,
+            completedAt: 125,
+            durationMs: 20,
+            detail: {
+              analyzedTextChars: 12000,
+            },
+          },
+          {
+            name: 'token_count',
+            status: 'completed',
+            startedAt: 126,
+            completedAt: 145,
+            durationMs: 19,
+            detail: {
+              tokenCount: 6800,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(buildTraceSpansFromPipeline(trace)).toEqual([
+      expect.objectContaining({
+        name: 'preflight_diagnostics',
+        status: 'completed',
+        startOffsetMs: 5,
+        durationMs: 40,
+        attributes: expect.objectContaining({
+          messageCount: 12,
+          textCharCount: 24000,
+          stages: [
+            expect.objectContaining({
+              name: 'smart_router_analysis',
+              durationMs: 20,
+            }),
+            expect.objectContaining({
+              name: 'token_count',
+              detail: {
+                tokenCount: 6800,
+              },
+            }),
+          ],
+        }),
+      }),
+    ]);
+  });
+
   it('persists traces to disk and reloads them on restart', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'ctr-governance-trace-'));
     const persistFile = join(dir, 'governance-traces.json');

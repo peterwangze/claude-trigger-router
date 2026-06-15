@@ -330,11 +330,21 @@ export const router = async (req: any, _res: any, context: any) => {
   const { messages, system = [], tools }: MessageCreateParamsBase = req.body;
 
   try {
+    const tokenStartedAt = Date.now();
     const tokenCount = calculateTokenCount(
       messages as MessageParam[],
       system,
       tools as Tool[]
     );
+    const tokenCompletedAt = Date.now();
+    req.routerTokenDiagnostics = {
+      startedAt: tokenStartedAt,
+      completedAt: tokenCompletedAt,
+      durationMs: Math.max(0, tokenCompletedAt - tokenStartedAt),
+      tokenCount,
+      messageCount: Array.isArray(messages) ? messages.length : 0,
+      toolCount: Array.isArray(tools) ? tools.length : 0,
+    };
 
     let model;
 

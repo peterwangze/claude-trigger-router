@@ -12,6 +12,7 @@ import { dirname, join } from 'path';
 import { gunzipSync, gzipSync } from 'zlib';
 import { GOVERNANCE_TRACE_ARCHIVE_DIR, GOVERNANCE_TRACE_FILE } from '../constants';
 import { IGovernanceTrace } from './types';
+import { summarizePreflightDiagnostics } from './preflight-diagnostics';
 
 export interface IGovernanceTraceStoreOptions {
   max?: number;
@@ -62,6 +63,13 @@ function cloneTrace(trace: IGovernanceTrace): IGovernanceTrace {
       ...entry,
       detail: entry.detail ? { ...entry.detail } : undefined,
     })) : undefined,
+    preflightDiagnostics: trace.preflightDiagnostics ? {
+      ...trace.preflightDiagnostics,
+      stages: trace.preflightDiagnostics.stages.map((stage) => ({
+        ...stage,
+        detail: stage.detail ? { ...stage.detail } : undefined,
+      })),
+    } : undefined,
     cascadeEvidence: trace.cascadeEvidence ? [...trace.cascadeEvidence] : [],
   };
 }
@@ -426,6 +434,13 @@ export function createGovernanceTrace(
       ...entry,
       detail: entry.detail ? { ...entry.detail } : undefined,
     })) : undefined,
+    preflightDiagnostics: input.preflightDiagnostics ? {
+      ...input.preflightDiagnostics,
+      stages: input.preflightDiagnostics.stages.map((stage) => ({
+        ...stage,
+        detail: stage.detail ? { ...stage.detail } : undefined,
+      })),
+    } : undefined,
     stickyHit: input.stickyHit ?? false,
     alignmentUsed: input.alignmentUsed ?? false,
     semanticIntent: input.semanticIntent,
@@ -583,6 +598,23 @@ export function buildTraceSpansFromPipeline(
         streamError: finalEntry?.detail?.streamError ?? errorEntry?.detail?.message,
         cancelReason: cancelEntry?.detail?.reason,
       },
+    });
+  }
+
+  if (trace.preflightDiagnostics?.stages.length) {
+    const diagnostics = trace.preflightDiagnostics;
+    spans.push({
+      name: 'preflight_diagnostics',
+      status: diagnostics.stages.some((stage) => stage.status === 'failed')
+        ? 'failed'
+        : diagnostics.stages.some((stage) => stage.status === 'skipped' || stage.status === 'bypassed')
+          ? 'observed'
+          : 'completed',
+      startOffsetMs: Math.max(0, diagnostics.startedAt - trace.startedAt),
+      ...(typeof diagnostics.completedAt === 'number'
+        ? { durationMs: Math.max(0, diagnostics.completedAt - diagnostics.startedAt) }
+        : {}),
+      attributes: summarizePreflightDiagnostics(trace),
     });
   }
 

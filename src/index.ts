@@ -32,7 +32,7 @@ import { evaluateToolCapabilityGuardrail } from "./agents/guardrail";
 import { EventEmitter } from "node:events";
 import { triggerRouter as smartRouterRuntime } from "./trigger";
 import { createStream } from 'rotating-file-stream';
-import { appendTraceReason, applyResponseGovernance, buildTraceSpansFromPipeline, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, inspectInputGuardrail, recordGovernanceTrace, sessionStateStore, summarizeRouteHandoffTrace } from "./governance";
+import { appendTraceReason, applyResponseGovernance, attachPreflightDiagnostics, buildTraceSpansFromPipeline, contextAlignmentService, createGovernanceTrace, finalizeTrace, governanceTraceStore, governStreamingResponse, initializePreflightDiagnostics, inspectInputGuardrail, recordGovernanceTrace, recordPreflightStage, sessionStateStore, summarizeRouteHandoffTrace } from "./governance";
 import { buildModelRegistry, getCompiledModelRef, resolveModelReference } from "./models/compile";
 import { modelPoolHealthStore } from "./models/pool-health";
 import { createModelPoolHealthPersistenceScheduler, loadPersistedModelPoolHealth } from "./models/pool-health-persistence";
@@ -556,6 +556,7 @@ async function run(options: RunOptions = {}) {
           req.sessionId = parts[1];
         }
       }
+      initializePreflightDiagnostics(req);
 
       req.governanceTrace = createGovernanceTrace({
         requestId: req.id,
@@ -570,9 +571,23 @@ async function run(options: RunOptions = {}) {
       }
 
       const bypassSmartRouter = req.headers["x-ctr-smart-router"] === "1";
+      const smartRouterStartedAt = Date.now();
       const triggerResult = bypassSmartRouter
         ? { matched: false, confidence: 0, analysisTime: 0 }
         : await smartRouterRuntime.route(req);
+      recordPreflightStage(
+        req,
+        'smart_router_analysis',
+        bypassSmartRouter ? 'bypassed' : 'completed',
+        smartRouterStartedAt,
+        {
+          matched: Boolean(triggerResult.matched),
+          model: triggerResult.model,
+          routeSource: triggerResult.routeSource,
+          analysisTime: triggerResult.analysisTime,
+          analyzedTextChars: triggerResult.analyzedText?.length ?? 0,
+        }
+      );
       req.triggerResult = triggerResult;
       recordRuntimePipelineStage(req, 'smart_router', bypassSmartRouter ? 'bypassed' : 'completed', {
         matched: Boolean(triggerResult.matched),
@@ -597,6 +612,7 @@ async function run(options: RunOptions = {}) {
               ...alignmentConfig,
               summarizer_model: resolveModelReference(config, alignmentConfig.summarizer_model) ?? alignmentConfig.summarizer_model,
             };
+            const alignmentStartedAt = Date.now();
             const summary = await contextAlignmentService.summarizeTransition(
               triggerResult.analyzedText,
               previousModel,
@@ -606,6 +622,18 @@ async function run(options: RunOptions = {}) {
               undefined,
               config.APIKEY,
             config.API_TIMEOUT_MS
+          );
+          recordPreflightStage(
+            req,
+            'context_alignment_summary',
+            summary ? 'completed' : 'skipped',
+            alignmentStartedAt,
+            {
+              previousModel,
+              nextModel: triggerResult.model,
+              requestChars: triggerResult.analyzedText.length,
+              summarizerModel: resolvedAlignmentConfig.summarizer_model,
+            }
           );
 
           if (summary) {
@@ -687,6 +715,21 @@ async function run(options: RunOptions = {}) {
         config,
         event,
       });
+      if (req.routerTokenDiagnostics) {
+        const tokenDiagnostics = req.routerTokenDiagnostics;
+        recordPreflightStage(
+          req,
+          'token_count',
+          'completed',
+          tokenDiagnostics.startedAt,
+          {
+            tokenCount: tokenDiagnostics.tokenCount,
+            durationMs: tokenDiagnostics.durationMs,
+            messageCount: tokenDiagnostics.messageCount,
+            toolCount: tokenDiagnostics.toolCount,
+          }
+        );
+      }
       recordRuntimePipelineStage(req, 'router', 'completed', {
         model: req.body?.model,
       });
@@ -699,6 +742,7 @@ async function run(options: RunOptions = {}) {
         req.responseGovernanceApplied = true;
         req.localStructuredError = true;
         if (req.governanceTrace) {
+          attachPreflightDiagnostics(req);
           req.governanceTrace.handoffSummary = summarizeRouteHandoffTrace(
             req.governanceTrace,
             getRuntimePipeline(req)
@@ -1008,6 +1052,7 @@ async function run(options: RunOptions = {}) {
     }
 
     if (req.governanceTrace) {
+      attachPreflightDiagnostics(req);
       logDebug("[GovernanceTrace]", JSON.stringify(req.governanceTrace));
     }
 

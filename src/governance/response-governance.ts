@@ -14,6 +14,7 @@ import { extractApiKeyFromHeaders } from '../auth/api-keys';
 import { modelPoolHealthStore } from '../models/pool-health';
 import { getRuntimePipeline } from '../runtime/pipeline';
 import { inspectOutputGuardrail } from './io-guardrail';
+import { attachPreflightDiagnostics } from './preflight-diagnostics';
 
 export interface IResponseGovernanceDeps {
   decideCascadeEscalation?: typeof decideCascadeEscalation;
@@ -304,6 +305,7 @@ export async function applyResponseGovernance({
   }
 
   if (req.governanceTrace) {
+    attachPreflightDiagnostics(req);
     const outputGuardrail = inspectOutputGuardrail(nextPayload);
     req.governanceTrace.outputGuardrail = outputGuardrail;
     for (const finding of outputGuardrail.findings) {

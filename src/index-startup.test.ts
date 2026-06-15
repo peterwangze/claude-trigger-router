@@ -102,6 +102,25 @@ vi.mock('./governance', () => ({
     flushPersistence: vi.fn().mockResolvedValue(undefined),
   },
   governStreamingResponse: vi.fn((payload: unknown) => payload),
+  initializePreflightDiagnostics: vi.fn((req: any) => {
+    req.preflightDiagnostics = req.preflightDiagnostics ?? {
+      startedAt: Date.now(),
+      messageCount: 0,
+      userMessageCount: 0,
+      assistantMessageCount: 0,
+      toolUseCount: 0,
+      toolResultCount: 0,
+      textCharCount: 0,
+      userTextCharCount: 0,
+      toolResultCharCount: 0,
+      systemCharCount: 0,
+      toolSchemaCharCount: 0,
+      stages: [],
+    };
+    return req.preflightDiagnostics;
+  }),
+  recordPreflightStage: vi.fn(),
+  attachPreflightDiagnostics: vi.fn(),
   recordGovernanceTrace: mockRecordGovernanceTrace,
   sessionStateStore: {
     get: mockSessionStateGet,

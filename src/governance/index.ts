@@ -11,3 +11,4 @@ export * from './metrics';
 export * from './metrics-export';
 export * from './io-guardrail';
 export * from './routing-advisor';
+export * from './preflight-diagnostics';
