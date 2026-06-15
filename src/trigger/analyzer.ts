@@ -7,6 +7,21 @@
 import { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { AnalysisScope, ITriggerConfig, IRequestContext } from './types';
 
+export interface IAnalysisBudget {
+  maxChars?: number;
+  recentMessageCount?: number;
+}
+
+export interface IAnalyzedTextResult {
+  text: string;
+  originalChars: number;
+  truncated: boolean;
+  budgetApplied: boolean;
+  scope: AnalysisScope;
+  recentMessageCount?: number;
+  maxChars?: number;
+}
+
 /**
  * 上下文分析器类
  */
@@ -91,6 +106,47 @@ export class ContextAnalyzer {
     }
   }
 
+  analyzeWithBudget(req: IRequestContext, config: ITriggerConfig, budget?: IAnalysisBudget): IAnalyzedTextResult {
+    const messages = req.body?.messages;
+    const scope = config.analysis_scope || 'last_message';
+
+    if (!messages) {
+      return {
+        text: '',
+        originalChars: 0,
+        truncated: false,
+        budgetApplied: false,
+        scope,
+      };
+    }
+
+    const scopedMessages = Array.isArray(messages) &&
+      scope === 'full_conversation' &&
+      budget?.recentMessageCount &&
+      budget.recentMessageCount > 0 &&
+      messages.length > budget.recentMessageCount
+      ? messages.slice(-budget.recentMessageCount)
+      : messages;
+    const rawText = this.extractTextByScope(scopedMessages, scope);
+    const originalText = scopedMessages === messages
+      ? rawText
+      : this.extractTextByScope(messages, scope);
+    const maxChars = budget?.maxChars && budget.maxChars > 0 ? budget.maxChars : undefined;
+    const text = maxChars && rawText.length > maxChars
+      ? rawText.slice(-maxChars)
+      : rawText;
+
+    return {
+      text,
+      originalChars: originalText.length,
+      truncated: text.length < originalText.length,
+      budgetApplied: scopedMessages !== messages || Boolean(maxChars && rawText.length > maxChars),
+      scope,
+      ...(budget?.recentMessageCount ? { recentMessageCount: budget.recentMessageCount } : {}),
+      ...(maxChars ? { maxChars } : {}),
+    };
+  }
+
   /**
    * 分析请求，提取待分析的文本
    *
@@ -99,15 +155,7 @@ export class ContextAnalyzer {
    * @returns 待分析的文本内容
    */
   analyze(req: IRequestContext, config: ITriggerConfig): string {
-    const messages = req.body?.messages;
-
-    if (!messages) {
-      return '';
-    }
-
-    const scope = config.analysis_scope || 'last_message';
-
-    return this.extractTextByScope(messages, scope);
+    return this.analyzeWithBudget(req, config).text;
   }
 
   /**

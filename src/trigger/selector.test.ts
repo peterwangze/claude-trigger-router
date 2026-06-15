@@ -412,6 +412,135 @@ describe('ModelSelector', () => {
       expect(result.routeSource).toBe('sticky_correction');
     });
 
+    it('should reuse sticky session model before semantic classifier or SmartRouter fallback', async () => {
+      sessionStateStore.put('sticky-session', {
+        preferredModel: 'provider,sticky-model',
+        lastSuccessfulModel: 'provider,sticky-model',
+        lastTaskFingerprint: '请继续处理这个恢复任务',
+      });
+
+      const req = {
+        sessionId: 'sticky-session',
+        body: {
+          messages: [{ role: 'user', content: '请继续处理这个恢复任务' }],
+        },
+      };
+      const semanticSpy = vi.spyOn(semanticRouter, 'analyzeWithClassifier').mockResolvedValue({
+        intent: 'architecture',
+        confidence: 0.95,
+      });
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.9,
+      });
+
+      const result = await selector.selectModel(
+        req as any,
+        config,
+        5678,
+        {
+          enabled: true,
+          router_model: 'test,router',
+          candidates: [
+            { model: 'provider,model-a', description: 'A' },
+            { model: 'provider,model-b', description: 'B' },
+          ],
+          semantic: {
+            enabled: true,
+            mode: 'classifier',
+            classifier_model: 'test,classifier',
+            prototypes: {
+              architecture: '架构 设计',
+            },
+          },
+          sticky: {
+            enabled: true,
+          },
+        } as any
+      );
+
+      expect(result.matched).toBe(true);
+      expect(result.model).toBe('provider,sticky-model');
+      expect(result.routeSource).toBe('sticky_correction');
+      expect(semanticSpy).not.toHaveBeenCalled();
+      expect(smartSpy).not.toHaveBeenCalled();
+      semanticSpy.mockRestore();
+      smartSpy.mockRestore();
+    });
+
+    it('should bound full conversation text before SmartRouter fallback', async () => {
+      const req: any = {
+        preflightDiagnostics: {
+          startedAt: Date.now(),
+          messageCount: 3,
+          userMessageCount: 2,
+          assistantMessageCount: 1,
+          toolUseCount: 0,
+          toolResultCount: 0,
+          textCharCount: 0,
+          userTextCharCount: 0,
+          toolResultCharCount: 0,
+          systemCharCount: 0,
+          toolSchemaCharCount: 0,
+          stages: [],
+        },
+        governanceTrace: {
+          routeReason: [],
+        },
+        body: {
+          messages: [
+            { role: 'user', content: 'old-history '.repeat(20) },
+            { role: 'assistant', content: 'reply' },
+            { role: 'user', content: 'latest-history-important-tail' },
+          ],
+        },
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.8,
+      });
+
+      const result = await selector.selectModel(
+        req,
+        config,
+        5678,
+        {
+          enabled: true,
+          analysis_scope: 'full_conversation',
+          router_model: 'test,router',
+          candidates: [
+            { model: 'provider,model-a', description: 'A' },
+            { model: 'provider,model-b', description: 'B' },
+          ],
+          analysis_budget: {
+            max_chars: 12,
+            recent_message_count: 1,
+          },
+        }
+      );
+
+      expect(result.model).toBe('provider,model-a');
+      expect(smartSpy).toHaveBeenCalledWith(
+        'portant-tail',
+        expect.anything(),
+        5678,
+        undefined,
+        undefined,
+        undefined,
+        expect.objectContaining({
+          taskSummary: 'portant-tail',
+        })
+      );
+      expect(req.preflightDiagnostics.analysis).toEqual(expect.objectContaining({
+        scope: 'full_conversation',
+        textChars: 12,
+        truncated: true,
+        budgetApplied: true,
+      }));
+      expect(req.governanceTrace.routeReason[0]).toContain('analysis_budget:full_conversation:12/');
+      smartSpy.mockRestore();
+    });
+
     it('should not reuse sticky session model when governance is disabled', async () => {
       sessionStateStore.put('sticky-session', {
         preferredModel: 'provider,sticky-model',

@@ -122,6 +122,37 @@ describe('ContextAnalyzer', () => {
       const req = { body: {} };
       expect(analyzer.analyze(req, config)).toBe('');
     });
+
+    it('should bound full conversation analysis by recent messages and max chars', () => {
+      const req = {
+        body: {
+          messages: [
+            { role: 'user', content: 'first-old-message' },
+            { role: 'assistant', content: 'reply' },
+            { role: 'user', content: 'second-old-message' },
+            { role: 'assistant', content: 'reply' },
+            { role: 'user', content: 'latest-message-with-important-tail' },
+          ],
+        },
+      };
+      const result = analyzer.analyzeWithBudget(
+        req as any,
+        {
+          ...config,
+          analysis_scope: 'full_conversation',
+        },
+        {
+          recentMessageCount: 2,
+          maxChars: 18,
+        }
+      );
+
+      expect(result.text).toBe('ith-important-tail');
+      expect(result.originalChars).toBeGreaterThan(result.text.length);
+      expect(result.truncated).toBe(true);
+      expect(result.budgetApplied).toBe(true);
+      expect(result.scope).toBe('full_conversation');
+    });
   });
 
   // ============ hasToolResults ============

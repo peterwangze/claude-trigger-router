@@ -21,6 +21,11 @@ interface IStickyCorrectionContext {
   fingerprint?: string;
 }
 
+const DEFAULT_ANALYSIS_BUDGET = {
+  maxChars: 12000,
+  recentMessageCount: 8,
+};
+
 /**
  * 模型选择器类
  */
@@ -217,6 +222,49 @@ export class ModelSelector {
       routingBudget: this.buildRoutingBudgetHint(req, smartRouterConfig),
     };
   }
+
+  private getAnalysisBudget(smartRouterConfig?: ISmartRouterConfig) {
+    return {
+      maxChars: this.readPositiveNumber(smartRouterConfig?.analysis_budget?.max_chars) ?? DEFAULT_ANALYSIS_BUDGET.maxChars,
+      recentMessageCount: this.readPositiveNumber(smartRouterConfig?.analysis_budget?.recent_message_count) ?? DEFAULT_ANALYSIS_BUDGET.recentMessageCount,
+    };
+  }
+
+  private analyzeRequestText(req: IRequestContext, config: ITriggerConfig, smartRouterConfig?: ISmartRouterConfig) {
+    const analysisConfig = smartRouterConfig?.analysis_scope
+      ? {
+          ...config,
+          analysis_scope: smartRouterConfig.analysis_scope,
+        }
+      : config;
+    const result = contextAnalyzer.analyzeWithBudget(
+      req,
+      analysisConfig,
+      this.getAnalysisBudget(smartRouterConfig)
+    );
+    const reqAny = req as any;
+    if (reqAny.preflightDiagnostics) {
+      reqAny.preflightDiagnostics.analysis = {
+        scope: result.scope,
+        textChars: result.text.length,
+        originalChars: result.originalChars,
+        truncated: result.truncated,
+        budgetApplied: result.budgetApplied,
+        maxChars: result.maxChars,
+        recentMessageCount: result.recentMessageCount,
+      };
+    }
+    if (result.budgetApplied && req.governanceTrace) {
+      const reason = `analysis_budget:${result.scope}:${result.text.length}/${result.originalChars}`;
+      req.governanceTrace.routeReason = Array.isArray(req.governanceTrace.routeReason)
+        ? req.governanceTrace.routeReason
+        : [];
+      if (!req.governanceTrace.routeReason.includes(reason)) {
+        req.governanceTrace.routeReason.push(reason);
+      }
+    }
+    return result;
+  }
   /**
    * 按优先级排序规则
    * 优先级数值越大，优先级越高
@@ -292,13 +340,6 @@ export class ModelSelector {
     const appConfig = (req as any).appConfig as IAppConfig | undefined;
     const effectiveGovernanceConfig = this.getEffectiveGovernanceConfig(smartRouterConfig, governanceConfig);
     const routingRules = this.getRoutingRules(config, smartRouterConfig);
-    const analysisConfig = smartRouterConfig?.analysis_scope
-      ? {
-          ...config,
-          analysis_scope: smartRouterConfig.analysis_scope,
-        }
-      : config;
-
     // 如果统一路由未启用，直接返回不匹配
     if (!this.isRoutingEnabled(config, smartRouterConfig)) {
       return {
@@ -309,7 +350,8 @@ export class ModelSelector {
     }
 
     // 提取待分析的文本
-    const text = contextAnalyzer.analyze(req, analysisConfig);
+    const analyzed = this.analyzeRequestText(req, config, smartRouterConfig);
+    const text = analyzed.text;
 
     if (!text) {
       return {
@@ -336,6 +378,14 @@ export class ModelSelector {
     }
 
     const stickyCorrection = this.getStickyCorrection(text, req, effectiveGovernanceConfig);
+    const stickyOnlySelection = this.applyStickyCorrection(null, stickyCorrection, appConfig);
+    if (stickyOnlySelection) {
+      return {
+        ...stickyOnlySelection,
+        analysisTime: Date.now() - startTime,
+        analyzedText: text,
+      };
+    }
 
     // 第二步：Semantic Router 语义辅助匹配
     const semanticCandidates = this.buildSemanticCandidates(routingRules, effectiveGovernanceConfig);
@@ -454,15 +504,6 @@ export class ModelSelector {
     }
 
     // 第五步：若前层均未稳定命中，再尝试 sticky correction 作为最后稳定性修正
-    const stickyOnlySelection = this.applyStickyCorrection(null, stickyCorrection, appConfig);
-    if (stickyOnlySelection) {
-      return {
-        ...stickyOnlySelection,
-        analysisTime: Date.now() - startTime,
-        analyzedText: text,
-      };
-    }
-
     return {
       matched: false,
       confidence: 0,
@@ -487,13 +528,6 @@ export class ModelSelector {
     const startTime = Date.now();
     const appConfig = (req as any).appConfig as IAppConfig | undefined;
     const effectiveGovernanceConfig = this.getEffectiveGovernanceConfig(smartRouterConfig, undefined);
-    const analysisConfig = smartRouterConfig?.analysis_scope
-      ? {
-          ...config,
-          analysis_scope: smartRouterConfig.analysis_scope,
-        }
-      : config;
-
     // 如果统一路由未启用，直接返回不匹配
     if (!this.isRoutingEnabled(config, smartRouterConfig)) {
       return {
@@ -504,7 +538,8 @@ export class ModelSelector {
     }
 
     // 提取待分析的文本
-    const text = contextAnalyzer.analyze(req, analysisConfig);
+    const analyzed = this.analyzeRequestText(req, config, smartRouterConfig);
+    const text = analyzed.text;
 
     if (!text) {
       return {
@@ -516,7 +551,6 @@ export class ModelSelector {
     }
 
     const routingRules = this.getRoutingRules(config, smartRouterConfig);
-    const stickyCorrection = this.getStickyCorrection(text, req, effectiveGovernanceConfig);
 
     // 第一步：关键词/正则匹配
     const matchResult = this.matchRuleFromText(text, routingRules);
@@ -530,6 +564,16 @@ export class ModelSelector {
         analysisTime: Date.now() - startTime,
         analyzedText: text,
         routeSource: 'smart_rule',
+      };
+    }
+
+    const stickyCorrection = this.getStickyCorrection(text, req, effectiveGovernanceConfig);
+    const stickyOnlySelection = this.applyStickyCorrection(null, stickyCorrection, appConfig);
+    if (stickyOnlySelection) {
+      return {
+        ...stickyOnlySelection,
+        analysisTime: Date.now() - startTime,
+        analyzedText: text,
       };
     }
 
@@ -567,15 +611,6 @@ export class ModelSelector {
     }
 
     // 第三步：同步路径下若前层都未命中，再尝试 sticky 作为稳定修正
-    const stickyOnlySelection = this.applyStickyCorrection(null, stickyCorrection, appConfig);
-    if (stickyOnlySelection) {
-      return {
-        ...stickyOnlySelection,
-        analysisTime: Date.now() - startTime,
-        analyzedText: text,
-      };
-    }
-
     // 没有匹配任何规则
     return {
       matched: false,

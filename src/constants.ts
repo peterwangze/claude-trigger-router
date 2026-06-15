@@ -101,6 +101,10 @@ export const DEFAULT_SMART_ROUTER_CONFIG = {
   cache_ttl: 600000,
   max_tokens: 256,
   fallback: 'default' as const,
+  analysis_budget: {
+    max_chars: 12000,
+    recent_message_count: 8,
+  },
 };
 
 /**

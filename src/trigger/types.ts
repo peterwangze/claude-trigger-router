@@ -435,6 +435,12 @@ export interface ISmartRouterConfig {
     include_top_route_candidates?: boolean;
   };
 
+  /** 长历史分析预算，避免 resume/full_conversation 在首包前无界放大 */
+  analysis_budget?: {
+    max_chars?: number;
+    recent_message_count?: number;
+  };
+
   /** 自适应路由证据输入，基于 governance trace / benchmark history 做候选模型画像 */
   adaptive?: {
     enabled?: boolean;
