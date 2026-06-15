@@ -69,33 +69,38 @@ describe('deployment assets', () => {
     expect(releasingGuide).toContain('Release');
     expect(releasingGuide).toContain('src/deploy-assets.test.ts');
     expect(releasingGuide).toContain('UI 配置向导专项');
-    expect(releasingGuide).toContain('docs/release-notes-v1.20.0.md');
-    expect(releasingGuide).toContain('v1.20.0');
+    expect(releasingGuide).toContain('docs/release-notes-v1.20.1.md');
+    expect(releasingGuide).toContain('v1.20.1');
     expect(releasingGuide).toContain('stream lifecycle 诊断');
+    expect(releasingGuide).toContain('resume 长历史首包前 preflight 诊断');
     expect(releasingGuide).toContain('第二轮对话和错误后继续请求不继承旧 abort signal');
     expect(releasingGuide).toContain('常见场景稳定性专项');
     expect(releasingGuide).toContain('test:stream-stability');
+    expect(releasingGuide).toContain('test:resume-stability');
     expect(releasingGuide).toContain('test:closed-review');
     expect(releasingGuide).toContain('test:ui:browser');
     expect(releasingGuide).toContain('help、init、doctor、start/status/stop');
   });
 
-  it('keeps v1.20.0 governance release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.20.0.md'), 'utf-8');
+  it('keeps v1.20.1 resume release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.20.1.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('发布与进展治理可持续化版');
-    expect(releaseNotes).toContain('Release gate hardening');
-    expect(releaseNotes).toContain('Closed item review gate');
-    expect(releaseNotes).toContain('Progress governance links');
+    expect(releaseNotes).toContain('resume 恢复性能与长历史前置路径优化版');
+    expect(releaseNotes).toContain('Resume preflight diagnostics');
+    expect(releaseNotes).toContain('SmartRouter long-history budget');
+    expect(releaseNotes).toContain('Alignment summary guardrail');
+    expect(releaseNotes).toContain('Resume stability release gate');
+    expect(releaseNotes).toContain('npm run test:resume-stability');
     expect(releaseNotes).toContain('npm run test:stream-stability');
     expect(releaseNotes).toContain('npm run test:closed-review');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.20.0 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.20.0.md');
-    expect(readme).toContain('发布与进展治理可持续化版');
+    expect(readme).toContain('## v1.20.1 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.20.1.md');
+    expect(readme).toContain('resume 恢复性能与长历史前置路径优化版');
+    expect(readme).toContain('test:resume-stability');
     expect(readme).toContain('test:stream-stability');
     expect(readme).toContain('test:closed-review');
   });
@@ -117,7 +122,7 @@ describe('deployment assets', () => {
   it('keeps README new-user quick start before release positioning', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
-    const releaseIndex = readme.indexOf('## v1.20.0 发布定位');
+    const releaseIndex = readme.indexOf('## v1.20.1 发布定位');
     const docsIndex = readme.indexOf('## 文档入口');
 
     expect(quickStartIndex).toBeGreaterThan(0);
@@ -207,6 +212,21 @@ describe('deployment assets', () => {
     expect(publishWorkflow).toContain('Run stream stability gate');
     expect(publishWorkflow).toContain('npm run test:stream-stability');
     expect(releasingGuide).toContain('release:verify`、`Release Check` 和 `Publish Package` 都会固定执行常见场景稳定性专项');
+  });
+
+  it('keeps resume stability gate in every release path', () => {
+    const releaseScript = readFileSync(join(process.cwd(), 'scripts', 'release-package.ps1'), 'utf-8');
+    const releaseCheckWorkflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release-check.yml'), 'utf-8');
+    const publishWorkflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'publish.yml'), 'utf-8');
+    const releasingGuide = readFileSync(join(process.cwd(), 'docs', 'releasing.md'), 'utf-8');
+
+    expect(releaseScript).toContain('Run resume stability gate');
+    expect(releaseScript).toContain('npm run test:resume-stability');
+    expect(releaseCheckWorkflow).toContain('Run resume stability gate');
+    expect(releaseCheckWorkflow).toContain('npm run test:resume-stability');
+    expect(publishWorkflow).toContain('Run resume stability gate');
+    expect(publishWorkflow).toContain('npm run test:resume-stability');
+    expect(releasingGuide).toContain('release:verify`、`Release Check` 和 `Publish Package` 都会固定执行 resume 稳定性专项');
   });
 
   it('ships a progress governance gate for closed review and planning cross-links', () => {

@@ -59,6 +59,12 @@ jobs:
       - name: Run stream stability gate
         run: npm run test:stream-stability
 
+      - name: Run resume stability gate
+        run: npm run test:resume-stability
+
+      - name: Run closed review gate
+        run: npm run test:closed-review
+
       - name: Run packaged CLI entry smoke
         run: npm run test:e2e:cli:entry
 

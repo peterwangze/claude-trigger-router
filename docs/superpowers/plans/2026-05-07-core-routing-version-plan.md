@@ -480,20 +480,22 @@ v1.20.0 闭环验证：三个治理事项已分别独立提交并逐项补可执
 
 用户目标：同一个 session 的任务中断退出后重启，并用 `resume` 恢复时，不再因为完整历史上下文触发无预算的首包前路由/治理工作而明显变慢或卡住；维护者能按 request id/session id 看出慢在 token 估算、SmartRouter、semantic classifier、alignment summary 还是上游响应。
 
-1. `[planned]` resume/长历史 preflight 诊断：为 `/v1/messages` 首包前路径记录消息数、用户文本字符数、估算 token 数、analysis scope、SmartRouter/semantic/router fallback 是否执行、alignment 是否执行，以及各阶段耗时。
+1. `[closed 2026-06-15]` resume/长历史 preflight 诊断：为 `/v1/messages` 首包前路径记录消息数、用户文本字符数、估算 token 数、analysis scope、SmartRouter/semantic/router fallback 是否执行、alignment 是否执行，以及各阶段耗时。
    - 闭环标准：同一 session resume 卡住时，trace/detail 至少能区分 CPU token count、路由 LLM 调用、alignment loopback 和上游模型等待。
-2. `[planned]` SmartRouter 长历史预算与快速路径：对 `resume` 或长历史请求默认只分析 last user message 或 bounded recent window；`analysis_scope=full_conversation` 必须有最大字符/token 预算、截断 reason 和可配置覆盖；同 session 且任务 fingerprint 未明显变化时优先复用 sticky route，避免不必要的 SmartRouter fallback。
+2. `[closed 2026-06-15]` SmartRouter 长历史预算与快速路径：对 `resume` 或长历史请求默认只分析 last user message 或 bounded recent window；`analysis_scope=full_conversation` 必须有最大字符/token 预算、截断 reason 和可配置覆盖；同 session 且任务 fingerprint 未明显变化时优先复用 sticky route，避免不必要的 SmartRouter fallback。
    - 闭环标准：长历史不会把完整会话无界塞进规则匹配、semantic classifier、SmartRouter prompt 或 sticky fingerprint。
-3. `[planned]` token count 与 context guard 性能优化：评估对消息历史做增量/分段 token count 缓存，至少避免 resume 场景在同一 request 前置链路中重复编码同一长文本；工具结果和大 schema 要有可观测的 token 估算成本。
+3. `[closed 2026-06-15]` token count 与 context guard 性能优化：评估对消息历史做增量/分段 token count 缓存，至少避免 resume 场景在同一 request 前置链路中重复编码同一长文本；工具结果和大 schema 要有可观测的 token 估算成本。
    - 闭环标准：长历史 context guard 仍准确，但不把每次 resume 都变成无法解释的同步 CPU 长阻塞。
-4. `[planned]` alignment summary 防卡预算：模型切换时的 `contextAlignmentService.summarizeTransition()` 只能接收 bounded task context，并具备独立 timeout、skip reason 和 trace evidence；长历史 resume 不应默认把完整 analyzedText 发给 summarizer。
+4. `[closed 2026-06-15]` alignment summary 防卡预算：模型切换时的 `contextAlignmentService.summarizeTransition()` 只能接收 bounded task context，并具备独立 timeout、skip reason 和 trace evidence；长历史 resume 不应默认把完整 analyzedText 发给 summarizer。
    - 闭环标准：sticky/alignment 继续保护切换体感，但不会在 resume 首包前额外制造长时间 loopback 等待。
-5. `[planned]` resume 稳定性专项门禁：新增长历史 resume targeted tests，覆盖 long messages、tool results、`analysis_scope=full_conversation`、semantic classifier、SmartRouter fallback、alignment enabled、context window guard 和同 session 第二轮恢复。
+5. `[closed 2026-06-15]` resume 稳定性专项门禁：新增长历史 resume targeted tests，覆盖 long messages、tool results、`analysis_scope=full_conversation`、semantic classifier、SmartRouter fallback、alignment enabled、context window guard 和同 session 第二轮恢复。
    - 闭环标准：发布前能用一条 targeted 命令复现并拦截 resume 长历史前置路径再次退化。
+
+v1.20.1 闭环验证：五个 resume 性能事项已分别独立提交并逐项补 targeted 看护；本轮新增 preflight diagnostics、SmartRouter analysis budget、sticky 快速路径、token count 缓存诊断、alignment summary bounded context 和 `npm run test:resume-stability` 专项门禁。`docs/release-notes-v1.20.1.md`、README 发布定位、发布指南、部署资产断言和 `package.json` / `package-lock.json` 已同步到 `1.20.1`。最终发布门禁以 `npm run release:verify` 为准。
 
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；v1.19.2 已闭环新版 Claude 长任务超时与流式中断修复；v1.19.3 已闭环 Claude 流式断流系统修复；v1.19.4 已闭环常见场景稳定性与可用性全量复审；v1.20.0 已闭环发布与进展治理可持续化；当前默认回到 v1.20.1 resume 恢复性能与长历史前置路径优化推进。
+2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；v1.19.2 已闭环新版 Claude 长任务超时与流式中断修复；v1.19.3 已闭环 Claude 流式断流系统修复；v1.19.4 已闭环常见场景稳定性与可用性全量复审；v1.20.0 已闭环发布与进展治理可持续化；当前默认回到 v1.20.1 resume 恢复性能与长历史前置路径优化发布闭环维护。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。

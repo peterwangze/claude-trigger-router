@@ -21,7 +21,7 @@
 
 截至 2026-06-05，项目当前状态统一定义为：
 
-> 项目已经完成治理主链首轮能力落地，v1.3.0 基础路由常用体验、v1.4.0 SmartRouter 常用体验、v1.5.0 入口基础功能稳定、v1.6.0 多模型收益运营化、v1.7.0 远程服务 / 模型池安全体验、v1.8.0 低侵入 agent/tool 增强与架构减压、v1.9.0 用户入口与远程客户端一致性收口、v1.10.0 智能路由自适应与多模型协同增强、v1.11.0 基础路由流式稳定性首轮止血、v1.12.0 流式传输韧性与远程中转稳定性修复、v1.13.0 核心路由用户体感与看护补强、v1.14.0 配置产品化最终收口、v1.15.0 CLI/setup UX 重设计收口、v1.16.0 用户视角复审与入口一致性校准、v1.17.0 UI 双层工作台收敛、v1.18.0 治理观测运营化增强、v1.19.0 部署形态与远程接入收敛，以及 v1.20.0 发布与进展治理可持续化已阶段闭环。2026-06-15 用户反馈同一 session 中断后用 `resume` 恢复明显变慢甚至卡住，已将当前剩余主线调整为 v1.20.1 resume 恢复性能与长历史前置路径优化。入口稳定、基础路由即时流式输出、上游中途断流可读错误、远程中转取消上游、第二轮/错误后继续请求隔离、`resume` 长历史首包前预算、结构化 API error、发布看护、UI 基础交互、UI browser smoke、收益证据链、远程服务安全、受保护 UI admin 入口、route preview、角色化 UI 入口、角色化 UI 体验设计、治理观测 decision rail、remote discovery / availability 和 agent/tool trace contract 继续作为回归底线。
+> 项目已经完成治理主链首轮能力落地，v1.3.0 基础路由常用体验、v1.4.0 SmartRouter 常用体验、v1.5.0 入口基础功能稳定、v1.6.0 多模型收益运营化、v1.7.0 远程服务 / 模型池安全体验、v1.8.0 低侵入 agent/tool 增强与架构减压、v1.9.0 用户入口与远程客户端一致性收口、v1.10.0 智能路由自适应与多模型协同增强、v1.11.0 基础路由流式稳定性首轮止血、v1.12.0 流式传输韧性与远程中转稳定性修复、v1.13.0 核心路由用户体感与看护补强、v1.14.0 配置产品化最终收口、v1.15.0 CLI/setup UX 重设计收口、v1.16.0 用户视角复审与入口一致性校准、v1.17.0 UI 双层工作台收敛、v1.18.0 治理观测运营化增强、v1.19.0 部署形态与远程接入收敛、v1.20.0 发布与进展治理可持续化，以及 v1.20.1 resume 恢复性能与长历史前置路径优化已阶段闭环。入口稳定、基础路由即时流式输出、上游中途断流可读错误、远程中转取消上游、第二轮/错误后继续请求隔离、`resume` 长历史首包前预算、结构化 API error、发布看护、UI 基础交互、UI browser smoke、收益证据链、远程服务安全、受保护 UI admin 入口、route preview、角色化 UI 入口、角色化 UI 体验设计、治理观测 decision rail、remote discovery / availability 和 agent/tool trace contract 继续作为回归底线。
 
 这一定义用于替代历史文档中分散、彼此可能滞后的阶段描述。
 
@@ -73,7 +73,7 @@
 | 基础路由流式稳定性与 socket 错误修复 | 用户高频核心主线 / P0 修复 | closed | closed | 2026-05-25 根据用户反馈新增为 v1.11.0 主线：v1.8.0 引入的 stream response governance 在默认路径会先完整 `collectSSE()` 再返回，导致 Claude Code 基础路由每轮对话失去即时流式输出，并可能放大客户端 socket 超时；同一轮复审还发现发送钩子会把 `{ error: ... }` payload 转成 Fastify hook error，使 API 结构化错误表现为 `The socket connection was closed unexpectedly`。当前闭环结论是“v1.11.0 是首轮止血：默认未开启 `Governance.cascade.stream_guard` 时改为边转发原始 stream chunk 边旁路观测 trace，发送钩子保留结构化 error payload，SSE parser 补齐跨 chunk event 状态和无尾随空行 flush；但 2026-06-05 用户确认 v1.11.0 仍复现 socket 异常和中转卡顿，第二层传输韧性已由 v1.12.0 承接”。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/release-notes-v1.11.0.md` ; `docs/superpowers/plans/progress-issue-log.md` |
 | 流式传输韧性与远程中转稳定性修复 | 用户高频核心主线 / P0 修复 | closed | closed | 2026-06-05 用户确认 `v1.11.0` 仍复现 `The socket connection was closed unexpectedly`、同模型经中转响应更慢和输出突然卡住。当前闭环结论是“v1.12.0 已阶段闭环：默认透传捕获上游 stream read error 并追加可读 SSE error event；远程中转将客户端 close 绑定到上游 fetch abort，远端 SSE 响应进入同一套流式治理包装；SSE parser 持续复用 TextDecoder 修复多字节跨 chunk 解码；发布边界已由 v1.12.0 release notes 和 targeted tests 看护”。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/release-notes-v1.12.0.md` ; `docs/superpowers/plans/progress-issue-log.md` |
 | 核心路由用户体感与看护补强 | 用户高频核心主线 | closed | closed | 2026-06-05 从用户易用性和使用体验继续深度复审后新增为 v1.13.0 主线：近期 P0/P1 问题说明此前看护偏工程内部，缺少真实用户视角的“慢、卡、错路由、错误不可读、入口模板过重”拦截。当前闭环结论是“v1.13.0 已阶段闭环：新增 `ctr doctor --route-preview` 让用户能预判基础路由和 SmartRouter 选择；README/configuration guide/setup next steps 已收口基础路由触发解释；SmartRouter 起步模板已降为两模型入门，高级模板独立承接复杂能力；协作模式口径已明确默认单模型 `route_only`，不默认并发执行额外模型；`npm run test:route-ux` 已覆盖 route preview、doctor 可读输出、SmartRouter packaged slices、首包即时输出、上游断流可读 error、远程中转取消和结构化错误”。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/progress-issue-log.md` ; `docs/release-notes-v1.13.0.md` |
-| resume 恢复性能与长历史前置路径优化 | 用户高频核心主线 / P0 修复 | planned | P0-基础功能闭环 | 2026-06-15 根据用户反馈新增为 v1.20.1 主线：同一个 session 的任务中断退出后重启，并用 `resume` 恢复时，相比正常任务明显变慢甚至卡住。当前定位是 resume 长历史会放大首包前同步路径：token count 遍历全部 messages/tools，SmartRouter/semantic 可能分析完整历史，sticky alignment 可能额外触发 loopback LLM 摘要。当前阶段结论是“该问题不视为 PI-029/PI-030 已闭环范围，先按 P0/P1 恢复性能专项推进：补 preflight 耗时观测、长历史分析预算、token count 快速路径、alignment summary 防卡预算和 resume targeted 回归门禁”。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/progress-issue-log.md` |
+| resume 恢复性能与长历史前置路径优化 | 用户高频核心主线 / P0 修复 | closed | closed | 2026-06-15 根据用户反馈新增为 v1.20.1 主线：同一个 session 的任务中断退出后重启，并用 `resume` 恢复时，相比正常任务明显变慢甚至卡住。当前闭环结论是“v1.20.1 已阶段闭环：preflight diagnostics 已记录首包前消息/字符/阶段耗时，SmartRouter full conversation 分析有 bounded recent-window 与字符预算，sticky correction 在同 session fingerprint 稳定时先于 semantic classifier/SmartRouter fallback 复用模型，context window token count 具备请求签名缓存诊断，alignment summary 使用 bounded context、独立 timeout 和 skip reason；`npm run test:resume-stability` 已进入本地和 GitHub 发布门禁。若 resume 长历史恢复再次明显慢于正常任务或无解释卡住，按 P0 重新前置”。 | `docs/superpowers/plans/2026-05-07-core-routing-version-plan.md` ; `docs/superpowers/plans/progress-issue-log.md` ; `docs/release-notes-v1.20.1.md` |
 | 服务端 API key 与鉴权控制面 | 复审新增持续演进特性 | closed | closed | `APIKEY` 已收口为 bootstrap/admin key；已新增 `Auth.managed_keys` 哈希存储、managed key 生成/列表/撤销/轮换 API，以及 admin/operator/client/read-only scope 判定；运行时 `apiKeyAuth` 已能接受 active managed client/operator/admin key，并拒绝 revoked、expired 或 scope 不足的 key；启动入口鉴权会刷新当前配置中的 `APIKEY/Auth`，新生成 key、轮换 key 与已吊销 key 不再依赖重启生效；auth audit、quota、operator 最小权限、read-only 状态查询边界、`/api/service-info` 安全摘要和 `/ui` quota 表均已成立。当前闭环结论是“v1.7.0 已把服务端资源泄漏风险、撤销即时性、窗口配额、安全可见性、日常运维最小权限、默认安全策略和密钥轮换运营路径阶段闭环”。 | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` ; `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` ; `docs/release-notes-v1.7.0.md` |
 | server/cloud 一键部署与角色化运维入口 | 复审新增持续演进特性 | closed | closed | `ctr deploy init --target server` 已能生成带随机 bootstrap `APIKEY`、`HOST: 0.0.0.0`、`Runtime.mode: server`、`Runtime.security`、日志、`Models` 和 `Router.default` 的自托管 server 起步配置；npm 包已随附 Docker Compose / systemd 模板，setup fresh 路径也可选择部署为远程服务端且不会自动启动；README、configuration roles、server maintainer guide、remote client guide、`ctr status`、`ctr doctor`、`/api/service-info` 和 `/ui` 已能表达服务维护者 / 远程使用者边界。当前闭环结论是“v1.7.0 已把 server 部署入口、角色化运维、默认安全策略、维护者 checklist 和密钥轮换路径阶段闭环；仍不宣称完整 cloud/托管控制面”。 | `docs/superpowers/plans/2026-04-25-project-goal-user-review-implementation.md` ; `docs/superpowers/specs/2026-04-17-deployment-and-remote-access-design.md` ; `docs/release-notes-v1.7.0.md` |
 | 治理观测增强 / 运营化 | 持续演进特性 | closed | closed | 当前闭环结论是“v1.18.0 已阶段闭环：outcome scorecard 已进入 `/api/governance/metrics`、CSV export 和 `/ui`；Operations risk 已把 model pool health 与 managed key quota 汇入 `service-info` 和维护者工作台；Guardrail summary 已把输入侧 prompt/secret 风险与输出侧 placeholder/tool error 汇入 metrics/UI；维护者 decision rail 已把 Operations、Guardrails 和 Outcome 三类信号组织为先状态、再动作、再明细的扫描路径。后续治理观测继续作为回归底线维护；若 decision rail、scorecard、guardrail summary、pool/key 联动或 browser smoke 退化，按 P1/P2 重新前置”。 | `docs/superpowers/plans/2026-04-04-router-evolution-tracker.md` ; `docs/superpowers/plans/2026-04-06-router-progress-calibration.md` ; `docs/superpowers/specs/2026-04-17-governance-input-optimization-design.md` ; `docs/release-notes-v1.18.0.md` |
@@ -277,15 +277,13 @@
 
 #### P0：基础功能闭环
 
-当前独立未闭环 P0 主线：`resume 恢复性能与长历史前置路径优化`。
+当前无独立未闭环 P0 主线；`resume 恢复性能与长历史前置路径优化` 已在 v1.20.1 阶段闭环。
 
 ##### P0 主线离闭环还差什么
 
 - `resume 恢复性能与长历史前置路径优化`
-  - 当前已确认问题表现：同一 session 中断退出后重启，用 `resume` 恢复时明显慢于正常新任务，甚至卡住。
-  - 当前定位不是新的 socket 断流闭环，而是长历史恢复让首包前路由/治理同步路径被放大：token count、SmartRouter/semantic 分析、`analysis_scope=full_conversation`、sticky fingerprint 和 context alignment loopback 都可能吃完整历史。
-  - 后续需要补 preflight 耗时观测、长历史分析预算、token count 快速路径、alignment summary 防卡预算和 resume targeted 回归门禁，才能判断闭环。
-  - 在 v1.20.1 完成前，PI-029/PI-030 的 closed 结论不能被解释为已覆盖 resume 长历史卡住。
+  - v1.20.1 已补 preflight 耗时观测、长历史分析预算、token count 快速路径、alignment summary 防卡预算和 resume targeted 回归门禁。
+  - 当前结论不是把 resume 问题并入 socket 断流闭环，而是作为 PI-031 独立完成阶段修复；后续若 resume 长历史恢复再次明显慢于正常任务或无解释卡住，按 P0 重新前置。
 - `OpenAI-compatible 主路径兼容补强` 已完成首轮闭环，v1.11.0 已完成基础路由流式中断和 socket-level API error 的首轮止血，v1.12.0 已补上游中途断流、远程中转取消上游和 SSE 多字节跨 chunk 解码。后续若再出现会阻塞默认请求链路、兼容主路径、迁移主路径、基础路由即时流式输出、远程中转稳定性、resume 长历史恢复或结构化 API error 返回的新 gap，再重新加入本节维护。
 
 #### P1：主路径易用性
@@ -428,7 +426,7 @@
 
 | 顺序 | 事项 / 特性 | 所属优先级 | 当前建议先做什么 | 排在当前位置的原因 |
 |---|---|---|---|---|
-| 1 | resume 恢复性能与长历史前置路径优化 | P0-基础功能闭环 | 推进 v1.20.1：先补 resume/长历史 preflight 诊断，再收敛 SmartRouter/semantic/alignment/token count 预算和快速路径 | 用户已复现同一 session 中断后 `resume` 恢复明显变慢甚至卡住；这是主路径可用性问题，必须优先于继续扩展治理能力 |
+| 1 | resume 恢复性能与长历史前置路径优化 | closed | v1.20.1 已完成 preflight 诊断、SmartRouter/semantic/alignment/token count 预算和 `test:resume-stability` 发布门禁 | 作为回归底线维护；若同一 session 中断后 `resume` 恢复再次明显变慢或卡住，按 P0 重新前置 |
 | 2 | CLI / setup UX 重设计 | closed | v1.15.0 已完成 setup 本地/远程/服务端主路径和 SmartRouter 起步引导收口 | 作为回归底线维护；若 setup 入口叙事再次漂移，按 P1 重新前置 |
 | 3 | 配置产品化最终收口 | closed | v1.14.0 已完成字段心智、路由槽位、capability warning 和保存/预览 contract 收口 | 作为回归底线维护；若 setup、doctor、UI save 或配置写回再次出现字段心智漂移，按 P1 重新前置 |
 | 4 | 项目目标与用户使用视角复审 | closed | v1.16.0 已完成目标一致性复审、角色化 UI 入口补齐、高频入口验证和 closed 事项抽样校准，后续作为回归底线维护 | v1.11.0/v1.12.0/v1.13.0/v1.20.1 说明 closed 事项仍可能暴露真实主路径回归，复审必须持续把低频扩展让位给用户高频基础能力 |
@@ -470,9 +468,9 @@
 | v1.19.3 | Claude 流式断流系统修复 | 已闭环：stream lifecycle 诊断、默认流式安全关闭、远程/agent 取消传播、第二轮和错误后继续请求 signal 隔离已进入发布边界 |
 | v1.19.4 | 常见场景稳定性与可用性全量复审 | 已闭环：agent stream rewrite 稳定性、全链路 `test:stream-stability` 门禁、trace/detail stream lifecycle 可见性和管理 probe timeout 诊断已进入发布边界 |
 | v1.20.0 | 发布与进展治理可持续化 | 已闭环：stream stability 成为本地/GitHub 发布硬门槛，closed 事项复审和统一基线 / 版本路线 / issue log 互链已由 `test:closed-review` 看护 |
-| v1.20.1 | resume 恢复性能与长历史前置路径优化 | 计划中：补 resume/长历史 preflight 耗时观测、SmartRouter/semantic/alignment 预算、token count 快速路径和专项回归门禁 |
+| v1.20.1 | resume 恢复性能与长历史前置路径优化 | 已闭环：resume/长历史 preflight 耗时观测、SmartRouter/semantic/alignment 预算、token count 快速路径和专项回归门禁已进入发布边界 |
 
-执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；当前默认回到 v1.20.1 resume 恢复性能与长历史前置路径优化。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 第二轮会话断流 / 错误后继续请求断流 / resume 长历史恢复卡住 / agent/tool follow-up 断流 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / remote discovery / remote availability / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / Web UI 视觉设计 / 治理观测 decision rail / agent-tool trace contract 再次退化，则重新前置处理。
+执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；当前默认回到 v1.20.1 resume 恢复性能与长历史前置路径优化发布闭环维护。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 第二轮会话断流 / 错误后继续请求断流 / resume 长历史恢复卡住 / agent/tool follow-up 断流 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / remote discovery / remote availability / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / Web UI 视觉设计 / 治理观测 decision rail / agent-tool trace contract 再次退化，则重新前置处理。
 
 ### 8. v1.2.0 发布闭环边界
 

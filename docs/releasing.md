@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.20.0` minor release 的优先级是发布与进展治理可持续化。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 fresh setup、远程转发、远端 SSE 建立后不被 600 秒总时长定时器 abort、stream lifecycle 诊断、trace/detail 可见 abort reason、agent/tool follow-up stream 不因背压或客户端取消静默截断、rewriteStream 下游 cancel 传播、第二轮对话和错误后继续请求不继承旧 abort signal、配置保存、鉴权、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回不回退、管理类 probe timeout 诊断、`/ui` 配置向导、quick config 常用厂商模板、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail 可达、closed 事项复审口径和真实浏览器布局不横向溢出。
+本次 `v1.20.1` patch release 的优先级是 resume 恢复性能与长历史前置路径优化。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 fresh setup、远程转发、远端 SSE 建立后不被 600 秒总时长定时器 abort、stream lifecycle 诊断、trace/detail 可见 abort reason、agent/tool follow-up stream 不因背压或客户端取消静默截断、rewriteStream 下游 cancel 传播、第二轮对话和错误后继续请求不继承旧 abort signal、resume 长历史首包前 preflight 诊断、SmartRouter/semantic/alignment 预算、token count 快速路径、配置保存、鉴权、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回不回退、管理类 probe timeout 诊断、`/ui` 配置向导、quick config 常用厂商模板、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail 可达、closed 事项复审口径和真实浏览器布局不横向溢出。
 
 ## 一次性准备
 
@@ -26,7 +26,7 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.20.0` 的发布边界以 `docs/release-notes-v1.20.0.md` 为准：主打全链路 stream stability 发布硬门槛、closed 事项复审 gate、统一基线 / 版本路线 / issue log 互链看护，以及对应启动链路回归看护。
+   - 本次 `v1.20.1` 的发布边界以 `docs/release-notes-v1.20.1.md` 为准：主打 resume 长历史首包前预算和诊断、SmartRouter/semantic/alignment 防卡路径、token count 快速路径、resume stability 发布硬门槛，以及既有 stream stability / closed review 看护。
 2. 本地先执行发布包验证：
 
 ```bash
@@ -40,6 +40,14 @@ npm run test:stream-stability
 ```
 
 这条专项把 rewriteStream 取消传播、SSE parser、stream lifecycle 诊断、上游中途断流可读 SSE error、下游取消安全关闭、远程 thin proxy 响应开始超时、远端 SSE 建立后的长流式任务、客户端断开取消上游、agent 工具续写、第二轮/继续请求 signal 隔离、结构化 502、route preview 和基础流式即时透传串成同一个发布前门禁。它关注用户能直接感知的“长任务会不会随机停、第二轮会不会卡住、手动停止后新对话会不会继承旧断流、错误后继续是否仍可读”，不是只检查内部函数返回。
+
+从 v1.20.1 开始，`release:verify`、`Release Check` 和 `Publish Package` 都会固定执行 resume 稳定性专项：
+
+```bash
+npm run test:resume-stability
+```
+
+这条专项把 preflight diagnostics、长历史 token count cache、`analysis_scope=full_conversation` 预算、sticky 快速路径、semantic classifier、SmartRouter fallback、alignment summary 防卡预算、context window guard 和同 session 恢复路径串成同一个发布前门禁。它关注用户能直接感知的“resume 后首包前是否无解释地变慢或卡住”，不是只检查单个函数返回。
 
 v1.19.1 期间建议在正式 `release:verify` 前额外跑一次 UI 配置向导专项：
 
@@ -72,6 +80,7 @@ npm run test:e2e:acceptance
 - `npm run build`
 - `npm test -- --run`
 - `npm run test:stream-stability`
+- `npm run test:resume-stability`
 - `npm run test:closed-review`
 - `npm run test:ui`
 - `npm run test:e2e:cli:entry`
@@ -252,6 +261,8 @@ git push origin v1.0.1
    - `npm run build`
    - `npm test -- --run`
    - `npm run test:stream-stability`
+   - `npm run test:resume-stability`
+   - `npm run test:closed-review`
    - `npm run test:e2e:cli:entry`
    - `npm run test:e2e:cli`
    - npm trusted publishing 版本门禁
