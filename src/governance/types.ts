@@ -85,6 +85,9 @@ export interface ISemanticRouterConfig {
 
   /** 原型意图集合 */
   prototypes?: Record<string, string>;
+
+  /** classifier 独立超时，默认不超过 30000ms */
+  timeout_ms?: number;
 }
 
 export interface IShadowChecksConfig {

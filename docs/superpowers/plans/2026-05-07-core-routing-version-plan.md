@@ -493,9 +493,24 @@ v1.20.0 闭环验证：三个治理事项已分别独立提交并逐项补可执
 
 v1.20.1 闭环验证：五个 resume 性能事项已分别独立提交并逐项补 targeted 看护；本轮新增 preflight diagnostics、SmartRouter analysis budget、sticky 快速路径、token count 缓存诊断、alignment summary bounded context 和 `npm run test:resume-stability` 专项门禁。`docs/release-notes-v1.20.1.md`、README 发布定位、发布指南、部署资产断言和 `package.json` / `package-lock.json` 已同步到 `1.20.1`。最终发布门禁以 `npm run release:verify` 为准。
 
+### v1.20.2 API 报错后继续 / resume 继续慢卡补丁
+
+优先级：最高（P0 用户复现故障）。
+
+用户目标：API 报错之后继续对话、或 `resume` 之后继续对话时，CTR 不再因为诊断/缓存签名/内部 loopback 自身的前置成本而明显慢卡。
+
+1. `[closed 2026-06-17]` 长历史分析诊断去全量重扫：`analysis_scope=full_conversation` 使用 recent window 后，`originalChars` 只做估算，不再为了精确诊断重新拼完整会话。
+   - 闭环标准：分析预算本身不会再触发完整历史文本重建。
+2. `[closed 2026-06-17]` token count cache 紧凑签名：cache key 不再 `JSON.stringify` 完整 messages/system/tools，而是用 role、长度、工具名和少量采样组成紧凑签名。
+   - 闭环标准：cache 命中前不再先进行一次完整历史序列化。
+3. `[closed 2026-06-17]` 内部 loopback 短超时预算：SmartRouter fallback 和 semantic classifier 默认使用 preflight 短超时，避免继承长流主路径 `API_TIMEOUT_MS`。
+   - 闭环标准：API 报错后继续时，首包前内部路由 LLM 不会等待 600 秒级别超时。
+
+v1.20.2 闭环验证：三个慢卡补丁事项已完成并补 targeted 看护；本轮修掉分析诊断重扫完整历史、token count cache 完整 JSON 签名和 SmartRouter/semantic 内部 loopback 继承长超时三个缺口。`docs/release-notes-v1.20.2.md`、README 发布定位、发布指南、部署资产断言和 `package.json` / `package-lock.json` 已同步到 `1.20.2`。最终发布门禁以 `npm run release:verify` 为准。
+
 ## 执行规则
 
 1. 后续“按照计划优先级继续推进”默认先看本文档版本路线，再回到统一进展基线确认状态。
-2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；v1.19.2 已闭环新版 Claude 长任务超时与流式中断修复；v1.19.3 已闭环 Claude 流式断流系统修复；v1.19.4 已闭环常见场景稳定性与可用性全量复审；v1.20.0 已闭环发布与进展治理可持续化；当前默认回到 v1.20.1 resume 恢复性能与长历史前置路径优化发布闭环维护。
+2. v1.13.0 已承接并闭环本轮用户体验复审发现的核心路由体感和看护缺口；v1.14.0 已闭环配置产品化最终收口；v1.15.0 已闭环 CLI/setup UX 重设计收口；v1.16.0 已闭环用户视角复审与入口一致性校准；v1.17.0 已闭环 UI 双层工作台收敛；v1.18.0 已闭环治理观测运营化增强；v1.19.0 已闭环部署形态与远程接入收敛；v1.19.2 已闭环新版 Claude 长任务超时与流式中断修复；v1.19.3 已闭环 Claude 流式断流系统修复；v1.19.4 已闭环常见场景稳定性与可用性全量复审；v1.20.0 已闭环发布与进展治理可持续化；当前默认回到 v1.20.2 API 报错后继续 / resume 继续慢卡补丁发布闭环维护。
 3. `ctr eval` 后续服务于验证核心路由，排在入口基础稳定之后，不替代 setup/start/code/doctor/ui 的日常体验。
 4. 每个版本进入执行前，都要补一个对应版本的验收 checklist；每轮实现后必须更新本文档状态或在统一基线中记录闭环结论。

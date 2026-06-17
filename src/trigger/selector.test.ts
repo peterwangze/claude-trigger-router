@@ -306,6 +306,73 @@ describe('ModelSelector', () => {
       smartSpy.mockRestore();
     });
 
+    it('should cap SmartRouter internal loopback timeout for preflight routing', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '帮我选一个模型' }],
+        },
+      };
+      const smartRouterConfig: ISmartRouterConfig = {
+        enabled: true,
+        router_model: 'test,router',
+        candidates: [
+          { model: 'provider,model-a', description: 'A' },
+          { model: 'provider,model-b', description: 'B' },
+        ],
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.9,
+      });
+
+      await selector.selectModel(req as any, config, 5678, smartRouterConfig, undefined, undefined, 600000);
+
+      expect(smartSpy).toHaveBeenCalledWith(
+        '帮我选一个模型',
+        smartRouterConfig,
+        5678,
+        undefined,
+        undefined,
+        30000,
+        expect.anything()
+      );
+      smartSpy.mockRestore();
+    });
+
+    it('should allow configured SmartRouter preflight timeout override', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '帮我选一个模型' }],
+        },
+      };
+      const smartRouterConfig: ISmartRouterConfig = {
+        enabled: true,
+        preflight_timeout_ms: 1500,
+        router_model: 'test,router',
+        candidates: [
+          { model: 'provider,model-a', description: 'A' },
+          { model: 'provider,model-b', description: 'B' },
+        ],
+      };
+      const smartSpy = vi.spyOn(smartRouterSelector, 'selectModel').mockResolvedValue({
+        model: 'provider,model-a',
+        confidence: 0.9,
+      });
+
+      await selector.selectModel(req as any, config, 5678, smartRouterConfig, undefined, undefined, 600000);
+
+      expect(smartSpy).toHaveBeenCalledWith(
+        '帮我选一个模型',
+        smartRouterConfig,
+        5678,
+        undefined,
+        undefined,
+        1500,
+        expect.anything()
+      );
+      smartSpy.mockRestore();
+    });
+
     it('passes metadata routing budget into SmartRouter hints', async () => {
       const req = {
         body: {
@@ -337,7 +404,7 @@ describe('ModelSelector', () => {
         5678,
         undefined,
         undefined,
-        undefined,
+        30000,
         expect.objectContaining({
           routingBudget: {
             latencyBudgetMs: 300,
@@ -378,6 +445,53 @@ describe('ModelSelector', () => {
       await selector.selectModel(req as any, intentConfig, 5678, undefined, undefined, undefined, 4321);
       expect(intentSpy).toHaveBeenCalledWith('帮我分析意图', intentConfig, 5678, undefined, undefined, 4321);
       intentSpy.mockRestore();
+    });
+
+    it('should cap semantic classifier timeout for preflight routing', async () => {
+      const req = {
+        body: {
+          messages: [{ role: 'user', content: '请帮我重构系统结构并拆分核心模块' }],
+        },
+      };
+      const semanticSpy = vi.spyOn(semanticRouter, 'analyzeWithClassifier').mockResolvedValue({
+        intent: 'architecture',
+        confidence: 0.9,
+      });
+
+      await selector.selectModel(
+        req as any,
+        config,
+        5678,
+        {
+          enabled: true,
+          router_model: 'test,router',
+          candidates: [
+            { model: 'provider,model-a', description: 'A' },
+            { model: 'provider,model-b', description: 'B' },
+          ],
+          semantic: {
+            enabled: true,
+            mode: 'classifier',
+            classifier_model: 'test,classifier',
+            prototypes: {
+              architecture: '重构 系统 结构 模块 拆分 架构 设计',
+            },
+          },
+        } as any,
+        undefined,
+        undefined,
+        600000
+      );
+
+      expect(semanticSpy).toHaveBeenCalledWith(
+        '请帮我重构系统结构并拆分核心模块',
+        expect.anything(),
+        5678,
+        undefined,
+        undefined,
+        30000
+      );
+      semanticSpy.mockRestore();
     });
 
     it('should reuse sticky session model when governance sticky is enabled', async () => {
@@ -526,7 +640,7 @@ describe('ModelSelector', () => {
         5678,
         undefined,
         undefined,
-        undefined,
+        30000,
         expect.objectContaining({
           taskSummary: 'portant-tail',
         })
@@ -711,10 +825,11 @@ describe('ModelSelector', () => {
         5678,
         undefined,
         undefined,
-        undefined,
+        30000,
         {
           taskSummary: '帮我选一个更合适的模型',
           topRouteCandidates: [],
+          routingBudget: undefined,
         }
       );
       smartSpy.mockRestore();

@@ -69,10 +69,11 @@ describe('deployment assets', () => {
     expect(releasingGuide).toContain('Release');
     expect(releasingGuide).toContain('src/deploy-assets.test.ts');
     expect(releasingGuide).toContain('UI 配置向导专项');
-    expect(releasingGuide).toContain('docs/release-notes-v1.20.1.md');
-    expect(releasingGuide).toContain('v1.20.1');
+    expect(releasingGuide).toContain('docs/release-notes-v1.20.2.md');
+    expect(releasingGuide).toContain('v1.20.2');
     expect(releasingGuide).toContain('stream lifecycle 诊断');
     expect(releasingGuide).toContain('resume 长历史首包前 preflight 诊断');
+    expect(releasingGuide).toContain('token count 紧凑签名');
     expect(releasingGuide).toContain('第二轮对话和错误后继续请求不继承旧 abort signal');
     expect(releasingGuide).toContain('常见场景稳定性专项');
     expect(releasingGuide).toContain('test:stream-stability');
@@ -82,24 +83,23 @@ describe('deployment assets', () => {
     expect(releasingGuide).toContain('help、init、doctor、start/status/stop');
   });
 
-  it('keeps v1.20.1 resume release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.20.1.md'), 'utf-8');
+  it('keeps v1.20.2 continue-after-error release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.20.2.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('resume 恢复性能与长历史前置路径优化版');
-    expect(releaseNotes).toContain('Resume preflight diagnostics');
-    expect(releaseNotes).toContain('SmartRouter long-history budget');
-    expect(releaseNotes).toContain('Alignment summary guardrail');
-    expect(releaseNotes).toContain('Resume stability release gate');
+    expect(releaseNotes).toContain('API 报错后继续 / resume 继续慢卡补丁版');
+    expect(releaseNotes).toContain('Analysis diagnostics no full-history rebuild');
+    expect(releaseNotes).toContain('Compact token count cache signature');
+    expect(releaseNotes).toContain('Preflight loopback timeout budget');
     expect(releaseNotes).toContain('npm run test:resume-stability');
     expect(releaseNotes).toContain('npm run test:stream-stability');
     expect(releaseNotes).toContain('npm run test:closed-review');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.20.1 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.20.1.md');
-    expect(readme).toContain('resume 恢复性能与长历史前置路径优化版');
+    expect(readme).toContain('## v1.20.2 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.20.2.md');
+    expect(readme).toContain('API 报错后继续 / resume 继续慢卡补丁版');
     expect(readme).toContain('test:resume-stability');
     expect(readme).toContain('test:stream-stability');
     expect(readme).toContain('test:closed-review');
@@ -122,7 +122,7 @@ describe('deployment assets', () => {
   it('keeps README new-user quick start before release positioning', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
-    const releaseIndex = readme.indexOf('## v1.20.1 发布定位');
+    const releaseIndex = readme.indexOf('## v1.20.2 发布定位');
     const docsIndex = readme.indexOf('## 文档入口');
 
     expect(quickStartIndex).toBeGreaterThan(0);

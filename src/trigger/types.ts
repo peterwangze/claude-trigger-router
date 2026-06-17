@@ -441,6 +441,9 @@ export interface ISmartRouterConfig {
     recent_message_count?: number;
   };
 
+  /** 内部 SmartRouter / semantic classifier loopback 超时预算，默认不超过 30000ms */
+  preflight_timeout_ms?: number;
+
   /** 自适应路由证据输入，基于 governance trace / benchmark history 做候选模型画像 */
   adaptive?: {
     enabled?: boolean;

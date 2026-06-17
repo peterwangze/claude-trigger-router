@@ -88,7 +88,63 @@ describe('router model registry integration', () => {
     expect(firstReq.routerTokenDiagnostics.cacheHit).toBe(false);
     expect(secondReq.routerTokenDiagnostics.cacheHit).toBe(true);
     expect(secondReq.routerTokenDiagnostics.tokenCount).toBe(firstReq.routerTokenDiagnostics.tokenCount);
-    expect(secondReq.routerTokenDiagnostics.signatureLength).toBeGreaterThan(1000);
+    expect(secondReq.routerTokenDiagnostics.signatureLength).toBeLessThan(1200);
+    expect(secondReq.routerTokenDiagnostics.signatureStrategy).toBe('compact');
+  });
+
+  it('keeps resume token cache signatures compact for very large histories', async () => {
+    const longText = 'resume-history '.repeat(2000);
+    const req = {
+      body: {
+        model: 'claude-3-5-sonnet',
+        messages: [
+          { role: 'user' as const, content: longText },
+          { role: 'assistant' as const, content: 'previous answer '.repeat(1000) },
+          {
+            role: 'user' as const,
+            content: [
+              { type: 'tool_result', tool_use_id: 'tool-1', content: 'tool output '.repeat(2000) },
+              { type: 'text', text: 'continue after API error' },
+            ],
+          },
+        ],
+        system: [{ type: 'text', text: 'system prompt '.repeat(2000) }],
+        tools: [
+          {
+            name: 'large_tool',
+            description: 'tool description '.repeat(1000),
+            input_schema: {
+              type: 'object',
+              properties: Object.fromEntries(
+                Array.from({ length: 50 }, (_, index) => [`field_${index}`, { type: 'string' }])
+              ),
+            },
+          },
+        ],
+      },
+    };
+
+    await router(req as any, {} as any, {
+      config: {
+        Providers: [],
+        Models: [
+          {
+            id: 'sonnet',
+            api_base_url: 'https://openrouter.ai/api/v1/chat/completions',
+            api_key: 'sk-test',
+            protocol: 'openai',
+            model: 'anthropic/claude-sonnet-4',
+          },
+        ],
+        Router: {
+          default: 'sonnet',
+        },
+      },
+      event: undefined,
+    });
+
+    expect(req.routerTokenDiagnostics.signatureLength).toBeLessThan(2000);
+    expect(req.routerTokenDiagnostics.signatureStrategy).toBe('compact');
   });
 
   it('resolves think and background routes from modelId', async () => {

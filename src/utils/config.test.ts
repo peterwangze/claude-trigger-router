@@ -1141,6 +1141,7 @@ describe('normalizeAndValidateConfig governance', () => {
             enabled: true,
             summarizer_model: 'missing-model',
             max_summary_tokens: 0,
+            timeout_ms: 0,
           },
         },
       },
@@ -1150,6 +1151,7 @@ describe('normalizeAndValidateConfig governance', () => {
     expect(result.errors).toContain('SmartRouter.sticky.fingerprint_similarity_threshold must be between 0 and 1');
     expect(result.errors).toContain('SmartRouter.sticky.alignment.summarizer_model 格式不正确，应为 "provider,model"，当前值："missing-model"');
     expect(result.errors).toContain('SmartRouter.sticky.alignment.max_summary_tokens must be greater than 0 when alignment is enabled');
+    expect(result.errors).toContain('SmartRouter.sticky.alignment.timeout_ms must be greater than 0 when alignment is enabled');
   });
 
   it('validates SmartRouter semantic classifier references and mode values', () => {
@@ -1171,12 +1173,14 @@ describe('normalizeAndValidateConfig governance', () => {
           mode: 'classifier',
           classifier_model: 'missing-model',
           threshold: 1.2,
+          timeout_ms: 0,
         },
       },
     } as any);
 
     expect(result.errors).toContain('SmartRouter.semantic.threshold must be between 0 and 1');
     expect(result.errors).toContain('SmartRouter.semantic.classifier_model 格式不正确，应为 "provider,model"，当前值："missing-model"');
+    expect(result.errors).toContain('SmartRouter.semantic.timeout_ms must be greater than 0 when semantic classifier is enabled');
   });
 
   it('treats unified Router model-id references as valid even when Providers still exist', () => {

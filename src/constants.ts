@@ -105,6 +105,7 @@ export const DEFAULT_SMART_ROUTER_CONFIG = {
     max_chars: 12000,
     recent_message_count: 8,
   },
+  preflight_timeout_ms: 30000,
 };
 
 /**

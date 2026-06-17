@@ -149,9 +149,34 @@ describe('ContextAnalyzer', () => {
 
       expect(result.text).toBe('ith-important-tail');
       expect(result.originalChars).toBeGreaterThan(result.text.length);
+      expect(result.originalCharsEstimated).toBe(true);
       expect(result.truncated).toBe(true);
       expect(result.budgetApplied).toBe(true);
       expect(result.scope).toBe('full_conversation');
+    });
+
+    it('should not rebuild full conversation text just to report original chars', () => {
+      const messages = Array.from({ length: 50 }, (_, index) => ({
+        role: index % 2 === 0 ? 'user' : 'assistant',
+        content: `history-${index}-` + 'x'.repeat(5000),
+      }));
+      const req = { body: { messages } };
+      const result = analyzer.analyzeWithBudget(
+        req as any,
+        {
+          ...config,
+          analysis_scope: 'full_conversation',
+        },
+        {
+          recentMessageCount: 2,
+          maxChars: 64,
+        }
+      );
+
+      expect(result.text).toHaveLength(64);
+      expect(result.originalCharsEstimated).toBe(true);
+      expect(result.originalChars).toBeGreaterThan(100000);
+      expect(result.originalChars).toBeLessThan(130000);
     });
   });
 

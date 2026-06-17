@@ -15,6 +15,7 @@ export interface IAnalysisBudget {
 export interface IAnalyzedTextResult {
   text: string;
   originalChars: number;
+  originalCharsEstimated?: boolean;
   truncated: boolean;
   budgetApplied: boolean;
   scope: AnalysisScope;
@@ -85,6 +86,16 @@ export class ContextAnalyzer {
       .map((message) => this.extractTextFromMessage(message));
   }
 
+  estimateUserTextChars(messages: MessageParam[]): number {
+    if (!messages || messages.length === 0) {
+      return 0;
+    }
+
+    return messages
+      .filter((message) => message.role === 'user')
+      .reduce((sum, message) => sum + this.extractTextFromMessage(message).length, 0);
+  }
+
   /**
    * 根据配置的分析范围提取文本
    *
@@ -128,9 +139,10 @@ export class ContextAnalyzer {
       ? messages.slice(-budget.recentMessageCount)
       : messages;
     const rawText = this.extractTextByScope(scopedMessages, scope);
-    const originalText = scopedMessages === messages
-      ? rawText
-      : this.extractTextByScope(messages, scope);
+    const originalChars = scopedMessages === messages
+      ? rawText.length
+      : this.estimateUserTextChars(messages);
+    const originalCharsEstimated = scopedMessages !== messages;
     const maxChars = budget?.maxChars && budget.maxChars > 0 ? budget.maxChars : undefined;
     const text = maxChars && rawText.length > maxChars
       ? rawText.slice(-maxChars)
@@ -138,8 +150,9 @@ export class ContextAnalyzer {
 
     return {
       text,
-      originalChars: originalText.length,
-      truncated: text.length < originalText.length,
+      originalChars,
+      ...(originalCharsEstimated ? { originalCharsEstimated } : {}),
+      truncated: text.length < originalChars,
       budgetApplied: scopedMessages !== messages || Boolean(maxChars && rawText.length > maxChars),
       scope,
       ...(budget?.recentMessageCount ? { recentMessageCount: budget.recentMessageCount } : {}),

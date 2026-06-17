@@ -270,6 +270,9 @@ function validateSemanticRoutingConfig(
       const err = validateModelRef(semantic.classifier_model, validProviders, `${prefix}.classifier_model`);
       if (err) errors.push(err);
     }
+    if (semantic.timeout_ms !== undefined && semantic.timeout_ms <= 0) {
+      errors.push(`${prefix}.timeout_ms must be greater than 0 when semantic classifier is enabled`);
+    }
   }
 }
 

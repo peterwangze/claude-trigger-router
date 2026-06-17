@@ -25,6 +25,7 @@ const DEFAULT_ANALYSIS_BUDGET = {
   maxChars: 12000,
   recentMessageCount: 8,
 };
+const DEFAULT_PREFLIGHT_TIMEOUT_MS = 30000;
 
 /**
  * 模型选择器类
@@ -230,6 +231,17 @@ export class ModelSelector {
     };
   }
 
+  private getPreflightTimeoutMs(smartRouterConfig?: ISmartRouterConfig, timeoutMs?: number): number | undefined {
+    const configured = this.readPositiveNumber(smartRouterConfig?.preflight_timeout_ms);
+    if (configured) {
+      return configured;
+    }
+    if (timeoutMs && timeoutMs > 0) {
+      return Math.min(timeoutMs, DEFAULT_PREFLIGHT_TIMEOUT_MS);
+    }
+    return DEFAULT_PREFLIGHT_TIMEOUT_MS;
+  }
+
   private analyzeRequestText(req: IRequestContext, config: ITriggerConfig, smartRouterConfig?: ISmartRouterConfig) {
     const analysisConfig = smartRouterConfig?.analysis_scope
       ? {
@@ -248,6 +260,7 @@ export class ModelSelector {
         scope: result.scope,
         textChars: result.text.length,
         originalChars: result.originalChars,
+        originalCharsEstimated: result.originalCharsEstimated,
         truncated: result.truncated,
         budgetApplied: result.budgetApplied,
         maxChars: result.maxChars,
@@ -340,6 +353,7 @@ export class ModelSelector {
     const appConfig = (req as any).appConfig as IAppConfig | undefined;
     const effectiveGovernanceConfig = this.getEffectiveGovernanceConfig(smartRouterConfig, governanceConfig);
     const routingRules = this.getRoutingRules(config, smartRouterConfig);
+    const preflightTimeoutMs = this.getPreflightTimeoutMs(smartRouterConfig, timeoutMs);
     // 如果统一路由未启用，直接返回不匹配
     if (!this.isRoutingEnabled(config, smartRouterConfig)) {
       return {
@@ -401,7 +415,7 @@ export class ModelSelector {
             port,
             undefined,
             apiKey,
-            timeoutMs
+            this.readPositiveNumber(semanticConfig.timeout_ms) ?? preflightTimeoutMs
           )
         : semanticRouter.analyzeCandidates(
             text,
@@ -453,7 +467,7 @@ export class ModelSelector {
           port,
           undefined,
           apiKey,
-          timeoutMs,
+          preflightTimeoutMs,
           this.buildSmartRouterHint(text, routingRules, req, smartRouterConfig)
         );
         if (smartResult) {

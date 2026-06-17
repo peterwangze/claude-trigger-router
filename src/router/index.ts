@@ -24,26 +24,87 @@ interface ITokenCountDiagnostics {
   tokenCount: number;
   cacheHit: boolean;
   signature: string;
+  signatureStrategy: 'compact';
 }
 
 const tokenCountCache = new Map<string, number>();
 
-function stableStringify(value: unknown): string {
-  if (value === undefined) {
-    return 'undefined';
+function compactSample(value: unknown): string {
+  const text = typeof value === 'string'
+    ? value
+    : value === undefined || value === null
+      ? ''
+      : (() => {
+          try {
+            return JSON.stringify(value);
+          } catch {
+            return String(value);
+          }
+        })();
+
+  if (text.length <= 80) {
+    return text;
+  }
+  return `${text.slice(0, 32)}…${text.slice(-32)}`;
+}
+
+function compactLength(value: unknown): number {
+  if (typeof value === 'string') {
+    return value.length;
+  }
+  if (value === undefined || value === null) {
+    return 0;
   }
   try {
-    return JSON.stringify(value);
+    return JSON.stringify(value).length;
   } catch {
-    return String(value);
+    return String(value).length;
   }
 }
 
 function buildTokenCountSignature(messages: MessageParam[] | undefined, system: any, tools: Tool[] | undefined): string {
-  return stableStringify({
-    messages: Array.isArray(messages) ? messages : [],
-    system: system ?? [],
-    tools: Array.isArray(tools) ? tools : [],
+  return JSON.stringify({
+    messages: Array.isArray(messages)
+      ? messages.map((message: any) => ({
+          role: message?.role,
+          content: typeof message?.content === 'string'
+            ? {
+                kind: 'string',
+                length: message.content.length,
+                sample: compactSample(message.content),
+              }
+            : Array.isArray(message?.content)
+              ? message.content.map((part: any) => ({
+                  type: part?.type,
+                  id: part?.id ?? part?.tool_use_id,
+                  name: part?.name,
+                  length: compactLength(part?.text ?? part?.input ?? part?.content),
+                  sample: compactSample(part?.text ?? part?.input ?? part?.content),
+                }))
+              : {
+                  kind: typeof message?.content,
+                  length: compactLength(message?.content),
+                  sample: compactSample(message?.content),
+                },
+        }))
+      : [],
+    system: typeof system === 'string'
+      ? { kind: 'string', length: system.length, sample: compactSample(system) }
+      : Array.isArray(system)
+        ? system.map((item: any) => ({
+            type: item?.type,
+            length: compactLength(item?.text),
+            sample: compactSample(item?.text),
+          }))
+        : { kind: typeof system, length: compactLength(system), sample: compactSample(system) },
+    tools: Array.isArray(tools)
+      ? tools.map((tool: any) => ({
+          name: tool?.name,
+          descriptionLength: compactLength(tool?.description),
+          schemaLength: compactLength(tool?.input_schema),
+          schemaSample: compactSample(tool?.input_schema),
+        }))
+      : [],
   });
 }
 
@@ -74,6 +135,7 @@ const calculateTokenCount = (
       tokenCount: cached,
       cacheHit: true,
       signature,
+      signatureStrategy: 'compact',
     };
   }
 
@@ -128,6 +190,7 @@ const calculateTokenCount = (
     tokenCount,
     cacheHit: false,
     signature,
+    signatureStrategy: 'compact',
   };
 };
 
@@ -400,6 +463,7 @@ export const router = async (req: any, _res: any, context: any) => {
       tokenCount,
       cacheHit: tokenDiagnostics.cacheHit,
       signatureLength: tokenDiagnostics.signature.length,
+      signatureStrategy: tokenDiagnostics.signatureStrategy,
       messageCount: Array.isArray(messages) ? messages.length : 0,
       toolCount: Array.isArray(tools) ? tools.length : 0,
     };
