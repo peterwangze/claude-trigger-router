@@ -226,14 +226,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.20.2.md](docs/release-notes-v1.20.2.md)
+- 发布说明：[docs/release-notes-v1.20.3.md](docs/release-notes-v1.20.3.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.20.2 发布定位
+## v1.20.3 发布定位
 
-`v1.20.2` 是 API 报错后继续 / resume 继续慢卡补丁版。它修掉 v1.20.1 后仍可能触发的长历史诊断重扫、token cache 完整签名和内部路由 loopback 长等待。
+`v1.20.3` 是 Web UI 本地优先重构版。它把 `/ui` 第一层收敛到本地状态、快速模型配置和常用厂商模板，把远程接入、维护观测和复杂路由放进高级特性。
 
-这一版继续使用 `test:resume-stability` 看护长消息、tool results、`analysis_scope=full_conversation`、SmartRouter fallback、semantic classifier、alignment enabled、context window guard 和同 session 恢复路径；同时保留 `test:stream-stability` 与 `test:closed-review` 作为发布护栏，并补紧凑 token 签名和 preflight 短超时回归。完整发布边界见 [docs/release-notes-v1.20.2.md](docs/release-notes-v1.20.2.md)。
+这一版继续保留 `test:resume-stability`、`test:stream-stability` 与 `test:closed-review` 作为发布护栏，并重点使用 `test:ui` 和 `test:ui:browser` 看护本地工作台、快速配置、桌面/移动响应式和无横向溢出。完整发布边界见 [docs/release-notes-v1.20.3.md](docs/release-notes-v1.20.3.md)。
 
 ## License
 

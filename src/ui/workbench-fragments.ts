@@ -76,8 +76,8 @@ export function escapeHtml(value: unknown): string {
 export function renderSurfaceTabs(): string {
   return [
     '<div class="surface-tabs" role="tablist" aria-label="工作台切换">',
-    '<button id="userSurfaceTab" class="surface-tab active" type="button" role="tab" aria-selected="true" data-surface-target="user">使用者工作台</button>',
-    '<button id="maintainerSurfaceTab" class="surface-tab" type="button" role="tab" aria-selected="false" data-surface-target="maintainer">维护者工作台</button>',
+    '<button id="userSurfaceTab" class="surface-tab active" type="button" role="tab" aria-selected="true" data-surface-target="user">本地工作台</button>',
+    '<button id="maintainerSurfaceTab" class="surface-tab" type="button" role="tab" aria-selected="false" data-surface-target="maintainer">高级特性</button>',
     '</div>',
   ].join('');
 }

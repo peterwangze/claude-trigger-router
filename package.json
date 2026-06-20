@@ -1,6 +1,6 @@
 {
   "name": "@peterwangze/claude-trigger-router",
-  "version": "1.20.2",
+  "version": "1.20.3",
   "description": "Intelligent trigger-based router for Claude Code with automatic task type detection and model routing",
   "bin": {
     "ctr": "dist/cli.js"

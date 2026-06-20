@@ -516,11 +516,13 @@ describe('workbench DOM smoke', () => {
     expect(styles).toContain('.advanced-section');
     expect(styles).toContain('.surface-tabs');
     expect(styles).toContain('.app-shell>*{min-width:0;max-width:100%}');
-    expect(styles).toContain('.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.62fr);gap:1rem;align-items:stretch;margin-bottom:1rem;min-width:0;max-width:100%}');
+    expect(styles).toContain('.topbar');
+    expect(styles).toContain('.workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:1rem;align-items:start}');
+    expect(styles).toContain('.hero{display:grid;grid-template-columns:minmax(0,.92fr) minmax(360px,1.08fr);gap:1rem;align-items:stretch;margin-bottom:.2rem;min-width:0;max-width:100%}');
     expect(styles).toContain('.decision-rail');
     expect(styles).toContain('.decision-signal');
     expect(styles).toContain('@media (max-width:760px)');
-    expect(styles).toContain('@media (max-width:980px){.hero,.task-map,.quick-config-grid{grid-template-columns:1fr}');
+    expect(styles).toContain('@media (max-width:1080px){.hero,.workspace-grid,.quick-config-grid{grid-template-columns:1fr}');
     expect(styles).toContain('.management-table,.trend-table,table{display:block;overflow-x:auto;white-space:nowrap}');
   });
 

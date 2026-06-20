@@ -61,50 +61,32 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</style></head>` +
     `<body>` +
     `<main class="app-shell">` +
-    `<div class="hero">` +
-    `<div class="panel hero-copy">` +
-    `<div><div class="eyebrow">Claude Trigger Router UI</div><h1>配置向导</h1>` +
-    `<p class="hero-summary">先完成模型、Key 和默认路由；远程接入与治理观测留在维护者工作台。</p></div>` +
-    `<div class="hero-actions">` +
+    `<header class="topbar">` +
+    `<div class="brand-lockup"><span class="brand-dot" aria-hidden="true"></span><strong>Claude Trigger Router</strong></div>` +
+    `<div class="hero-actions" aria-label="本地配置快捷操作">` +
     `<button id="loadConfigDraftHeroBtn" type="button">载入当前配置</button>` +
-    `<button id="previewConfigDraftHeroBtn" type="button">预览 compiled models</button>` +
+    `<button id="previewConfigDraftHeroBtn" class="secondary" type="button">预览配置</button>` +
     `<button id="refreshStatusHeroBtn" class="secondary" type="button">刷新状态</button>` +
     `</div>` +
+    `</header>` +
+    `<section class="hero" aria-label="本地工作台概览">` +
+    `<div class="hero-copy">` +
+    `<div><h1>配置向导</h1>` +
+    `<p class="hero-summary">先把本机模型、Key 和默认路由跑顺；远程接入、治理观测和维护操作收进高级特性。</p></div>` +
+    `<div class="local-readiness" data-tone="${escapedUserReadinessTone}"><span>本地就绪度</span><strong>${escapedUserReadinessTone === "ready" ? "运行中" : escapedUserReadinessTone === "critical" ? "需要处理" : "待完善"}</strong></div>` +
     `</div>` +
-    `<div class="panel">` +
+    `<div class="panel status-panel">` +
+    `<div class="surface-heading"><strong>本地状态</strong><span class="muted">常看信息集中在这里。</span></div>` +
     `<div class="status-grid">` +
-    `<div class="status-tile"><span class="muted">Service</span><strong id="serviceReadyStatus">ready</strong></div>` +
-    `<div class="status-tile"><span class="muted">Port</span><strong id="servicePortStatus">${escapedDisplayPort}</strong></div>` +
-    `<div class="status-tile"><span class="muted">Mode</span><strong id="serviceModeStatus">${escapedRuntimeMode}</strong></div>` +
-    `<div class="status-tile"><span class="muted">Role</span><strong id="serviceRoleStatus">${escapedServiceRole}</strong></div>` +
-    `<div class="status-tile"><span class="muted">Listener</span><strong id="listenerStatusSummary">${escapedListenerSummary}</strong></div>` +
-    `<div class="status-tile"><span class="muted">Models</span><strong id="modelCountStatus">${escapedModelsCount}</strong></div>` +
-    `<div class="status-tile"><span class="muted">Router.default</span><strong id="routerDefaultStatus">${escapedRouterDefault}</strong></div>` +
-    `<div class="status-tile"><span class="muted">Remote service</span><strong id="remoteStatusSummary">${escapedRemoteSummary}</strong></div>` +
-    `<div class="status-tile"><span class="muted">Remote registration</span><strong id="remoteRegistrationStatusSummary">checking</strong></div>` +
-    `<div class="status-tile"><span class="muted">Registration</span><strong id="registrationStatusSummary">${escapedRegistrationSummary}</strong></div>` +
-    `<div class="status-tile"><span class="muted">Auth</span><strong id="authStatusSummary">${escapedAuthSummary}</strong></div>` +
-    `<div class="status-tile"><span class="muted">Security</span><strong id="securityStatusSummary">${escapedSecuritySummary}</strong></div>` +
+    `<div class="status-tile primary-status"><span class="muted">服务</span><strong id="serviceReadyStatus">ready</strong></div>` +
+    `<div class="status-tile"><span class="muted">端口</span><strong id="servicePortStatus">${escapedDisplayPort}</strong></div>` +
+    `<div class="status-tile"><span class="muted">模式</span><strong id="serviceModeStatus">${escapedRuntimeMode}</strong></div>` +
+    `<div class="status-tile"><span class="muted">角色</span><strong id="serviceRoleStatus">${escapedServiceRole}</strong></div>` +
+    `<div class="status-tile wide"><span class="muted">监听地址</span><strong id="listenerStatusSummary">${escapedListenerSummary}</strong></div>` +
+    `<div class="status-tile"><span class="muted">模型数</span><strong id="modelCountStatus">${escapedModelsCount}</strong></div>` +
+    `<div class="status-tile"><span class="muted">路由默认</span><strong id="routerDefaultStatus">${escapedRouterDefault}</strong></div>` +
     `</div>` +
     `</div>` +
-    `</div>` +
-    `<section class="role-grid" aria-label="角色任务入口">` +
-    `<article class="role-card" data-tone="${escapedUserReadinessTone}" id="localUserRoleCard">` +
-    `<div><h2>配置模型</h2><p>选择厂商模板，填 Key，设为默认模型。</p></div>` +
-    `<div class="role-meta"><span class="pill info">常用</span><button class="secondary" type="button" data-surface-jump="user">开始配置</button></div>` +
-    `</article>` +
-    `<article class="role-card" data-tone="${escapedRemoteTone}" id="remoteClientRoleCard">` +
-    `<div><h2>远程接入</h2><p>查看远端服务、token 和注册模型状态。</p></div>` +
-    `<div class="role-meta"><span class="pill info">${escapedRemoteSummary}</span><button class="secondary" type="button" data-surface-jump="maintainer">查看连接</button></div>` +
-    `</article>` +
-    `<article class="role-card" data-tone="${escapedMaintainerTone}" id="maintainerRoleCard">` +
-    `<div><h2>运维观测</h2><p>查看鉴权、安全、模型池和路由结果。</p></div>` +
-    `<div class="role-meta"><span class="pill ${viewModel.securitySummary === 'critical' ? 'critical' : 'info'}">${escapedSecuritySummary}</span><button class="secondary" type="button" data-surface-jump="maintainer">进入观测</button></div>` +
-    `</article>` +
-    `<article class="role-card" data-tone="${escapedRouteSetupTone}" id="routingDesignerRoleCard">` +
-    `<div><h2>高级路由</h2><p>配置 SmartRouter、规则和治理增强。</p></div>` +
-    `<div class="role-meta"><span class="pill info">高级</span><button class="secondary" type="button" data-surface-jump="user" data-open-advanced="true">打开高级项</button></div>` +
-    `</article>` +
     `</section>` +
     `<section id="uiDesignAssistantPanel" hidden aria-hidden="true">` +
     `<div class="ux-checklist">` +
@@ -116,11 +98,12 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</section>` +
     renderSurfaceTabs() +
     `<section id="userSurface" class="surface-panel" data-surface="user">` +
-    `<div class="panel">` +
-    `<div class="surface-heading"><strong>常用配置</strong><span class="muted">选择厂商，填 Key，预览后保存。</span></div>` +
+    `<div class="workspace-grid">` +
+    `<div class="panel quick-config-panel">` +
+    `<div class="surface-heading stacked-heading"><strong>快速配置</strong><span class="muted">选择厂商，填 Key，预览后保存，这是本地路由的主路径。</span></div>` +
     `<div class="quick-config-grid">` +
     `<div class="quick-config-main">` +
-    `<div class="row"><strong>一键模型配置</strong><span id="quickConfigStatus" class="muted">等待载入当前配置</span></div>` +
+    `<div class="row"><strong>本地模型</strong><span id="quickConfigStatus" class="muted">等待载入当前配置</span></div>` +
     `<div class="control-grid quick-control-grid">` +
     `<div><label>模型厂商</label><select id="quickProviderTemplate">${providerOptionsHtml}</select></div>` +
     `<div><label>Model ID</label><input id="quickModelId" placeholder="sonnet"></div>` +
@@ -129,7 +112,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div style="grid-column:1/-1"><label>API 地址</label><input id="quickModelApi" placeholder="https://..."></div>` +
     `</div>` +
     `<div class="action-row">` +
-    `<button id="applyQuickConfigBtn" type="button">一键生成配置</button>` +
+    `<button id="applyQuickConfigBtn" type="button">生成</button>` +
     `<button id="previewQuickConfigBtn" class="secondary" type="button">预览配置</button>` +
     `<button id="saveQuickConfigBtn" type="button">保存配置</button>` +
     `<button id="addModelDraftBtn" class="secondary" type="button">添加更多模型</button>` +
@@ -139,9 +122,35 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `</div>` +
     `<div class="provider-template-panel">` +
-    `<div class="row"><strong>常用厂商模板</strong><span class="muted">点击后填入厂商默认地址和模型名。</span></div>` +
+    `<div class="row"><strong>常用厂商</strong><span class="muted">点击后填入厂商默认地址和模型名。</span></div>` +
     `<div id="providerTemplateCards" class="provider-card-grid">${providerCardsHtml}</div>` +
     `</div>` +
+    `</div>` +
+    `</div>` +
+    `<aside class="advanced-rail" aria-label="高级特性入口">` +
+    `<div class="surface-heading stacked-heading"><strong>高级特性</strong><span class="muted">远程、维护和复杂路由放在第二层。</span></div>` +
+    `<section class="role-grid" aria-label="角色任务入口">` +
+    `<article class="role-card primary-role" data-tone="${escapedUserReadinessTone}" id="localUserRoleCard">` +
+    `<div><h2>本地配置</h2><p>模型、Key、默认路由与草稿预览。</p></div>` +
+    `<div class="role-meta"><span class="pill info">常用</span><button class="secondary" type="button" data-surface-jump="user">回到本地</button></div>` +
+    `</article>` +
+    `<article class="role-card" data-tone="${escapedRouteSetupTone}" id="routingDesignerRoleCard">` +
+    `<div><h2>高级路由</h2><p>SmartRouter、规则、候选和治理增强。</p></div>` +
+    `<div class="role-meta"><span class="pill info">高级</span><button class="secondary" type="button" data-surface-jump="user" data-open-advanced="true">打开</button></div>` +
+    `</article>` +
+    `<article class="role-card" data-tone="${escapedRemoteTone}" id="remoteClientRoleCard">` +
+    `<div><h2>远程接入</h2><p>服务发现、token 与注册模型状态。</p></div>` +
+    `<div class="role-meta"><span id="remoteStatusSummary" class="pill info">${escapedRemoteSummary}</span><button class="secondary" type="button" data-surface-jump="maintainer">查看</button></div>` +
+    `<div class="role-footnote"><span class="muted">Remote registration</span><strong id="remoteRegistrationStatusSummary">checking</strong></div>` +
+    `</article>` +
+    `<article class="role-card" data-tone="${escapedMaintainerTone}" id="maintainerRoleCard">` +
+    `<div><h2>维护观测</h2><p>鉴权、安全、模型池、trace 和归档。</p></div>` +
+    `<div class="role-meta"><span id="securityStatusSummary" class="pill ${viewModel.securitySummary === 'critical' ? 'critical' : 'info'}">${escapedSecuritySummary}</span><button class="secondary" type="button" data-surface-jump="maintainer">进入</button></div>` +
+    `<div class="role-footnote"><span class="muted">Auth</span><strong id="authStatusSummary">${escapedAuthSummary}</strong></div>` +
+    `<div class="role-footnote"><span class="muted">Registration</span><strong id="registrationStatusSummary">${escapedRegistrationSummary}</strong></div>` +
+    `</article>` +
+    `</section>` +
+    `</aside>` +
     `</div>` +
     `<details class="advanced-section" id="advancedConfigDetails">` +
     `<summary>高级配置、路由和诊断</summary>` +
@@ -335,7 +344,6 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `</div>` +
     `</div>` +
     `</details>` +
-    `</div>` +
     `</section>` +
     `<section id="maintainerSurface" class="surface-panel" data-surface="maintainer" hidden>` +
     `<div class="panel">` +

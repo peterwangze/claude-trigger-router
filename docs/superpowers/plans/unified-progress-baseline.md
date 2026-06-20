@@ -21,7 +21,7 @@
 
 截至 2026-06-05，项目当前状态统一定义为：
 
-> 项目已经完成治理主链首轮能力落地，v1.3.0 基础路由常用体验、v1.4.0 SmartRouter 常用体验、v1.5.0 入口基础功能稳定、v1.6.0 多模型收益运营化、v1.7.0 远程服务 / 模型池安全体验、v1.8.0 低侵入 agent/tool 增强与架构减压、v1.9.0 用户入口与远程客户端一致性收口、v1.10.0 智能路由自适应与多模型协同增强、v1.11.0 基础路由流式稳定性首轮止血、v1.12.0 流式传输韧性与远程中转稳定性修复、v1.13.0 核心路由用户体感与看护补强、v1.14.0 配置产品化最终收口、v1.15.0 CLI/setup UX 重设计收口、v1.16.0 用户视角复审与入口一致性校准、v1.17.0 UI 双层工作台收敛、v1.18.0 治理观测运营化增强、v1.19.0 部署形态与远程接入收敛、v1.20.0 发布与进展治理可持续化、v1.20.1 resume 恢复性能与长历史前置路径优化，以及 v1.20.2 API 报错后继续 / resume 继续慢卡补丁已阶段闭环。入口稳定、基础路由即时流式输出、上游中途断流可读错误、远程中转取消上游、第二轮/错误后继续请求隔离、`resume` 长历史首包前预算、API 报错后继续前置预算、结构化 API error、发布看护、UI 基础交互、UI browser smoke、收益证据链、远程服务安全、受保护 UI admin 入口、route preview、角色化 UI 入口、角色化 UI 体验设计、治理观测 decision rail、remote discovery / availability 和 agent/tool trace contract 继续作为回归底线。
+> 项目已经完成治理主链首轮能力落地，v1.3.0 基础路由常用体验、v1.4.0 SmartRouter 常用体验、v1.5.0 入口基础功能稳定、v1.6.0 多模型收益运营化、v1.7.0 远程服务 / 模型池安全体验、v1.8.0 低侵入 agent/tool 增强与架构减压、v1.9.0 用户入口与远程客户端一致性收口、v1.10.0 智能路由自适应与多模型协同增强、v1.11.0 基础路由流式稳定性首轮止血、v1.12.0 流式传输韧性与远程中转稳定性修复、v1.13.0 核心路由用户体感与看护补强、v1.14.0 配置产品化最终收口、v1.15.0 CLI/setup UX 重设计收口、v1.16.0 用户视角复审与入口一致性校准、v1.17.0 UI 双层工作台收敛、v1.18.0 治理观测运营化增强、v1.19.0 部署形态与远程接入收敛、v1.20.0 发布与进展治理可持续化、v1.20.1 resume 恢复性能与长历史前置路径优化、v1.20.2 API 报错后继续 / resume 继续慢卡补丁，以及 v1.20.3 Web UI 本地优先重构已阶段闭环。入口稳定、基础路由即时流式输出、上游中途断流可读错误、远程中转取消上游、第二轮/错误后继续请求隔离、`resume` 长历史首包前预算、API 报错后继续前置预算、结构化 API error、发布看护、UI 基础交互、UI browser smoke、收益证据链、远程服务安全、受保护 UI admin 入口、route preview、角色化 UI 入口、角色化 UI 体验设计、Web UI 视觉设计、治理观测 decision rail、remote discovery / availability 和 agent/tool trace contract 继续作为回归底线。
 
 这一定义用于替代历史文档中分散、彼此可能滞后的阶段描述。
 
@@ -472,8 +472,9 @@
 | v1.20.0 | 发布与进展治理可持续化 | 已闭环：stream stability 成为本地/GitHub 发布硬门槛，closed 事项复审和统一基线 / 版本路线 / issue log 互链已由 `test:closed-review` 看护 |
 | v1.20.1 | resume 恢复性能与长历史前置路径优化 | 已闭环：resume/长历史 preflight 耗时观测、SmartRouter/semantic/alignment 预算、token count 快速路径和专项回归门禁已进入发布边界 |
 | v1.20.2 | API 报错后继续 / resume 继续慢卡补丁 | 已闭环：分析诊断去全量重扫、token count 紧凑签名和内部 loopback 短超时预算已进入发布边界 |
+| v1.20.3 | Web UI 本地优先重构 | 已闭环：本地状态优先、快速配置主路径、高级特性分层和 Apple 系克制视觉已进入发布边界 |
 
-执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；当前默认回到 v1.20.2 API 报错后继续 / resume 继续慢卡补丁发布闭环维护。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 第二轮会话断流 / 错误后继续请求断流 / API 报错后继续慢卡 / resume 长历史恢复卡住 / agent/tool follow-up 断流 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / remote discovery / remote availability / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / Web UI 视觉设计 / 治理观测 decision rail / agent-tool trace contract 再次退化，则重新前置处理。
+执行规则：后续用户只说“按照计划优先级继续推进”时，默认先按上述版本计划推进；当前默认回到 v1.20.3 Web UI 本地优先重构发布闭环维护。若出现安全风险、P0 主路径故障，或基础路由即时流式输出 / 上游中途断流可读错误 / 远程中转取消上游 / 第二轮会话断流 / 错误后继续请求断流 / API 报错后继续慢卡 / resume 长历史恢复卡住 / agent/tool follow-up 断流 / 结构化 API error / route preview / fresh setup / 发布门禁 / 远程转发 / 配置保存 / 收益证据链 / 远程服务安全 / 模型池调度 / remote discovery / remote availability / 受保护 UI admin 入口 / 角色化 UI 入口 / 角色化 UI 体验设计 / UI browser smoke / Web UI 视觉设计 / 治理观测 decision rail / agent-tool trace contract 再次退化，则重新前置处理。
 
 ### 8. v1.2.0 发布闭环边界
 

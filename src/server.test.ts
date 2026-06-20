@@ -3194,8 +3194,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('配置向导');
     expect(html).toContain('角色任务入口');
     expect(html).toContain('uiDesignAssistantPanel');
-    expect(html).toContain('一键模型配置');
-    expect(html).toContain('常用厂商模板');
+    expect(html).toContain('本地模型');
+    expect(html).toContain('常用厂商');
     expect(html).toContain('id="quickProviderTemplate"');
     expect(html).toContain('id="advancedConfigDetails"');
     expect(html).toContain('serviceReadyStatus');
@@ -3230,12 +3230,12 @@ describe('createServer /api/config', () => {
     expect(html).toContain('id="maintainerSurface"');
     expect(html).toContain('data-surface-target="user"');
     expect(html).toContain('data-surface-target="maintainer"');
-    expect(html).toContain('使用者工作台');
-    expect(html).toContain('维护者工作台');
+    expect(html).toContain('本地工作台');
+    expect(html).toContain('高级特性');
     expect(html).toContain('setActiveSurface');
     expect(html).toContain('setActiveSurface(\'user\')');
     expect(html).toContain('<section id="maintainerSurface" class="surface-panel" data-surface="maintainer" hidden>');
-    expect(html.indexOf('常用配置')).toBeLessThan(html.indexOf('维护者观测'));
+    expect(html.indexOf('快速配置')).toBeLessThan(html.indexOf('维护者观测'));
     expect(html).toContain('维护者观测');
     expect(html).toContain('Governance Trace');
     expect(html).toContain('/api/models/compiled');
