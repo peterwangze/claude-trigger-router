@@ -10,12 +10,12 @@ LOG: true
 LOG_LEVEL: "debug"
 
 Models:
-  - id: sonnet
+  - id: openrouter
     api: "https://openrouter.ai/api/v1/chat/completions"
     key: "sk-xxx"
     interface: "openai"
-    model: "anthropic/claude-sonnet-4"
+    model: "openrouter/auto"
     thinking: "auto"
 
 Router:
-  default: "sonnet"
+  default: "openrouter"

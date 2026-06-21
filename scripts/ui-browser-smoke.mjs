@@ -195,7 +195,7 @@ function smokeExpression() {
 
 function assertSmokeResult(label, result) {
   const failures = [];
-  if (!result.title.includes('配置向导')) failures.push('missing config wizard title');
+  if (!result.title.includes('本地状态')) failures.push('missing local status title');
   if (!result.roleEntry) failures.push('missing role entry cards');
   if (!result.quickConfig) failures.push('missing quick config controls');
   if (!result.designPanel) failures.push('missing UI design assistant panel');

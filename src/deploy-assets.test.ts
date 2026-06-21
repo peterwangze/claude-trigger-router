@@ -69,8 +69,8 @@ describe('deployment assets', () => {
     expect(releasingGuide).toContain('Release');
     expect(releasingGuide).toContain('src/deploy-assets.test.ts');
     expect(releasingGuide).toContain('UI 配置向导专项');
-    expect(releasingGuide).toContain('docs/release-notes-v1.20.3.md');
-    expect(releasingGuide).toContain('v1.20.3');
+    expect(releasingGuide).toContain('docs/release-notes-v1.20.4.md');
+    expect(releasingGuide).toContain('v1.20.4');
     expect(releasingGuide).toContain('stream lifecycle 诊断');
     expect(releasingGuide).toContain('resume 长历史首包前 preflight 诊断');
     expect(releasingGuide).toContain('token count 紧凑签名');
@@ -83,23 +83,23 @@ describe('deployment assets', () => {
     expect(releasingGuide).toContain('help、init、doctor、start/status/stop');
   });
 
-  it('keeps v1.20.3 local-first UI release readiness documented', () => {
-    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.20.3.md'), 'utf-8');
+  it('keeps v1.20.4 concept-aligned UI release readiness documented', () => {
+    const releaseNotes = readFileSync(join(process.cwd(), 'docs', 'release-notes-v1.20.4.md'), 'utf-8');
 
     expect(packageJson.files).toContain('docs/*.md');
-    expect(releaseNotes).toContain('Web UI 本地优先重构版');
-    expect(releaseNotes).toContain('Local-first workbench');
-    expect(releaseNotes).toContain('Quick configuration as the main path');
-    expect(releaseNotes).toContain('Advanced features hierarchy');
+    expect(releaseNotes).toContain('Web UI 概念图一致性与国内厂商模板更新版');
+    expect(releaseNotes).toContain('Concept-aligned workbench');
+    expect(releaseNotes).toContain('Domestic provider template refresh');
+    expect(releaseNotes).toContain('GLM / DeepSeek / Kimi / MiniMax / GPT / Claude');
     expect(releaseNotes).toContain('npm run test:ui');
     expect(releaseNotes).toContain('npm run test:ui:browser');
     expect(releaseNotes).toContain('npm run test:closed-review');
     expect(releaseNotes).toContain('npm run release:verify');
 
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
-    expect(readme).toContain('## v1.20.3 发布定位');
-    expect(readme).toContain('docs/release-notes-v1.20.3.md');
-    expect(readme).toContain('Web UI 本地优先重构版');
+    expect(readme).toContain('## v1.20.4 发布定位');
+    expect(readme).toContain('docs/release-notes-v1.20.4.md');
+    expect(readme).toContain('Web UI 概念图一致性与国内厂商模板更新版');
     expect(readme).toContain('test:ui');
     expect(readme).toContain('test:ui:browser');
     expect(readme).toContain('test:closed-review');
@@ -122,7 +122,7 @@ describe('deployment assets', () => {
   it('keeps README new-user quick start before release positioning', () => {
     const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf-8');
     const quickStartIndex = readme.indexOf('## 5 分钟跑起来');
-    const releaseIndex = readme.indexOf('## v1.20.3 发布定位');
+    const releaseIndex = readme.indexOf('## v1.20.4 发布定位');
     const docsIndex = readme.indexOf('## 文档入口');
 
     expect(quickStartIndex).toBeGreaterThan(0);

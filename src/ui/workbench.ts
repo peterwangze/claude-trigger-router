@@ -39,18 +39,48 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
   const escapedRemoteTone = escapeHtml(viewModel.remoteTone);
   const providerTemplates = getUiProviderTemplates();
   const providerTemplateEntries = Object.entries(providerTemplates);
-  const providerOptionsHtml = providerTemplateEntries
-    .map(([key, template]) => `<option value="${escapeHtml(key)}">${escapeHtml(template.label ?? key)}</option>`)
+  const providerGroups = [
+    {
+      category: 'model_vendor',
+      label: '模型厂商',
+      entries: providerTemplateEntries.filter(([, template]) => template.category === 'model_vendor'),
+    },
+    {
+      category: 'aggregator',
+      label: '聚合平台',
+      entries: providerTemplateEntries.filter(([, template]) => template.category === 'aggregator'),
+    },
+  ];
+  const providerOptionsHtml = providerGroups
+    .filter((group) => group.entries.length > 0)
+    .map((group) => (
+      `<optgroup label="${escapeHtml(group.label)}">` +
+      group.entries
+        .map(([key, template]) => `<option value="${escapeHtml(key)}">${escapeHtml(template.label ?? key)}</option>`)
+        .join("") +
+      `</optgroup>`
+    ))
     .join("");
-  const providerCardsHtml = providerTemplateEntries
-    .map(([key, template]) => {
-      const examples = Array.isArray(template.model_examples) ? template.model_examples.slice(0, 2).join(" / ") : "";
+  const providerCardsHtml = providerGroups
+    .filter((group) => group.entries.length > 0)
+    .map((group) => {
+      const cards = group.entries
+        .map(([key, template]) => {
+          const examples = Array.isArray(template.model_examples) ? template.model_examples.slice(0, 2).join(" / ") : "";
+          return (
+            `<button class="provider-card" type="button" data-provider-template="${escapeHtml(key)}" data-provider-category="${escapeHtml(group.category)}">` +
+            `<strong>${escapeHtml(template.label ?? key)}</strong>` +
+            `<span>${escapeHtml(template.default_model ?? "-")}</span>` +
+            `<small>${escapeHtml(template.summary || examples || template.api || "")}</small>` +
+            `</button>`
+          );
+        })
+        .join("");
       return (
-        `<button class="provider-card" type="button" data-provider-template="${escapeHtml(key)}">` +
-        `<strong>${escapeHtml(template.label ?? key)}</strong>` +
-        `<span>${escapeHtml(template.interface ?? "openai")} · ${escapeHtml(template.default_model ?? "-")}</span>` +
-        `<small>${escapeHtml(examples || template.api || "")}</small>` +
-        `</button>`
+        `<section class="provider-category-section" aria-label="${escapeHtml(group.label)}">` +
+        `<div class="provider-category-heading"><strong>${escapeHtml(group.label)}</strong><span class="muted">${group.category === 'model_vendor' ? '官方模型直连，按国内常用优先级排列。' : '统一聚合接入，使用 OpenAI 兼容接口。'}</span></div>` +
+        `<div class="provider-card-grid">${cards}</div>` +
+        `</section>`
       );
     })
     .join("");
@@ -63,29 +93,25 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<main class="app-shell">` +
     `<header class="topbar">` +
     `<div class="brand-lockup"><span class="brand-dot" aria-hidden="true"></span><strong>Claude Trigger Router</strong></div>` +
-    `<div class="hero-actions" aria-label="本地配置快捷操作">` +
-    `<button id="loadConfigDraftHeroBtn" type="button">载入当前配置</button>` +
-    `<button id="previewConfigDraftHeroBtn" class="secondary" type="button">预览配置</button>` +
-    `<button id="refreshStatusHeroBtn" class="secondary" type="button">刷新状态</button>` +
-    `</div>` +
+    renderSurfaceTabs() +
+    `<div class="topbar-status"><span class="status-dot" aria-hidden="true"></span><span>${escapedRuntimeMode === 'local' ? '本地模式' : escapedRuntimeMode}</span></div>` +
     `</header>` +
     `<section class="hero" aria-label="本地工作台概览">` +
-    `<div class="hero-copy">` +
-    `<div><h1>配置向导</h1>` +
-    `<p class="hero-summary">先把本机模型、Key 和默认路由跑顺；远程接入、治理观测和维护操作收进高级特性。</p></div>` +
-    `<div class="local-readiness" data-tone="${escapedUserReadinessTone}"><span>本地就绪度</span><strong>${escapedUserReadinessTone === "ready" ? "运行中" : escapedUserReadinessTone === "critical" ? "需要处理" : "待完善"}</strong></div>` +
-    `</div>` +
     `<div class="panel status-panel">` +
-    `<div class="surface-heading"><strong>本地状态</strong><span class="muted">常看信息集中在这里。</span></div>` +
-    `<div class="status-grid">` +
+    `<div class="status-panel-head"><h1>本地状态</h1><span class="muted">常看信息集中在这里。</span></div>` +
+    `<div class="status-strip">` +
     `<div class="status-tile primary-status"><span class="muted">服务</span><strong id="serviceReadyStatus">ready</strong></div>` +
     `<div class="status-tile"><span class="muted">端口</span><strong id="servicePortStatus">${escapedDisplayPort}</strong></div>` +
     `<div class="status-tile"><span class="muted">模式</span><strong id="serviceModeStatus">${escapedRuntimeMode}</strong></div>` +
-    `<div class="status-tile"><span class="muted">角色</span><strong id="serviceRoleStatus">${escapedServiceRole}</strong></div>` +
-    `<div class="status-tile wide"><span class="muted">监听地址</span><strong id="listenerStatusSummary">${escapedListenerSummary}</strong></div>` +
     `<div class="status-tile"><span class="muted">模型数</span><strong id="modelCountStatus">${escapedModelsCount}</strong></div>` +
     `<div class="status-tile"><span class="muted">路由默认</span><strong id="routerDefaultStatus">${escapedRouterDefault}</strong></div>` +
+    `<div class="hero-actions" aria-label="本地配置快捷操作">` +
+    `<button id="loadConfigDraftHeroBtn" class="secondary" type="button">载入配置</button>` +
+    `<button id="previewConfigDraftHeroBtn" class="secondary" type="button">预览配置</button>` +
+    `<button id="refreshStatusHeroBtn" type="button">刷新状态</button>` +
     `</div>` +
+    `</div>` +
+    `<div class="status-footnote"><span>监听地址</span><strong id="listenerStatusSummary">${escapedListenerSummary}</strong><span>角色</span><strong id="serviceRoleStatus">${escapedServiceRole}</strong><span>本地就绪度</span><strong>${escapedUserReadinessTone === "ready" ? "运行中" : escapedUserReadinessTone === "critical" ? "需要处理" : "待完善"}</strong></div>` +
     `</div>` +
     `</section>` +
     `<section id="uiDesignAssistantPanel" hidden aria-hidden="true">` +
@@ -96,9 +122,9 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div class="ux-check" data-state="ready"><strong>响应式</strong><span class="muted">小屏使用单列和横向表格，不让状态文字挤压操作入口。</span></div>` +
     `</div>` +
     `</section>` +
-    renderSurfaceTabs() +
     `<section id="userSurface" class="surface-panel" data-surface="user">` +
     `<div class="workspace-grid">` +
+    `<div class="primary-workspace">` +
     `<div class="panel quick-config-panel">` +
     `<div class="surface-heading stacked-heading"><strong>快速配置</strong><span class="muted">选择厂商，填 Key，预览后保存，这是本地路由的主路径。</span></div>` +
     `<div class="quick-config-grid">` +
@@ -121,10 +147,11 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<span class="pill info">Models</span><span class="muted">尚未生成草稿</span>` +
     `</div>` +
     `</div>` +
-    `<div class="provider-template-panel">` +
-    `<div class="row"><strong>常用厂商</strong><span class="muted">点击后填入厂商默认地址和模型名。</span></div>` +
-    `<div id="providerTemplateCards" class="provider-card-grid">${providerCardsHtml}</div>` +
     `</div>` +
+    `</div>` +
+    `<div class="provider-template-panel">` +
+    `<div class="row"><strong>常用厂商</strong><span class="muted">按当前国内使用习惯拆分为模型厂商和聚合平台。</span></div>` +
+    `<div id="providerTemplateCards" class="provider-template-groups">${providerCardsHtml}</div>` +
     `</div>` +
     `</div>` +
     `<aside class="advanced-rail" aria-label="高级特性入口">` +

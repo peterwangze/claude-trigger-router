@@ -308,7 +308,7 @@ describe('runSetupCli', () => {
     expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 Models[].id）', 'openrouter');
     expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（留空使用预设，写入 Models[].api）', '');
     expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
-    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', 'anthropic/claude-sonnet-4');
+    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', 'openrouter/auto');
     expect(io.info).toHaveBeenCalledWith(expect.stringContaining('本地使用者：先跑通 Models + Router.default'));
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
@@ -451,12 +451,12 @@ describe('runSetupCli', () => {
         }),
         Models: [
           expect.objectContaining({
-            id: 'sonnet',
+            id: 'openrouter',
             key: 'sk-xxx',
           }),
         ],
         Router: {
-          default: 'sonnet',
+          default: 'openrouter',
         },
       })
     );
@@ -725,7 +725,7 @@ describe('runSetupCli', () => {
     expect(io.input).toHaveBeenNthCalledWith(2, '接入名称（用于预设识别，不是 Models[].id）', 'anthropic');
     expect(io.input).toHaveBeenNthCalledWith(3, 'API URL（留空使用预设，写入 Models[].api）', '');
     expect(io.input).toHaveBeenNthCalledWith(4, 'API Key（写入 Models[].key）');
-    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', 'claude-sonnet-4-5');
+    expect(io.input).toHaveBeenNthCalledWith(5, '上游模型名（写入 Models[].model）', 'claude-sonnet-4-6');
     expect(executeStart).toHaveBeenCalledTimes(1);
     expect(verifyHealth).toHaveBeenCalledTimes(1);
     expect(enterClaudeCode).not.toHaveBeenCalled();

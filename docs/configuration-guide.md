@@ -36,15 +36,15 @@ HOST: "127.0.0.1"
 PORT: 5678
 
 Models:
-  - id: sonnet
+  - id: openrouter
     api: "https://openrouter.ai/api/v1/chat/completions"
     key: "sk-xxx"
     interface: "openai"
-    model: "anthropic/claude-sonnet-4"
+    model: "openrouter/auto"
     thinking: "auto"
 
 Router:
-  default: "sonnet"
+  default: "openrouter"
 ```
 
 一个模型接入项当前真正的最小必填集合是：
@@ -82,14 +82,14 @@ Runtime:
   mode: "server"
 
 Models:
-  - id: sonnet
+  - id: openrouter
     api: "https://openrouter.ai/api/v1/chat/completions"
     key: "sk-xxx"
     interface: "openai"
-    model: "anthropic/claude-sonnet-4"
+    model: "openrouter/auto"
 
 Router:
-  default: "sonnet"
+  default: "openrouter"
 ```
 
 然后启动服务：

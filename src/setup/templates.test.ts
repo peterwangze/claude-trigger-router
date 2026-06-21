@@ -20,6 +20,15 @@ describe('setup templates', () => {
       expect(preset?.protocol).toBe('openai');
     });
 
+    it('should return GLM preset with Z.ai OpenAI-compatible URL', () => {
+      const preset = getProviderPreset('glm');
+      expect(preset).toBeDefined();
+      expect(preset?.api).toBe('https://api.z.ai/api/paas/v4/chat/completions');
+      expect(preset?.api_base_url).toBe('https://api.z.ai/api/paas/v4/chat/completions');
+      expect(preset?.interface).toBe('openai');
+      expect(preset?.protocol).toBe('openai');
+    });
+
     it('should return deepseek preset with correct api_base_url', () => {
       const preset = getProviderPreset('deepseek');
       expect(preset).toBeDefined();
@@ -36,6 +45,21 @@ describe('setup templates', () => {
       expect(preset?.api_base_url).toBe('https://api.openai.com/v1/chat/completions');
       expect(preset?.interface).toBe('openai');
       expect(preset?.protocol).toBe('openai');
+    });
+
+    it('should return domestic aggregation presets with usable OpenAI-compatible URLs', () => {
+      expect(getProviderPreset('alibaba-bailian')?.api).toBe(
+        'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
+      );
+      expect(getProviderPreset('volcengine-ark')?.api).toBe(
+        'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
+      );
+      expect(getProviderPreset('baidu-qianfan')?.api).toBe(
+        'https://qianfan.baidubce.com/v2/chat/completions'
+      );
+      expect(getProviderPreset('xunfei-astron')?.api).toBe(
+        'https://maas-coding-api.cn-huabei-1.xf-yun.com/v2/chat/completions'
+      );
     });
 
     it('should return anthropic preset with Anthropic messages URL', () => {
@@ -318,14 +342,14 @@ describe('setup templates', () => {
 
       expect(normalized.errors).toEqual([]);
       expect(template.Models?.[0]).toEqual(expect.objectContaining({
-        id: 'sonnet',
+        id: 'openrouter',
         api: 'https://openrouter.ai/api/v1/chat/completions',
         key: 'sk-xxx',
         interface: 'openai',
-        model: 'anthropic/claude-sonnet-4',
+        model: 'openrouter/auto',
         thinking: 'auto',
       }));
-      expect(template.Router.default).toBe('sonnet');
+      expect(template.Router.default).toBe('openrouter');
     });
 
     it('builds a remote service draft without local provider questions', () => {
@@ -368,10 +392,10 @@ describe('setup templates', () => {
         },
       });
       expect(draft.Models?.[0]).toEqual(expect.objectContaining({
-        id: 'sonnet',
+        id: 'openrouter',
         key: 'sk-xxx',
       }));
-      expect(draft.Router.default).toBe('sonnet');
+      expect(draft.Router.default).toBe('openrouter');
     });
 
     it('keeps config/trigger.example.yaml aligned with the generated usable minimal template', () => {

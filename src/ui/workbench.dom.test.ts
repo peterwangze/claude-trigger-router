@@ -517,12 +517,12 @@ describe('workbench DOM smoke', () => {
     expect(styles).toContain('.surface-tabs');
     expect(styles).toContain('.app-shell>*{min-width:0;max-width:100%}');
     expect(styles).toContain('.topbar');
-    expect(styles).toContain('.workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:1rem;align-items:start}');
-    expect(styles).toContain('.hero{display:grid;grid-template-columns:minmax(0,.92fr) minmax(360px,1.08fr);gap:1rem;align-items:stretch;margin-bottom:.2rem;min-width:0;max-width:100%}');
+    expect(styles).toContain('.workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,340px);gap:1rem;align-items:start}');
+    expect(styles).toContain('.status-strip{display:grid;grid-template-columns:1.05fr 1fr 1fr 1fr 1.25fr auto;align-items:center;gap:0;padding:.82rem 1rem}');
     expect(styles).toContain('.decision-rail');
     expect(styles).toContain('.decision-signal');
     expect(styles).toContain('@media (max-width:760px)');
-    expect(styles).toContain('@media (max-width:1080px){.hero,.workspace-grid,.quick-config-grid{grid-template-columns:1fr}');
+    expect(styles).toContain('@media (max-width:1080px){.topbar{grid-template-columns:1fr}');
     expect(styles).toContain('.management-table,.trend-table,table{display:block;overflow-x:auto;white-space:nowrap}');
   });
 
@@ -579,21 +579,21 @@ describe('workbench DOM smoke', () => {
 
     await waitFor(() => {
       expect(document.getElementById('quickConfigStatus')?.textContent).toContain('已生成基础配置草稿');
-      expect(document.getElementById('quickConfigSummary')?.textContent).toContain('deepseek_chat');
+      expect(document.getElementById('quickConfigSummary')?.textContent).toContain('deepseek');
     });
 
     const draft = JSON.parse((document.getElementById('configDraftEditor') as HTMLTextAreaElement).value);
     expect(draft.Models).toEqual([
       expect.objectContaining({
-        id: 'deepseek_chat',
+        id: 'deepseek',
         api: 'https://api.deepseek.com/chat/completions',
         key: 'sk-deepseek',
         interface: 'openai',
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
       }),
     ]);
     expect(draft.Models[0]).not.toHaveProperty('provider_template');
-    expect(draft.Router.default).toBe('deepseek_chat');
+    expect(draft.Router.default).toBe('deepseek');
     expect(document.getElementById('advancedConfigDetails')).toHaveProperty('open', false);
 
     dom.window.close();

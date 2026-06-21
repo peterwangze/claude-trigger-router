@@ -64,14 +64,14 @@ HOST: "127.0.0.1"
 PORT: 5678
 
 Models:
-  - id: sonnet
+  - id: openrouter
     api: "https://openrouter.ai/api/v1/chat/completions"
     key: "sk-xxx"
     interface: "openai"
-    model: "anthropic/claude-sonnet-4"
+    model: "openrouter/auto"
 
 Router:
-  default: "sonnet"
+  default: "openrouter"
 ```
 
 `interface` 表示上游接口协议，不是厂商名。OpenRouter、DeepSeek 和大多数 OpenAI-compatible 服务通常用 `openai`；Anthropic 官方接口用 `anthropic`。
@@ -226,14 +226,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.20.3.md](docs/release-notes-v1.20.3.md)
+- 发布说明：[docs/release-notes-v1.20.4.md](docs/release-notes-v1.20.4.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.20.3 发布定位
+## v1.20.4 发布定位
 
-`v1.20.3` 是 Web UI 本地优先重构版。它把 `/ui` 第一层收敛到本地状态、快速模型配置和常用厂商模板，把远程接入、维护观测和复杂路由放进高级特性。
+`v1.20.4` 是 Web UI 概念图一致性与国内厂商模板更新版。它把 `/ui` 第一层进一步收敛到本地状态、快速模型配置和常用厂商模板，把远程接入、维护观测和复杂路由放进高级特性。
 
-这一版继续保留 `test:resume-stability`、`test:stream-stability` 与 `test:closed-review` 作为发布护栏，并重点使用 `test:ui` 和 `test:ui:browser` 看护本地工作台、快速配置、桌面/移动响应式和无横向溢出。完整发布边界见 [docs/release-notes-v1.20.3.md](docs/release-notes-v1.20.3.md)。
+这一版继续保留 `test:resume-stability`、`test:stream-stability` 与 `test:closed-review` 作为发布护栏，并重点使用 `test:ui` 和 `test:ui:browser` 看护概念图一致性、本地工作台、快速配置、国内厂商模板分组、桌面/移动响应式和无横向溢出。完整发布边界见 [docs/release-notes-v1.20.4.md](docs/release-notes-v1.20.4.md)。
 
 ## License
 

@@ -1981,7 +1981,7 @@ describe('packaged CLI E2E', () => {
       expect(configText).toContain('HOST: 0.0.0.0');
       expect(configText).toContain('mode: server');
       expect(configText).toContain('Router:');
-      expect(configText).toContain('default: sonnet');
+      expect(configText).toContain('default: openrouter');
       expect(configText).toContain('APIKEY: ctr_bootstrap_');
       assertOnlyExpectedPathsChanged(diffSnapshots(before, after), getSetupMutationWhitelist());
 

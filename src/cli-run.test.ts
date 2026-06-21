@@ -251,8 +251,8 @@ describe('runClaudeCode', () => {
       expect.stringContaining('Models:'),
       'utf-8'
     );
-    expect(mockWriteFileSync.mock.calls[0]?.[1]).toContain('anthropic/claude-sonnet-4');
-    expect(mockWriteFileSync.mock.calls[0]?.[1]).toContain('default: sonnet');
+    expect(mockWriteFileSync.mock.calls[0]?.[1]).toContain('openrouter/auto');
+    expect(mockWriteFileSync.mock.calls[0]?.[1]).toContain('default: openrouter');
 
     logSpy.mockRestore();
   });
@@ -679,7 +679,7 @@ describe('runClaudeCode', () => {
     expect(written).toContain('mode: server');
     expect(written).toContain('public_host_requires_auth: true');
     expect(written).toContain('require_https_proxy: true');
-    expect(written).toContain('default: sonnet');
+    expect(written).toContain('default: openrouter');
     expect(written).toMatch(/APIKEY: ctr_bootstrap_[a-f0-9]{48}/);
 
     logSpy.mockRestore();

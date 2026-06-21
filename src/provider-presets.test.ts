@@ -5,11 +5,17 @@ import { getProviderPreset, getUiProviderTemplates, listProviderPresetKeys } fro
 describe('provider preset catalog', () => {
   it('returns setup presets from the shared catalog', () => {
     expect(listProviderPresetKeys('setup')).toEqual([
-      'openrouter',
+      'glm',
       'deepseek',
-      'openai-compatible',
+      'kimi',
+      'minimax',
+      'openai',
       'anthropic',
-      'siliconflow',
+      'alibaba-bailian',
+      'volcengine-ark',
+      'baidu-qianfan',
+      'xunfei-astron',
+      'openrouter',
       'custom',
     ]);
   });
@@ -18,17 +24,31 @@ describe('provider preset catalog', () => {
     const templates = getUiProviderTemplates();
 
     expect(Object.keys(templates)).toEqual([
-      'openrouter',
+      'glm',
       'deepseek',
-      'openai-compatible',
+      'kimi',
+      'minimax',
+      'openai',
       'anthropic',
-      'siliconflow',
+      'alibaba-bailian',
+      'volcengine-ark',
+      'baidu-qianfan',
+      'xunfei-astron',
+      'openrouter',
     ]);
-    expect(templates.anthropic).toEqual(
+    expect(templates.glm).toEqual(
       expect.objectContaining({
-        suggested_id: 'claude',
-        key_placeholder: 'sk-ant-...',
-        vendor_hint: 'anthropic',
+        category: 'model_vendor',
+        suggested_id: 'glm',
+        default_model: 'glm-5.2',
+        vendor_hint: 'glm',
+      })
+    );
+    expect(templates['alibaba-bailian']).toEqual(
+      expect.objectContaining({
+        category: 'aggregator',
+        api: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+        default_model: 'qwen-plus',
         default_thinking: 'auto',
       })
     );
