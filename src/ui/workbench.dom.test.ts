@@ -512,6 +512,8 @@ describe('workbench DOM smoke', () => {
 
     expect(styles).toContain('.role-grid');
     expect(styles).toContain('.quick-config-grid');
+    expect(styles).toContain('.config-route-grid');
+    expect(styles).toContain('.route-path-diagram');
     expect(styles).toContain('.provider-card-grid');
     expect(styles).toContain('.advanced-section');
     expect(styles).toContain('.surface-tabs');
@@ -559,6 +561,9 @@ describe('workbench DOM smoke', () => {
     expect(document.getElementById('quickProviderTemplate')).toHaveProperty('value', 'openrouter');
     expect(document.getElementById('quickModelKey')).toHaveProperty('value', 'sk-test');
     expect(document.getElementById('providerTemplateCards')?.textContent).toContain('OpenRouter');
+    expect(document.getElementById('currentConfigOverview')?.textContent).toContain('Router.default sonnet');
+    expect(document.getElementById('currentConfigSnapshot')?.textContent).toContain('"Router"');
+    expect(document.getElementById('routePathDiagram')?.textContent).toContain('sonnet');
     expect(document.querySelector('#compiledModelMapTable tbody')?.textContent).toContain('model__sonnet');
     expect(document.getElementById('contextWindowGuide')?.textContent).toContain('Context window guide');
 
@@ -572,6 +577,8 @@ describe('workbench DOM smoke', () => {
     document.querySelector<HTMLButtonElement>('[data-provider-template="deepseek"]')?.click();
     await waitFor(() => {
       expect(document.getElementById('quickProviderTemplate')).toHaveProperty('value', 'deepseek');
+      expect(document.getElementById('routePathDiagram')?.textContent).toContain('新增模型');
+      expect(document.getElementById('routePathDiagram')?.textContent).toContain('deepseek-v4-flash');
     });
 
     (document.getElementById('quickModelKey') as HTMLInputElement).value = 'sk-deepseek';
@@ -585,15 +592,22 @@ describe('workbench DOM smoke', () => {
     const draft = JSON.parse((document.getElementById('configDraftEditor') as HTMLTextAreaElement).value);
     expect(draft.Models).toEqual([
       expect.objectContaining({
+        id: 'sonnet',
+        model: 'anthropic/claude-sonnet-4',
+      }),
+      expect.objectContaining({
         id: 'deepseek',
         api: 'https://api.deepseek.com/chat/completions',
         key: 'sk-deepseek',
         interface: 'openai',
         model: 'deepseek-v4-flash',
+        provider_template: 'deepseek',
       }),
     ]);
-    expect(draft.Models[0]).not.toHaveProperty('provider_template');
+    expect(draft.Models[1].metadata).toEqual(expect.objectContaining({ vendor_hint: 'deepseek' }));
     expect(draft.Router.default).toBe('deepseek');
+    expect(document.getElementById('currentConfigOverview')?.textContent).toContain('2 models');
+    expect(document.getElementById('routePathHint')?.textContent).toContain('Router.default = deepseek');
     expect(document.getElementById('advancedConfigDetails')).toHaveProperty('open', false);
 
     dom.window.close();

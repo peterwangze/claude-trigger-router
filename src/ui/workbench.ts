@@ -146,6 +146,16 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `<div id="quickConfigSummary" class="quick-summary">` +
     `<span class="pill info">Models</span><span class="muted">尚未生成草稿</span>` +
     `</div>` +
+    `<div class="config-route-grid">` +
+    `<section class="config-live-panel" aria-label="当前配置">` +
+    `<div class="row"><strong>当前配置</strong><span id="currentConfigOverview" class="muted">等待载入</span></div>` +
+    `<pre id="currentConfigSnapshot" class="config-snapshot">等待载入当前配置</pre>` +
+    `</section>` +
+    `<section class="config-live-panel" aria-label="路由路径">` +
+    `<div class="row"><strong>路由路径</strong><span id="routePathHint" class="muted">展示当前路径与模板变更</span></div>` +
+    `<div id="routePathDiagram" class="route-path-diagram"></div>` +
+    `</section>` +
+    `</div>` +
     `</div>` +
     `</div>` +
     `</div>` +
@@ -648,6 +658,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `const quickModelNameSuggestions=document.getElementById('quickModelNameSuggestions');` +
     `const quickConfigStatus=document.getElementById('quickConfigStatus');` +
     `const quickConfigSummary=document.getElementById('quickConfigSummary');` +
+    `const currentConfigOverview=document.getElementById('currentConfigOverview');` +
+    `const currentConfigSnapshot=document.getElementById('currentConfigSnapshot');` +
+    `const routePathHint=document.getElementById('routePathHint');` +
+    `const routePathDiagram=document.getElementById('routePathDiagram');` +
     `const providerTemplateCards=document.getElementById('providerTemplateCards');` +
     `const advancedConfigDetails=document.getElementById('advancedConfigDetails');` +
     `const draftValidationList=document.getElementById('draftValidationList');` +
@@ -778,6 +792,16 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `function fmt(v){return Number(v || 0).toFixed(2);}` +
     `function shortTime(v){ const d=new Date(v); return d.toISOString().slice(11,16); }` +
     `function limitText(used,limit){ return Number.isFinite(limit) ? (String(used ?? 0)+' / '+String(limit)) : String(used ?? 0); }` +
+    `function cloneConfig(value){ return JSON.parse(JSON.stringify(value || {})); }` +
+    `function getActiveConfig(){ return currentDraftConfig && Object.keys(currentDraftConfig).length ? currentDraftConfig : ${toInlineScriptJson(rawInitialConfig)}; }` +
+    `function maskSecret(value){ const text=String(value || '').trim(); if(!text){ return ''; } if(text.length<=8){ return text.slice(0,2)+'***'; } return text.slice(0,4)+'...'+text.slice(-4); }` +
+    `function getModelById(config,modelId){ const models=Array.isArray(config?.Models) ? config.Models : []; return models.find(item=>String(item?.id || '')===String(modelId || '')) || null; }` +
+    `function getProviderLabel(model){ const templateKey=inferProviderTemplateKey(model); const template=modelProviderTemplates[templateKey] || {}; return template.label || model?.metadata?.vendor_hint || templateKey || model?.interface || 'provider'; }` +
+    `function summarizeConfigForDisplay(config){ const models=Array.isArray(config?.Models) ? config.Models : []; const router=config?.Router || {}; const smart=config?.SmartRouter || config?.TriggerRouter || {}; const defaultModel=getModelById(config,router.default) || models[0] || {}; return { listener:String((config?.HOST || '127.0.0.1'))+':'+String(config?.PORT || '3456'), runtime:config?.Runtime?.mode || 'local', models:models.length, router_default:router.default || '-', default_provider:defaultModel.id ? getProviderLabel(defaultModel) : '-', default_model:defaultModel.model || '-', smart_router:Boolean(smart.enabled), governance:Boolean(config?.Governance?.enabled) }; }` +
+    `function buildConfigSnapshot(config){ const models=Array.isArray(config?.Models) ? config.Models : []; return { Runtime:config?.Runtime || { mode:'local' }, HOST:config?.HOST || '127.0.0.1', PORT:config?.PORT || 3456, Router:config?.Router || {}, Models:models.map(item=>({ id:item.id || '', provider:getProviderLabel(item), model:item.model || '', api:item.api || item.api_base_url || '', interface:item.interface || item.protocol || '', key:maskSecret(item.key || item.api_key), provider_template:item.provider_template || inferProviderTemplateKey(item) || undefined })), SmartRouter:config?.SmartRouter ? { enabled:Boolean(config.SmartRouter.enabled), router_model:config.SmartRouter.router_model || '', candidates:Array.isArray(config.SmartRouter.candidates) ? config.SmartRouter.candidates.map(item=>item.model || item.ref || '').filter(Boolean) : [] } : undefined, Governance:config?.Governance ? { enabled:Boolean(config.Governance.enabled), shadow:Boolean(config.Governance.shadow?.enabled) } : undefined }; }` +
+    `function renderCurrentConfigView(config){ const active=config || getActiveConfig(); const summary=summarizeConfigForDisplay(active); currentConfigOverview.textContent=summary.models+' models · Router.default '+summary.router_default+' · '+summary.runtime; currentConfigSnapshot.textContent=JSON.stringify(buildConfigSnapshot(active),null,2); renderRoutePathDiagram(active); }` +
+    `function getRouteModel(config,candidateModel){ const router=config?.Router || {}; const models=Array.isArray(config?.Models) ? config.Models : []; const targetId=candidateModel?.id || router.default || models[0]?.id || ''; return candidateModel || getModelById(config,targetId) || models[0] || {}; }` +
+    `function renderRoutePathDiagram(config,options={}){ const active=config || getActiveConfig(); const candidate=options.candidateModel || null; const model=getRouteModel(active,candidate); const router=active?.Router || {}; const exists=Boolean(candidate && getModelById(active,candidate.id)); const stage=candidate ? (exists ? '更新模型' : '新增模型') : '当前路径'; const smart=active?.SmartRouter || active?.TriggerRouter || {}; const nodes=['请求','CTR '+String(active?.HOST || '127.0.0.1')+':'+String(active?.PORT || '3456')]; if(smart.enabled){ nodes.push('SmartRouter'); } nodes.push('Router.default '+esc(candidate?.id || router.default || model.id || '-')); nodes.push((model.id || '-')+' · '+getProviderLabel(model)); nodes.push(model.model || '-'); routePathHint.textContent=candidate ? (stage+'：保存后 Router.default = '+(candidate.id || '-')) : '当前 Router.default 实际转发路径'; routePathDiagram.innerHTML=nodes.map((node,index)=>'<div class=\"route-node '+(candidate && index>=3 ? 'route-node-pending' : '')+'\"><span>'+esc(index===0 ? stage : 'Step '+index)+'</span><strong>'+esc(node)+'</strong></div>').join('<div class=\"route-edge\" aria-hidden=\"true\">→</div>'); }` +
     `function renderAuthQuotaTable(quota){` +
     `  const keys=Array.isArray(quota?.keys) ? quota.keys : [];` +
     `  if(!keys.length){ authQuotaTableBody.innerHTML='<tr><td colspan="6" class="muted">No managed keys configured</td></tr>'; return; }` +
@@ -883,8 +907,15 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(api.includes('api.anthropic.com/v1/messages') || modelInterface === 'anthropic'){ return 'anthropic'; }` +
     `  if(api.includes('openrouter.ai')){ return 'openrouter'; }` +
     `  if(api.includes('deepseek.com')){ return 'deepseek'; }` +
+    `  if(api.includes('api.z.ai')){ return 'glm'; }` +
+    `  if(api.includes('moonshot.cn')){ return 'kimi'; }` +
+    `  if(api.includes('minimaxi.com')){ return 'minimax'; }` +
+    `  if(api.includes('dashscope.aliyuncs.com')){ return 'alibaba-bailian'; }` +
+    `  if(api.includes('ark.cn-beijing.volces.com')){ return 'volcengine-ark'; }` +
+    `  if(api.includes('qianfan.baidubce.com')){ return 'baidu-qianfan'; }` +
+    `  if(api.includes('xf-yun.com')){ return 'xunfei-astron'; }` +
     `  if(api.includes('siliconflow.cn')){ return 'siliconflow'; }` +
-    `  if(api.includes('api.openai.com')){ return 'openai-compatible'; }` +
+    `  if(api.includes('api.openai.com')){ return 'openai'; }` +
     `  return '';` +
     `}` +
     `function getProviderTemplateContext(model){` +
@@ -894,7 +925,10 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `function createDraftModelFromTemplate(templateKey){` +
     `  const resolvedKey=(templateKey && modelProviderTemplates[templateKey]) ? templateKey : defaultProviderTemplateKey;` +
     `  const template=modelProviderTemplates[resolvedKey] || {};` +
-    `  return { provider_template:resolvedKey, id:template.suggested_id || '', api:template.api || '', interface:template.interface || 'openai', model:template.default_model || '', thinking:template.default_thinking || 'auto' };` +
+    `  const metadata={}; if(template.vendor_hint){ metadata.vendor_hint=template.vendor_hint; }` +
+    `  const model={ provider_template:resolvedKey, id:template.suggested_id || '', api:template.api || '', key:'', interface:template.interface || 'openai', model:template.default_model || '', thinking:template.default_thinking || 'auto' };` +
+    `  if(Object.keys(metadata).length){ model.metadata=metadata; }` +
+    `  return model;` +
     `}` +
     `function setQuickTemplate(templateKey, options={}){` +
     `  const resolvedKey=(templateKey && modelProviderTemplates[templateKey]) ? templateKey : defaultProviderTemplateKey;` +
@@ -910,6 +944,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(options.force || !quickModelApi.value.trim()){ quickModelApi.value=template.api || ''; }` +
     `  quickConfigStatus.textContent='已选择 '+(template.label || resolvedKey);` +
     `  renderQuickConfigSummary();` +
+    `  renderRoutePathDiagram(getActiveConfig(),{ candidateModel:buildQuickModel() });` +
     `}` +
     `function syncQuickConfigFromDraft(config){` +
     `  const models=Array.isArray(config?.Models) ? config.Models : [];` +
@@ -921,6 +956,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  if(first.model){ quickModelName.value=first.model; }` +
     `  if(first.api || first.api_base_url){ quickModelApi.value=first.api || first.api_base_url; }` +
     `  renderQuickConfigSummary();` +
+    `  renderCurrentConfigView(config);` +
     `}` +
     `function buildQuickModel(){` +
     `  const templateKey=(quickProviderTemplate.value || defaultProviderTemplateKey).trim();` +
@@ -928,24 +964,28 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const modelId=(quickModelId.value || template.suggested_id || 'main').trim();` +
     `  const metadata={};` +
     `  if(template.vendor_hint){ metadata.vendor_hint=template.vendor_hint; }` +
-    `  const model={ id:modelId, api:(quickModelApi.value || template.api || '').trim(), key:(quickModelKey.value || '').trim(), interface:template.interface || 'openai', model:(quickModelName.value || template.default_model || '').trim(), thinking:template.default_thinking || 'auto' };` +
+    `  const model={ provider_template:templateKey, id:modelId, api:(quickModelApi.value || template.api || '').trim(), key:(quickModelKey.value || '').trim(), interface:template.interface || 'openai', model:(quickModelName.value || template.default_model || '').trim(), thinking:template.default_thinking || 'auto' };` +
     `  if(Object.keys(metadata).length){ model.metadata=metadata; }` +
     `  return model;` +
     `}` +
     `function buildQuickConfigPayload(){` +
     `  const model=buildQuickModel();` +
-    `  const source=currentDraftConfig || {};` +
-    `  const payload={};` +
-    `  ['HOST','PORT','LOG','LOG_LEVEL','API_TIMEOUT_MS','NON_INTERACTIVE_MODE','APIKEY','Auth','Runtime'].forEach((key)=>{ if(source[key] !== undefined){ payload[key]=source[key]; } });` +
-    `  payload.Models=[model];` +
-    `  payload.Router={ default:model.id };` +
+    `  const payload=cloneConfig(getActiveConfig());` +
+    `  const models=Array.isArray(payload.Models) ? payload.Models : [];` +
+    `  const index=models.findIndex(item=>String(item?.id || '')===model.id);` +
+    `  if(index>=0){ models[index]={ ...models[index], ...model }; } else { models.push(model); }` +
+    `  payload.Models=models;` +
+    `  payload.Router={ ...(payload.Router || {}), default:model.id };` +
     `  return payload;` +
     `}` +
     `function renderQuickConfigSummary(payload){` +
     `  const config=(payload && Array.isArray(payload.Models)) ? payload : buildQuickConfigPayload();` +
-    `  const model=config.Models?.[0] || {};` +
+    `  const pending=buildQuickModel();` +
+    `  const model=getModelById(config,pending.id) || config.Models?.[0] || pending;` +
     `  const template=modelProviderTemplates[model.provider_template || quickProviderTemplate.value] || {};` +
-    `  quickConfigSummary.innerHTML='<span class=\"pill info\">'+esc(template.label || model.provider_template || 'provider')+'</span><strong>'+esc(model.id || '-')+'</strong><span class=\"muted\">'+esc(model.model || '-')+'</span><span class=\"muted\">Router.default = '+esc(config.Router?.default || '-')+'</span>';` +
+    `  const exists=Boolean(getModelById(getActiveConfig(),pending.id));` +
+    `  quickConfigSummary.innerHTML='<span class=\"pill info\">'+esc(template.label || model.provider_template || 'provider')+'</span><strong>'+esc(model.id || '-')+'</strong><span class=\"muted\">'+esc(model.model || '-')+'</span><span class=\"muted\">Router.default = '+esc(config.Router?.default || '-')+'</span><span class=\"pill '+(exists ? 'warn' : 'info')+'\">'+esc(exists ? '更新现有模型' : '新增模型')+'</span>';` +
+    `  renderRoutePathDiagram(getActiveConfig(),{ candidateModel:pending });` +
     `}` +
     `function applyQuickConfig(){` +
     `  const payload=buildQuickConfigPayload();` +
@@ -960,6 +1000,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderRouterSlotExplanation(withDraftCompiledData(payload));` +
     `  renderContextWindowGuide(withDraftCompiledData(payload));` +
     `  renderDraftPreviewMeta();` +
+    `  renderCurrentConfigView(payload);` +
     `  renderQuickConfigSummary(payload);` +
     `  quickConfigStatus.textContent='已生成基础配置草稿';` +
     `  draftPreviewStatus.textContent='已从一键配置生成草稿';` +
@@ -1210,13 +1251,13 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  const modelInput=card.querySelector('[data-field=\"model\"][data-index=\"'+index+'\"]');` +
     `  if(modelInterface){ modelInterface.value=template.interface || template.protocol; }` +
     `  if(apiBaseUrl && !apiBaseUrl.value.trim()){ apiBaseUrl.value=template.api || template.api_base_url; } else if(apiBaseUrl){ apiBaseUrl.value=template.api || template.api_base_url; }` +
-    `  if(modelInput){ modelInput.placeholder=template.default_model || modelInput.placeholder; if(!modelInput.value.trim() && template.default_model){ modelInput.value=template.default_model; } }` +
+    `  if(modelInput){ modelInput.placeholder=template.default_model || modelInput.placeholder; if(template.default_model){ modelInput.value=template.default_model; } }` +
     `  const modelIdInput=card.querySelector('[data-field=\"id\"][data-index=\"'+index+'\"]');` +
     `  if(modelIdInput){ modelIdInput.placeholder=template.suggested_id || modelIdInput.placeholder; if(!modelIdInput.value.trim() && template.suggested_id){ modelIdInput.value=template.suggested_id; } }` +
     `  const keyInput=card.querySelector('[data-field=\"key\"][data-index=\"'+index+'\"]');` +
     `  if(keyInput && template.key_placeholder){ keyInput.placeholder=template.key_placeholder; }` +
     `  const vendorHintInput=card.querySelector('[data-field=\"vendor_hint\"][data-index=\"'+index+'\"]');` +
-    `  if(vendorHintInput && template.vendor_hint){ vendorHintInput.placeholder=template.vendor_hint; }` +
+    `  if(vendorHintInput && template.vendor_hint){ vendorHintInput.placeholder=template.vendor_hint; vendorHintInput.value=template.vendor_hint; }` +
     `  const thinkingProfile=card.querySelector('[data-field=\"thinking_profile\"][data-index=\"'+index+'\"]');` +
     `  if(thinkingProfile && !thinkingProfile.value && template.default_thinking){ thinkingProfile.value=template.default_thinking; }` +
     `  const nextModels=extractModelsFromForm();` +
@@ -1349,6 +1390,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `    renderRouterSlotExplanation(withDraftCompiledData(payload));` +
     `    renderContextWindowGuide(withDraftCompiledData(payload));` +
     `    renderDraftPreviewMeta();` +
+    `    renderCurrentConfigView(payload);` +
     `    draftPreviewStatus.textContent='已同步 Models 表单到 JSON 草稿';` +
     `  } catch (error) {` +
     `    draftPreviewStatus.textContent='同步失败：'+error.message;` +
@@ -1378,6 +1420,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderRouterSlotExplanation(withDraftCompiledData(payload));` +
     `  renderContextWindowGuide(withDraftCompiledData(payload));` +
     `  renderDraftPreviewMeta();` +
+    `  renderCurrentConfigView(payload);` +
     `  draftPreviewStatus.textContent='已将建议模型应用到 '+path+'，可重新预览验证';` +
     `}` +
     `function applyContextWindowAction(action,modelId){` +
@@ -1394,6 +1437,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderRouterSlotExplanation(withDraftCompiledData(payload));` +
     `  renderContextWindowGuide(withDraftCompiledData(payload));` +
     `  renderDraftPreviewMeta();` +
+    `  renderCurrentConfigView(payload);` +
     `  draftPreviewStatus.textContent='已将 Router.longContext 设置为 '+modelId+'，可重新预览验证';` +
     `}` +
     `function applyCapabilityWarningSuggestion(path,code){` +
@@ -1431,6 +1475,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderRouterSlotExplanation(withDraftCompiledData(payload));` +
     `  renderContextWindowGuide(withDraftCompiledData(payload));` +
     `  renderDraftPreviewMeta();` +
+    `  renderCurrentConfigView(payload);` +
     `  draftPreviewStatus.textContent='已应用 warning 修正：'+code+'，可重新预览验证';` +
     `}` +
     `function renderCompiledDiff(diff){` +
@@ -1682,6 +1727,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderRouterSlotExplanation(withDraftCompiledData(currentDraftConfig));` +
     `  renderContextWindowGuide(withDraftCompiledData(currentDraftConfig));` +
     `  renderDraftPreviewMeta();` +
+    `  renderCurrentConfigView(currentDraftConfig);` +
     `  draftPreviewStatus.textContent='已载入当前配置，可通过 Models 表单或 JSON 草稿编辑';` +
     `}` +
     `async function previewConfigDraft(){` +
@@ -1717,6 +1763,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  renderDraftValidation([], data.warnings || [], data.issueReport);` +
     `  renderCompiledModels(data);` +
     `  renderDraftPreviewMeta();` +
+    `  renderCurrentConfigView(payload);` +
     `  draftPreviewStatus.textContent='预览完成：已按草稿配置刷新 compiled models';` +
     `}` +
     `async function loadServiceStatus(){` +
@@ -1800,6 +1847,7 @@ export function renderWorkbenchHtml(rawInitialConfig: any, configuredThresholds:
     `  await loadCompiledModels();` +
     `  renderDraftValidation(data.errors || [], data.warnings || [], data.issueReport);` +
     `  renderCapabilityWarnings(data.capabilityWarnings);` +
+    `  renderCurrentConfigView(currentDraftConfig);` +
     `  draftPreviewStatus.textContent='已保存配置'+((data.warnings || []).length ? ('（含 '+data.warnings.length+' 条 warning）') : '');` +
     `}` +
     `function addDraftModel(){` +

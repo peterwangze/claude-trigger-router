@@ -226,14 +226,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.20.4.md](docs/release-notes-v1.20.4.md)
+- 发布说明：[docs/release-notes-v1.20.5.md](docs/release-notes-v1.20.5.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.20.4 发布定位
+## v1.20.5 发布定位
 
-`v1.20.4` 是 Web UI 概念图一致性与国内厂商模板更新版。它把 `/ui` 第一层进一步收敛到本地状态、快速模型配置和常用厂商模板，把远程接入、维护观测和复杂路由放进高级特性。
+`v1.20.5` 是 Web UI 配置可见性与路由路径修正版。它在 `/ui` 第一层实时展示当前配置、路由路径和模板拟写入结果，并修复快速配置清空高级配置的问题。
 
-这一版继续保留 `test:resume-stability`、`test:stream-stability` 与 `test:closed-review` 作为发布护栏，并重点使用 `test:ui` 和 `test:ui:browser` 看护概念图一致性、本地工作台、快速配置、国内厂商模板分组、桌面/移动响应式和无横向溢出。完整发布边界见 [docs/release-notes-v1.20.4.md](docs/release-notes-v1.20.4.md)。
+这一版继续保留 `test:resume-stability`、`test:stream-stability` 与 `test:closed-review` 作为发布护栏，并重点使用 `test:ui` 和 `test:ui:browser` 看护当前配置快照、动态路由示意图、模板合并写入、桌面/移动响应式和无横向溢出。完整发布边界见 [docs/release-notes-v1.20.5.md](docs/release-notes-v1.20.5.md)。
 
 ## License
 

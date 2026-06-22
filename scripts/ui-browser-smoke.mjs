@@ -156,6 +156,8 @@ function resolveBrowserExecutable() {
 function smokeExpression() {
   return `(() => {
     const beforeOverflow = document.documentElement.scrollWidth <= window.innerWidth + 2;
+    const deepseekTemplate = document.querySelector('#providerTemplateCards [data-provider-template="deepseek"]');
+    deepseekTemplate?.click();
     const maintainerButton = document.querySelector('#maintainerRoleCard button[data-surface-jump="maintainer"]');
     maintainerButton?.click();
     const maintainerSurface = document.querySelector('#maintainerSurface');
@@ -167,6 +169,8 @@ function smokeExpression() {
       bodyText: document.body?.innerText?.slice(0, 240) || '',
       roleEntry: Boolean(document.querySelector('#localUserRoleCard') && document.querySelector('#remoteClientRoleCard') && document.querySelector('#maintainerRoleCard') && document.querySelector('#routingDesignerRoleCard')),
       quickConfig: Boolean(document.querySelector('#quickProviderTemplate') && document.querySelector('#applyQuickConfigBtn') && document.querySelector('#providerTemplateCards [data-provider-template="openrouter"]')),
+      currentConfigPanel: Boolean(document.querySelector('#currentConfigOverview') && document.querySelector('#currentConfigSnapshot') && document.querySelector('#routePathDiagram')),
+      pendingRouteText: document.querySelector('#routePathDiagram')?.textContent || '',
       designPanel: Boolean(document.querySelector('#uiDesignAssistantPanel')),
       decisionRail: Boolean(document.querySelector('#maintainerDecisionRail .decision-signal')),
       traceEvidence: Boolean(document.querySelector('#traceEvidenceDetail')),
@@ -198,6 +202,8 @@ function assertSmokeResult(label, result) {
   if (!result.title.includes('本地状态')) failures.push('missing local status title');
   if (!result.roleEntry) failures.push('missing role entry cards');
   if (!result.quickConfig) failures.push('missing quick config controls');
+  if (!result.currentConfigPanel) failures.push('missing current config / route path panel');
+  if (!result.pendingRouteText.includes('deepseek-v4-flash')) failures.push('provider template click did not refresh pending route path');
   if (!result.designPanel) failures.push('missing UI design assistant panel');
   if (!result.decisionRail) failures.push('missing maintainer decision rail');
   if (!result.traceEvidence) failures.push('missing trace evidence detail anchor');

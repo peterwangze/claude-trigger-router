@@ -3199,6 +3199,11 @@ describe('createServer /api/config', () => {
     expect(html).toContain('模型厂商');
     expect(html).toContain('聚合平台');
     expect(html).toContain('id="quickProviderTemplate"');
+    expect(html).toContain('id="currentConfigOverview"');
+    expect(html).toContain('id="currentConfigSnapshot"');
+    expect(html).toContain('id="routePathDiagram"');
+    expect(html).toContain('renderCurrentConfigView');
+    expect(html).toContain('renderRoutePathDiagram');
     expect(html).toContain('id="advancedConfigDetails"');
     expect(html).toContain('serviceReadyStatus');
     expect(html).toContain('servicePortStatus');
