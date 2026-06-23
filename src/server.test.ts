@@ -3194,7 +3194,8 @@ describe('createServer /api/config', () => {
     expect(html).toContain('本地状态');
     expect(html).toContain('角色任务入口');
     expect(html).toContain('uiDesignAssistantPanel');
-    expect(html).toContain('本地模型');
+    expect(html).toContain('模型接入');
+    expect(html).toContain('智能路由');
     expect(html).toContain('常用厂商');
     expect(html).toContain('模型厂商');
     expect(html).toContain('聚合平台');

@@ -7,7 +7,7 @@
 - `Release Check`：在 PR、`master` push 和手动触发时执行发布前检查
 - `Publish Package`：在版本 tag、GitHub Release 或手动触发时执行正式发布
 
-本次 `v1.20.5` patch release 的优先级是 Web UI 配置可见性、动态路由路径和快速配置合并写入修复。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 fresh setup、远程转发、远端 SSE 建立后不被 600 秒总时长定时器 abort、stream lifecycle 诊断、trace/detail 可见 abort reason、agent/tool follow-up stream 不因背压或客户端取消静默截断、rewriteStream 下游 cancel 传播、第二轮对话和错误后继续请求不继承旧 abort signal、resume 长历史首包前 preflight 诊断、SmartRouter/semantic/alignment 预算、token count 紧凑签名、preflight loopback 短超时、配置保存、鉴权、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回不回退、管理类 probe timeout 诊断、`/ui` 本地状态优先、概念图一致性、快速配置、当前配置快照、动态路由示意图、模板合并写入、模型厂商/聚合平台模板分组、高级特性分层、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail 可达、closed 事项复审口径和真实浏览器布局不横向溢出。
+本次 `v1.20.6` patch release 的优先级是 Web UI 首页工作流、SmartRouter 初始化、规则/候选管理和阶段化路由示意图。发布检查需要优先保护既有 `setup / start / status / code / doctor / ui` 入口主路径，以及 fresh setup、远程转发、远端 SSE 建立后不被 600 秒总时长定时器 abort、stream lifecycle 诊断、trace/detail 可见 abort reason、agent/tool follow-up stream 不因背压或客户端取消静默截断、rewriteStream 下游 cancel 传播、第二轮对话和错误后继续请求不继承旧 abort signal、resume 长历史首包前 preflight 诊断、SmartRouter/semantic/alignment 预算、token count 紧凑签名、preflight loopback 短超时、配置保存、鉴权、route preview 可读解释、`/v1/messages` 流式即时透传、上游中途断流的可读 SSE error、远程中转客户端断开取消上游、结构化 API error 返回不回退、管理类 probe timeout 诊断、`/ui` 本地状态优先、概念图一致性、快速配置、当前配置快照、SmartRouter 首页操作、动态路由示意图、模板合并写入、模型厂商/聚合平台模板分组、高级特性分层、remote discovery、remote availability、远端 registration 摘要、server/client 角色口径、trace evidence detail 可达、closed 事项复审口径和真实浏览器布局不横向溢出。
 
 ## 一次性准备
 
@@ -26,7 +26,7 @@
 
 1. 更新版本号
    - `vX.Y.0` 这类 minor release 还需要同步更新版本依赖用例、README 发布定位和对应 release notes。
-   - 本次 `v1.20.5` 的发布边界以 `docs/release-notes-v1.20.5.md` 为准：主打 Web UI 当前配置快照、动态路由示意图、模板合并写入、按钮行为修复和真实浏览器桌面/移动无横向溢出看护，同时保留 resume stability / stream stability / closed review 看护。
+   - 本次 `v1.20.6` 的发布边界以 `docs/release-notes-v1.20.6.md` 为准：主打 Web UI 首页工作流、SmartRouter 初始化、规则/候选新增删除、阶段化路由示意图和真实浏览器桌面/移动无横向溢出看护，同时保留 resume stability / stream stability / closed review 看护。
 2. 本地先执行发布包验证：
 
 ```bash

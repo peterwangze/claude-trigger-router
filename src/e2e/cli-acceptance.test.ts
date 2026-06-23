@@ -955,7 +955,8 @@ describe('isolated packaged CLI acceptance', () => {
       expect(uiPage.contentType).toContain('text/html');
       expect(uiPage.text).toContain('本地状态');
       expect(uiPage.text).toContain('角色任务入口');
-      expect(uiPage.text).toContain('本地模型');
+      expect(uiPage.text).toContain('模型接入');
+      expect(uiPage.text).toContain('智能路由');
       expect(uiPage.text).toContain('模型厂商');
       expect(uiPage.text).toContain('聚合平台');
       expect(uiPage.text).toContain('id="quickProviderTemplate"');

@@ -226,14 +226,14 @@ ANTHROPIC_AUTH_TOKEN=<managed-key>
 - 配置指南：[docs/configuration-guide.md](docs/configuration-guide.md)
 - Models 迁移：[docs/models-migration-guide.md](docs/models-migration-guide.md)
 - CLI 测试矩阵：[docs/cli-test-matrix.md](docs/cli-test-matrix.md)
-- 发布说明：[docs/release-notes-v1.20.5.md](docs/release-notes-v1.20.5.md)
+- 发布说明：[docs/release-notes-v1.20.6.md](docs/release-notes-v1.20.6.md)
 - 发布验证：[docs/releasing.md](docs/releasing.md)
 
-## v1.20.5 发布定位
+## v1.20.6 发布定位
 
-`v1.20.5` 是 Web UI 配置可见性与路由路径修正版。它在 `/ui` 第一层实时展示当前配置、路由路径和模板拟写入结果，并修复快速配置清空高级配置的问题。
+`v1.20.6` 是 Web UI 智能路由工作流优化版。它把 `/ui` 首页按“基础配置 -> 智能路由 -> 规则管理 -> 预览保存”的用户心智重构，并在首页直接承接 SmartRouter 初始化、规则/候选新增删除和路由管线可视化。
 
-这一版继续保留 `test:resume-stability`、`test:stream-stability` 与 `test:closed-review` 作为发布护栏，并重点使用 `test:ui` 和 `test:ui:browser` 看护当前配置快照、动态路由示意图、模板合并写入、桌面/移动响应式和无横向溢出。完整发布边界见 [docs/release-notes-v1.20.5.md](docs/release-notes-v1.20.5.md)。
+这一版继续保留 `test:resume-stability`、`test:stream-stability` 与 `test:closed-review` 作为发布护栏，并重点使用 `test:ui` 和 `test:ui:browser` 看护首页 SmartRouter 操作、动态路由示意图、桌面/移动响应式和无横向溢出。完整发布边界见 [docs/release-notes-v1.20.6.md](docs/release-notes-v1.20.6.md)。
 
 ## License
 
